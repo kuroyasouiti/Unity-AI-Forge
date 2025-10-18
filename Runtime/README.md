@@ -15,13 +15,13 @@ Copy-Item .env.example .env
 ## Run
 
 ```powershell
-uvicorn mcp_server.main:app --host %MCP_SERVER_HOST% --port %MCP_SERVER_PORT%
+uv run unity-mcp-server
 ```
 
-Alternatively start through the console script:
+Alternatively start the Starlette application directly with uvicorn:
 
 ```powershell
-unity-mcp-server
+uvicorn mcp_server.main:app --host %MCP_SERVER_HOST% --port %MCP_SERVER_PORT%
 ```
 
 ## Environment Variables

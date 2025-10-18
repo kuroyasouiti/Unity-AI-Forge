@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import contextlib
+import sys
+from json import JSONDecodeError
 from typing import Any
 
 import uvicorn
@@ -56,7 +57,65 @@ async def health_endpoint(_: Request) -> JSONResponse:
             "server": SERVER_NAME,
             "version": SERVER_VERSION,
         }
+)
+
+
+async def bridge_status_endpoint(_: Request) -> JSONResponse:
+    return JSONResponse(
+        {
+            "connected": bridge_manager.is_connected(),
+            "sessionId": bridge_manager.get_session_id(),
+            "lastHeartbeatAt": bridge_manager.get_last_heartbeat(),
+            "context": bridge_manager.get_context(),
+        }
     )
+
+
+async def bridge_command_endpoint(request: Request) -> JSONResponse:
+    if not bridge_manager.is_connected():
+        return JSONResponse(
+            {"error": "Unity bridge is not connected"}, status_code=503
+        )
+
+    try:
+        body = await request.json()
+    except JSONDecodeError:
+        return JSONResponse({"error": "Invalid JSON payload"}, status_code=400)
+
+    tool_name = body.get("toolName")
+    if not tool_name:
+        return JSONResponse(
+            {"error": "Field 'toolName' is required"}, status_code=400
+        )
+
+    payload = body.get("payload")
+    timeout_ms = body.get("timeoutMs")
+    resolved_timeout = (
+        timeout_ms if isinstance(timeout_ms, int) and timeout_ms > 0 else 30_000
+    )
+
+    try:
+        result = await bridge_manager.send_command(
+            tool_name,
+            payload if payload is not None else {},
+            resolved_timeout,
+        )
+    except TimeoutError:
+        return JSONResponse(
+            {
+                "error": "Bridge command timed out",
+                "toolName": tool_name,
+                "timeoutMs": resolved_timeout,
+            },
+            status_code=504,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Bridge command failed: %s", exc)
+        return JSONResponse(
+            {"error": f"Bridge command failed: {exc}"}, status_code=500
+        )
+
+    return JSONResponse({"ok": True, "result": result})
 
 
 async def default_endpoint(_: Request) -> PlainTextResponse:
@@ -111,6 +170,8 @@ async def shutdown() -> None:
 
 routes = [
     Route("/healthz", health_endpoint, methods=["GET"]),
+    Route("/bridge/status", bridge_status_endpoint, methods=["GET"]),
+    Route("/bridge/command", bridge_command_endpoint, methods=["POST"]),
     Route("/{path:path}", default_endpoint, methods=["GET", "POST", "PUT", "PATCH", "DELETE"]),
     WebSocketRoute("/mcp", mcp_ws_endpoint),
 ]
@@ -137,15 +198,50 @@ def main() -> None:
         loop="asyncio",
         lifespan="on",
     )
-    server = uvicorn.Server(config)
+    if _run_with_uv(config):
+        return
+
+    _run_with_asyncio(config)
+
+
+def _run_with_uv(config: uvicorn.Config) -> bool:
+    try:
+        import uv  # type: ignore[import-not-found]
+    except ImportError:
+        return False
+
+    run = getattr(uv, "run", None)
+    if not callable(run):
+        logger.warning("python 'uv' module has no callable 'run'; falling back to asyncio")
+        return False
 
     try:
-        asyncio.run(server.serve())
+        run(_serve(config))  # type: ignore[arg-type]
+    except TypeError:
+        logger.warning("python 'uv.run' signature incompatible; falling back to asyncio")
+        return False
+    except KeyboardInterrupt:
+        logger.info("Received interrupt, shutting down")
+    except Exception:
+        logger.exception("MCP server failed while running under uv")
+        sys.exit(1)
+
+    return True
+
+
+def _run_with_asyncio(config: uvicorn.Config) -> None:
+    try:
+        asyncio.run(_serve(config))
     except KeyboardInterrupt:
         logger.info("Received interrupt, shutting down")
     except Exception:
         logger.exception("Uvicorn server failed")
         sys.exit(1)
+
+
+async def _serve(config: uvicorn.Config) -> None:
+    server = uvicorn.Server(config)
+    await server.serve()
 
 
 __all__ = ["app", "main"]
