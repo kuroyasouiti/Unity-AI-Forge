@@ -4,6 +4,8 @@ import asyncio
 from contextlib import suppress
 
 import websockets
+from websockets.asyncio.client import ClientConnection
+from websockets.protocol import State as ConnectionState
 
 from ..config.env import env
 from ..logger import logger
@@ -68,7 +70,7 @@ class BridgeConnector:
             logger.warning("Unity bridge connection error: %s", exc)
             raise
 
-    async def _monitor_connection(self, socket: websockets.WebSocketClientProtocol) -> None:
+    async def _monitor_connection(self, socket: ClientConnection) -> None:
         ping_interval = max(5.0, env.bridge_reconnect_ms / 1000)
 
         async def ping_loop() -> None:
@@ -92,7 +94,7 @@ class BridgeConnector:
         for task in pending:
             task.cancel()
 
-        if stop_task in done and not socket.closed:
+        if stop_task in done and _is_socket_open(socket):
             with suppress(Exception):
                 await socket.close(code=1000, reason="shutdown")
 
@@ -109,8 +111,16 @@ class BridgeConnector:
         if stop_task in done:
             logger.info("Unity bridge connector stopping on request")
 
-        if wait_task in done and not self._intentional_close and not self._stop_event.is_set():
+        if (
+            wait_task in done
+            and not self._intentional_close
+            and not self._stop_event.is_set()
+        ):
             logger.warning("Unity bridge connection closed unexpectedly")
 
 
 bridge_connector = BridgeConnector()
+
+
+def _is_socket_open(socket: ClientConnection) -> bool:
+    return socket.state is not ConnectionState.CLOSED

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import sys
+from pathlib import Path
 from json import JSONDecodeError
 from typing import Any
 
@@ -15,13 +16,40 @@ from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from .bridge.bridge_connector import bridge_connector
-from .bridge.bridge_manager import bridge_manager
-from .config.env import env
-from .logger import logger
-from .server.create_mcp_server import create_mcp_server
-from .services.editor_log_watcher import editor_log_watcher
-from .version import SERVER_NAME, SERVER_VERSION
+if __package__ in (None, ""):
+    _package_root = Path(__file__).resolve().parent
+    _project_root = _package_root.parent
+    if str(_project_root) not in sys.path:
+        sys.path.insert(0, str(_project_root))
+
+_package_root = Path(__file__).resolve().parent
+_project_root = _package_root.parent
+
+if __package__ in (None, ""):
+    if str(_package_root) not in sys.path:
+        sys.path.insert(0, str(_package_root))
+    if str(_project_root) not in sys.path:
+        sys.path.insert(0, str(_project_root))
+
+try:
+    from MCPServer.bridge.bridge_connector import bridge_connector
+    from MCPServer.bridge.bridge_manager import bridge_manager
+    from MCPServer.config.env import env
+    from MCPServer.logger import logger
+    from MCPServer.server.create_mcp_server import create_mcp_server
+    from MCPServer.services.editor_log_watcher import editor_log_watcher
+    from MCPServer.version import SERVER_NAME, SERVER_VERSION
+except ModuleNotFoundError as import_exc:
+    if __package__ not in (None, "") or (import_exc.name and not import_exc.name.startswith("MCPServer")):
+        raise
+
+    from bridge.bridge_connector import bridge_connector  # type: ignore[no-redef]
+    from bridge.bridge_manager import bridge_manager  # type: ignore[no-redef]
+    from config.env import env  # type: ignore[no-redef]
+    from logger import logger  # type: ignore[no-redef]
+    from server.create_mcp_server import create_mcp_server  # type: ignore[no-redef]
+    from services.editor_log_watcher import editor_log_watcher  # type: ignore[no-redef]
+    from version import SERVER_NAME, SERVER_VERSION  # type: ignore[no-redef]
 
 mcp_server = create_mcp_server()
 
@@ -245,3 +273,7 @@ async def _serve(config: uvicorn.Config) -> None:
 
 
 __all__ = ["app", "main"]
+
+
+if __name__ == "__main__":
+    main()

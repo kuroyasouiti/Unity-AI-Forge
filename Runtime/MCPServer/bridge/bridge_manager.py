@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict
 from uuid import uuid4
 
-from websockets import WebSocketClientProtocol
+from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
+from websockets.protocol import State as ConnectionState
 
 from ..config.env import env
 from ..logger import logger
@@ -32,7 +33,7 @@ class PendingCommand:
 
 class BridgeManager:
     def __init__(self) -> None:
-        self._socket: WebSocketClientProtocol | None = None
+        self._socket: ClientConnection | None = None
         self._session_id: str | None = None
         self._last_heartbeat_at: int | None = None
         self._context: UnityContextPayload | None = None
@@ -45,7 +46,7 @@ class BridgeManager:
         self._receive_task: asyncio.Task[None] | None = None
         self._send_lock = asyncio.Lock()
 
-    async def attach(self, socket: WebSocketClientProtocol) -> None:
+    async def attach(self, socket: ClientConnection) -> None:
         await self._teardown_socket()
         self._socket = socket
         self._last_heartbeat_at = int(time.time() * 1000)
@@ -57,8 +58,7 @@ class BridgeManager:
         self._listeners[event].append(callback)
 
     def is_connected(self) -> bool:
-        socket = self._socket
-        return bool(socket and not socket.closed)
+        return _is_socket_open(self._socket)
 
     def get_session_id(self) -> str | None:
         return self._session_id
@@ -109,7 +109,7 @@ class BridgeManager:
 
     async def send_ping(self) -> None:
         socket = self._socket
-        if not socket or socket.closed:
+        if not _is_socket_open(socket):
             return
 
         message: ServerMessage = {
@@ -118,7 +118,7 @@ class BridgeManager:
         }
         await self._send_json(socket, message)
 
-    async def _send_json(self, socket: WebSocketClientProtocol, message: ServerMessage) -> None:
+    async def _send_json(self, socket: ClientConnection, message: ServerMessage) -> None:
         async with self._send_lock:
             try:
                 await socket.send(json.dumps(message))
@@ -166,7 +166,7 @@ class BridgeManager:
         socket = self._socket
         if env.bridge_token and token != env.bridge_token:
             logger.error("Bridge authentication failed: invalid token")
-            if socket and not socket.closed:
+            if socket and _is_socket_open(socket):
                 await socket.close(code=4401, reason="Invalid bridge token")
             return
 
@@ -219,7 +219,7 @@ class BridgeManager:
             except Exception:  # pragma: no cover - defensive
                 logger.exception("Bridge event handler failed for %s", event)
 
-    async def _handle_disconnect(self, socket: WebSocketClientProtocol) -> None:
+    async def _handle_disconnect(self, socket: ClientConnection) -> None:
         if self._socket is not socket:
             return
 
@@ -237,9 +237,9 @@ class BridgeManager:
                 pending.future.set_exception(error)
             self._pending_commands.pop(command_id, None)
 
-    def _ensure_socket(self) -> WebSocketClientProtocol:
+    def _ensure_socket(self) -> ClientConnection:
         socket = self._socket
-        if not socket or socket.closed:
+        if not _is_socket_open(socket):
             raise RuntimeError("Unity bridge is not connected")
         return socket
 
@@ -256,7 +256,7 @@ class BridgeManager:
                 await self._receive_task
             self._receive_task = None
 
-        if socket and not socket.closed:
+        if _is_socket_open(socket):
             await socket.close()
 
         self._flush_pending_commands(RuntimeError("Bridge reattached"))
@@ -264,3 +264,7 @@ class BridgeManager:
 
 
 bridge_manager = BridgeManager()
+
+
+def _is_socket_open(socket: ClientConnection | None) -> bool:
+    return bool(socket and socket.state is not ConnectionState.CLOSED)

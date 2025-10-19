@@ -14,6 +14,9 @@ namespace MCP.Editor
         [SerializeField] private bool autoConnectOnLoad = true;
         [SerializeField] private float contextPushIntervalSeconds = 5f;
         [SerializeField] private string serverInstallPath = string.Empty;
+        private const string ServerInstallFolderName = "MCPServer";
+        private const string LegacyServerFolderName = "mcp-server";
+        private static readonly string LegacyNestedSuffix = Path.Combine(LegacyServerFolderName, ServerInstallFolderName);
 
         public static McpBridgeSettings Instance
         {
@@ -64,7 +67,11 @@ namespace MCP.Editor
 
         public string ServerInstallPath
         {
-            get => string.IsNullOrEmpty(serverInstallPath) ? DefaultServerInstallPath : serverInstallPath;
+            get
+            {
+                var path = string.IsNullOrEmpty(serverInstallPath) ? DefaultServerInstallPath : serverInstallPath;
+                return NormalizeInstallPath(path);
+            }
             set
             {
                 var normalized = NormalizeInstallPath(value);
@@ -84,13 +91,13 @@ namespace MCP.Editor
             {
 #if UNITY_EDITOR_WIN
                 var basePath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                return Path.Combine(basePath, "UnityMCP", "mcp-server");
+                return Path.Combine(basePath, "UnityMCP", ServerInstallFolderName);
 #elif UNITY_EDITOR_OSX
                 var home = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-                return Path.Combine(home, "Library", "Application Support", "UnityMCP", "mcp-server");
+                return Path.Combine(home, "Library", "Application Support", "UnityMCP", ServerInstallFolderName);
 #else
                 var home = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-                return Path.Combine(home, ".unitymcp", "mcp-server");
+                return Path.Combine(home, ".unitymcp", ServerInstallFolderName);
 #endif
             }
         }
@@ -172,14 +179,63 @@ namespace MCP.Editor
                 return string.Empty;
             }
 
+            var trimmed = value.Trim();
+
             try
             {
-                return Path.GetFullPath(value.Trim());
+                trimmed = Path.GetFullPath(trimmed);
             }
             catch (Exception)
             {
-                return value.Trim();
+                // keep trimmed fallback
             }
+
+            return EnsureServerFolder(trimmed);
+        }
+
+        private static string EnsureServerFolder(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return string.Empty;
+            }
+
+            var normalized = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return ServerInstallFolderName;
+            }
+
+            if (normalized.EndsWith(LegacyNestedSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                var legacyParent = Path.GetDirectoryName(normalized);
+                var grandParent = string.IsNullOrEmpty(legacyParent) ? null : Path.GetDirectoryName(legacyParent);
+                if (string.IsNullOrEmpty(grandParent))
+                {
+                    return ServerInstallFolderName;
+                }
+
+                return Path.Combine(grandParent, ServerInstallFolderName);
+            }
+
+            var folderName = Path.GetFileName(normalized);
+            if (string.Equals(folderName, ServerInstallFolderName, StringComparison.OrdinalIgnoreCase))
+            {
+                return normalized;
+            }
+
+            if (string.Equals(folderName, LegacyServerFolderName, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Path.GetDirectoryName(normalized);
+                if (string.IsNullOrEmpty(parent))
+                {
+                    return ServerInstallFolderName;
+                }
+
+                return Path.Combine(parent, ServerInstallFolderName);
+            }
+
+            return Path.Combine(normalized, ServerInstallFolderName);
         }
     }
 }

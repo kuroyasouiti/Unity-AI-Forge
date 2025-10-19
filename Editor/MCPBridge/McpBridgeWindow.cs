@@ -233,9 +233,14 @@ namespace MCP.Editor
             }
 
             GUI.enabled = !_commandRunning;
-            if (GUILayout.Button("Setup Server (Template + pip install)"))
+            if (GUILayout.Button("Setup Server Template"))
             {
                 SetupServer(settings);
+            }
+
+            if (GUILayout.Button("Uninstall Server"))
+            {
+                UninstallServer(settings);
             }
 
             if (GUILayout.Button("Verify Server (python -m compileall)"))
@@ -257,18 +262,36 @@ namespace MCP.Editor
                 return;
             }
 
-            var serverCommand = "\"python -m mcp_server.main\"";
-            var tokenOption = string.IsNullOrEmpty(settings.BridgeToken) ? string.Empty : $" --token \"{settings.BridgeToken}\"";
-            var cwdOption = string.IsNullOrEmpty(settings.ServerInstallPath)
+            var hasUv = ProcessHelper.TryGetExecutablePath("uv", out var uvPath);
+            if (!hasUv)
+            {
+                EditorGUILayout.HelpBox("uv executable not found on PATH. Commands will call \"uv\" and may fail if it is not installed.", MessageType.Warning);
+            }
+            else
+            {
+                EditorGUILayout.SelectableLabel($"uv: {uvPath}", EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+            }
+
+            var uvInvocation = hasUv ? uvPath : "uv";
+            var quotedUvInvocation = QuoteForCli(uvInvocation);
+
+            var installDirectory = settings.ServerInstallPath;
+            var normalizedInstallDirectory = string.IsNullOrWhiteSpace(installDirectory)
                 ? string.Empty
-                : $" --cwd \"{settings.ServerInstallPath.Replace("\\", "/")}\"";
+                : installDirectory;
+
+            var directoryOption = string.IsNullOrEmpty(normalizedInstallDirectory)
+                ? string.Empty
+                : $" --directory \"{normalizedInstallDirectory}\"";
+
+            var serverCommand = $"{quotedUvInvocation} run {directoryOption} main.py";
 
             var entries = new[]
             {
-                new CliRegistration("Claude Code", "claude", $"mcp add --transport stdio unity-mcp {serverCommand}{tokenOption}{cwdOption}", "mcp remove unity-mcp"),
-                new CliRegistration("Codex CLI", "codex", $"mcp add unity-mcp python {serverCommand}{tokenOption}{cwdOption}", "mcp remove unity-mcp"),
-                new CliRegistration("Gemini CLI", "gemini", $"mcp add unity-mcp python {serverCommand}{tokenOption}{cwdOption}", "mcp remove unity-mcp"),
-                new CliRegistration("Cursor CLI", "cursor", $"mcp add unity-mcp python {serverCommand}{tokenOption}{cwdOption}", "mcp remove unity-mcp"),
+                new CliRegistration("Claude Code", "claude", $"mcp add unity-mcp -- {serverCommand}", "mcp remove unity-mcp"),
+                new CliRegistration("Codex CLI", "codex", $"mcp add unity-mcp {serverCommand}", "mcp remove unity-mcp"),
+                new CliRegistration("Gemini CLI", "gemini", $"mcp add unity-mcp {serverCommand}", "mcp remove unity-mcp"),
+                new CliRegistration("Cursor CLI", "cursor", $"mcp add unity-mcp {serverCommand}", "mcp remove unity-mcp"),
             };
 
             foreach (var entry in entries)
@@ -353,9 +376,55 @@ namespace MCP.Editor
 
                 Debug.Log(message);
             }
+            else
+            {
+                AppendLog("Server template detected. Skipping template installation.");
+            }
 
-            AppendLog("Running pip install...");
-            RunServerCommand("python -m pip install -e .", needsTemplate ? "Install template + dependencies" : "Install dependencies", path);
+            AppendLog("Server setup complete. Manage Python dependencies manually if required.");
+        }
+
+        private void UninstallServer(McpBridgeSettings settings)
+        {
+            if (_commandRunning)
+            {
+                AppendLog("Another command is currently running. Please wait...");
+                return;
+            }
+
+            var path = settings.ServerInstallPath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                AppendLog("Install path is empty. Nothing to uninstall.");
+                return;
+            }
+
+            if (!Directory.Exists(path))
+            {
+                AppendLog($"Install directory not found: {path}");
+                return;
+            }
+
+            var looksLikeServer = ServerInstallerUtility.HasPyProject(path);
+            var title = "Uninstall MCP Server";
+            var prompt = looksLikeServer
+                ? $"This will delete the MCP server installation at:\n{path}\nContinue?"
+                : $"The install directory does not contain a pyproject.toml.\nDelete the directory anyway?\n{path}";
+            if (!EditorUtility.DisplayDialog(title, prompt, "Uninstall", "Cancel"))
+            {
+                return;
+            }
+
+            var success = ServerInstallerUtility.TryUninstall(path, out var uninstallMessage, force: !looksLikeServer);
+            AppendLog(uninstallMessage);
+            if (success)
+            {
+                Debug.Log(uninstallMessage);
+            }
+            else
+            {
+                Debug.LogWarning(uninstallMessage);
+            }
         }
 
         private void RunServerCommand(string command, string description, string workingDirectory)
@@ -477,6 +546,16 @@ namespace MCP.Editor
             Repaint();
 
             continuation?.Invoke(result);
+        }
+
+        private static string QuoteForCli(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "\"\"";
+            }
+
+            return $"\"{value.Replace("\"", "\\\"")}\"";
         }
 
         private void RunRegisterCommand(CliRegistration entry)
