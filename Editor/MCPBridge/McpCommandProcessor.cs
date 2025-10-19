@@ -196,6 +196,7 @@ namespace MCP.Editor
                 "delete" => DeleteGameObject(payload),
                 "move" => MoveGameObject(payload),
                 "rename" => RenameGameObject(payload),
+                "duplicate" => DuplicateGameObject(payload),
                 _ => throw new InvalidOperationException($"Unknown hierarchyCrud operation: {operation}"),
             };
         }
@@ -283,6 +284,56 @@ namespace MCP.Editor
             {
                 ["path"] = GetHierarchyPath(target),
                 ["name"] = target.name,
+            };
+        }
+
+        private static object DuplicateGameObject(Dictionary<string, object> payload)
+        {
+            var sourcePath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var source = ResolveGameObject(sourcePath);
+
+            var parentPath = GetString(payload, "parentPath");
+            GameObject parent = null;
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                parent = ResolveGameObject(parentPath);
+            }
+
+            // Instantiate copy and keep world transform by default.
+            var duplicate = UnityEngine.Object.Instantiate(source);
+
+            if (parent != null)
+            {
+                duplicate.transform.SetParent(parent.transform, worldPositionStays: true);
+            }
+            else
+            {
+                duplicate.transform.SetParent(source.transform.parent, worldPositionStays: true);
+            }
+
+            var explicitName = GetString(payload, "name");
+            if (!string.IsNullOrEmpty(explicitName))
+            {
+                duplicate.name = explicitName;
+            }
+            else
+            {
+                var parentTransform = duplicate.transform.parent;
+                duplicate.name = GameObjectUtility.GetUniqueNameForSibling(parentTransform, source.name);
+            }
+
+            if (duplicate.transform.parent == source.transform.parent)
+            {
+                var newIndex = source.transform.GetSiblingIndex() + 1;
+                duplicate.transform.SetSiblingIndex(newIndex);
+            }
+
+            Selection.activeGameObject = duplicate;
+
+            return new Dictionary<string, object>
+            {
+                ["path"] = GetHierarchyPath(duplicate),
+                ["id"] = duplicate.GetInstanceID(),
             };
         }
 

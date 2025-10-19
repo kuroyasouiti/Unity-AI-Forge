@@ -49,7 +49,7 @@ When the MCP server connects, the bridge streams:
 ## Supported Tooling
 
 - Scene CRUD (create, load, save, delete, duplicate)
-- Hierarchy CRUD (create/move/delete/rename GameObjects)
+- Hierarchy CRUD (create/move/delete/rename/duplicate GameObjects)
 - Component CRUD (add/remove/update components via reflection)
 - Asset CRUD (text asset create/update/delete/rename/duplicate)
 - UGUI rect adjustment to align RectTransforms with pixel bounds

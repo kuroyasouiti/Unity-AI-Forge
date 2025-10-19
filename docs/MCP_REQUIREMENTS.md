@@ -19,7 +19,7 @@ Unity EditorからLLMへプロジェクト文脈を安全かつ即時に共有�
 - `tools`: 
   - `pingUnityEditor`: Unity Editorとの接続確認。ブリッジは即時ACKでエディタ接続ステータスを返却。
   - `sceneCrud`: シーンの新規作成、ロード、保存、削除。ブリッジが`SceneManager` APIを呼び出し、変更内容を差分として返す。
-  - `hierarchyCrud`: 現行シーン内のGameObject追加、削除、移動、リネーム。結果はヒエラルキー構造をJSONで送信。
+  - `hierarchyCrud`: 現行シーン内のGameObject追加、削除、移動、リネーム、複製。結果はヒエラルキー構造をJSONで送信。
   - `componentCrud`: 指定GameObjectへのコンポーネント追加・削除・プロパティ更新。安全のため変更プレビューと明示承認を必須化。
   - `assetCrud`: `Assets/`配下のスクリプト、プレハブ、マテリアル等の生成、更新、削除。ファイル書換え時はローカルディスクのバックアップコピーを作成。
   - スクリプト雛形生成、シリアライズ設定変更提案、プレイモード用テストコマンド実行 (`Unity.exe -batchmode ...` 呼び出し)。

@@ -70,7 +70,7 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "delete", "move", "rename"],
+                    "enum": ["create", "delete", "move", "rename", "duplicate"],
                     "description": "実行する操作",
                 },
                 "gameObjectPath": {
@@ -84,6 +84,10 @@ def register_tools(server: Server) -> None:
                 "template": {
                     "type": "string",
                     "description": "プレハブパスまたはテンプレートID",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "新規作成または複製時のGameObject名。省略時は自動決定。",
                 },
                 "payload": {
                     "type": "object",
@@ -200,7 +204,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity.hierarchy.crud",
-            description="ゲームオブジェクトの作成・削除・移動・リネームを行います。",
+            description="ゲームオブジェクトの作成・削除・移動・リネーム・複製を行います。",
             inputSchema=hierarchy_crud_schema,
         ),
         types.Tool(
