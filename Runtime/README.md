@@ -48,7 +48,7 @@ uvicorn mcp_server.main:app --host %MCP_SERVER_HOST% --port %MCP_SERVER_PORT%
 
 - `unity.ping`
 - `unity.scene.crud`
-- `unity.hierarchy.crud`
+- `unity_gameobject_crud`
 - `unity.component.crud`
 - `unity.asset.crud`
 - `unity.ugui.rectAdjust`

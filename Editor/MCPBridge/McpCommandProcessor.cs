@@ -21,7 +21,7 @@ namespace MCP.Editor
             {
                 "pingUnityEditor" => HandlePing(),
                 "sceneCrud" => HandleSceneCrud(command.Payload),
-                "hierarchyCrud" => HandleHierarchyCrud(command.Payload),
+                "gameObjectCrud" => HandleGameObjectCrud(command.Payload),
                 "componentCrud" => HandleComponentCrud(command.Payload),
                 "assetCrud" => HandleAssetCrud(command.Payload),
                 "uguiRectAdjust" => HandleUguiRectAdjust(command.Payload),
@@ -187,7 +187,7 @@ namespace MCP.Editor
             };
         }
 
-        private static object HandleHierarchyCrud(Dictionary<string, object> payload)
+        private static object HandleGameObjectCrud(Dictionary<string, object> payload)
         {
             var operation = EnsureValue(GetString(payload, "operation"), "operation");
             return operation switch
@@ -197,7 +197,7 @@ namespace MCP.Editor
                 "move" => MoveGameObject(payload),
                 "rename" => RenameGameObject(payload),
                 "duplicate" => DuplicateGameObject(payload),
-                _ => throw new InvalidOperationException($"Unknown hierarchyCrud operation: {operation}"),
+                _ => throw new InvalidOperationException($"Unknown gameObjectCrud operation: {operation}"),
             };
         }
 

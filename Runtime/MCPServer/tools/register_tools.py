@@ -62,7 +62,7 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
-    hierarchy_crud_schema = _schema_with_required(
+    game_object_crud_schema = _schema_with_required(
         {
             "type": "object",
             "properties": {
@@ -202,9 +202,9 @@ def register_tools(server: Server) -> None:
             inputSchema=scene_crud_schema,
         ),
         types.Tool(
-            name="unity.hierarchy.crud",
+            name="unity_gameobject_crud",
             description="Modify the active scene hierarchy (create, delete, move, rename, duplicate).",
-            inputSchema=hierarchy_crud_schema,
+            inputSchema=game_object_crud_schema,
         ),
         types.Tool(
             name="unity.component.crud",
@@ -255,8 +255,8 @@ def register_tools(server: Server) -> None:
         if name == "unity.scene.crud":
             return await _call_bridge_tool("sceneCrud", args)
 
-        if name == "unity.hierarchy.crud":
-            return await _call_bridge_tool("hierarchyCrud", args)
+        if name == "unity_gameobject_crud":
+            return await _call_bridge_tool("gameObjectCrud", args)
 
         if name == "unity.component.crud":
             return await _call_bridge_tool("componentCrud", args)

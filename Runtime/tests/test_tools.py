@@ -24,7 +24,7 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
             [
                 "unity.ping",
                 "unity.scene.crud",
-                "unity.hierarchy.crud",
+                "unity_gameobject_crud",
                 "unity.component.crud",
                 "unity.asset.crud",
                 "unity.ugui.rectAdjust",
@@ -59,8 +59,8 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
         tool_cases = [
             ("unity.scene.crud", "sceneCrud", {"operation": "create"}),
             (
-                "unity.hierarchy.crud",
-                "hierarchyCrud",
+                "unity_gameobject_crud",
+                "gameObjectCrud",
                 {"operation": "create", "gameObjectPath": "Root"},
             ),
             (
