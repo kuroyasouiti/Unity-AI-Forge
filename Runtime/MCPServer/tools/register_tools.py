@@ -12,7 +12,7 @@ from ..utils.json_utils import as_pretty_json
 def _ensure_bridge_connected() -> None:
     if not bridge_manager.is_connected():
         raise RuntimeError(
-            "Unityブリッジが切断されています。Unity Editorの `Tools/MCP Assistant` ウィンドウで接続状態を確認してください。"
+            "Unity bridge is not connected. In the Unity Editor choose Tools/MCP Assistant to start the bridge."
         )
 
 
@@ -21,9 +21,7 @@ async def _call_bridge_tool(tool_name: str, payload: Dict[str, Any]) -> list[typ
     try:
         response = await bridge_manager.send_command(tool_name, payload)
     except Exception as exc:
-        raise RuntimeError(
-            f'Unityブリッジでツール "{tool_name}" の実行に失敗しました: {exc}'
-        ) from exc
+        raise RuntimeError(f'Unity bridge tool "{tool_name}" failed: {exc}') from exc
 
     text = response if isinstance(response, str) else as_pretty_json(response)
     return [types.TextContent(type="text", text=text)]
@@ -50,11 +48,11 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "load", "save", "delete", "duplicate"],
-                    "description": "実行する操作",
+                    "description": "Operation to perform.",
                 },
                 "scenePath": {
                     "type": "string",
-                    "description": "Assets/ からの相対パス",
+                    "description": "Path under Assets/, e.g. Assets/Scenes/Main.unity.",
                 },
                 "newSceneName": {"type": "string"},
                 "additive": {"type": "boolean"},
@@ -71,23 +69,23 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "delete", "move", "rename", "duplicate"],
-                    "description": "実行する操作",
+                    "description": "Operation to perform.",
                 },
                 "gameObjectPath": {
                     "type": "string",
-                    "description": "シーン内のGameObjectパス (例: Root/Child/Button)",
+                    "description": "Hierarchy path of the GameObject (e.g. Root/Child/Button).",
                 },
                 "parentPath": {
                     "type": "string",
-                    "description": "移動先または新規作成先のGameObjectパス",
+                    "description": "Target parent path for move or create operations.",
                 },
                 "template": {
                     "type": "string",
-                    "description": "プレハブパスまたはテンプレートID",
+                    "description": "Prefab path or template identifier to instantiate.",
                 },
                 "name": {
                     "type": "string",
-                    "description": "新規作成または複製時のGameObject名。省略時は自動決定。",
+                    "description": "Name for the new or renamed GameObject.",
                 },
                 "payload": {
                     "type": "object",
@@ -105,17 +103,17 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["add", "remove", "update"],
-                    "description": "実行する操作",
+                    "description": "Operation to perform.",
                 },
                 "gameObjectPath": {"type": "string"},
                 "componentType": {
                     "type": "string",
-                    "description": "例: UnityEngine.UI.Text, CustomNamespace.PlayerController",
+                    "description": "Fully qualified component type (e.g. UnityEngine.UI.Text).",
                 },
                 "propertyChanges": {
                     "type": "object",
                     "additionalProperties": True,
-                    "description": "更新するプロパティ名と値のペア",
+                    "description": "Property/value pairs to apply to the component.",
                 },
                 "applyDefaults": {"type": "boolean"},
             },
@@ -130,15 +128,16 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "update", "delete", "rename", "duplicate"],
+                    "description": "Operation to perform.",
                 },
                 "assetPath": {
                     "type": "string",
-                    "description": "Assets/ からの相対パス",
+                    "description": "Path under Assets/ for the target asset.",
                 },
                 "destinationPath": {"type": "string"},
                 "contents": {
                     "type": "string",
-                    "description": "テキストアセットを作成/更新する際の内容",
+                    "description": "File contents for create and update operations.",
                 },
                 "overwrite": {"type": "boolean"},
                 "metadata": {
@@ -156,14 +155,14 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "gameObjectPath": {
                     "type": "string",
-                    "description": "対象となるGameObjectのパス",
+                    "description": "Target GameObject path containing the RectTransform.",
                 },
                 "referenceResolution": {
                     "type": "array",
                     "items": {"type": "number"},
                     "minItems": 2,
                     "maxItems": 2,
-                    "description": "CanvasScalerの参照解像度 (幅, 高さ)",
+                    "description": "CanvasScaler reference resolution (width, height).",
                 },
                 "matchMode": {
                     "type": "string",
@@ -180,11 +179,11 @@ def register_tools(server: Server) -> None:
             "guid": {"type": "string"},
             "assetPath": {
                 "type": "string",
-                "description": "Assets/ からのパス。guidとどちらか片方が必要。",
+                "description": "Path under Assets/. Either guid or assetPath is required.",
             },
             "includeMembers": {
                 "type": "boolean",
-                "description": "メンバーごとの詳細を含めるかどうか",
+                "description": "Whether to include member details in the outline.",
             },
         },
         "required": [],
@@ -194,37 +193,37 @@ def register_tools(server: Server) -> None:
     tool_definitions = [
         types.Tool(
             name="unity.ping",
-            description="Unity Editorとの接続状態を確認し、最新のハートビートを報告します。",
+            description="Verify bridge connectivity and return the latest heartbeat information.",
             inputSchema=ping_schema,
         ),
         types.Tool(
             name="unity.scene.crud",
-            description="シーンの作成・読み込み・保存・削除・複製を実行します。",
+            description="Create, load, save, delete, or duplicate Unity scenes.",
             inputSchema=scene_crud_schema,
         ),
         types.Tool(
             name="unity.hierarchy.crud",
-            description="ゲームオブジェクトの作成・削除・移動・リネーム・複製を行います。",
+            description="Modify the active scene hierarchy (create, delete, move, rename, duplicate).",
             inputSchema=hierarchy_crud_schema,
         ),
         types.Tool(
             name="unity.component.crud",
-            description="GameObjectのコンポーネントを追加・削除・更新します。",
+            description="Add, remove, or update components on a GameObject.",
             inputSchema=component_crud_schema,
         ),
         types.Tool(
             name="unity.asset.crud",
-            description="アセットの作成・更新・削除・リネーム・複製を行います。",
+            description="Create, update, rename, duplicate, or delete Assets/ files.",
             inputSchema=asset_crud_schema,
         ),
         types.Tool(
             name="unity.ugui.rectAdjust",
-            description="UGUIのRectTransformを参照解像度に合わせて調整します。",
+            description="Adjust a RectTransform using uGUI layout utilities.",
             inputSchema=ugui_rect_adjust_schema,
         ),
         types.Tool(
             name="unity.script.outline",
-            description="C#スクリプトのクラス/メソッド構造を抽出します。",
+            description="Produce a summary of a C# script, optionally including member signatures.",
             inputSchema=script_outline_schema,
         ),
     ]
@@ -238,7 +237,7 @@ def register_tools(server: Server) -> None:
     @server.call_tool()
     async def call_tool(name: str, arguments: dict | None) -> list[types.Content]:
         if name not in tool_map:
-            raise RuntimeError(f"未知のツールです: {name}")
+            raise RuntimeError(f"Unknown tool requested: {name}")
 
         args = arguments or {}
 
@@ -271,4 +270,4 @@ def register_tools(server: Server) -> None:
         if name == "unity.script.outline":
             return await _call_bridge_tool("scriptOutline", args)
 
-        raise RuntimeError(f"ツール '{name}' の処理が実装されていません。")
+        raise RuntimeError(f"No handler registered for tool '{name}'.")

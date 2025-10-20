@@ -213,31 +213,6 @@ routes = [
 app = Starlette(routes=routes, on_startup=[startup], on_shutdown=[shutdown])
 
 
-def main() -> None:
-    log_level = {
-        "trace": "debug",
-        "debug": "debug",
-        "info": "info",
-        "warn": "warning",
-        "error": "error",
-        "fatal": "critical",
-        "silent": "critical",
-    }.get(env.log_level, "info")
-
-    config = uvicorn.Config(
-        app,
-        host=env.host,
-        port=env.port,
-        log_level=log_level,
-        loop="asyncio",
-        lifespan="on",
-    )
-    if _run_with_uv(config):
-        return
-
-    _run_with_asyncio(config)
-
-
 def _run_with_uv(config: uvicorn.Config) -> bool:
     try:
         import uv  # type: ignore[import-not-found]

@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import mcp.types as types
 from mcp.server import Server
+from mcp.server.lowlevel.helper_types import ReadResourceContents
 
 from ..bridge.bridge_manager import bridge_manager
 from ..config.env import env
@@ -40,7 +41,9 @@ def _is_likely_text_asset(file_path: Path) -> bool:
 def _render_hierarchy(node: dict, depth: int = 0) -> Iterable[str]:
     prefix = "  " * depth
     components = node.get("components") or []
-    component_summary = ", ".join(comp.get("type", "") for comp in components if comp.get("type"))
+    component_summary = ", ".join(
+        comp.get("type", "") for comp in components if comp.get("type")
+    )
     header = f"{prefix}- {node.get('name', '(unknown)')} ({node.get('type', 'Unknown')}"
     if component_summary:
         header += f" | {component_summary}"
@@ -51,6 +54,10 @@ def _render_hierarchy(node: dict, depth: int = 0) -> Iterable[str]:
         yield from _render_hierarchy(child, depth + 1)
 
 
+def _text_content(text: str, mime_type: str = "text/plain") -> ReadResourceContents:
+    return ReadResourceContents(content=text, mime_type=mime_type)
+
+
 def register_resources(server: Server) -> None:
     @server.list_resources()
     async def list_resources() -> list[types.Resource]:
@@ -58,19 +65,19 @@ def register_resources(server: Server) -> None:
             types.Resource(
                 uri="unity://project/structure",
                 name="Unity Project Structure",
-                description="主要フォルダとファイル拡張子の概要",
+                description="Summary of the project folders and key assets.",
                 mimeType="text/markdown",
             ),
             types.Resource(
                 uri="unity://editor/log",
                 name="Unity Editor Log",
-                description="最新のUnity Editorログから抜粋",
+                description="Snapshot of the most recent Unity Editor log output.",
                 mimeType="text/plain",
             ),
             types.Resource(
                 uri="unity://scene/active",
                 name="Active Unity Scene",
-                description="ブリッジが把握しているアクティブシーン構造",
+                description="Details about the currently active scene and hierarchy.",
                 mimeType="text/markdown",
             ),
         ]
@@ -96,12 +103,12 @@ def register_resources(server: Server) -> None:
             types.ResourceTemplate(
                 uriTemplate="unity://asset/{guid}",
                 name="Unity Asset (GUID)",
-                description="Unityブリッジが提供するアセットインデックスからGUIDで参照します。",
+                description="Access a Unity asset by supplying its GUID from the bridge context.",
             )
         ]
 
     @server.read_resource()
-    async def read_resource(uri: types.AnyUrl) -> Iterable[types.ReadResourceContents]:
+    async def read_resource(uri: types.AnyUrl) -> Iterable[ReadResourceContents]:
         parsed = urlparse(str(uri))
         category = parsed.netloc
         path = parsed.path.lstrip("/")
@@ -109,46 +116,27 @@ def register_resources(server: Server) -> None:
         if category == "project" and path == "structure":
             try:
                 summary = await build_project_structure_summary(env.unity_project_root)
-                return [
-                    types.TextResourceContents(
-                        uri="unity://project/structure",
-                        text=summary,
-                        mimeType="text/markdown",
-                    )
-                ]
+                return [_text_content(summary, "text/markdown")]
             except Exception as exc:  # pragma: no cover - defensive
                 logger.error("Failed to build project summary: %s", exc)
-                return [
-                    types.TextResourceContents(
-                        uri="unity://project/structure",
-                        text=f"プロジェクト構造の取得に失敗しました: {exc}",
-                        mimeType="text/plain",
-                    )
-                ]
+                return [_text_content(f"Failed to build project summary: {exc}")]
 
         if category == "editor" and path == "log":
             snapshot = editor_log_watcher.get_snapshot(800)
             body = (
                 "\n".join(snapshot.lines)
                 if snapshot.lines
-                else "ログエントリが見つかりません。Unity Editorのログパスを確認してください。"
+                else "No log events captured yet. Confirm the Unity Editor log path."
             )
-            return [
-                types.TextResourceContents(
-                    uri="unity://editor/log",
-                    text=body,
-                    mimeType="text/plain",
-                )
-            ]
+            return [_text_content(body)]
 
         if category == "scene" and path == "active":
             context = bridge_manager.get_context()
             if not context or not context.get("hierarchy"):
                 return [
-                    types.TextResourceContents(
-                        uri="unity://scene/active",
-                        text="## アクティブシーン\nUnityブリッジからシーン情報を取得できませんでした。",
-                        mimeType="text/markdown",
+                    _text_content(
+                        "## Active Scene\nUnable to retrieve the active scene from the Unity bridge.",
+                        "text/markdown",
                     )
                 ]
 
@@ -157,13 +145,12 @@ def register_resources(server: Server) -> None:
             header = (
                 f"{active_scene.get('name')} ({active_scene.get('path')})"
                 if active_scene
-                else "未保存シーン"
+                else "Unknown Scene"
             )
             return [
-                types.TextResourceContents(
-                    uri="unity://scene/active",
-                    text=f"## アクティブシーン: {header}\n\n{hierarchy_lines}",
-                    mimeType="text/markdown",
+                _text_content(
+                    f"## Active Scene: {header}\n\n{hierarchy_lines}",
+                    "text/markdown",
                 )
             ]
 
@@ -180,64 +167,26 @@ def register_resources(server: Server) -> None:
             )
 
             if not asset:
-                return [
-                    types.TextResourceContents(
-                        uri=str(uri),
-                        text=f"GUID {guid} に対応するアセットがブリッジに登録されていません。",
-                        mimeType="text/plain",
-                    )
-                ]
+                return [_text_content(f"No asset with GUID {guid} is available in the bridge context.")]
 
             project_path = env.unity_project_root / Path(asset.get("path", ""))
             if not path_exists(project_path):
-                return [
-                    types.TextResourceContents(
-                        uri=str(uri),
-                        text=f"アセットファイルが見つかりません: {project_path}",
-                        mimeType="text/plain",
-                    )
-                ]
+                return [_text_content(f"Asset file is missing on disk: {project_path}")]
 
             if not _is_likely_text_asset(project_path):
                 return [
-                    types.TextResourceContents(
-                        uri=str(uri),
-                        text=f"バイナリアセットのためテキスト表示に対応していません ({asset.get('path')})",
-                        mimeType="text/plain",
+                    _text_content(
+                        f"Binary asset types are not supported for text preview ({asset.get('path')})."
                     )
                 ]
 
             try:
                 contents = project_path.read_text(encoding="utf-8")
-                return [
-                    types.TextResourceContents(
-                        uri=str(uri),
-                        text=contents,
-                        mimeType="text/plain",
-                    )
-                ]
+                return [_text_content(contents)]
             except UnicodeDecodeError:
-                return [
-                    types.TextResourceContents(
-                        uri=str(uri),
-                        text="アセットをUTF-8として読み取れませんでした。",
-                        mimeType="text/plain",
-                    )
-                ]
+                return [_text_content("Asset could not be decoded as UTF-8.")]
             except OSError as exc:
                 logger.error("Failed to read asset %s: %s", project_path, exc)
-                return [
-                    types.TextResourceContents(
-                        uri=str(uri),
-                        text=f"アセットの読み込みに失敗しました: {exc}",
-                        mimeType="text/plain",
-                    )
-                ]
+                return [_text_content(f"Reading the asset failed: {exc}")]
 
-        return [
-            types.TextResourceContents(
-                uri=str(uri),
-                text=f"未知のUnityリソースです: {uri}",
-                mimeType="text/plain",
-            )
-        ]
+        return [_text_content(f"Unknown Unity resource URI: {uri}")]
