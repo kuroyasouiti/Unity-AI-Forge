@@ -16,8 +16,8 @@ namespace MCP.Editor
             "__pycache__"
         };
 
-        public static string TemplatePath => Path.GetFullPath(Path.Combine(Application.dataPath, "Runtime", "MCPServer"));
-        private static string PyProjectSourcePath => Path.GetFullPath(Path.Combine(Application.dataPath, "Runtime", "pyproject.toml"));
+        public static string TemplatePath => Path.Combine("..", "..", "Runtime", "MCPServer");
+        private static string PyProjectSourcePath => Path.Combine("..", "..", "Runtime", "pyproject.toml");
 
         public static bool InstallTemplate(string destinationPath, out string message)
         {
