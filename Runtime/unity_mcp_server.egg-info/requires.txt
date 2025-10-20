@@ -1,5 +1,0 @@
-mcp>=1.9.4
-python-dotenv>=1.0.1
-starlette>=0.37.2
-uvicorn[standard]>=0.30.5
-websockets>=13.1

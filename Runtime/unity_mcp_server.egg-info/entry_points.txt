@@ -1,2 +1,0 @@
-[console_scripts]
-unity-mcp-server = mcp_server.main:main
