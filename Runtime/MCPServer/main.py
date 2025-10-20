@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
+import os
 import sys
 from pathlib import Path
 from json import JSONDecodeError
@@ -9,6 +11,7 @@ from typing import Any
 
 import uvicorn
 from mcp.server import NotificationOptions
+from mcp.server.stdio import stdio_server as mcp_stdio_server
 from mcp.server.websocket import websocket_server as mcp_websocket_server
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -52,6 +55,15 @@ except ModuleNotFoundError as import_exc:
     from version import SERVER_NAME, SERVER_VERSION  # type: ignore[no-redef]
 
 mcp_server = create_mcp_server()
+
+
+def _create_init_options() -> Any:
+    return mcp_server.create_initialization_options(
+        notification_options=NotificationOptions(
+            resources_changed=True,
+            tools_changed=True,
+        )
+    )
 
 
 def _bridge_connected() -> None:
@@ -164,13 +176,7 @@ async def mcp_ws_endpoint(websocket: WebSocket) -> None:
             read_stream,
             write_stream,
         ):
-            init_options = mcp_server.create_initialization_options(
-                notification_options=NotificationOptions(
-                    resources_changed=True,
-                    tools_changed=True,
-                )
-            )
-            await mcp_server.run(read_stream, write_stream, init_options)
+            await mcp_server.run(read_stream, write_stream, _create_init_options())
     except WebSocketDisconnect:
         logger.info("MCP client disconnected")
     except Exception as exc:  # pragma: no cover - defensive
@@ -270,6 +276,63 @@ def _run_with_asyncio(config: uvicorn.Config) -> None:
 async def _serve(config: uvicorn.Config) -> None:
     server = uvicorn.Server(config)
     await server.serve()
+
+
+async def _run_stdio() -> None:
+    await startup()
+    try:
+        async with mcp_stdio_server() as (read_stream, write_stream):
+            await mcp_server.run(read_stream, write_stream, _create_init_options())
+    finally:
+        await shutdown()
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Unity MCP server entrypoint")
+    parser.add_argument(
+        "--transport",
+        choices=("websocket", "stdio"),
+        default=os.environ.get("MCP_SERVER_TRANSPORT", "stdio"),
+        help="Transport to expose (defaults to MCP_SERVER_TRANSPORT or 'stdio')",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
+
+    if args.transport == "stdio":
+        try:
+            asyncio.run(_run_stdio())
+        except KeyboardInterrupt:
+            logger.info("Received interrupt, shutting down")
+        except Exception:
+            logger.exception("MCP server failed while running on stdio")
+            sys.exit(1)
+        return
+
+    log_level = {
+        "trace": "debug",
+        "debug": "debug",
+        "info": "info",
+        "warn": "warning",
+        "error": "error",
+        "fatal": "critical",
+        "silent": "critical",
+    }.get(env.log_level, "info")
+
+    config = uvicorn.Config(
+        app,
+        host=env.host,
+        port=env.port,
+        log_level=log_level,
+        loop="asyncio",
+        lifespan="on",
+    )
+    if _run_with_uv(config):
+        return
+
+    _run_with_asyncio(config)
 
 
 __all__ = ["app", "main"]
