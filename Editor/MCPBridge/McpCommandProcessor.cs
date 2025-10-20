@@ -13,8 +13,18 @@ using UnityEngine.SceneManagement;
 
 namespace MCP.Editor
 {
+    /// <summary>
+    /// Processes MCP tool commands and executes corresponding Unity Editor operations.
+    /// Supports CRUD operations for scenes, GameObjects, components, and assets.
+    /// </summary>
     internal static class McpCommandProcessor
     {
+        /// <summary>
+        /// Executes an MCP command and returns the result.
+        /// </summary>
+        /// <param name="command">The command to execute containing tool name and payload.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when tool name is not supported.</exception>
         public static object Execute(McpIncomingCommand command)
         {
             return command.ToolName switch
@@ -23,13 +33,19 @@ namespace MCP.Editor
                 "sceneCrud" => HandleSceneCrud(command.Payload),
                 "gameObjectCrud" => HandleGameObjectCrud(command.Payload),
                 "componentCrud" => HandleComponentCrud(command.Payload),
+                "componentGet" => HandleComponentGet(command.Payload),
                 "assetCrud" => HandleAssetCrud(command.Payload),
+                "assetGet" => HandleAssetGet(command.Payload),
                 "uguiRectAdjust" => HandleUguiRectAdjust(command.Payload),
                 "scriptOutline" => HandleScriptOutline(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
 
+        /// <summary>
+        /// Handles ping requests to verify Unity Editor connectivity.
+        /// </summary>
+        /// <returns>Dictionary containing Unity version, project name, and current timestamp.</returns>
         private static object HandlePing()
         {
             return new Dictionary<string, object>
@@ -40,6 +56,12 @@ namespace MCP.Editor
             };
         }
 
+        /// <summary>
+        /// Handles scene CRUD operations (create, load, save, delete, duplicate).
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation' type and scene path.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when operation is invalid or missing.</exception>
         private static object HandleSceneCrud(Dictionary<string, object> payload)
         {
             var operation = GetString(payload, "operation");
@@ -187,6 +209,12 @@ namespace MCP.Editor
             };
         }
 
+        /// <summary>
+        /// Handles GameObject CRUD operations (create, delete, move, rename, duplicate).
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation' type and GameObject path.</param>
+        /// <returns>Result dictionary with GameObject hierarchy path and instance ID.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when operation or required parameters are invalid.</exception>
         private static object HandleGameObjectCrud(Dictionary<string, object> payload)
         {
             var operation = EnsureValue(GetString(payload, "operation"), "operation");
@@ -337,6 +365,13 @@ namespace MCP.Editor
             };
         }
 
+        /// <summary>
+        /// Handles component CRUD operations (add, remove, update).
+        /// Uses reflection to set component properties from the payload.
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation', 'gameObjectPath', 'componentType', and optional 'propertyChanges'.</param>
+        /// <returns>Result dictionary with component type and GameObject path.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when GameObject or component type is not found.</exception>
         private static object HandleComponentCrud(Dictionary<string, object> payload)
         {
             var operation = EnsureValue(GetString(payload, "operation"), "operation");
@@ -405,6 +440,62 @@ namespace MCP.Editor
 
             EditorUtility.SetDirty(component);
             return DescribeComponent(component);
+        }
+
+        private static object HandleComponentGet(Dictionary<string, object> payload)
+        {
+            var go = ResolveGameObject(EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath"));
+            var type = ResolveType(EnsureValue(GetString(payload, "componentType"), "componentType"));
+            var component = go.GetComponent(type);
+            if (component == null)
+            {
+                throw new InvalidOperationException($"Component {type.FullName} not found on {go.name}");
+            }
+
+            var properties = new Dictionary<string, object>();
+            var componentType = component.GetType();
+
+            // Get all public properties
+            var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var prop in propertyInfos)
+            {
+                if (!prop.CanRead)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var value = prop.GetValue(component);
+                    properties[prop.Name] = SerializeValue(value);
+                }
+                catch (Exception ex)
+                {
+                    properties[prop.Name] = $"<Error: {ex.Message}>";
+                }
+            }
+
+            // Get all public fields
+            var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var field in fieldInfos)
+            {
+                try
+                {
+                    var value = field.GetValue(component);
+                    properties[field.Name] = SerializeValue(value);
+                }
+                catch (Exception ex)
+                {
+                    properties[field.Name] = $"<Error: {ex.Message}>";
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["gameObject"] = GetHierarchyPath(go),
+                ["type"] = componentType.FullName,
+                ["properties"] = properties,
+            };
         }
 
         private static object HandleAssetCrud(Dictionary<string, object> payload)
@@ -489,6 +580,72 @@ namespace MCP.Editor
 
             AssetDatabase.ImportAsset(destination, ImportAssetOptions.ForceSynchronousImport);
             return DescribeAsset(destination);
+        }
+
+        private static object HandleAssetGet(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            if (!File.Exists(path) && !Directory.Exists(path))
+            {
+                throw new InvalidOperationException($"Asset not found: {path}");
+            }
+
+            var guid = AssetDatabase.AssetPathToGUID(path);
+            var mainAssetType = AssetDatabase.GetMainAssetTypeAtPath(path);
+            var assetObj = AssetDatabase.LoadMainAssetAtPath(path);
+
+            var result = new Dictionary<string, object>
+            {
+                ["path"] = path,
+                ["guid"] = guid,
+                ["type"] = mainAssetType?.FullName,
+                ["exists"] = assetObj != null,
+            };
+
+            if (assetObj != null)
+            {
+                var properties = new Dictionary<string, object>();
+                var assetType = assetObj.GetType();
+
+                // Get all public properties
+                var propertyInfos = assetType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var prop in propertyInfos)
+                {
+                    if (!prop.CanRead)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var value = prop.GetValue(assetObj);
+                        properties[prop.Name] = SerializeValue(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        properties[prop.Name] = $"<Error: {ex.Message}>";
+                    }
+                }
+
+                // Get all public fields
+                var fieldInfos = assetType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var field in fieldInfos)
+                {
+                    try
+                    {
+                        var value = field.GetValue(assetObj);
+                        properties[field.Name] = SerializeValue(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        properties[field.Name] = $"<Error: {ex.Message}>";
+                    }
+                }
+
+                result["properties"] = properties;
+            }
+
+            return result;
         }
 
         private static object HandleUguiRectAdjust(Dictionary<string, object> payload)
@@ -847,6 +1004,142 @@ namespace MCP.Editor
             }
 
             return value;
+        }
+
+        private static object SerializeValue(object value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            var valueType = value.GetType();
+
+            // Primitive types and strings
+            if (valueType.IsPrimitive || valueType == typeof(string))
+            {
+                return value;
+            }
+
+            // Enums
+            if (valueType.IsEnum)
+            {
+                return value.ToString();
+            }
+
+            // Unity Vector types
+            if (value is Vector2 v2)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["x"] = v2.x,
+                    ["y"] = v2.y,
+                };
+            }
+
+            if (value is Vector3 v3)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["x"] = v3.x,
+                    ["y"] = v3.y,
+                    ["z"] = v3.z,
+                };
+            }
+
+            if (value is Vector4 v4)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["x"] = v4.x,
+                    ["y"] = v4.y,
+                    ["z"] = v4.z,
+                    ["w"] = v4.w,
+                };
+            }
+
+            if (value is Quaternion q)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["x"] = q.x,
+                    ["y"] = q.y,
+                    ["z"] = q.z,
+                    ["w"] = q.w,
+                };
+            }
+
+            if (value is Color c)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["r"] = c.r,
+                    ["g"] = c.g,
+                    ["b"] = c.b,
+                    ["a"] = c.a,
+                };
+            }
+
+            if (value is Rect rect)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["x"] = rect.x,
+                    ["y"] = rect.y,
+                    ["width"] = rect.width,
+                    ["height"] = rect.height,
+                };
+            }
+
+            // Unity Object references
+            if (value is UnityEngine.Object unityObj)
+            {
+                if (unityObj == null)
+                {
+                    return null;
+                }
+
+                var objInfo = new Dictionary<string, object>
+                {
+                    ["name"] = unityObj.name,
+                    ["type"] = unityObj.GetType().Name,
+                    ["instanceId"] = unityObj.GetInstanceID(),
+                };
+
+                // Try to get asset path if it's an asset
+                var assetPath = AssetDatabase.GetAssetPath(unityObj);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    objInfo["assetPath"] = assetPath;
+                }
+
+                return objInfo;
+            }
+
+            // Arrays and Lists
+            if (value is System.Collections.IEnumerable enumerable && !(value is string))
+            {
+                var list = new List<object>();
+                var count = 0;
+                foreach (var item in enumerable)
+                {
+                    if (count >= 100) // Limit array size to prevent huge responses
+                    {
+                        list.Add($"<Truncated: more than 100 items>");
+                        break;
+                    }
+                    list.Add(SerializeValue(item));
+                    count++;
+                }
+                return list;
+            }
+
+            // For other types, return type name and ToString()
+            return new Dictionary<string, object>
+            {
+                ["_type"] = valueType.FullName,
+                ["_value"] = value.ToString(),
+            };
         }
     }
 }

@@ -4,12 +4,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace MCP.Editor
 {
+    /// <summary>
+    /// Collects Unity Editor context information for MCP clients.
+    /// Gathers scene hierarchy, selection, asset index, and Git status.
+    /// </summary>
     internal static class McpContextCollector
     {
         private const int MaxAssets = 200;
@@ -23,6 +28,16 @@ namespace MCP.Editor
             "Shader",
         };
 
+        // Cached asset index to reduce performance impact
+        private static List<object> _cachedAssetIndex;
+        private static DateTime _lastAssetIndexUpdate = DateTime.MinValue;
+        private static readonly TimeSpan AssetIndexCacheLifetime = TimeSpan.FromSeconds(30);
+        private static Task<List<object>> _assetIndexTask;
+
+        /// <summary>
+        /// Builds a complete context payload containing all relevant project information.
+        /// </summary>
+        /// <returns>Dictionary with activeScene, hierarchy, selection, assets, and gitDiffSummary.</returns>
         public static Dictionary<string, object> BuildContextPayload()
         {
             return new Dictionary<string, object>
@@ -30,10 +45,60 @@ namespace MCP.Editor
                 ["activeScene"] = BuildActiveSceneInfo(),
                 ["hierarchy"] = BuildHierarchyTree(),
                 ["selection"] = BuildSelectionInfo(),
-                ["assets"] = BuildAssetIndex(),
+                ["assets"] = GetAssetIndexCached(),
                 ["gitDiffSummary"] = TryCaptureGitStatus(),
                 ["updatedAt"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             };
+        }
+
+        /// <summary>
+        /// Invalidates the asset index cache, forcing a refresh on next access.
+        /// Call this when assets are added, removed, or modified.
+        /// </summary>
+        public static void InvalidateAssetIndexCache()
+        {
+            _cachedAssetIndex = null;
+            _lastAssetIndexUpdate = DateTime.MinValue;
+        }
+
+        /// <summary>
+        /// Gets the asset index, using cached data if available and fresh.
+        /// Automatically refreshes cache if expired or starts async refresh.
+        /// </summary>
+        /// <returns>List of asset information dictionaries.</returns>
+        private static List<object> GetAssetIndexCached()
+        {
+            var now = DateTime.UtcNow;
+            var cacheAge = now - _lastAssetIndexUpdate;
+
+            // Return cached data if still fresh
+            if (_cachedAssetIndex != null && cacheAge < AssetIndexCacheLifetime)
+            {
+                return _cachedAssetIndex;
+            }
+
+            // If async task is running, return cached data (even if stale) or empty list
+            if (_assetIndexTask != null && !_assetIndexTask.IsCompleted)
+            {
+                return _cachedAssetIndex ?? new List<object>();
+            }
+
+            // Start async refresh if needed
+            if (_assetIndexTask == null || _assetIndexTask.IsCompleted)
+            {
+                _assetIndexTask = Task.Run(() => BuildAssetIndex());
+            }
+
+            // Check if task completed immediately (small projects)
+            if (_assetIndexTask.IsCompleted)
+            {
+                _cachedAssetIndex = _assetIndexTask.Result;
+                _lastAssetIndexUpdate = now;
+                return _cachedAssetIndex;
+            }
+
+            // Return stale cache or empty list while async task runs
+            return _cachedAssetIndex ?? new List<object>();
         }
 
         private static Dictionary<string, object> BuildActiveSceneInfo()

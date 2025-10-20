@@ -125,14 +125,34 @@ namespace MCP.Editor
                 EditorGUI.BeginChangeCheck();
                 var host = EditorGUILayout.TextField("Listen Host", settings.ServerHost);
                 var port = EditorGUILayout.IntField("Listen Port", settings.ServerPort);
-                var token = EditorGUILayout.TextField("Bridge Token", settings.BridgeToken);
+
+                // Token field with environment variable indicator
+                if (settings.IsTokenFromEnvironment)
+                {
+                    EditorGUILayout.LabelField("Bridge Token", "*** (from MCP_BRIDGE_TOKEN env var) ***");
+                    EditorGUILayout.HelpBox("Token is loaded from environment variable MCP_BRIDGE_TOKEN. Stored value is ignored.", MessageType.Info);
+                }
+                else
+                {
+                    var token = EditorGUILayout.TextField("Bridge Token", settings.BridgeToken);
+                    if (EditorGUI.EndChangeCheck() && token != settings.BridgeToken)
+                    {
+                        settings.BridgeToken = token;
+                    }
+                    EditorGUI.BeginChangeCheck();
+
+                    if (!string.IsNullOrEmpty(settings.BridgeTokenMasked))
+                    {
+                        EditorGUILayout.LabelField("Token Preview", settings.BridgeTokenMasked);
+                    }
+                }
+
                 var interval = EditorGUILayout.FloatField("Context Interval (s)", settings.ContextPushIntervalSeconds);
                 var autoStart = EditorGUILayout.Toggle("Auto Start on Load", settings.AutoConnectOnLoad);
                 if (EditorGUI.EndChangeCheck())
                 {
                     settings.ServerHost = host;
                     settings.ServerPort = port;
-                    settings.BridgeToken = token;
                     settings.ContextPushIntervalSeconds = interval;
                     settings.AutoConnectOnLoad = autoStart;
                 }

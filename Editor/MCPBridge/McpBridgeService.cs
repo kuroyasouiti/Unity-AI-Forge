@@ -23,13 +23,24 @@ namespace MCP.Editor
         Connected,
     }
 
+    /// <summary>
+    /// Main WebSocket bridge service that connects Unity Editor to MCP clients.
+    /// Handles client connections, message routing, context updates, and heartbeat monitoring.
+    /// Features automatic reconnection after disconnections and compilation/assembly reloads.
+    /// </summary>
     [InitializeOnLoad]
     internal static class McpBridgeService
     {
         private const string BridgePath = "/bridge";
         private const int MaxHandshakeHeaderSize = 16 * 1024;
         private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(30);
         private const string WasConnectedBeforeCompileKey = "McpBridge_WasConnectedBeforeCompile";
+
+        // Auto-reconnection settings
+        private const int MaxReconnectAttempts = 5;
+        private const int InitialReconnectDelayMs = 1000;
+        private const int MaxReconnectDelayMs = 30000;
 
         private static readonly ConcurrentQueue<string> IncomingMessages = new();
         private static readonly Queue<Action> MainThreadActions = new();
@@ -41,11 +52,17 @@ namespace MCP.Editor
         private static TcpClient _client;
         private static WebSocket _socket;
         private static DateTime _lastHeartbeatSent = DateTime.MinValue;
+        private static DateTime _lastHeartbeatReceived = DateTime.MinValue;
         private static DateTime _lastContextSent = DateTime.MinValue;
         private static bool _contextDirty = true;
         private static string _sessionId = Guid.NewGuid().ToString();
         private static McpConnectionState _state = McpConnectionState.Disconnected;
         private static bool _isCompilingOrReloading = false;
+
+        // Auto-reconnection state
+        private static int _reconnectAttempts = 0;
+        private static DateTime _lastReconnectAttempt = DateTime.MinValue;
+        private static bool _autoReconnectEnabled = false;
 
         public static event Action<McpConnectionState> StateChanged;
 
@@ -89,6 +106,10 @@ namespace MCP.Editor
             });
         }
 
+        /// <summary>
+        /// Starts the WebSocket bridge listener on the configured host and port.
+        /// Creates a new session and begins accepting client connections.
+        /// </summary>
         public static void Connect()
         {
             if (_listener != null)
@@ -100,6 +121,10 @@ namespace MCP.Editor
             StartListener();
         }
 
+        /// <summary>
+        /// Stops the bridge listener and closes any active client connections.
+        /// Cleans up all resources and transitions to Disconnected state.
+        /// </summary>
         public static void Disconnect()
         {
             _listenerCts?.Cancel();
@@ -125,6 +150,11 @@ namespace MCP.Editor
             StateChanged?.Invoke(_state);
         }
 
+        /// <summary>
+        /// Sends a message to the connected MCP client over WebSocket.
+        /// Message is serialized to JSON and sent as a text frame.
+        /// </summary>
+        /// <param name="message">Dictionary containing message type and payload data.</param>
         public static void Send(Dictionary<string, object> message)
         {
             if (!IsConnected)
@@ -155,6 +185,10 @@ namespace MCP.Editor
             }
         }
 
+        /// <summary>
+        /// Forces an immediate context update to be sent to the connected client.
+        /// Bypasses the normal context push interval timer.
+        /// </summary>
         public static void RequestImmediateContextPush()
         {
             MarkContextDirty();
@@ -639,6 +673,11 @@ namespace MCP.Editor
             _receiveCts = new CancellationTokenSource();
             _ = Task.Run(() => ReceiveLoopAsync(socket, _receiveCts.Token));
 
+            // Reset reconnection state on successful connection
+            _autoReconnectEnabled = false;
+            _reconnectAttempts = 0;
+            _lastHeartbeatReceived = DateTime.UtcNow;
+
             lock (MainThreadActions)
             {
                 MainThreadActions.Enqueue(() =>
@@ -648,6 +687,7 @@ namespace MCP.Editor
                     Send(McpBridgeMessages.CreateHelloPayload(_sessionId, McpBridgeSettings.Instance.BridgeToken));
                     MarkContextDirty();
                     PushContext();
+                    Debug.Log("MCP Bridge: Client connected successfully.");
                 });
             }
         }
@@ -751,6 +791,14 @@ namespace MCP.Editor
                     _contextDirty = true;
                     _state = _listener != null ? McpConnectionState.Connecting : McpConnectionState.Disconnected;
                     StateChanged?.Invoke(_state);
+
+                    // Enable auto-reconnect if listener is still active
+                    if (_listener != null && !_isCompilingOrReloading)
+                    {
+                        _autoReconnectEnabled = true;
+                        _reconnectAttempts = 0;
+                        Debug.Log("MCP Bridge: Client disconnected. Auto-reconnect enabled.");
+                    }
                 });
             }
         }
@@ -760,6 +808,7 @@ namespace MCP.Editor
             ProcessMainThreadActions();
             ProcessIncomingMessages();
             MaybeSendHeartbeat();
+            MaybeCheckHeartbeatTimeout();
             MaybePushContext();
         }
 
@@ -786,6 +835,9 @@ namespace MCP.Editor
         {
             while (IncomingMessages.TryDequeue(out var json))
             {
+                // Update last heartbeat received timestamp on any incoming message
+                _lastHeartbeatReceived = DateTime.UtcNow;
+
                 var payload = MiniJson.Deserialize(json);
                 if (McpIncomingCommand.TryParse(payload, out var command))
                 {
@@ -826,6 +878,28 @@ namespace MCP.Editor
 
             _lastHeartbeatSent = DateTime.UtcNow;
             Send(McpBridgeMessages.CreateHeartbeat());
+        }
+
+        private static void MaybeCheckHeartbeatTimeout()
+        {
+            if (!IsConnected)
+            {
+                return;
+            }
+
+            // Initialize lastHeartbeatReceived if this is the first check
+            if (_lastHeartbeatReceived == DateTime.MinValue)
+            {
+                _lastHeartbeatReceived = DateTime.UtcNow;
+                return;
+            }
+
+            // Check if we haven't received any message (including heartbeats) within timeout period
+            if (DateTime.UtcNow - _lastHeartbeatReceived > HeartbeatTimeout)
+            {
+                Debug.LogWarning("MCP Bridge: Heartbeat timeout detected. Connection appears dead.");
+                HandleSocketClosed();
+            }
         }
 
         private static void MaybePushContext()

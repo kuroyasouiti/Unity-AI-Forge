@@ -102,9 +102,25 @@ namespace MCP.Editor
             }
         }
 
+        /// <summary>
+        /// Gets or sets the bridge authentication token.
+        /// Priority: 1) Environment variable MCP_BRIDGE_TOKEN, 2) Stored value.
+        /// Use environment variables in CI/CD or shared environments to avoid committing secrets.
+        /// </summary>
         public string BridgeToken
         {
-            get => bridgeToken;
+            get
+            {
+                // First check environment variable
+                var envToken = Environment.GetEnvironmentVariable("MCP_BRIDGE_TOKEN");
+                if (!string.IsNullOrWhiteSpace(envToken))
+                {
+                    return envToken;
+                }
+
+                // Fallback to stored value
+                return bridgeToken;
+            }
             set
             {
                 if (bridgeToken == value)
@@ -116,6 +132,33 @@ namespace MCP.Editor
                 SaveSettings();
             }
         }
+
+        /// <summary>
+        /// Gets the stored (non-environment) token value for display purposes.
+        /// Returns masked version to avoid accidental exposure in logs/UI.
+        /// </summary>
+        public string BridgeTokenMasked
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(bridgeToken))
+                {
+                    return string.Empty;
+                }
+
+                if (bridgeToken.Length <= 8)
+                {
+                    return new string('*', bridgeToken.Length);
+                }
+
+                return bridgeToken.Substring(0, 4) + new string('*', bridgeToken.Length - 8) + bridgeToken.Substring(bridgeToken.Length - 4);
+            }
+        }
+
+        /// <summary>
+        /// Checks if token is loaded from environment variable.
+        /// </summary>
+        public bool IsTokenFromEnvironment => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("MCP_BRIDGE_TOKEN"));
 
         public bool AutoConnectOnLoad
         {
