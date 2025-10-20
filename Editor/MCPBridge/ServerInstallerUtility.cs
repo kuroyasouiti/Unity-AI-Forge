@@ -16,14 +16,147 @@ namespace MCP.Editor
             "__pycache__"
         };
 
-        public static string TemplatePath => Path.Combine("..", "..", "Runtime", "MCPServer");
-        private static string PyProjectSourcePath => Path.Combine("..", "..", "Runtime", "pyproject.toml");
+        private static string _templatePath;
+        private static string _pyProjectSourcePath;
+
+        public static string TemplatePath
+        {
+            get
+            {
+                if (_templatePath == null)
+                {
+                    _templatePath = FindTemplatePath();
+                }
+                return _templatePath;
+            }
+        }
+
+        private static string PyProjectSourcePath
+        {
+            get
+            {
+                if (_pyProjectSourcePath == null)
+                {
+                    _pyProjectSourcePath = FindPyProjectPath();
+                }
+                return _pyProjectSourcePath;
+            }
+        }
+
+        private static string FindTemplatePath()
+        {
+            var assetsPath = Application.dataPath;
+            if (string.IsNullOrEmpty(assetsPath))
+            {
+                return null;
+            }
+
+            // Assets/Runtime/MCPServer を探す
+            var candidates = new[]
+            {
+                Path.Combine(assetsPath, "Runtime", "MCPServer"),
+                Path.Combine(assetsPath, "Plugins", "MCPServer"),
+                Path.Combine(assetsPath, "MCPServer"),
+            };
+
+            foreach (var candidate in candidates)
+            {
+                if (Directory.Exists(candidate))
+                {
+                    var hasMainPy = File.Exists(Path.Combine(candidate, "main.py"));
+                    var hasInitPy = File.Exists(Path.Combine(candidate, "__init__.py"));
+                    if (hasMainPy || hasInitPy)
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            // 見つからない場合は、Assets配下を再帰的に検索
+            try
+            {
+                var foundPaths = Directory.GetDirectories(assetsPath, "MCPServer", SearchOption.AllDirectories);
+                foreach (var foundPath in foundPaths)
+                {
+                    var hasMainPy = File.Exists(Path.Combine(foundPath, "main.py"));
+                    var hasInitPy = File.Exists(Path.Combine(foundPath, "__init__.py"));
+                    if (hasMainPy || hasInitPy)
+                    {
+                        return foundPath;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // 検索中にエラーが発生した場合は無視
+            }
+
+            return null;
+        }
+
+        private static string FindPyProjectPath()
+        {
+            var templatePath = TemplatePath;
+            if (string.IsNullOrEmpty(templatePath))
+            {
+                return null;
+            }
+
+            // MCPServerの親ディレクトリ(通常はRuntime)にあるpyproject.tomlを探す
+            var parentDir = Directory.GetParent(templatePath)?.FullName;
+            if (!string.IsNullOrEmpty(parentDir))
+            {
+                var pyProjectPath = Path.Combine(parentDir, "pyproject.toml");
+                if (File.Exists(pyProjectPath))
+                {
+                    return pyProjectPath;
+                }
+            }
+
+            // テンプレートディレクトリ自体にあるpyproject.tomlを探す
+            var templatePyProject = Path.Combine(templatePath, "pyproject.toml");
+            if (File.Exists(templatePyProject))
+            {
+                return templatePyProject;
+            }
+
+            return null;
+        }
+
+        public static void ResetCache()
+        {
+            _templatePath = null;
+            _pyProjectSourcePath = null;
+        }
+
+        public static string GetTemplateSearchInfo()
+        {
+            var info = new System.Text.StringBuilder();
+            info.AppendLine("Template Search Information:");
+            info.AppendLine($"Assets Path: {Application.dataPath}");
+            info.AppendLine($"Found Template Path: {TemplatePath ?? "Not Found"}");
+            info.AppendLine($"Found PyProject Path: {PyProjectSourcePath ?? "Not Found"}");
+
+            if (!string.IsNullOrEmpty(TemplatePath))
+            {
+                info.AppendLine($"main.py exists: {File.Exists(Path.Combine(TemplatePath, "main.py"))}");
+                info.AppendLine($"__init__.py exists: {File.Exists(Path.Combine(TemplatePath, "__init__.py"))}");
+            }
+
+            return info.ToString();
+        }
 
         public static bool InstallTemplate(string destinationPath, out string message)
         {
+            if (string.IsNullOrEmpty(TemplatePath))
+            {
+                message = "Template server not found. Please ensure the MCPServer directory exists in Assets/Runtime/MCPServer.";
+                return false;
+            }
+
             if (!Directory.Exists(TemplatePath))
             {
-                message = $"Template server not found: {TemplatePath}";
+                message = $"Template server directory not found at: {TemplatePath}";
                 return false;
             }
 
