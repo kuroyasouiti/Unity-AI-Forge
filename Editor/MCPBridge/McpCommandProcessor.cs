@@ -353,7 +353,18 @@ namespace MCP.Editor
         {
             var go = ResolveGameObject(EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath"));
             var type = ResolveType(EnsureValue(GetString(payload, "componentType"), "componentType"));
-            var component = go.GetComponent(type) ?? go.AddComponent(type);
+
+            var component = go.GetComponent(type);
+            if (component == null)
+            {
+                component = go.AddComponent(type);
+                if (component == null)
+                {
+                    throw new InvalidOperationException($"Failed to add component {type.FullName} to {go.name}");
+                }
+            }
+
+            EditorUtility.SetDirty(go);
             return DescribeComponent(component);
         }
 
@@ -482,50 +493,87 @@ namespace MCP.Editor
 
         private static object HandleUguiRectAdjust(Dictionary<string, object> payload)
         {
-            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
-            var target = ResolveGameObject(path);
-            var rectTransform = target.GetComponent<RectTransform>();
-            if (rectTransform == null)
+            try
             {
-                throw new InvalidOperationException("Target does not contain a RectTransform");
-            }
+                var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+                Debug.Log($"[uguiRectAdjust] Processing: {path}");
 
-            var canvas = rectTransform.GetComponentInParent<Canvas>();
-            if (canvas == null)
-            {
-                throw new InvalidOperationException("Target is not under a Canvas");
-            }
+                var target = ResolveGameObject(path);
+                Debug.Log($"[uguiRectAdjust] GameObject resolved: {target.name}");
 
-            var worldCorners = new Vector3[4];
-            rectTransform.GetWorldCorners(worldCorners);
-
-            var width = Vector3.Distance(worldCorners[3], worldCorners[0]);
-            var height = Vector3.Distance(worldCorners[1], worldCorners[0]);
-            var scaleFactor = canvas.scaleFactor == 0f ? 1f : canvas.scaleFactor;
-            var pixelWidth = width / scaleFactor;
-            var pixelHeight = height / scaleFactor;
-
-            var before = new Dictionary<string, object>
-            {
-                ["anchoredPosition"] = rectTransform.anchoredPosition,
-                ["sizeDelta"] = rectTransform.sizeDelta,
-            };
-
-            rectTransform.sizeDelta = new Vector2(pixelWidth, pixelHeight);
-            rectTransform.anchoredPosition = rectTransform.anchoredPosition;
-
-            EditorUtility.SetDirty(rectTransform);
-
-            return new Dictionary<string, object>
-            {
-                ["before"] = before,
-                ["after"] = new Dictionary<string, object>
+                var rectTransform = target.GetComponent<RectTransform>();
+                if (rectTransform == null)
                 {
-                    ["anchoredPosition"] = rectTransform.anchoredPosition,
-                    ["sizeDelta"] = rectTransform.sizeDelta,
-                },
-                ["scaleFactor"] = scaleFactor,
-            };
+                    throw new InvalidOperationException("Target does not contain a RectTransform");
+                }
+                Debug.Log($"[uguiRectAdjust] RectTransform found");
+
+                var canvas = rectTransform.GetComponentInParent<Canvas>();
+                if (canvas == null)
+                {
+                    throw new InvalidOperationException("Target is not under a Canvas");
+                }
+                Debug.Log($"[uguiRectAdjust] Canvas found: {canvas.name}");
+
+                var worldCorners = new Vector3[4];
+                rectTransform.GetWorldCorners(worldCorners);
+                Debug.Log($"[uguiRectAdjust] Got world corners");
+
+                var width = Vector3.Distance(worldCorners[3], worldCorners[0]);
+                var height = Vector3.Distance(worldCorners[1], worldCorners[0]);
+                var scaleFactor = canvas.scaleFactor == 0f ? 1f : canvas.scaleFactor;
+                var pixelWidth = width / scaleFactor;
+                var pixelHeight = height / scaleFactor;
+                Debug.Log($"[uguiRectAdjust] Calculated dimensions: {pixelWidth}x{pixelHeight}, scaleFactor: {scaleFactor}");
+
+                var beforeAnchoredPosition = rectTransform.anchoredPosition;
+                var beforeSizeDelta = rectTransform.sizeDelta;
+
+                var before = new Dictionary<string, object>
+                {
+                    ["anchoredPosition"] = new Dictionary<string, object>
+                    {
+                        ["x"] = beforeAnchoredPosition.x,
+                        ["y"] = beforeAnchoredPosition.y,
+                    },
+                    ["sizeDelta"] = new Dictionary<string, object>
+                    {
+                        ["x"] = beforeSizeDelta.x,
+                        ["y"] = beforeSizeDelta.y,
+                    },
+                };
+
+                rectTransform.sizeDelta = new Vector2(pixelWidth, pixelHeight);
+                var afterAnchoredPosition = rectTransform.anchoredPosition;
+                var afterSizeDelta = rectTransform.sizeDelta;
+
+                EditorUtility.SetDirty(rectTransform);
+                Debug.Log($"[uguiRectAdjust] Completed successfully");
+
+                return new Dictionary<string, object>
+                {
+                    ["before"] = before,
+                    ["after"] = new Dictionary<string, object>
+                    {
+                        ["anchoredPosition"] = new Dictionary<string, object>
+                        {
+                            ["x"] = afterAnchoredPosition.x,
+                            ["y"] = afterAnchoredPosition.y,
+                        },
+                        ["sizeDelta"] = new Dictionary<string, object>
+                        {
+                            ["x"] = afterSizeDelta.x,
+                            ["y"] = afterSizeDelta.y,
+                        },
+                    },
+                    ["scaleFactor"] = scaleFactor,
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[uguiRectAdjust] Error: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
         }
 
         private static object HandleScriptOutline(Dictionary<string, object> payload)

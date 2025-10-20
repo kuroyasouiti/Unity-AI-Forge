@@ -2,3 +2,5 @@
 *.meta
 *.pyc
 Runtime/unity_mcp_server.egg-info/
+Scenes/
+Runtime/.venv

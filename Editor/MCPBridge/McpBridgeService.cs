@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEditor.Compilation;
 using UnityEngine;
 
 namespace MCP.Editor
@@ -28,6 +29,7 @@ namespace MCP.Editor
         private const string BridgePath = "/bridge";
         private const int MaxHandshakeHeaderSize = 16 * 1024;
         private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(10);
+        private const string WasConnectedBeforeCompileKey = "McpBridge_WasConnectedBeforeCompile";
 
         private static readonly ConcurrentQueue<string> IncomingMessages = new();
         private static readonly Queue<Action> MainThreadActions = new();
@@ -43,6 +45,7 @@ namespace MCP.Editor
         private static bool _contextDirty = true;
         private static string _sessionId = Guid.NewGuid().ToString();
         private static McpConnectionState _state = McpConnectionState.Disconnected;
+        private static bool _isCompilingOrReloading = false;
 
         public static event Action<McpConnectionState> StateChanged;
 
@@ -59,9 +62,27 @@ namespace MCP.Editor
             EditorApplication.hierarchyChanged += MarkContextDirty;
             EditorApplication.projectChanged += MarkContextDirty;
 
+            // コンパイル開始時に接続状態を保存
+            CompilationPipeline.compilationStarted += OnCompilationStarted;
+
+            // アセンブリリロード前に接続状態を保存
+            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+
+            // アセンブリリロード後に再接続
+            AssemblyReloadEvents.afterAssemblyReload += OnAfterAssemblyReload;
+
             DelayAction(() =>
             {
-                if (McpBridgeSettings.Instance.AutoConnectOnLoad)
+                // コンパイル前に接続していた場合は自動再接続
+                bool wasConnectedBeforeCompile = EditorPrefs.GetBool(WasConnectedBeforeCompileKey, false);
+
+                if (wasConnectedBeforeCompile)
+                {
+                    Debug.Log("MCP Bridge: Reconnecting after compilation...");
+                    EditorPrefs.DeleteKey(WasConnectedBeforeCompileKey);
+                    Connect();
+                }
+                else if (McpBridgeSettings.Instance.AutoConnectOnLoad)
                 {
                     Connect();
                 }
@@ -851,6 +872,38 @@ namespace MCP.Editor
             }
 
             EditorApplication.delayCall += Wrapper;
+        }
+
+        private static void OnCompilationStarted(object obj)
+        {
+            // コンパイル開始時に接続状態を保存
+            if (_listener != null || IsConnected)
+            {
+                _isCompilingOrReloading = true;
+                EditorPrefs.SetBool(WasConnectedBeforeCompileKey, true);
+                Debug.Log("MCP Bridge: Saving connection state before compilation...");
+            }
+        }
+
+        private static void OnBeforeAssemblyReload()
+        {
+            // アセンブリリロード前に接続状態を保存
+            if (_listener != null || IsConnected)
+            {
+                _isCompilingOrReloading = true;
+                EditorPrefs.SetBool(WasConnectedBeforeCompileKey, true);
+                Debug.Log("MCP Bridge: Saving connection state before assembly reload...");
+            }
+        }
+
+        private static void OnAfterAssemblyReload()
+        {
+            // この関数は新しいドメインで呼ばれるので、static constructorで処理済み
+            // 念のため明示的にログを残す
+            if (EditorPrefs.GetBool(WasConnectedBeforeCompileKey, false))
+            {
+                Debug.Log("MCP Bridge: Assembly reloaded, reconnection will be initiated...");
+            }
         }
 
     }
