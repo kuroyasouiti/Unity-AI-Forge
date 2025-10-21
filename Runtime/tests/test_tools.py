@@ -15,7 +15,9 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
         self.call_handler = self.server.request_handlers[mcp_types.CallToolRequest]
 
     async def test_list_tools_returns_expected_definitions(self) -> None:
-        result = await self.list_handler(mcp_types.ListToolsRequest())
+        result = await self.list_handler(
+            mcp_types.ListToolsRequest(method="tools/list")
+        )
         tools_result = result.root
         self.assertIsInstance(tools_result, mcp_types.ListToolsResult)
         names = [tool.name for tool in tools_result.tools]
@@ -34,7 +36,8 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_call_tool_ping_reports_bridge_status(self) -> None:
         request = mcp_types.CallToolRequest(
-            params=mcp_types.CallToolRequestParams(name="unity.ping", arguments={})
+            method="tools/call",
+            params=mcp_types.CallToolRequestParams(name="unity.ping", arguments={}),
         )
         with patch.object(
             tools_module.bridge_manager, "is_connected", return_value=True
@@ -57,15 +60,15 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_call_tool_routes_commands_through_bridge(self) -> None:
         tool_cases = [
-            ("unity.scene.manage", "sceneCrud", {"operation": "create"}),
+            ("unity.scene.manage", "sceneManage", {"operation": "create"}),
             (
                 "unity_gameobject_manage",
-                "gameObjectCrud",
+                "gameObjectManage",
                 {"operation": "create", "gameObjectPath": "Root"},
             ),
             (
                 "unity.component.manage",
-                "componentCrud",
+                "componentManage",
                 {
                     "operation": "add",
                     "gameObjectPath": "Root/Button",
@@ -73,9 +76,23 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             (
+                "unity.component.manage",
+                "componentManage",
+                {
+                    "operation": "inspect",
+                    "gameObjectPath": "Root/Button",
+                    "componentType": "UnityEngine.UI.Text",
+                },
+            ),
+            (
                 "unity.asset.manage",
-                "assetCrud",
+                "assetManage",
                 {"operation": "create", "assetPath": "Assets/Example.prefab"},
+            ),
+            (
+                "unity.asset.manage",
+                "assetManage",
+                {"operation": "inspect", "assetPath": "Assets/Example.prefab"},
             ),
             (
                 "unity.ugui.rectAdjust",
@@ -98,6 +115,7 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                     tools_module.bridge_manager, "send_command", send_command
                 ):
                     request = mcp_types.CallToolRequest(
+                        method="tools/call",
                         params=mcp_types.CallToolRequestParams(
                             name=tool_name, arguments=arguments
                         )
@@ -112,6 +130,7 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_call_tool_returns_error_when_bridge_disconnected(self) -> None:
         request = mcp_types.CallToolRequest(
+            method="tools/call",
             params=mcp_types.CallToolRequestParams(
                 name="unity.scene.manage", arguments={"operation": "create"}
             )

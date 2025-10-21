@@ -49,7 +49,7 @@ When the MCP server connects, the bridge streams:
 ## Supported Tooling
 
 - Scene Manage (create, load, save, delete, duplicate)
-- Hierarchy Manage (create/move/delete/rename/duplicate GameObjects)
+- GameObject Manage (create/move/delete/rename/duplicate GameObjects)
 - Component Manage (add/remove/update components via reflection)
 - Asset Manage (text asset create/update/delete/rename/duplicate)
 - UGUI rect adjustment to align RectTransforms with pixel bounds

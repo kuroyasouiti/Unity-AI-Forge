@@ -49,7 +49,7 @@ unity-mcp-server
 
 - `unity.ping`
 - `unity.scene.manage`
-- `unity.hierarchy.manage`
+- `unity_gameobject_manage`
 - `unity.component.manage`
 - `unity.asset.manage`
 - `unity.ugui.rectAdjust`

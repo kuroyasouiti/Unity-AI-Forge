@@ -7,7 +7,7 @@ using UnityEditor.SceneManagement;
 namespace MCP.Editor.Tests
 {
     /// <summary>
-    /// Unit tests for McpCommandProcessor CRUD operations.
+    /// Unit tests for McpCommandProcessor Management operations.
     /// These tests verify the core functionality of scene, GameObject, component, and asset operations.
     /// </summary>
     [TestFixture]
@@ -77,10 +77,10 @@ namespace MCP.Editor.Tests
 
         #endregion
 
-        #region Scene CRUD Tests
+        #region Scene Management Tests
 
         [Test]
-        public void SceneCrud_Create_CreatesNewScene()
+        public void SceneManage_Create_CreatesNewScene()
         {
             // Arrange
             var payload = new Dictionary<string, object>
@@ -89,7 +89,7 @@ namespace MCP.Editor.Tests
                 ["scenePath"] = TestScenePath,
                 ["additive"] = false
             };
-            var message = CreateCommandMessage("test-scene-create", "sceneCrud", payload);
+            var message = CreateCommandMessage("test-scene-create", "sceneManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -105,10 +105,10 @@ namespace MCP.Editor.Tests
 
         #endregion
 
-        #region GameObject CRUD Tests
+        #region GameObject Management Tests
 
         [Test]
-        public void GameObjectCrud_Create_CreatesNewGameObject()
+        public void GameObjectManage_Create_CreatesNewGameObject()
         {
             // Arrange
             var payload = new Dictionary<string, object>
@@ -116,7 +116,7 @@ namespace MCP.Editor.Tests
                 ["operation"] = "create",
                 ["name"] = "TestObject"
             };
-            var message = CreateCommandMessage("test-go-create", "gameObjectCrud", payload);
+            var message = CreateCommandMessage("test-go-create", "gameObjectManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -134,7 +134,7 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void GameObjectCrud_Rename_RenamesGameObject()
+        public void GameObjectManage_Rename_RenamesGameObject()
         {
             // Arrange
             var testObject = new GameObject("OriginalName");
@@ -144,7 +144,7 @@ namespace MCP.Editor.Tests
                 ["gameObjectPath"] = "OriginalName",
                 ["name"] = "NewName"
             };
-            var message = CreateCommandMessage("test-go-rename", "gameObjectCrud", payload);
+            var message = CreateCommandMessage("test-go-rename", "gameObjectManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -158,7 +158,7 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void GameObjectCrud_Delete_RemovesGameObject()
+        public void GameObjectManage_Delete_RemovesGameObject()
         {
             // Arrange
             var testObject = new GameObject("ToDelete");
@@ -167,7 +167,7 @@ namespace MCP.Editor.Tests
                 ["operation"] = "delete",
                 ["gameObjectPath"] = "ToDelete"
             };
-            var message = CreateCommandMessage("test-go-delete", "gameObjectCrud", payload);
+            var message = CreateCommandMessage("test-go-delete", "gameObjectManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -181,10 +181,10 @@ namespace MCP.Editor.Tests
 
         #endregion
 
-        #region Component CRUD Tests
+        #region Component Management Tests
 
         [Test]
-        public void ComponentCrud_Add_AddsComponentToGameObject()
+        public void ComponentManage_Add_AddsComponentToGameObject()
         {
             // Arrange
             var testObject = new GameObject("TestObject");
@@ -194,7 +194,7 @@ namespace MCP.Editor.Tests
                 ["gameObjectPath"] = "TestObject",
                 ["componentType"] = "UnityEngine.BoxCollider"
             };
-            var message = CreateCommandMessage("test-comp-add", "componentCrud", payload);
+            var message = CreateCommandMessage("test-comp-add", "componentManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -207,7 +207,7 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void ComponentCrud_Remove_RemovesComponentFromGameObject()
+        public void ComponentManage_Remove_RemovesComponentFromGameObject()
         {
             // Arrange
             var testObject = new GameObject("TestObject");
@@ -219,7 +219,7 @@ namespace MCP.Editor.Tests
                 ["gameObjectPath"] = "TestObject",
                 ["componentType"] = "UnityEngine.BoxCollider"
             };
-            var message = CreateCommandMessage("test-comp-remove", "componentCrud", payload);
+            var message = CreateCommandMessage("test-comp-remove", "componentManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -232,7 +232,7 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void ComponentCrud_Update_UpdatesComponentProperties()
+        public void ComponentManage_Update_UpdatesComponentProperties()
         {
             // Arrange
             var testObject = new GameObject("TestObject");
@@ -249,7 +249,7 @@ namespace MCP.Editor.Tests
                     ["drag"] = 2.0
                 }
             };
-            var message = CreateCommandMessage("test-comp-update", "componentCrud", payload);
+            var message = CreateCommandMessage("test-comp-update", "componentManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -261,12 +261,42 @@ namespace MCP.Editor.Tests
             Assert.AreEqual(2.0f, rigidbody.drag, 0.001f);
         }
 
+        [Test]
+        public void ComponentManage_Inspect_ReturnsComponentSnapshot()
+        {
+            // Arrange
+            var testObject = new GameObject("TestObject");
+            var light = testObject.AddComponent<Light>();
+            light.range = 12.5f;
+
+            var payload = new Dictionary<string, object>
+            {
+                ["operation"] = "inspect",
+                ["gameObjectPath"] = "TestObject",
+                ["componentType"] = "UnityEngine.Light"
+            };
+            var message = CreateCommandMessage("test-comp-inspect", "componentManage", payload);
+            McpIncomingCommand.TryParse(message, out var command);
+
+            // Act
+            var result = McpCommandProcessor.Execute(command) as Dictionary<string, object>;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual("TestObject", result["gameObject"]);
+            Assert.AreEqual("UnityEngine.Light", result["type"]);
+            Assert.IsTrue(result.TryGetValue("properties", out var propertiesObj));
+            var properties = propertiesObj as Dictionary<string, object>;
+            Assert.IsNotNull(properties);
+            Assert.IsTrue(properties.ContainsKey("range"));
+        }
+
         #endregion
 
-        #region Asset CRUD Tests
+        #region Asset Management Tests
 
         [Test]
-        public void AssetCrud_Create_CreatesNewAsset()
+        public void AssetManage_Create_CreatesNewAsset()
         {
             // Arrange
             var payload = new Dictionary<string, object>
@@ -275,7 +305,7 @@ namespace MCP.Editor.Tests
                 ["assetPath"] = TestAssetPath,
                 ["contents"] = "Test content"
             };
-            var message = CreateCommandMessage("test-asset-create", "assetCrud", payload);
+            var message = CreateCommandMessage("test-asset-create", "assetManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -289,7 +319,7 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void AssetCrud_Delete_RemovesAsset()
+        public void AssetManage_Delete_RemovesAsset()
         {
             // Arrange
             System.IO.File.WriteAllText(TestAssetPath, "Test content");
@@ -300,7 +330,7 @@ namespace MCP.Editor.Tests
                 ["operation"] = "delete",
                 ["assetPath"] = TestAssetPath
             };
-            var message = CreateCommandMessage("test-asset-delete", "assetCrud", payload);
+            var message = CreateCommandMessage("test-asset-delete", "assetManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act
@@ -309,6 +339,31 @@ namespace MCP.Editor.Tests
             // Assert
             Assert.IsNotNull(result);
             Assert.IsFalse(System.IO.File.Exists(TestAssetPath));
+        }
+
+        [Test]
+        public void AssetManage_Inspect_ReturnsAssetMetadata()
+        {
+            // Arrange
+            System.IO.File.WriteAllText(TestAssetPath, "Inspect content");
+            AssetDatabase.ImportAsset(TestAssetPath);
+
+            var payload = new Dictionary<string, object>
+            {
+                ["operation"] = "inspect",
+                ["assetPath"] = TestAssetPath
+            };
+            var message = CreateCommandMessage("test-asset-inspect", "assetManage", payload);
+            McpIncomingCommand.TryParse(message, out var command);
+
+            // Act
+            var result = McpCommandProcessor.Execute(command) as Dictionary<string, object>;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual(TestAssetPath, result["path"]);
+            Assert.AreEqual(true, result["exists"]);
+            Assert.IsTrue(result.ContainsKey("properties"));
         }
 
         #endregion
@@ -327,7 +382,7 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void GameObjectCrud_MissingGameObject_ThrowsException()
+        public void GameObjectManage_MissingGameObject_ThrowsException()
         {
             // Arrange
             var payload = new Dictionary<string, object>
@@ -335,7 +390,7 @@ namespace MCP.Editor.Tests
                 ["operation"] = "delete",
                 ["gameObjectPath"] = "NonExistentObject"
             };
-            var message = CreateCommandMessage("test-missing-go", "gameObjectCrud", payload);
+            var message = CreateCommandMessage("test-missing-go", "gameObjectManage", payload);
             McpIncomingCommand.TryParse(message, out var command);
 
             // Act & Assert

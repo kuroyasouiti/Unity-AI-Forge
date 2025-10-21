@@ -18,10 +18,10 @@ Unity EditorからLLMへプロジェクト文脈を安全かつ即時に共有�
 - `resources`: プロジェクトファイル要約、選択中アセットのテキスト化、アクティブシーン構成、Unity Editorログファイル (`%LOCALAPPDATA%/Unity/Editor/Editor.log` など) のローテーション読み取り。ログはブリッジとは独立したファイルウォッチャーで取得し、コンパイルエラーでブリッジが停止してもアクセス可能にする。
 - `tools`: 
   - `pingUnityEditor`: Unity Editorとの接続確認。ブリッジは即時ACKでエディタ接続ステータスを返却。
-  - `sceneCrud`: シーンの新規作成、ロード、保存、削除。ブリッジが`SceneManager` APIを呼び出し、変更内容を差分として返す。
-  - `hierarchyCrud`: 現行シーン内のGameObject追加、削除、移動、リネーム、複製。結果はヒエラルキー構造をJSONで送信。
-  - `componentCrud`: 指定GameObjectへのコンポーネント追加・削除・プロパティ更新。安全のため変更プレビューと明示承認を必須化。
-  - `assetCrud`: `Assets/`配下のスクリプト、プレハブ、マテリアル等の生成、更新、削除。ファイル書換え時はローカルディスクのバックアップコピーを作成。
+  - `sceneManage`: シーンの新規作成、ロード、保存、削除。ブリッジが`SceneManager` APIを呼び出し、変更内容を差分として返す。
+  - `gameObjectManage`: 現行シーン内のGameObject追加、削除、移動、リネーム、複製。結果はヒエラルキー構造をJSONで送信。
+  - `componentManage`: 指定GameObjectへのコンポーネント追加・削除・プロパティ更新・状態取得。安全のため変更プレビューと明示承認を必須化。
+  - `assetManage`: `Assets/`配下のスクリプト、プレハブ、マテリアル等の生成、更新、削除、メタデータ取得。ファイル書換え時はローカルディスクのバックアップコピーを作成。
   - スクリプト雛形生成、シリアライズ設定変更提案、プレイモード用テストコマンド実行 (`Unity.exe -batchmode ...` 呼び出し)。
 - 特殊ツール: 
   - `uguiRectAdjust`。UGUI要素のRectTransform情報からスクリーン座標・ピクセルサイズを算出し、ヒエラルキー位置・大きさと実画面上の見え方の差分を補正する。調整結果をプレビューし、承認後にRectTransformへ反映。
