@@ -927,6 +927,13 @@ namespace MCP.Editor
             throw new InvalidOperationException($"Property or field '{propertyName}' not found on {type.FullName}");
         }
 
+        /// <summary>
+        /// Converts a raw value to the target type with support for Unity types and object references.
+        /// </summary>
+        /// <param name="rawValue">The raw value to convert (primitives, dictionaries, or reference objects).</param>
+        /// <param name="targetType">The target type to convert to.</param>
+        /// <returns>Converted value compatible with the target type.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when reference resolution fails.</exception>
         private static object ConvertValue(object rawValue, Type targetType)
         {
             if (rawValue == null)
@@ -937,6 +944,15 @@ namespace MCP.Editor
             if (targetType.IsInstanceOfType(rawValue))
             {
                 return rawValue;
+            }
+
+            // Handle Unity object references
+            if (typeof(UnityEngine.Object).IsAssignableFrom(targetType) && rawValue is Dictionary<string, object> refDict)
+            {
+                if (refDict.TryGetValue("_ref", out var refType))
+                {
+                    return ResolveUnityObjectReference(refDict, targetType);
+                }
             }
 
             if (targetType.IsEnum && rawValue is string enumString)
@@ -1009,6 +1025,186 @@ namespace MCP.Editor
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Resolves a Unity object reference from a dictionary specification.
+        /// Supports GameObject, Component, and Asset references by path, instance ID, or GUID.
+        /// </summary>
+        /// <param name="refDict">Reference dictionary containing "_ref" type and lookup parameters.</param>
+        /// <param name="targetType">Expected Unity object type.</param>
+        /// <returns>Resolved Unity object or null if not found.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when reference format is invalid.</exception>
+        private static UnityEngine.Object ResolveUnityObjectReference(Dictionary<string, object> refDict, Type targetType)
+        {
+            var refType = GetString(refDict, "_ref");
+
+            switch (refType)
+            {
+                case "gameObject":
+                    return ResolveGameObjectReference(refDict, targetType);
+
+                case "component":
+                    return ResolveComponentReference(refDict, targetType);
+
+                case "asset":
+                    return ResolveAssetReference(refDict, targetType);
+
+                case "instance":
+                    return ResolveInstanceReference(refDict, targetType);
+
+                default:
+                    throw new InvalidOperationException($"Unknown reference type: {refType}");
+            }
+        }
+
+        /// <summary>
+        /// Resolves a GameObject reference by hierarchy path.
+        /// </summary>
+        private static UnityEngine.Object ResolveGameObjectReference(Dictionary<string, object> refDict, Type targetType)
+        {
+            var path = GetString(refDict, "path");
+            if (string.IsNullOrEmpty(path))
+            {
+                throw new InvalidOperationException("GameObject reference requires 'path' parameter");
+            }
+
+            var gameObject = ResolveGameObject(path);
+
+            // If target is GameObject, return directly
+            if (targetType == typeof(GameObject) || targetType.IsAssignableFrom(typeof(GameObject)))
+            {
+                return gameObject;
+            }
+
+            // If target is a Component type, get the component
+            if (typeof(Component).IsAssignableFrom(targetType))
+            {
+                var component = gameObject.GetComponent(targetType);
+                if (component == null)
+                {
+                    throw new InvalidOperationException($"Component {targetType.FullName} not found on GameObject: {path}");
+                }
+                return component;
+            }
+
+            return gameObject;
+        }
+
+        /// <summary>
+        /// Resolves a Component reference by GameObject path and component type.
+        /// </summary>
+        private static UnityEngine.Object ResolveComponentReference(Dictionary<string, object> refDict, Type targetType)
+        {
+            var path = GetString(refDict, "path");
+            var typeName = GetString(refDict, "type");
+
+            if (string.IsNullOrEmpty(path))
+            {
+                throw new InvalidOperationException("Component reference requires 'path' parameter");
+            }
+
+            var gameObject = ResolveGameObject(path);
+
+            // Determine which component type to get
+            Type componentType = targetType;
+            if (!string.IsNullOrEmpty(typeName))
+            {
+                componentType = ResolveType(typeName);
+            }
+
+            var component = gameObject.GetComponent(componentType);
+            if (component == null)
+            {
+                throw new InvalidOperationException($"Component {componentType.FullName} not found on GameObject: {path}");
+            }
+
+            return component;
+        }
+
+        /// <summary>
+        /// Resolves an Asset reference by asset path or GUID.
+        /// </summary>
+        private static UnityEngine.Object ResolveAssetReference(Dictionary<string, object> refDict, Type targetType)
+        {
+            var path = GetString(refDict, "path");
+            var guid = GetString(refDict, "guid");
+
+            // Resolve path from GUID if provided
+            if (!string.IsNullOrEmpty(guid))
+            {
+                path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrEmpty(path))
+                {
+                    throw new InvalidOperationException($"Asset not found with GUID: {guid}");
+                }
+            }
+
+            if (string.IsNullOrEmpty(path))
+            {
+                throw new InvalidOperationException("Asset reference requires 'path' or 'guid' parameter");
+            }
+
+            // Load the asset
+            var asset = AssetDatabase.LoadAssetAtPath(path, targetType);
+            if (asset == null)
+            {
+                // Try loading as generic Object if specific type fails
+                asset = AssetDatabase.LoadMainAssetAtPath(path);
+                if (asset != null && !targetType.IsInstanceOfType(asset))
+                {
+                    throw new InvalidOperationException($"Asset at {path} is type {asset.GetType().FullName}, expected {targetType.FullName}");
+                }
+            }
+
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"Asset not found or incompatible type at path: {path}");
+            }
+
+            return asset;
+        }
+
+        /// <summary>
+        /// Resolves a Unity object reference by instance ID.
+        /// </summary>
+        private static UnityEngine.Object ResolveInstanceReference(Dictionary<string, object> refDict, Type targetType)
+        {
+            if (!refDict.TryGetValue("id", out var idObj))
+            {
+                throw new InvalidOperationException("Instance reference requires 'id' parameter");
+            }
+
+            int instanceId;
+            if (idObj is int intId)
+            {
+                instanceId = intId;
+            }
+            else if (idObj is long longId)
+            {
+                instanceId = (int)longId;
+            }
+            else if (idObj is double doubleId)
+            {
+                instanceId = (int)doubleId;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid instance ID type: {idObj.GetType()}");
+            }
+
+            var obj = EditorUtility.InstanceIDToObject(instanceId);
+            if (obj == null)
+            {
+                throw new InvalidOperationException($"Object not found with instance ID: {instanceId}");
+            }
+
+            if (!targetType.IsInstanceOfType(obj))
+            {
+                throw new InvalidOperationException($"Object with ID {instanceId} is type {obj.GetType().FullName}, expected {targetType.FullName}");
+            }
+
+            return obj;
         }
 
         private static object SerializeValue(object value)
