@@ -291,6 +291,69 @@ namespace MCP.Editor.Tests
             Assert.IsTrue(properties.ContainsKey("range"));
         }
 
+        [Test]
+        public void ComponentManage_List_ReturnsAllAttachedComponents()
+        {
+            // Arrange
+            var testObject = new GameObject("TestObject");
+            var rigidbody = testObject.AddComponent<Rigidbody>();
+            rigidbody.mass = 3.0f;
+            var boxCollider = testObject.AddComponent<BoxCollider>();
+
+            var payload = new Dictionary<string, object>
+            {
+                ["operation"] = "list",
+                ["gameObjectPath"] = "TestObject"
+            };
+            var message = CreateCommandMessage("test-comp-list", "componentManage", payload);
+            McpIncomingCommand.TryParse(message, out var command);
+
+            // Act
+            var result = McpCommandProcessor.Execute(command) as Dictionary<string, object>;
+
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual("TestObject", result["gameObject"]);
+            Assert.IsTrue(result.TryGetValue("components", out var componentsObj));
+            var components = componentsObj as System.Collections.IList;
+            Assert.IsNotNull(components);
+
+            // Should have at least Transform (default), Rigidbody, and BoxCollider
+            Assert.GreaterOrEqual(components.Count, 3);
+
+            // Verify count field
+            Assert.IsTrue(result.TryGetValue("count", out var countObj));
+            Assert.AreEqual(components.Count, countObj);
+
+            // Check that we can find our components
+            bool foundRigidbody = false;
+            bool foundBoxCollider = false;
+            foreach (var compObj in components)
+            {
+                var comp = compObj as Dictionary<string, object>;
+                if (comp != null && comp.TryGetValue("type", out var typeObj))
+                {
+                    var typeName = typeObj as string;
+                    if (typeName == "UnityEngine.Rigidbody")
+                    {
+                        foundRigidbody = true;
+                        // Verify properties are included
+                        Assert.IsTrue(comp.ContainsKey("properties"));
+                        var props = comp["properties"] as Dictionary<string, object>;
+                        Assert.IsNotNull(props);
+                        Assert.IsTrue(props.ContainsKey("mass"));
+                    }
+                    else if (typeName == "UnityEngine.BoxCollider")
+                    {
+                        foundBoxCollider = true;
+                    }
+                }
+            }
+
+            Assert.IsTrue(foundRigidbody, "Rigidbody component not found in list");
+            Assert.IsTrue(foundBoxCollider, "BoxCollider component not found in list");
+        }
+
         #endregion
 
         #region Asset Management Tests

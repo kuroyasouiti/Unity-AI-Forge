@@ -380,6 +380,7 @@ namespace MCP.Editor
                 "remove" => RemoveComponent(payload),
                 "update" => UpdateComponent(payload),
                 "inspect" => InspectComponent(payload),
+                "list" => ListComponents(payload),
                 _ => throw new InvalidOperationException($"Unknown componentManage operation: {operation}"),
             };
         }
@@ -495,6 +496,80 @@ namespace MCP.Editor
                 ["gameObject"] = GetHierarchyPath(go),
                 ["type"] = componentType.FullName,
                 ["properties"] = properties,
+            };
+        }
+
+        private static object ListComponents(Dictionary<string, object> payload)
+        {
+            var go = ResolveGameObject(EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath"));
+            var components = go.GetComponents<Component>();
+            var componentsList = new List<Dictionary<string, object>>();
+
+            foreach (var component in components)
+            {
+                if (component == null)
+                {
+                    continue;
+                }
+
+                var componentType = component.GetType();
+                var properties = new Dictionary<string, object>();
+
+                // Get all public properties
+                var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var prop in propertyInfos)
+                {
+                    if (!prop.CanRead)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var value = prop.GetValue(component);
+                        properties[prop.Name] = SerializeValue(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        properties[prop.Name] = $"<Error: {ex.Message}>";
+                    }
+                }
+
+                // Get all public fields
+                var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var field in fieldInfos)
+                {
+                    try
+                    {
+                        var value = field.GetValue(component);
+                        properties[field.Name] = SerializeValue(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        properties[field.Name] = $"<Error: {ex.Message}>";
+                    }
+                }
+
+                var componentData = new Dictionary<string, object>
+                {
+                    ["type"] = componentType.FullName,
+                    ["properties"] = properties,
+                };
+
+                // Add enabled state for Behaviour components
+                if (component is Behaviour behaviour)
+                {
+                    componentData["enabled"] = behaviour.enabled;
+                }
+
+                componentsList.Add(componentData);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["gameObject"] = GetHierarchyPath(go),
+                ["components"] = componentsList,
+                ["count"] = componentsList.Count,
             };
         }
 

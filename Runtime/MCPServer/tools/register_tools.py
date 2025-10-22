@@ -102,13 +102,13 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["add", "remove", "update", "inspect"],
-                    "description": "Operation to perform. Use 'inspect' to read component state.",
+                    "enum": ["add", "remove", "update", "inspect", "list"],
+                    "description": "Operation to perform. Use 'inspect' to read a specific component state, or 'list' to read all attached components.",
                 },
                 "gameObjectPath": {"type": "string"},
                 "componentType": {
                     "type": "string",
-                    "description": "Fully qualified component type (e.g. UnityEngine.UI.Text).",
+                    "description": "Fully qualified component type (e.g. UnityEngine.UI.Text). Required for add, remove, update, and inspect operations. Not needed for list operation.",
                 },
                 "propertyChanges": {
                     "type": "object",
@@ -118,7 +118,7 @@ def register_tools(server: Server) -> None:
                 "applyDefaults": {"type": "boolean"},
             },
         },
-        ["operation", "gameObjectPath", "componentType"],
+        ["operation", "gameObjectPath"],
     )
 
     asset_manage_schema = _schema_with_required(
@@ -266,7 +266,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity.component.crud",
-            description="Add, remove, update, or inspect components on a GameObject.",
+            description="Add, remove, update, inspect, or list all components on a GameObject. Use 'list' operation to read all attached components with their properties.",
             inputSchema=component_manage_schema,
         ),
         types.Tool(
