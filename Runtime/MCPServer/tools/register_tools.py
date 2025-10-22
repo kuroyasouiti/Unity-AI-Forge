@@ -113,7 +113,7 @@ def register_tools(server: Server) -> None:
                 "propertyChanges": {
                     "type": "object",
                     "additionalProperties": True,
-                    "description": "Property/value pairs to apply to the component.",
+                    "description": "Property/value pairs to apply to the component. For UnityEngine.Object properties (e.g. Mesh, Material), use asset paths like 'Assets/Models/Sphere.fbx' or built-in resources like 'Library/unity default resources::Sphere'.",
                 },
                 "applyDefaults": {"type": "boolean"},
             },
@@ -197,22 +197,22 @@ def register_tools(server: Server) -> None:
             inputSchema=ping_schema,
         ),
         types.Tool(
-            name="unity.scene.manage",
+            name="unity.scene.crud",
             description="Create, load, save, delete, or duplicate Unity scenes.",
             inputSchema=scene_manage_schema,
         ),
         types.Tool(
-            name="unity_gameobject_manage",
+            name="unity.gameobject.crud",
             description="Modify the active scene hierarchy (create, delete, move, rename, duplicate).",
             inputSchema=game_object_manage_schema,
         ),
         types.Tool(
-            name="unity.component.manage",
+            name="unity.component.crud",
             description="Add, remove, update, or inspect components on a GameObject.",
             inputSchema=component_manage_schema,
         ),
         types.Tool(
-            name="unity.asset.manage",
+            name="unity.asset.crud",
             description="Create, update, rename, duplicate, delete, or inspect Assets/ files.",
             inputSchema=asset_manage_schema,
         ),
@@ -252,16 +252,16 @@ def register_tools(server: Server) -> None:
             }
             return [types.TextContent(type="text", text=as_pretty_json(payload))]
 
-        if name == "unity.scene.manage":
+        if name == "unity.scene.crud":
             return await _call_bridge_tool("sceneManage", args)
 
-        if name == "unity_gameobject_manage":
+        if name == "unity.gameobject.crud":
             return await _call_bridge_tool("gameObjectManage", args)
 
-        if name == "unity.component.manage":
+        if name == "unity.component.crud":
             return await _call_bridge_tool("componentManage", args)
 
-        if name == "unity.asset.manage":
+        if name == "unity.asset.crud":
             return await _call_bridge_tool("assetManage", args)
 
         if name == "unity.ugui.rectAdjust":

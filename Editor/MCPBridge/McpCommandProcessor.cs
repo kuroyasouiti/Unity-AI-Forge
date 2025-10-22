@@ -946,13 +946,19 @@ namespace MCP.Editor
                 return rawValue;
             }
 
-            // Handle Unity object references
+            // Handle Unity object references (dictionary format)
             if (typeof(UnityEngine.Object).IsAssignableFrom(targetType) && rawValue is Dictionary<string, object> refDict)
             {
                 if (refDict.TryGetValue("_ref", out var refType))
                 {
                     return ResolveUnityObjectReference(refDict, targetType);
                 }
+            }
+
+            // Handle Unity object references (string format for asset paths)
+            if (typeof(UnityEngine.Object).IsAssignableFrom(targetType) && rawValue is string assetPath)
+            {
+                return ResolveAssetPath(assetPath, targetType);
             }
 
             if (targetType.IsEnum && rawValue is string enumString)
@@ -973,6 +979,15 @@ namespace MCP.Editor
                 return new Vector2(
                     Convert.ToSingle(dict2.GetValueOrDefault("x", 0f), CultureInfo.InvariantCulture),
                     Convert.ToSingle(dict2.GetValueOrDefault("y", 0f), CultureInfo.InvariantCulture));
+            }
+
+            if (targetType == typeof(Color) && rawValue is Dictionary<string, object> colorDict)
+            {
+                return new Color(
+                    Convert.ToSingle(colorDict.GetValueOrDefault("r", 1f), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(colorDict.GetValueOrDefault("g", 1f), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(colorDict.GetValueOrDefault("b", 1f), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(colorDict.GetValueOrDefault("a", 1f), CultureInfo.InvariantCulture));
             }
 
             if (rawValue is double d)
@@ -1025,6 +1040,75 @@ namespace MCP.Editor
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Resolves an asset path to a Unity object, supporting both regular asset paths and built-in Unity resources.
+        /// </summary>
+        /// <param name="assetPath">Asset path, which can be:
+        /// - Regular asset path: "Assets/Models/Sphere.fbx"
+        /// - Built-in resource: "Library/unity default resources::Sphere"
+        /// - Editor resource: "Library/unity editor resources::GameObject Icon"
+        /// </param>
+        /// <param name="targetType">Expected Unity object type.</param>
+        /// <returns>Resolved Unity object or null if not found.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when asset cannot be loaded.</exception>
+        private static UnityEngine.Object ResolveAssetPath(string assetPath, Type targetType)
+        {
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return null;
+            }
+
+            // Handle built-in Unity resources (e.g., "Library/unity default resources::Sphere")
+            if (assetPath.Contains("::"))
+            {
+                var parts = assetPath.Split(new[] { "::" }, StringSplitOptions.None);
+                if (parts.Length == 2)
+                {
+                    var resourceName = parts[1].Trim();
+
+                    // Load built-in resource by name and type
+                    var builtinAssets = AssetDatabase.LoadAllAssetsAtPath(parts[0]);
+                    foreach (var asset in builtinAssets)
+                    {
+                        if (asset != null && asset.name == resourceName && targetType.IsInstanceOfType(asset))
+                        {
+                            return asset;
+                        }
+                    }
+
+                    // If specific type match not found, try to find by name only
+                    foreach (var asset in builtinAssets)
+                    {
+                        if (asset != null && asset.name == resourceName)
+                        {
+                            return asset;
+                        }
+                    }
+
+                    throw new InvalidOperationException($"Built-in resource not found: {assetPath}");
+                }
+            }
+
+            // Handle regular asset paths
+            var loadedAsset = AssetDatabase.LoadAssetAtPath(assetPath, targetType);
+            if (loadedAsset == null)
+            {
+                // Try loading as generic Object if specific type fails
+                loadedAsset = AssetDatabase.LoadMainAssetAtPath(assetPath);
+                if (loadedAsset != null && !targetType.IsInstanceOfType(loadedAsset))
+                {
+                    throw new InvalidOperationException($"Asset at {assetPath} is type {loadedAsset.GetType().FullName}, expected {targetType.FullName}");
+                }
+            }
+
+            if (loadedAsset == null)
+            {
+                throw new InvalidOperationException($"Asset not found at path: {assetPath}");
+            }
+
+            return loadedAsset;
         }
 
         /// <summary>
