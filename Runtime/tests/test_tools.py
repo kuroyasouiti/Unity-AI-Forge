@@ -85,6 +85,14 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             (
+                "unity_gameobject_manage",
+                "gameObjectManage",
+                {
+                    "operation": "inspect",
+                    "gameObjectPath": "Root/Button",
+                },
+            ),
+            (
                 "unity.asset.manage",
                 "assetManage",
                 {"operation": "create", "assetPath": "Assets/Example.prefab"},

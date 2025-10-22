@@ -68,8 +68,8 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "delete", "move", "rename", "duplicate"],
-                    "description": "Operation to perform.",
+                    "enum": ["create", "delete", "move", "rename", "duplicate", "inspect"],
+                    "description": "Operation to perform. Use 'inspect' to read GameObject details including all attached components.",
                 },
                 "gameObjectPath": {
                     "type": "string",
@@ -261,7 +261,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity.gameobject.crud",
-            description="Modify the active scene hierarchy (create, delete, move, rename, duplicate).",
+            description="Modify the active scene hierarchy (create, delete, move, rename, duplicate) or inspect GameObjects. Use 'inspect' operation to read all attached components with their properties.",
             inputSchema=game_object_manage_schema,
         ),
         types.Tool(
