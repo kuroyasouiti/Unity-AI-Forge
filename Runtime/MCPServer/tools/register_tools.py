@@ -288,6 +288,127 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    project_settings_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["read", "write", "list"],
+                    "description": "Operation to perform. 'read' reads settings values, 'write' writes settings values, 'list' lists available categories or properties.",
+                },
+                "category": {
+                    "type": "string",
+                    "enum": ["player", "quality", "time", "physics", "audio", "editor"],
+                    "description": "Settings category: 'player' for PlayerSettings, 'quality' for QualitySettings, 'time' for Time settings, 'physics' for Physics settings, 'audio' for AudioSettings, 'editor' for EditorSettings.",
+                },
+                "property": {
+                    "type": "string",
+                    "description": "Specific property name to read or write. If omitted in read operation, returns all properties for the category.",
+                },
+                "value": {
+                    "description": "Value to write for the property. Required for write operation. Type depends on the property (string, number, boolean, or object for complex values like vectors).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    render_pipeline_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["inspect", "setAsset", "getSettings", "updateSettings"],
+                    "description": "Operation to perform. 'inspect' checks current pipeline, 'setAsset' changes the pipeline asset, 'getSettings' reads pipeline settings, 'updateSettings' modifies pipeline settings.",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Path to RenderPipelineAsset (for setAsset operation). Empty string to clear and use Built-in.",
+                },
+                "settings": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "Dictionary of settings to update (for updateSettings operation).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    input_system_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["listActions", "createAsset", "addActionMap", "addAction", "addBinding", "inspectAsset", "deleteAsset", "deleteActionMap", "deleteAction", "deleteBinding"],
+                    "description": "Operation to perform. 'listActions' lists all Input Action assets, 'createAsset' creates new asset, 'addActionMap' adds action map, 'addAction' adds action to map, 'addBinding' adds binding to action, 'inspectAsset' inspects asset contents, 'deleteAsset' deletes entire asset, 'deleteActionMap' deletes action map, 'deleteAction' deletes action, 'deleteBinding' deletes specific binding or all bindings.",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Path to InputActionAsset file (e.g., Assets/Input/PlayerControls.inputactions).",
+                },
+                "mapName": {
+                    "type": "string",
+                    "description": "Name of the action map (for addActionMap, addAction, addBinding, deleteActionMap, deleteAction, deleteBinding operations).",
+                },
+                "actionName": {
+                    "type": "string",
+                    "description": "Name of the action (for addAction, addBinding, deleteAction, deleteBinding operations).",
+                },
+                "actionType": {
+                    "type": "string",
+                    "enum": ["Button", "Value", "PassThrough"],
+                    "description": "Type of action (for addAction operation). Default is 'Button'.",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Binding path (e.g., '<Keyboard>/space', '<Mouse>/leftButton') for addBinding operation.",
+                },
+                "bindingIndex": {
+                    "type": "integer",
+                    "description": "Index of binding to delete (for deleteBinding operation). Omit or set to -1 to delete all bindings.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    batch_execute_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "tool": {
+                                "type": "string",
+                                "description": "Tool name to execute (e.g., 'gameObjectManage', 'componentManage', 'assetManage', etc.).",
+                            },
+                            "payload": {
+                                "type": "object",
+                                "additionalProperties": True,
+                                "description": "Payload for the tool operation.",
+                            },
+                        },
+                        "required": ["tool", "payload"],
+                        "additionalProperties": False,
+                    },
+                    "description": "Array of operations to execute in sequence.",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "If true, stops execution when an operation fails. Default is false (continues on error).",
+                },
+            },
+        },
+        ["operations"],
+    )
+
     tool_definitions = [
         types.Tool(
             name="unity.ping",
@@ -333,6 +454,26 @@ def register_tools(server: Server) -> None:
             name="unity.prefab.crud",
             description="Manage Unity prefabs: create prefabs from GameObjects, update existing prefabs, inspect prefab assets, instantiate prefabs in scenes, unpack prefab instances, apply or revert instance overrides.",
             inputSchema=prefab_manage_schema,
+        ),
+        types.Tool(
+            name="unity.projectSettings.crud",
+            description="Read, write, or list Unity Project Settings. Supports PlayerSettings, QualitySettings, TimeSettings, PhysicsSettings, AudioSettings, and EditorSettings.",
+            inputSchema=project_settings_manage_schema,
+        ),
+        types.Tool(
+            name="unity.renderPipeline.manage",
+            description="Manage Unity Render Pipeline. Inspect current pipeline (Built-in/URP/HDRP), change pipeline asset, read and update pipeline-specific settings.",
+            inputSchema=render_pipeline_manage_schema,
+        ),
+        types.Tool(
+            name="unity.inputSystem.manage",
+            description="Manage Unity New Input System. Create Input Action assets, add action maps and actions, configure bindings, and inspect existing assets. Requires Input System package to be installed.",
+            inputSchema=input_system_manage_schema,
+        ),
+        types.Tool(
+            name="unity.batch.execute",
+            description="Execute multiple Unity operations in a single batch. Allows sequential execution of any tool operations with optional error handling. Returns results for all operations including successes and failures.",
+            inputSchema=batch_execute_schema,
         ),
     ]
 
@@ -383,5 +524,17 @@ def register_tools(server: Server) -> None:
 
         if name == "unity.prefab.crud":
             return await _call_bridge_tool("prefabManage", args)
+
+        if name == "unity.projectSettings.crud":
+            return await _call_bridge_tool("projectSettingsManage", args)
+
+        if name == "unity.renderPipeline.manage":
+            return await _call_bridge_tool("renderPipelineManage", args)
+
+        if name == "unity.inputSystem.manage":
+            return await _call_bridge_tool("inputSystemManage", args)
+
+        if name == "unity.batch.execute":
+            return await _call_bridge_tool("batchExecute", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")

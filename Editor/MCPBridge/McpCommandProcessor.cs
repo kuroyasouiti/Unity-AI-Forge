@@ -10,6 +10,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Rendering;
 
 namespace MCP.Editor
 {
@@ -38,6 +39,10 @@ namespace MCP.Editor
                 "uguiAnchorManage" => HandleUguiAnchorManage(command.Payload),
                 "scriptOutline" => HandleScriptOutline(command.Payload),
                 "prefabManage" => HandlePrefabManage(command.Payload),
+                "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
+                "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
+                "inputSystemManage" => HandleInputSystemManage(command.Payload),
+                "batchExecute" => HandleBatchExecute(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -2111,6 +2116,1388 @@ namespace MCP.Editor
             {
                 ["gameObjectPath"] = gameObjectPath,
                 ["message"] = "Overrides reverted to prefab state",
+            };
+        }
+
+        /// <summary>
+        /// Handles project settings management operations (read, write, list).
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation', 'category', 'property', and optional 'value'.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when operation or parameters are invalid.</exception>
+        private static object HandleProjectSettingsManage(Dictionary<string, object> payload)
+        {
+            var operation = EnsureValue(GetString(payload, "operation"), "operation");
+            return operation switch
+            {
+                "read" => ReadProjectSettings(payload),
+                "write" => WriteProjectSettings(payload),
+                "list" => ListProjectSettings(payload),
+                _ => throw new InvalidOperationException($"Unknown projectSettingsManage operation: {operation}"),
+            };
+        }
+
+        private static object ReadProjectSettings(Dictionary<string, object> payload)
+        {
+            var category = EnsureValue(GetString(payload, "category"), "category");
+            var property = GetString(payload, "property");
+
+            var result = new Dictionary<string, object>
+            {
+                ["category"] = category,
+            };
+
+            switch (category.ToLower())
+            {
+                case "player":
+                    result["settings"] = ReadPlayerSettings(property);
+                    break;
+                case "quality":
+                    result["settings"] = ReadQualitySettings(property);
+                    break;
+                case "time":
+                    result["settings"] = ReadTimeSettings(property);
+                    break;
+                case "physics":
+                    result["settings"] = ReadPhysicsSettings(property);
+                    break;
+                case "audio":
+                    result["settings"] = ReadAudioSettings(property);
+                    break;
+                case "editor":
+                    result["settings"] = ReadEditorSettings(property);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown settings category: {category}");
+            }
+
+            return result;
+        }
+
+        private static object WriteProjectSettings(Dictionary<string, object> payload)
+        {
+            var category = EnsureValue(GetString(payload, "category"), "category");
+            var property = EnsureValue(GetString(payload, "property"), "property");
+
+            if (!payload.TryGetValue("value", out var value))
+            {
+                throw new InvalidOperationException("value is required for write operation");
+            }
+
+            switch (category.ToLower())
+            {
+                case "player":
+                    WritePlayerSettings(property, value);
+                    break;
+                case "quality":
+                    WriteQualitySettings(property, value);
+                    break;
+                case "time":
+                    WriteTimeSettings(property, value);
+                    break;
+                case "physics":
+                    WritePhysicsSettings(property, value);
+                    break;
+                case "audio":
+                    WriteAudioSettings(property, value);
+                    break;
+                case "editor":
+                    WriteEditorSettings(property, value);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown settings category: {category}");
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["category"] = category,
+                ["property"] = property,
+                ["value"] = value,
+                ["message"] = "Settings updated successfully",
+            };
+        }
+
+        private static object ListProjectSettings(Dictionary<string, object> payload)
+        {
+            var category = GetString(payload, "category");
+
+            if (string.IsNullOrEmpty(category))
+            {
+                // Return all available categories
+                return new Dictionary<string, object>
+                {
+                    ["categories"] = new List<string>
+                    {
+                        "player",
+                        "quality",
+                        "time",
+                        "physics",
+                        "audio",
+                        "editor",
+                    },
+                };
+            }
+
+            // Return available properties for the specified category
+            var properties = category.ToLower() switch
+            {
+                "player" => new List<string>
+                {
+                    "companyName", "productName", "version", "bundleVersion",
+                    "defaultScreenWidth", "defaultScreenHeight", "runInBackground",
+                    "displayResolutionDialog", "defaultIsFullScreen", "defaultIsNativeResolution",
+                    "allowFullscreenSwitch", "captureSingleScreen", "resizableWindow",
+                },
+                "quality" => new List<string>
+                {
+                    "names", "currentLevel", "pixelLightCount", "shadowDistance",
+                    "shadowResolution", "shadowProjection", "shadowCascades", "vSyncCount",
+                    "antiAliasing", "softParticles", "realtimeReflectionProbes",
+                },
+                "time" => new List<string>
+                {
+                    "fixedDeltaTime", "maximumDeltaTime", "timeScale", "maximumParticleDeltaTime",
+                    "captureDeltaTime",
+                },
+                "physics" => new List<string>
+                {
+                    "gravity", "defaultSolverIterations", "defaultSolverVelocityIterations",
+                    "bounceThreshold", "sleepThreshold", "defaultContactOffset",
+                    "queriesHitTriggers", "queriesHitBackfaces", "autoSimulation",
+                },
+                "audio" => new List<string>
+                {
+                    "dspBufferSize", "sampleRate", "speakerMode", "numRealVoices",
+                    "numVirtualVoices",
+                },
+                "editor" => new List<string>
+                {
+                    "serializationMode", "spritePackerMode", "etcTextureCompressorBehavior",
+                    "lineEndingsForNewScripts", "defaultBehaviorMode", "prefabRegularEnvironment",
+                },
+                _ => throw new InvalidOperationException($"Unknown settings category: {category}"),
+            };
+
+            return new Dictionary<string, object>
+            {
+                ["category"] = category,
+                ["properties"] = properties,
+            };
+        }
+
+        // PlayerSettings read/write methods
+        private static object ReadPlayerSettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                return new Dictionary<string, object>
+                {
+                    ["companyName"] = PlayerSettings.companyName,
+                    ["productName"] = PlayerSettings.productName,
+                    ["version"] = PlayerSettings.bundleVersion,
+                    ["defaultScreenWidth"] = PlayerSettings.defaultScreenWidth,
+                    ["defaultScreenHeight"] = PlayerSettings.defaultScreenHeight,
+                    ["runInBackground"] = PlayerSettings.runInBackground,
+                };
+            }
+
+            return property.ToLower() switch
+            {
+                "companyname" => PlayerSettings.companyName,
+                "productname" => PlayerSettings.productName,
+                "version" or "bundleversion" => PlayerSettings.bundleVersion,
+                "defaultscreenwidth" => PlayerSettings.defaultScreenWidth,
+                "defaultscreenheight" => PlayerSettings.defaultScreenHeight,
+                "runinbackground" => PlayerSettings.runInBackground,
+                "displayresolutiondialog" => PlayerSettings.displayResolutionDialog.ToString(),
+                "defaultisfullscreen" => PlayerSettings.defaultIsFullScreen,
+                "defaultisnativeresolution" => PlayerSettings.defaultIsNativeResolution,
+                "allowfullscreenswitch" => PlayerSettings.allowFullscreenSwitch,
+                "capturesinglescreen" => PlayerSettings.captureSingleScreen,
+                "resizablewindow" => PlayerSettings.resizableWindow,
+                _ => throw new InvalidOperationException($"Unknown PlayerSettings property: {property}"),
+            };
+        }
+
+        private static void WritePlayerSettings(string property, object value)
+        {
+            switch (property.ToLower())
+            {
+                case "companyname":
+                    PlayerSettings.companyName = value.ToString();
+                    break;
+                case "productname":
+                    PlayerSettings.productName = value.ToString();
+                    break;
+                case "version":
+                case "bundleversion":
+                    PlayerSettings.bundleVersion = value.ToString();
+                    break;
+                case "defaultscreenwidth":
+                    PlayerSettings.defaultScreenWidth = Convert.ToInt32(value);
+                    break;
+                case "defaultscreenheight":
+                    PlayerSettings.defaultScreenHeight = Convert.ToInt32(value);
+                    break;
+                case "runinbackground":
+                    PlayerSettings.runInBackground = Convert.ToBoolean(value);
+                    break;
+                case "defaultisfullscreen":
+                    PlayerSettings.defaultIsFullScreen = Convert.ToBoolean(value);
+                    break;
+                case "defaultisnativeresolution":
+                    PlayerSettings.defaultIsNativeResolution = Convert.ToBoolean(value);
+                    break;
+                case "allowfullscreenswitch":
+                    PlayerSettings.allowFullscreenSwitch = Convert.ToBoolean(value);
+                    break;
+                case "capturesinglescreen":
+                    PlayerSettings.captureSingleScreen = Convert.ToBoolean(value);
+                    break;
+                case "resizablewindow":
+                    PlayerSettings.resizableWindow = Convert.ToBoolean(value);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown or readonly PlayerSettings property: {property}");
+            }
+        }
+
+        // QualitySettings read/write methods
+        private static object ReadQualitySettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                return new Dictionary<string, object>
+                {
+                    ["names"] = QualitySettings.names,
+                    ["currentLevel"] = QualitySettings.GetQualityLevel(),
+                    ["pixelLightCount"] = QualitySettings.pixelLightCount,
+                    ["shadowDistance"] = QualitySettings.shadowDistance,
+                    ["vSyncCount"] = QualitySettings.vSyncCount,
+                    ["antiAliasing"] = QualitySettings.antiAliasing,
+                };
+            }
+
+            return property.ToLower() switch
+            {
+                "names" => QualitySettings.names,
+                "currentlevel" => QualitySettings.GetQualityLevel(),
+                "pixellightcount" => QualitySettings.pixelLightCount,
+                "shadowdistance" => QualitySettings.shadowDistance,
+                "shadowresolution" => QualitySettings.shadowResolution.ToString(),
+                "shadowprojection" => QualitySettings.shadowProjection.ToString(),
+                "shadowcascades" => QualitySettings.shadowCascades,
+                "vsynccount" => QualitySettings.vSyncCount,
+                "antialiasing" => QualitySettings.antiAliasing,
+                "softparticles" => QualitySettings.softParticles,
+                "realtimereflectionprobes" => QualitySettings.realtimeReflectionProbes,
+                _ => throw new InvalidOperationException($"Unknown QualitySettings property: {property}"),
+            };
+        }
+
+        private static void WriteQualitySettings(string property, object value)
+        {
+            switch (property.ToLower())
+            {
+                case "currentlevel":
+                    QualitySettings.SetQualityLevel(Convert.ToInt32(value));
+                    break;
+                case "pixellightcount":
+                    QualitySettings.pixelLightCount = Convert.ToInt32(value);
+                    break;
+                case "shadowdistance":
+                    QualitySettings.shadowDistance = Convert.ToSingle(value);
+                    break;
+                case "shadowcascades":
+                    QualitySettings.shadowCascades = Convert.ToInt32(value);
+                    break;
+                case "vsynccount":
+                    QualitySettings.vSyncCount = Convert.ToInt32(value);
+                    break;
+                case "antialiasing":
+                    QualitySettings.antiAliasing = Convert.ToInt32(value);
+                    break;
+                case "softparticles":
+                    QualitySettings.softParticles = Convert.ToBoolean(value);
+                    break;
+                case "realtimereflectionprobes":
+                    QualitySettings.realtimeReflectionProbes = Convert.ToBoolean(value);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown or readonly QualitySettings property: {property}");
+            }
+        }
+
+        // TimeSettings read/write methods
+        private static object ReadTimeSettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                return new Dictionary<string, object>
+                {
+                    ["fixedDeltaTime"] = Time.fixedDeltaTime,
+                    ["maximumDeltaTime"] = Time.maximumDeltaTime,
+                    ["timeScale"] = Time.timeScale,
+                    ["maximumParticleDeltaTime"] = Time.maximumParticleDeltaTime,
+                };
+            }
+
+            return property.ToLower() switch
+            {
+                "fixeddeltatime" => Time.fixedDeltaTime,
+                "maximumdeltatime" => Time.maximumDeltaTime,
+                "timescale" => Time.timeScale,
+                "maximumparticledeltatime" => Time.maximumParticleDeltaTime,
+                "capturedeltatime" => Time.captureDeltaTime,
+                _ => throw new InvalidOperationException($"Unknown TimeSettings property: {property}"),
+            };
+        }
+
+        private static void WriteTimeSettings(string property, object value)
+        {
+            switch (property.ToLower())
+            {
+                case "fixeddeltatime":
+                    Time.fixedDeltaTime = Convert.ToSingle(value);
+                    break;
+                case "maximumdeltatime":
+                    Time.maximumDeltaTime = Convert.ToSingle(value);
+                    break;
+                case "timescale":
+                    Time.timeScale = Convert.ToSingle(value);
+                    break;
+                case "maximumparticledeltatime":
+                    Time.maximumParticleDeltaTime = Convert.ToSingle(value);
+                    break;
+                case "capturedeltatime":
+                    Time.captureDeltaTime = Convert.ToSingle(value);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown TimeSettings property: {property}");
+            }
+        }
+
+        // PhysicsSettings read/write methods
+        private static object ReadPhysicsSettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                return new Dictionary<string, object>
+                {
+                    ["gravity"] = new Dictionary<string, object>
+                    {
+                        ["x"] = Physics.gravity.x,
+                        ["y"] = Physics.gravity.y,
+                        ["z"] = Physics.gravity.z,
+                    },
+                    ["defaultSolverIterations"] = Physics.defaultSolverIterations,
+                    ["defaultSolverVelocityIterations"] = Physics.defaultSolverVelocityIterations,
+                    ["bounceThreshold"] = Physics.bounceThreshold,
+                    ["sleepThreshold"] = Physics.sleepThreshold,
+                    ["queriesHitTriggers"] = Physics.queriesHitTriggers,
+                };
+            }
+
+            return property.ToLower() switch
+            {
+                "gravity" => new Dictionary<string, object>
+                {
+                    ["x"] = Physics.gravity.x,
+                    ["y"] = Physics.gravity.y,
+                    ["z"] = Physics.gravity.z,
+                },
+                "defaultsolveriterations" => Physics.defaultSolverIterations,
+                "defaultsolvervelocityiterations" => Physics.defaultSolverVelocityIterations,
+                "bouncethreshold" => Physics.bounceThreshold,
+                "sleepthreshold" => Physics.sleepThreshold,
+                "defaultcontactoffset" => Physics.defaultContactOffset,
+                "querieshittriggers" => Physics.queriesHitTriggers,
+                "querieshitbackfaces" => Physics.queriesHitBackfaces,
+                "autosimulation" => Physics.autoSimulation,
+                _ => throw new InvalidOperationException($"Unknown PhysicsSettings property: {property}"),
+            };
+        }
+
+        private static void WritePhysicsSettings(string property, object value)
+        {
+            switch (property.ToLower())
+            {
+                case "gravity":
+                    if (value is Dictionary<string, object> gravityDict)
+                    {
+                        Physics.gravity = new Vector3(
+                            Convert.ToSingle(gravityDict.GetValueOrDefault("x", 0f)),
+                            Convert.ToSingle(gravityDict.GetValueOrDefault("y", -9.81f)),
+                            Convert.ToSingle(gravityDict.GetValueOrDefault("z", 0f))
+                        );
+                    }
+                    break;
+                case "defaultsolveriterations":
+                    Physics.defaultSolverIterations = Convert.ToInt32(value);
+                    break;
+                case "defaultsolvervelocityiterations":
+                    Physics.defaultSolverVelocityIterations = Convert.ToInt32(value);
+                    break;
+                case "bouncethreshold":
+                    Physics.bounceThreshold = Convert.ToSingle(value);
+                    break;
+                case "sleepthreshold":
+                    Physics.sleepThreshold = Convert.ToSingle(value);
+                    break;
+                case "defaultcontactoffset":
+                    Physics.defaultContactOffset = Convert.ToSingle(value);
+                    break;
+                case "querieshittriggers":
+                    Physics.queriesHitTriggers = Convert.ToBoolean(value);
+                    break;
+                case "querieshitbackfaces":
+                    Physics.queriesHitBackfaces = Convert.ToBoolean(value);
+                    break;
+                case "autosimulation":
+                    Physics.autoSimulation = Convert.ToBoolean(value);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown PhysicsSettings property: {property}");
+            }
+        }
+
+        // AudioSettings read/write methods
+        private static object ReadAudioSettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                var config = AudioSettings.GetConfiguration();
+                return new Dictionary<string, object>
+                {
+                    ["dspBufferSize"] = config.dspBufferSize,
+                    ["sampleRate"] = config.sampleRate,
+                    ["speakerMode"] = config.speakerMode.ToString(),
+                    ["numRealVoices"] = config.numRealVoices,
+                    ["numVirtualVoices"] = config.numVirtualVoices,
+                };
+            }
+
+            var audioConfig = AudioSettings.GetConfiguration();
+            return property.ToLower() switch
+            {
+                "dspbuffersize" => audioConfig.dspBufferSize,
+                "samplerate" => audioConfig.sampleRate,
+                "speakermode" => audioConfig.speakerMode.ToString(),
+                "numrealvoices" => audioConfig.numRealVoices,
+                "numvirtualvoices" => audioConfig.numVirtualVoices,
+                _ => throw new InvalidOperationException($"Unknown AudioSettings property: {property}"),
+            };
+        }
+
+        private static void WriteAudioSettings(string property, object value)
+        {
+            var config = AudioSettings.GetConfiguration();
+            var modified = false;
+
+            switch (property.ToLower())
+            {
+                case "dspbuffersize":
+                    config.dspBufferSize = Convert.ToInt32(value);
+                    modified = true;
+                    break;
+                case "samplerate":
+                    config.sampleRate = Convert.ToInt32(value);
+                    modified = true;
+                    break;
+                case "speakermode":
+                    if (Enum.TryParse<AudioSpeakerMode>(value.ToString(), out var mode))
+                    {
+                        config.speakerMode = mode;
+                        modified = true;
+                    }
+                    break;
+                case "numrealvoices":
+                    config.numRealVoices = Convert.ToInt32(value);
+                    modified = true;
+                    break;
+                case "numvirtualvoices":
+                    config.numVirtualVoices = Convert.ToInt32(value);
+                    modified = true;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown AudioSettings property: {property}");
+            }
+
+            if (modified)
+            {
+                AudioSettings.Reset(config);
+            }
+        }
+
+        // EditorSettings read/write methods
+        private static object ReadEditorSettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                return new Dictionary<string, object>
+                {
+                    ["serializationMode"] = EditorSettings.serializationMode.ToString(),
+                    ["spritePackerMode"] = EditorSettings.spritePackerMode.ToString(),
+                    ["lineEndingsForNewScripts"] = EditorSettings.lineEndingsForNewScripts.ToString(),
+                    ["defaultBehaviorMode"] = EditorSettings.defaultBehaviorMode.ToString(),
+                };
+            }
+
+            return property.ToLower() switch
+            {
+                "serializationmode" => EditorSettings.serializationMode.ToString(),
+                "spritepackermode" => EditorSettings.spritePackerMode.ToString(),
+                "etctexturecompressorbehavior" => EditorSettings.etcTextureCompressorBehavior.ToString(),
+                "lineendingsfornewscripts" => EditorSettings.lineEndingsForNewScripts.ToString(),
+                "defaultbehaviormode" => EditorSettings.defaultBehaviorMode.ToString(),
+                "prefabregularenvironment" => EditorSettings.prefabRegularEnvironment?.name,
+                _ => throw new InvalidOperationException($"Unknown EditorSettings property: {property}"),
+            };
+        }
+
+        private static void WriteEditorSettings(string property, object value)
+        {
+            switch (property.ToLower())
+            {
+                case "serializationmode":
+                    if (Enum.TryParse<SerializationMode>(value.ToString(), out var serMode))
+                    {
+                        EditorSettings.serializationMode = serMode;
+                    }
+                    break;
+                case "spritepackermode":
+                    if (Enum.TryParse<SpritePackerMode>(value.ToString(), out var spriteMode))
+                    {
+                        EditorSettings.spritePackerMode = spriteMode;
+                    }
+                    break;
+                case "lineendingsfornewscripts":
+                    if (Enum.TryParse<LineEndingsMode>(value.ToString(), out var lineMode))
+                    {
+                        EditorSettings.lineEndingsForNewScripts = lineMode;
+                    }
+                    break;
+                case "defaultbehaviormode":
+                    if (Enum.TryParse<EditorBehaviorMode>(value.ToString(), out var behaviorMode))
+                    {
+                        EditorSettings.defaultBehaviorMode = behaviorMode;
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown or readonly EditorSettings property: {property}");
+            }
+        }
+
+        /// <summary>
+        /// Handles render pipeline management operations (inspect, setAsset, getSettings, updateSettings).
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation' and pipeline-specific settings.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        private static object HandleRenderPipelineManage(Dictionary<string, object> payload)
+        {
+            var operation = EnsureValue(GetString(payload, "operation"), "operation");
+            return operation switch
+            {
+                "inspect" => InspectRenderPipeline(),
+                "setAsset" => SetRenderPipelineAsset(payload),
+                "getSettings" => GetRenderPipelineSettings(payload),
+                "updateSettings" => UpdateRenderPipelineSettings(payload),
+                _ => throw new InvalidOperationException($"Unknown renderPipelineManage operation: {operation}"),
+            };
+        }
+
+        private static object InspectRenderPipeline()
+        {
+            var currentPipeline = GraphicsSettings.currentRenderPipeline;
+            var result = new Dictionary<string, object>
+            {
+                ["hasRenderPipeline"] = currentPipeline != null,
+            };
+
+            if (currentPipeline != null)
+            {
+                result["pipelineName"] = currentPipeline.name;
+                result["pipelineType"] = currentPipeline.GetType().FullName;
+                result["assetPath"] = AssetDatabase.GetAssetPath(currentPipeline);
+
+                // Detect pipeline type
+                var typeName = currentPipeline.GetType().Name;
+                if (typeName.Contains("Universal") || typeName.Contains("URP"))
+                {
+                    result["pipelineKind"] = "URP";
+                }
+                else if (typeName.Contains("HDRenderPipeline") || typeName.Contains("HDRP"))
+                {
+                    result["pipelineKind"] = "HDRP";
+                }
+                else
+                {
+                    result["pipelineKind"] = "Custom";
+                }
+            }
+            else
+            {
+                result["pipelineKind"] = "BuiltIn";
+            }
+
+            return result;
+        }
+
+        private static object SetRenderPipelineAsset(Dictionary<string, object> payload)
+        {
+            var assetPath = GetString(payload, "assetPath");
+
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                // Clear render pipeline (set to built-in)
+                GraphicsSettings.defaultRenderPipeline = null;
+                return new Dictionary<string, object>
+                {
+                    ["message"] = "Render pipeline cleared (using Built-in)",
+                    ["pipelineKind"] = "BuiltIn",
+                };
+            }
+
+            var asset = AssetDatabase.LoadAssetAtPath<RenderPipelineAsset>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"RenderPipelineAsset not found at path: {assetPath}");
+            }
+
+            GraphicsSettings.defaultRenderPipeline = asset;
+
+            return new Dictionary<string, object>
+            {
+                ["message"] = "Render pipeline asset set successfully",
+                ["assetPath"] = assetPath,
+                ["pipelineName"] = asset.name,
+                ["pipelineType"] = asset.GetType().FullName,
+            };
+        }
+
+        private static object GetRenderPipelineSettings(Dictionary<string, object> payload)
+        {
+            var currentPipeline = GraphicsSettings.currentRenderPipeline;
+            if (currentPipeline == null)
+            {
+                throw new InvalidOperationException("No render pipeline is currently active. Using Built-in renderer.");
+            }
+
+            var result = new Dictionary<string, object>
+            {
+                ["pipelineName"] = currentPipeline.name,
+                ["pipelineType"] = currentPipeline.GetType().FullName,
+            };
+
+            // Use reflection to get common properties
+            var pipelineType = currentPipeline.GetType();
+            var properties = new Dictionary<string, object>();
+
+            foreach (var prop in pipelineType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanRead) continue;
+
+                try
+                {
+                    var value = prop.GetValue(currentPipeline);
+                    properties[prop.Name] = SerializeValue(value);
+                }
+                catch (Exception ex)
+                {
+                    properties[prop.Name] = $"<Error: {ex.Message}>";
+                }
+            }
+
+            result["properties"] = properties;
+            return result;
+        }
+
+        private static object UpdateRenderPipelineSettings(Dictionary<string, object> payload)
+        {
+            var currentPipeline = GraphicsSettings.currentRenderPipeline;
+            if (currentPipeline == null)
+            {
+                throw new InvalidOperationException("No render pipeline is currently active.");
+            }
+
+            if (!payload.TryGetValue("settings", out var settingsObj) || !(settingsObj is Dictionary<string, object> settings))
+            {
+                throw new InvalidOperationException("settings dictionary is required");
+            }
+
+            var pipelineType = currentPipeline.GetType();
+            var updatedProperties = new List<string>();
+
+            foreach (var kvp in settings)
+            {
+                var prop = pipelineType.GetProperty(kvp.Key, BindingFlags.Public | BindingFlags.Instance);
+                if (prop != null && prop.CanWrite)
+                {
+                    try
+                    {
+                        var converted = ConvertValue(kvp.Value, prop.PropertyType);
+                        prop.SetValue(currentPipeline, converted);
+                        updatedProperties.Add(kvp.Key);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException($"Failed to set property {kvp.Key}: {ex.Message}");
+                    }
+                }
+            }
+
+            EditorUtility.SetDirty(currentPipeline);
+            AssetDatabase.SaveAssets();
+
+            return new Dictionary<string, object>
+            {
+                ["message"] = "Render pipeline settings updated",
+                ["updatedProperties"] = updatedProperties,
+            };
+        }
+
+        /// <summary>
+        /// Handles input system management operations (listActions, createAsset, addAction, addBinding, enableAction, readValue).
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation' and input-specific settings.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        private static object HandleInputSystemManage(Dictionary<string, object> payload)
+        {
+            var operation = EnsureValue(GetString(payload, "operation"), "operation");
+            return operation switch
+            {
+                "listActions" => ListInputActions(payload),
+                "createAsset" => CreateInputActionAsset(payload),
+                "addActionMap" => AddInputActionMap(payload),
+                "addAction" => AddInputAction(payload),
+                "addBinding" => AddInputBinding(payload),
+                "inspectAsset" => InspectInputActionAsset(payload),
+                "deleteAsset" => DeleteInputActionAsset(payload),
+                "deleteActionMap" => DeleteInputActionMap(payload),
+                "deleteAction" => DeleteInputAction(payload),
+                "deleteBinding" => DeleteInputBinding(payload),
+                _ => throw new InvalidOperationException($"Unknown inputSystemManage operation: {operation}"),
+            };
+        }
+
+        private static object ListInputActions(Dictionary<string, object> payload)
+        {
+            var assetPath = GetString(payload, "assetPath");
+
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                // Find all InputActionAsset files in the project
+                var guids = AssetDatabase.FindAssets("t:InputActionAsset");
+                var assets = new List<Dictionary<string, object>>();
+
+                foreach (var guid in guids)
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                    if (asset != null)
+                    {
+                        assets.Add(new Dictionary<string, object>
+                        {
+                            ["name"] = asset.name,
+                            ["path"] = path,
+                            ["guid"] = guid,
+                        });
+                    }
+                }
+
+                return new Dictionary<string, object>
+                {
+                    ["assets"] = assets,
+                    ["count"] = assets.Count,
+                };
+            }
+
+            // Inspect specific asset
+            return InspectInputActionAsset(payload);
+        }
+
+        private static object CreateInputActionAsset(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+
+            // Ensure path ends with .inputactions
+            if (!assetPath.EndsWith(".inputactions"))
+            {
+                assetPath += ".inputactions";
+            }
+
+            EnsureDirectoryExists(assetPath);
+
+            // Try to use New Input System API via reflection
+            var inputActionAssetType = Type.GetType("UnityEngine.InputSystem.InputActionAsset, Unity.InputSystem");
+            if (inputActionAssetType == null)
+            {
+                throw new InvalidOperationException("Input System package is not installed. Install it via Package Manager.");
+            }
+
+            var asset = ScriptableObject.CreateInstance(inputActionAssetType);
+            AssetDatabase.CreateAsset(asset, assetPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            return new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["guid"] = AssetDatabase.AssetPathToGUID(assetPath),
+                ["message"] = "Input Action Asset created successfully",
+            };
+        }
+
+        private static object AddInputActionMap(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var mapName = EnsureValue(GetString(payload, "mapName"), "mapName");
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            // Use reflection to add action map
+            var addMapMethod = asset.GetType().GetMethod("AddActionMap", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string) }, null);
+            if (addMapMethod == null)
+            {
+                throw new InvalidOperationException("Could not find AddActionMap method. Ensure Input System package is installed.");
+            }
+
+            var actionMap = addMapMethod.Invoke(asset, new object[] { mapName });
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["mapName"] = mapName,
+                ["message"] = "Action map added successfully",
+            };
+        }
+
+        private static object AddInputAction(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var mapName = EnsureValue(GetString(payload, "mapName"), "mapName");
+            var actionName = EnsureValue(GetString(payload, "actionName"), "actionName");
+            var actionType = GetString(payload, "actionType") ?? "Button";
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            // Use reflection to find and add action to map
+            var findMapMethod = asset.GetType().GetMethod("FindActionMap", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
+            if (findMapMethod == null)
+            {
+                throw new InvalidOperationException("Could not find FindActionMap method.");
+            }
+
+            var actionMap = findMapMethod.Invoke(asset, new object[] { mapName, false });
+            if (actionMap == null)
+            {
+                throw new InvalidOperationException($"Action map '{mapName}' not found in asset.");
+            }
+
+            var addActionMethod = actionMap.GetType().GetMethod("AddAction", BindingFlags.Public | BindingFlags.Instance);
+            if (addActionMethod == null)
+            {
+                throw new InvalidOperationException("Could not find AddAction method.");
+            }
+
+            var action = addActionMethod.Invoke(actionMap, new object[] { actionName, null, null, null, null, null, null, null });
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["mapName"] = mapName,
+                ["actionName"] = actionName,
+                ["message"] = "Action added successfully",
+            };
+        }
+
+        private static object AddInputBinding(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var mapName = EnsureValue(GetString(payload, "mapName"), "mapName");
+            var actionName = EnsureValue(GetString(payload, "actionName"), "actionName");
+            var path = EnsureValue(GetString(payload, "path"), "path");
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            // Use reflection to find action and add binding
+            var findActionMethod = asset.GetType().GetMethod("FindAction", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
+            if (findActionMethod == null)
+            {
+                throw new InvalidOperationException("Could not find FindAction method.");
+            }
+
+            var fullActionName = $"{mapName}/{actionName}";
+            var action = findActionMethod.Invoke(asset, new object[] { fullActionName, false });
+            if (action == null)
+            {
+                throw new InvalidOperationException($"Action '{fullActionName}' not found in asset.");
+            }
+
+            var addBindingMethod = action.GetType().GetMethod("AddBinding", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string) }, null);
+            if (addBindingMethod == null)
+            {
+                throw new InvalidOperationException("Could not find AddBinding method.");
+            }
+
+            addBindingMethod.Invoke(action, new object[] { path });
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["mapName"] = mapName,
+                ["actionName"] = actionName,
+                ["path"] = path,
+                ["message"] = "Binding added successfully",
+            };
+        }
+
+        private static object InspectInputActionAsset(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            var result = new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["name"] = asset.name,
+            };
+
+            // Use reflection to get action maps
+            var actionMapsProperty = asset.GetType().GetProperty("actionMaps", BindingFlags.Public | BindingFlags.Instance);
+            if (actionMapsProperty != null)
+            {
+                var actionMaps = actionMapsProperty.GetValue(asset);
+                if (actionMaps is System.Collections.IEnumerable enumerable)
+                {
+                    var mapsList = new List<Dictionary<string, object>>();
+                    foreach (var map in enumerable)
+                    {
+                        var mapName = map.GetType().GetProperty("name")?.GetValue(map);
+                        var actionsProperty = map.GetType().GetProperty("actions");
+                        var actions = actionsProperty?.GetValue(map);
+
+                        var actionsList = new List<string>();
+                        if (actions is System.Collections.IEnumerable actionsEnum)
+                        {
+                            foreach (var action in actionsEnum)
+                            {
+                                var actionNameProp = action.GetType().GetProperty("name")?.GetValue(action);
+                                if (actionNameProp != null)
+                                {
+                                    actionsList.Add(actionNameProp.ToString());
+                                }
+                            }
+                        }
+
+                        mapsList.Add(new Dictionary<string, object>
+                        {
+                            ["name"] = mapName?.ToString() ?? "Unknown",
+                            ["actions"] = actionsList,
+                        });
+                    }
+                    result["actionMaps"] = mapsList;
+                }
+            }
+
+            return result;
+        }
+
+        private static object DeleteInputActionAsset(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+
+            if (!File.Exists(assetPath))
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            if (!AssetDatabase.DeleteAsset(assetPath))
+            {
+                throw new InvalidOperationException($"Failed to delete asset: {assetPath}");
+            }
+
+            AssetDatabase.Refresh();
+
+            return new Dictionary<string, object>
+            {
+                ["deleted"] = assetPath,
+                ["message"] = "Input Action Asset deleted successfully",
+            };
+        }
+
+        private static object DeleteInputActionMap(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var mapName = EnsureValue(GetString(payload, "mapName"), "mapName");
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            // Use reflection to find and remove action map
+            var findMapMethod = asset.GetType().GetMethod("FindActionMap", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
+            if (findMapMethod == null)
+            {
+                throw new InvalidOperationException("Could not find FindActionMap method.");
+            }
+
+            var actionMap = findMapMethod.Invoke(asset, new object[] { mapName, false });
+            if (actionMap == null)
+            {
+                throw new InvalidOperationException($"Action map '{mapName}' not found in asset.");
+            }
+
+            var removeMapMethod = asset.GetType().GetMethod("RemoveActionMap", BindingFlags.Public | BindingFlags.Instance);
+            if (removeMapMethod == null)
+            {
+                throw new InvalidOperationException("Could not find RemoveActionMap method.");
+            }
+
+            removeMapMethod.Invoke(asset, new object[] { actionMap });
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["deletedMap"] = mapName,
+                ["message"] = "Action map deleted successfully",
+            };
+        }
+
+        private static object DeleteInputAction(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var mapName = EnsureValue(GetString(payload, "mapName"), "mapName");
+            var actionName = EnsureValue(GetString(payload, "actionName"), "actionName");
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            // Use reflection to find the action map
+            var findMapMethod = asset.GetType().GetMethod("FindActionMap", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
+            if (findMapMethod == null)
+            {
+                throw new InvalidOperationException("Could not find FindActionMap method.");
+            }
+
+            var actionMap = findMapMethod.Invoke(asset, new object[] { mapName, false });
+            if (actionMap == null)
+            {
+                throw new InvalidOperationException($"Action map '{mapName}' not found in asset.");
+            }
+
+            // Find the action
+            var findActionMethod = actionMap.GetType().GetMethod("FindAction", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
+            if (findActionMethod == null)
+            {
+                throw new InvalidOperationException("Could not find FindAction method.");
+            }
+
+            var action = findActionMethod.Invoke(actionMap, new object[] { actionName, false });
+            if (action == null)
+            {
+                throw new InvalidOperationException($"Action '{actionName}' not found in map '{mapName}'.");
+            }
+
+            // Get the action's ID to remove it
+            var actionsProperty = actionMap.GetType().GetProperty("actions", BindingFlags.Public | BindingFlags.Instance);
+            if (actionsProperty == null)
+            {
+                throw new InvalidOperationException("Could not find actions property.");
+            }
+
+            var actions = actionsProperty.GetValue(actionMap);
+            var removeMethod = actions.GetType().GetMethod("Remove", new[] { action.GetType() });
+            if (removeMethod == null)
+            {
+                throw new InvalidOperationException("Could not find Remove method.");
+            }
+
+            removeMethod.Invoke(actions, new object[] { action });
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return new Dictionary<string, object>
+            {
+                ["assetPath"] = assetPath,
+                ["mapName"] = mapName,
+                ["deletedAction"] = actionName,
+                ["message"] = "Action deleted successfully",
+            };
+        }
+
+        private static object DeleteInputBinding(Dictionary<string, object> payload)
+        {
+            var assetPath = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var mapName = EnsureValue(GetString(payload, "mapName"), "mapName");
+            var actionName = EnsureValue(GetString(payload, "actionName"), "actionName");
+            var bindingIndex = GetInt(payload, "bindingIndex", -1);
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                throw new InvalidOperationException($"InputActionAsset not found at path: {assetPath}");
+            }
+
+            // Use reflection to find action
+            var findActionMethod = asset.GetType().GetMethod("FindAction", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
+            if (findActionMethod == null)
+            {
+                throw new InvalidOperationException("Could not find FindAction method.");
+            }
+
+            var fullActionName = $"{mapName}/{actionName}";
+            var action = findActionMethod.Invoke(asset, new object[] { fullActionName, false });
+            if (action == null)
+            {
+                throw new InvalidOperationException($"Action '{fullActionName}' not found in asset.");
+            }
+
+            // Get bindings
+            var bindingsProperty = action.GetType().GetProperty("bindings", BindingFlags.Public | BindingFlags.Instance);
+            if (bindingsProperty == null)
+            {
+                throw new InvalidOperationException("Could not find bindings property.");
+            }
+
+            var bindings = bindingsProperty.GetValue(action);
+            var bindingsCount = (int)bindings.GetType().GetProperty("Count").GetValue(bindings);
+
+            if (bindingIndex < 0)
+            {
+                // Delete all bindings
+                var changeBindingMethod = action.GetType().GetMethod("ChangeBinding", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(int) }, null);
+                if (changeBindingMethod == null)
+                {
+                    throw new InvalidOperationException("Could not find ChangeBinding method.");
+                }
+
+                // Remove bindings from last to first to avoid index shifting
+                for (int i = bindingsCount - 1; i >= 0; i--)
+                {
+                    var binding = changeBindingMethod.Invoke(action, new object[] { i });
+                    var eraseMethod = binding.GetType().GetMethod("Erase", BindingFlags.Public | BindingFlags.Instance);
+                    if (eraseMethod != null)
+                    {
+                        eraseMethod.Invoke(binding, null);
+                    }
+                }
+
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+
+                return new Dictionary<string, object>
+                {
+                    ["assetPath"] = assetPath,
+                    ["mapName"] = mapName,
+                    ["actionName"] = actionName,
+                    ["deletedBindings"] = bindingsCount,
+                    ["message"] = $"All {bindingsCount} binding(s) deleted successfully",
+                };
+            }
+            else
+            {
+                // Delete specific binding by index
+                if (bindingIndex >= bindingsCount)
+                {
+                    throw new InvalidOperationException($"Binding index {bindingIndex} out of range (0-{bindingsCount - 1})");
+                }
+
+                var changeBindingMethod = action.GetType().GetMethod("ChangeBinding", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(int) }, null);
+                if (changeBindingMethod == null)
+                {
+                    throw new InvalidOperationException("Could not find ChangeBinding method.");
+                }
+
+                var binding = changeBindingMethod.Invoke(action, new object[] { bindingIndex });
+                var eraseMethod = binding.GetType().GetMethod("Erase", BindingFlags.Public | BindingFlags.Instance);
+                if (eraseMethod == null)
+                {
+                    throw new InvalidOperationException("Could not find Erase method.");
+                }
+
+                eraseMethod.Invoke(binding, null);
+
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+
+                return new Dictionary<string, object>
+                {
+                    ["assetPath"] = assetPath,
+                    ["mapName"] = mapName,
+                    ["actionName"] = actionName,
+                    ["deletedBindingIndex"] = bindingIndex,
+                    ["message"] = "Binding deleted successfully",
+                };
+            }
+        }
+
+        private static int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
+        {
+            if (!payload.TryGetValue(key, out var value) || value == null)
+            {
+                return defaultValue;
+            }
+
+            if (value is int intValue)
+            {
+                return intValue;
+            }
+
+            if (value is long longValue)
+            {
+                return (int)longValue;
+            }
+
+            if (value is double doubleValue)
+            {
+                return (int)doubleValue;
+            }
+
+            if (value is string strValue && int.TryParse(strValue, out var parsed))
+            {
+                return parsed;
+            }
+
+            return defaultValue;
+        }
+
+        /// <summary>
+        /// Handles batch execution of multiple operations.
+        /// </summary>
+        /// <param name="payload">Batch parameters including 'operations' array and 'stopOnError' flag.</param>
+        /// <returns>Result dictionary with array of operation results.</returns>
+        private static object HandleBatchExecute(Dictionary<string, object> payload)
+        {
+            if (!payload.TryGetValue("operations", out var operationsObj) || !(operationsObj is List<object> operations))
+            {
+                throw new InvalidOperationException("operations array is required");
+            }
+
+            var stopOnError = GetBool(payload, "stopOnError", false);
+            var results = new List<Dictionary<string, object>>();
+            var successCount = 0;
+            var failureCount = 0;
+
+            for (int i = 0; i < operations.Count; i++)
+            {
+                if (!(operations[i] is Dictionary<string, object> op))
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = false,
+                        ["error"] = "Invalid operation format",
+                    });
+                    failureCount++;
+                    continue;
+                }
+
+                var toolName = GetString(op, "tool");
+                if (string.IsNullOrEmpty(toolName))
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = false,
+                        ["error"] = "tool name is required",
+                    });
+                    failureCount++;
+                    if (stopOnError) break;
+                    continue;
+                }
+
+                var operationPayload = op.TryGetValue("payload", out var payloadObj) && payloadObj is Dictionary<string, object> dict
+                    ? dict
+                    : new Dictionary<string, object>();
+
+                try
+                {
+                    object result = toolName switch
+                    {
+                        "sceneManage" => HandleSceneManage(operationPayload),
+                        "gameObjectManage" => HandleGameObjectManage(operationPayload),
+                        "componentManage" => HandleComponentManage(operationPayload),
+                        "assetManage" => HandleAssetManage(operationPayload),
+                        "uguiRectAdjust" => HandleUguiRectAdjust(operationPayload),
+                        "uguiAnchorManage" => HandleUguiAnchorManage(operationPayload),
+                        "scriptOutline" => HandleScriptOutline(operationPayload),
+                        "prefabManage" => HandlePrefabManage(operationPayload),
+                        "projectSettingsManage" => HandleProjectSettingsManage(operationPayload),
+                        "renderPipelineManage" => HandleRenderPipelineManage(operationPayload),
+                        "inputSystemManage" => HandleInputSystemManage(operationPayload),
+                        _ => throw new InvalidOperationException($"Unsupported tool name in batch: {toolName}"),
+                    };
+
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = true,
+                        ["tool"] = toolName,
+                        ["result"] = result,
+                    });
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = false,
+                        ["tool"] = toolName,
+                        ["error"] = ex.Message,
+                    });
+                    failureCount++;
+
+                    if (stopOnError)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["totalOperations"] = operations.Count,
+                ["executedOperations"] = results.Count,
+                ["successCount"] = successCount,
+                ["failureCount"] = failureCount,
+                ["results"] = results,
             };
         }
     }

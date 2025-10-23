@@ -211,6 +211,369 @@ private static object HandleTool(Dictionary<string, object> payload)
 
 ## Available Tools
 
+### Batch Execute (`unity.batch.execute`)
+
+The batch execute tool allows you to execute multiple Unity operations in a single request, improving efficiency for bulk operations.
+
+**Usage:**
+
+```json
+{
+  "operations": [
+    {
+      "tool": "gameObjectManage",
+      "payload": {
+        "operation": "create",
+        "gameObjectPath": "Player",
+        "name": "Player"
+      }
+    },
+    {
+      "tool": "componentManage",
+      "payload": {
+        "operation": "add",
+        "gameObjectPath": "Player",
+        "componentType": "UnityEngine.Rigidbody"
+      }
+    },
+    {
+      "tool": "componentManage",
+      "payload": {
+        "operation": "update",
+        "gameObjectPath": "Player",
+        "componentType": "UnityEngine.Rigidbody",
+        "propertyChanges": {
+          "mass": 2.0,
+          "useGravity": true
+        }
+      }
+    }
+  ],
+  "stopOnError": false
+}
+```
+
+**Parameters:**
+
+- **operations** (required): Array of operations to execute
+  - **tool**: Tool name (e.g., "gameObjectManage", "componentManage", "assetManage")
+  - **payload**: Operation-specific parameters
+- **stopOnError** (optional): If true, stops execution when an operation fails. Default is false.
+
+**Response:**
+
+```json
+{
+  "totalOperations": 3,
+  "executedOperations": 3,
+  "successCount": 3,
+  "failureCount": 0,
+  "results": [
+    {
+      "index": 0,
+      "success": true,
+      "tool": "gameObjectManage",
+      "result": { ... }
+    },
+    {
+      "index": 1,
+      "success": true,
+      "tool": "componentManage",
+      "result": { ... }
+    },
+    {
+      "index": 2,
+      "success": true,
+      "tool": "componentManage",
+      "result": { ... }
+    }
+  ]
+}
+```
+
+**Use Cases:**
+
+1. **Setup Multiple GameObjects:**
+   ```json
+   {
+     "operations": [
+       {"tool": "gameObjectManage", "payload": {"operation": "create", "gameObjectPath": "UI/Panel", "name": "Panel"}},
+       {"tool": "gameObjectManage", "payload": {"operation": "create", "gameObjectPath": "UI/Panel/Button", "name": "Button"}},
+       {"tool": "componentManage", "payload": {"operation": "add", "gameObjectPath": "UI/Panel/Button", "componentType": "UnityEngine.UI.Button"}}
+     ]
+   }
+   ```
+
+2. **Bulk Asset Creation:**
+   ```json
+   {
+     "operations": [
+       {"tool": "assetManage", "payload": {"operation": "create", "assetPath": "Assets/Scripts/Player.cs", "contents": "..."}},
+       {"tool": "assetManage", "payload": {"operation": "create", "assetPath": "Assets/Scripts/Enemy.cs", "contents": "..."}},
+       {"tool": "assetManage", "payload": {"operation": "create", "assetPath": "Assets/Scripts/GameManager.cs", "contents": "..."}}
+     ]
+   }
+   ```
+
+3. **Input System Setup:**
+   ```json
+   {
+     "operations": [
+       {"tool": "inputSystemManage", "payload": {"operation": "createAsset", "assetPath": "Assets/Input/Controls.inputactions"}},
+       {"tool": "inputSystemManage", "payload": {"operation": "addActionMap", "assetPath": "Assets/Input/Controls.inputactions", "mapName": "Player"}},
+       {"tool": "inputSystemManage", "payload": {"operation": "addAction", "assetPath": "Assets/Input/Controls.inputactions", "mapName": "Player", "actionName": "Move"}},
+       {"tool": "inputSystemManage", "payload": {"operation": "addBinding", "assetPath": "Assets/Input/Controls.inputactions", "mapName": "Player", "actionName": "Move", "path": "<Keyboard>/wasd"}}
+     ]
+   }
+   ```
+
+**Implementation Notes:**
+- Operations are executed sequentially in the order provided
+- Each operation result is recorded independently
+- If `stopOnError` is false (default), all operations are attempted even if some fail
+- If `stopOnError` is true, execution stops at the first error
+- The response includes detailed results for each operation with success/failure status
+- Failed operations include error messages
+
+### Project Settings Management (`unity.projectSettings.crud`)
+
+The project settings management tool provides comprehensive operations for reading and writing Unity Project Settings across multiple categories.
+
+**Operations:**
+
+1. **list** - List available settings categories or properties
+   ```json
+   {
+     "operation": "list"
+   }
+   ```
+   Returns all available categories: player, quality, time, physics, audio, editor.
+
+   ```json
+   {
+     "operation": "list",
+     "category": "player"
+   }
+   ```
+   Returns all available properties for the specified category.
+
+2. **read** - Read project settings values
+   ```json
+   {
+     "operation": "read",
+     "category": "player",
+     "property": "companyName"
+   }
+   ```
+   Returns the value of a specific property.
+
+   ```json
+   {
+     "operation": "read",
+     "category": "player"
+   }
+   ```
+   Returns all properties for the specified category (when property is omitted).
+
+3. **write** - Write project settings values
+   ```json
+   {
+     "operation": "write",
+     "category": "player",
+     "property": "companyName",
+     "value": "My Company"
+   }
+   ```
+
+**Supported Categories:**
+
+- **player** - PlayerSettings (company name, product name, version, screen resolution, etc.)
+  - Properties: companyName, productName, version, defaultScreenWidth, defaultScreenHeight, runInBackground, defaultIsFullScreen, etc.
+
+- **quality** - QualitySettings (quality levels, shadows, anti-aliasing, etc.)
+  - Properties: names, currentLevel, pixelLightCount, shadowDistance, vSyncCount, antiAliasing, etc.
+
+- **time** - Time settings (fixed delta time, time scale, etc.)
+  - Properties: fixedDeltaTime, maximumDeltaTime, timeScale, maximumParticleDeltaTime
+
+- **physics** - Physics settings (gravity, collision detection, etc.)
+  - Properties: gravity (Vector3), defaultSolverIterations, bounceThreshold, queriesHitTriggers, etc.
+
+- **audio** - AudioSettings (DSP buffer size, sample rate, etc.)
+  - Properties: dspBufferSize, sampleRate, speakerMode, numRealVoices, numVirtualVoices
+
+- **editor** - EditorSettings (serialization mode, line endings, etc.)
+  - Properties: serializationMode, spritePackerMode, lineEndingsForNewScripts, defaultBehaviorMode
+
+**Implementation Notes:**
+- The tool uses Unity's PlayerSettings, QualitySettings, Time, Physics, AudioSettings, and EditorSettings APIs
+- All property names are case-insensitive for convenience
+- Complex values like Vector3 (gravity) are represented as dictionaries with x, y, z keys
+- Enum values are returned as strings and can be set using string names
+
+### Render Pipeline Management (`unity.renderPipeline.manage`)
+
+The render pipeline management tool provides operations for inspecting and configuring Unity's render pipeline (Built-in, URP, HDRP, or custom).
+
+**Operations:**
+
+1. **inspect** - Check current render pipeline
+   ```json
+   {
+     "operation": "inspect"
+   }
+   ```
+   Returns pipeline type (Built-in/URP/HDRP/Custom), asset name, and path.
+
+2. **setAsset** - Change the render pipeline asset
+   ```json
+   {
+     "operation": "setAsset",
+     "assetPath": "Assets/Settings/UniversalRP-HighQuality.asset"
+   }
+   ```
+   Empty assetPath clears the pipeline and returns to Built-in renderer.
+
+3. **getSettings** - Read render pipeline settings
+   ```json
+   {
+     "operation": "getSettings"
+   }
+   ```
+   Returns all public properties of the current pipeline asset.
+
+4. **updateSettings** - Modify render pipeline settings
+   ```json
+   {
+     "operation": "updateSettings",
+     "settings": {
+       "shadowDistance": 150,
+       "cascadeCount": 4
+     }
+   }
+   ```
+
+**Implementation Notes:**
+- Uses UnityEngine.Rendering.GraphicsSettings API
+- Settings are pipeline-specific (URP and HDRP have different properties)
+- Uses reflection to access pipeline-specific settings
+- All changes are saved to the asset automatically
+
+### Input System Management (`unity.inputSystem.manage`)
+
+The input system management tool provides operations for working with Unity's New Input System (requires Input System package).
+
+**Operations:**
+
+1. **listActions** - List all Input Action assets
+   ```json
+   {
+     "operation": "listActions"
+   }
+   ```
+   Returns all .inputactions files in the project.
+
+2. **createAsset** - Create a new Input Action asset
+   ```json
+   {
+     "operation": "createAsset",
+     "assetPath": "Assets/Input/PlayerControls.inputactions"
+   }
+   ```
+
+3. **addActionMap** - Add an action map to an asset
+   ```json
+   {
+     "operation": "addActionMap",
+     "assetPath": "Assets/Input/PlayerControls.inputactions",
+     "mapName": "Player"
+   }
+   ```
+
+4. **addAction** - Add an action to a map
+   ```json
+   {
+     "operation": "addAction",
+     "assetPath": "Assets/Input/PlayerControls.inputactions",
+     "mapName": "Player",
+     "actionName": "Jump",
+     "actionType": "Button"
+   }
+   ```
+   Action types: Button, Value, PassThrough
+
+5. **addBinding** - Add a binding to an action
+   ```json
+   {
+     "operation": "addBinding",
+     "assetPath": "Assets/Input/PlayerControls.inputactions",
+     "mapName": "Player",
+     "actionName": "Jump",
+     "path": "<Keyboard>/space"
+   }
+   ```
+   Common binding paths:
+   - Keyboard: `<Keyboard>/space`, `<Keyboard>/w`, `<Keyboard>/escape`
+   - Mouse: `<Mouse>/leftButton`, `<Mouse>/position`, `<Mouse>/delta`
+   - Gamepad: `<Gamepad>/buttonSouth`, `<Gamepad>/leftStick`
+
+6. **inspectAsset** - Inspect Input Action asset contents
+   ```json
+   {
+     "operation": "inspectAsset",
+     "assetPath": "Assets/Input/PlayerControls.inputactions"
+   }
+   ```
+   Returns action maps and their actions.
+
+7. **deleteAsset** - Delete entire Input Action asset
+   ```json
+   {
+     "operation": "deleteAsset",
+     "assetPath": "Assets/Input/PlayerControls.inputactions"
+   }
+   ```
+   Permanently deletes the .inputactions file.
+
+8. **deleteActionMap** - Delete an action map from asset
+   ```json
+   {
+     "operation": "deleteActionMap",
+     "assetPath": "Assets/Input/PlayerControls.inputactions",
+     "mapName": "Player"
+   }
+   ```
+
+9. **deleteAction** - Delete an action from a map
+   ```json
+   {
+     "operation": "deleteAction",
+     "assetPath": "Assets/Input/PlayerControls.inputactions",
+     "mapName": "Player",
+     "actionName": "Jump"
+   }
+   ```
+
+10. **deleteBinding** - Delete binding(s) from an action
+    ```json
+    {
+      "operation": "deleteBinding",
+      "assetPath": "Assets/Input/PlayerControls.inputactions",
+      "mapName": "Player",
+      "actionName": "Jump",
+      "bindingIndex": 0
+    }
+    ```
+    - Omit `bindingIndex` or set to -1 to delete ALL bindings from the action
+    - Specify `bindingIndex` (0, 1, 2, ...) to delete a specific binding
+
+**Implementation Notes:**
+- Uses reflection to access Input System API (UnityEngine.InputSystem.InputActionAsset)
+- Requires Input System package to be installed via Package Manager
+- All changes are automatically saved to the asset
+- The tool creates .inputactions files which can be used in runtime code
+- Delete operations are permanent and cannot be undone
+
 ### Prefab Management (`unity.prefab.crud`)
 
 The prefab management tool provides comprehensive operations for working with Unity prefabs:
