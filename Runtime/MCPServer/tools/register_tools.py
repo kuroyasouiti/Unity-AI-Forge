@@ -409,6 +409,31 @@ def register_tools(server: Server) -> None:
         ["operations"],
     )
 
+    tag_layer_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["setTag", "getTag", "setLayer", "getLayer", "setLayerRecursive", "listTags", "addTag", "removeTag", "listLayers", "addLayer", "removeLayer"],
+                    "description": "Operation to perform. GameObject operations: 'setTag' sets tag on GameObject, 'getTag' gets tag from GameObject, 'setLayer' sets layer on GameObject, 'getLayer' gets layer from GameObject, 'setLayerRecursive' sets layer on GameObject and all children. Project operations: 'listTags' lists all tags, 'addTag' creates new tag, 'removeTag' deletes tag, 'listLayers' lists all layers, 'addLayer' creates new layer, 'removeLayer' deletes layer.",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Hierarchy path of the GameObject (for setTag, getTag, setLayer, getLayer, setLayerRecursive operations).",
+                },
+                "tag": {
+                    "type": "string",
+                    "description": "Tag name (for setTag, addTag, removeTag operations).",
+                },
+                "layer": {
+                    "description": "Layer name (string) or layer index (integer) for setLayer, setLayerRecursive operations. Layer name (string) for addLayer, removeLayer operations.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     ugui_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -566,6 +591,11 @@ def register_tools(server: Server) -> None:
             inputSchema=ugui_manage_schema,
         ),
         types.Tool(
+            name="unity.tagLayer.manage",
+            description="Manage tags and layers in Unity. Set/get tags and layers on GameObjects (supports recursive layer setting for hierarchies). Add/remove tags and layers from the project. List all available tags and layers.",
+            inputSchema=tag_layer_manage_schema,
+        ),
+        types.Tool(
             name="unity.script.outline",
             description="Produce a summary of a C# script, optionally including member signatures.",
             inputSchema=script_outline_schema,
@@ -641,6 +671,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity.ugui.manage":
             return await _call_bridge_tool("uguiManage", args)
+
+        if name == "unity.tagLayer.manage":
+            return await _call_bridge_tool("tagLayerManage", args)
 
         if name == "unity.script.outline":
             return await _call_bridge_tool("scriptOutline", args)

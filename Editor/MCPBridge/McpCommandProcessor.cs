@@ -38,6 +38,7 @@ namespace MCP.Editor
                 "uguiRectAdjust" => HandleUguiRectAdjust(command.Payload),
                 "uguiAnchorManage" => HandleUguiAnchorManage(command.Payload),
                 "uguiManage" => HandleUguiManage(command.Payload),
+                "tagLayerManage" => HandleTagLayerManage(command.Payload),
                 "scriptOutline" => HandleScriptOutline(command.Payload),
                 "prefabManage" => HandlePrefabManage(command.Payload),
                 "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
@@ -1386,6 +1387,498 @@ namespace MCP.Editor
         }
 
         /// <summary>
+        /// Handles tag and layer management operations.
+        /// Supports setting/getting tags and layers on GameObjects,
+        /// and adding/removing tags and layers from the project.
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation' type.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        private static object HandleTagLayerManage(Dictionary<string, object> payload)
+        {
+            try
+            {
+                var operation = GetString(payload, "operation");
+                if (string.IsNullOrEmpty(operation))
+                {
+                    throw new InvalidOperationException("operation is required");
+                }
+
+                Debug.Log($"[tagLayerManage] Processing operation: {operation}");
+
+                switch (operation)
+                {
+                    case "setTag":
+                        return SetTag(payload);
+                    case "getTag":
+                        return GetTag(payload);
+                    case "setLayer":
+                        return SetLayer(payload);
+                    case "getLayer":
+                        return GetLayer(payload);
+                    case "setLayerRecursive":
+                        return SetLayerRecursive(payload);
+                    case "listTags":
+                        return ListTags();
+                    case "addTag":
+                        return AddTag(payload);
+                    case "removeTag":
+                        return RemoveTag(payload);
+                    case "listLayers":
+                        return ListLayers();
+                    case "addLayer":
+                        return AddLayer(payload);
+                    case "removeLayer":
+                        return RemoveLayer(payload);
+                    default:
+                        throw new InvalidOperationException($"Unknown tagLayerManage operation: {operation}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[tagLayerManage] Error: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Sets the tag of a GameObject.
+        /// </summary>
+        private static object SetTag(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var tag = EnsureValue(GetString(payload, "tag"), "tag");
+
+            var target = ResolveGameObject(path);
+            var oldTag = target.tag;
+
+            // Verify tag exists
+            try
+            {
+                target.tag = tag;
+            }
+            catch (UnityException ex)
+            {
+                throw new InvalidOperationException($"Tag '{tag}' does not exist in the project. Use addTag operation to create it first. {ex.Message}");
+            }
+
+            EditorUtility.SetDirty(target);
+
+            return new Dictionary<string, object>
+            {
+                ["gameObjectPath"] = path,
+                ["oldTag"] = oldTag,
+                ["newTag"] = tag,
+                ["operation"] = "setTag",
+            };
+        }
+
+        /// <summary>
+        /// Gets the tag of a GameObject.
+        /// </summary>
+        private static object GetTag(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var target = ResolveGameObject(path);
+
+            return new Dictionary<string, object>
+            {
+                ["gameObjectPath"] = path,
+                ["tag"] = target.tag,
+                ["operation"] = "getTag",
+            };
+        }
+
+        /// <summary>
+        /// Sets the layer of a GameObject.
+        /// </summary>
+        private static object SetLayer(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var target = ResolveGameObject(path);
+
+            int newLayer;
+            if (payload.TryGetValue("layer", out var layerObj))
+            {
+                if (layerObj is string layerName)
+                {
+                    newLayer = LayerMask.NameToLayer(layerName);
+                    if (newLayer == -1)
+                    {
+                        throw new InvalidOperationException($"Layer '{layerName}' does not exist in the project. Use addLayer operation to create it first.");
+                    }
+                }
+                else if (layerObj is int layerIndex)
+                {
+                    newLayer = layerIndex;
+                }
+                else if (layerObj is double layerDouble)
+                {
+                    newLayer = (int)layerDouble;
+                }
+                else
+                {
+                    throw new InvalidOperationException("layer must be a string (layer name) or integer (layer index)");
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("layer is required");
+            }
+
+            var oldLayer = target.layer;
+            var oldLayerName = LayerMask.LayerToName(oldLayer);
+
+            target.layer = newLayer;
+            EditorUtility.SetDirty(target);
+
+            return new Dictionary<string, object>
+            {
+                ["gameObjectPath"] = path,
+                ["oldLayer"] = oldLayer,
+                ["oldLayerName"] = oldLayerName,
+                ["newLayer"] = newLayer,
+                ["newLayerName"] = LayerMask.LayerToName(newLayer),
+                ["operation"] = "setLayer",
+            };
+        }
+
+        /// <summary>
+        /// Gets the layer of a GameObject.
+        /// </summary>
+        private static object GetLayer(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var target = ResolveGameObject(path);
+
+            return new Dictionary<string, object>
+            {
+                ["gameObjectPath"] = path,
+                ["layer"] = target.layer,
+                ["layerName"] = LayerMask.LayerToName(target.layer),
+                ["operation"] = "getLayer",
+            };
+        }
+
+        /// <summary>
+        /// Sets the layer of a GameObject and all its children recursively.
+        /// </summary>
+        private static object SetLayerRecursive(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var target = ResolveGameObject(path);
+
+            int newLayer;
+            if (payload.TryGetValue("layer", out var layerObj))
+            {
+                if (layerObj is string layerName)
+                {
+                    newLayer = LayerMask.NameToLayer(layerName);
+                    if (newLayer == -1)
+                    {
+                        throw new InvalidOperationException($"Layer '{layerName}' does not exist in the project. Use addLayer operation to create it first.");
+                    }
+                }
+                else if (layerObj is int layerIndex)
+                {
+                    newLayer = layerIndex;
+                }
+                else if (layerObj is double layerDouble)
+                {
+                    newLayer = (int)layerDouble;
+                }
+                else
+                {
+                    throw new InvalidOperationException("layer must be a string (layer name) or integer (layer index)");
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("layer is required");
+            }
+
+            var affectedCount = 0;
+            SetLayerRecursiveInternal(target, newLayer, ref affectedCount);
+
+            return new Dictionary<string, object>
+            {
+                ["gameObjectPath"] = path,
+                ["newLayer"] = newLayer,
+                ["newLayerName"] = LayerMask.LayerToName(newLayer),
+                ["affectedCount"] = affectedCount,
+                ["operation"] = "setLayerRecursive",
+            };
+        }
+
+        /// <summary>
+        /// Internal helper for recursive layer setting.
+        /// </summary>
+        private static void SetLayerRecursiveInternal(GameObject obj, int layer, ref int count)
+        {
+            obj.layer = layer;
+            EditorUtility.SetDirty(obj);
+            count++;
+
+            foreach (Transform child in obj.transform)
+            {
+                SetLayerRecursiveInternal(child.gameObject, layer, ref count);
+            }
+        }
+
+        /// <summary>
+        /// Lists all tags in the project.
+        /// </summary>
+        private static object ListTags()
+        {
+            var tags = UnityEditorInternal.InternalEditorUtility.tags;
+
+            return new Dictionary<string, object>
+            {
+                ["tags"] = new List<string>(tags),
+                ["count"] = tags.Length,
+                ["operation"] = "listTags",
+            };
+        }
+
+        /// <summary>
+        /// Adds a new tag to the project.
+        /// </summary>
+        private static object AddTag(Dictionary<string, object> payload)
+        {
+            var tag = EnsureValue(GetString(payload, "tag"), "tag");
+
+            // Check if tag already exists
+            var existingTags = UnityEditorInternal.InternalEditorUtility.tags;
+            if (System.Array.IndexOf(existingTags, tag) != -1)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["tag"] = tag,
+                    ["added"] = false,
+                    ["message"] = "Tag already exists",
+                    ["operation"] = "addTag",
+                };
+            }
+
+            // Add tag using SerializedObject
+            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            var tagsProp = tagManager.FindProperty("tags");
+
+            tagsProp.InsertArrayElementAtIndex(tagsProp.arraySize);
+            var newTagProp = tagsProp.GetArrayElementAtIndex(tagsProp.arraySize - 1);
+            newTagProp.stringValue = tag;
+
+            tagManager.ApplyModifiedProperties();
+
+            return new Dictionary<string, object>
+            {
+                ["tag"] = tag,
+                ["added"] = true,
+                ["operation"] = "addTag",
+            };
+        }
+
+        /// <summary>
+        /// Removes a tag from the project.
+        /// </summary>
+        private static object RemoveTag(Dictionary<string, object> payload)
+        {
+            var tag = EnsureValue(GetString(payload, "tag"), "tag");
+
+            // Find tag index
+            var existingTags = UnityEditorInternal.InternalEditorUtility.tags;
+            var tagIndex = System.Array.IndexOf(existingTags, tag);
+
+            if (tagIndex == -1)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["tag"] = tag,
+                    ["removed"] = false,
+                    ["message"] = "Tag does not exist",
+                    ["operation"] = "removeTag",
+                };
+            }
+
+            // Remove tag using SerializedObject
+            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            var tagsProp = tagManager.FindProperty("tags");
+
+            // Find the property index (it may not match array index due to built-in tags)
+            for (int i = 0; i < tagsProp.arraySize; i++)
+            {
+                if (tagsProp.GetArrayElementAtIndex(i).stringValue == tag)
+                {
+                    tagsProp.DeleteArrayElementAtIndex(i);
+                    tagManager.ApplyModifiedProperties();
+
+                    return new Dictionary<string, object>
+                    {
+                        ["tag"] = tag,
+                        ["removed"] = true,
+                        ["operation"] = "removeTag",
+                    };
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["tag"] = tag,
+                ["removed"] = false,
+                ["message"] = "Failed to find tag in TagManager",
+                ["operation"] = "removeTag",
+            };
+        }
+
+        /// <summary>
+        /// Lists all layers in the project.
+        /// </summary>
+        private static object ListLayers()
+        {
+            var layers = new List<Dictionary<string, object>>();
+
+            for (int i = 0; i < 32; i++)
+            {
+                var layerName = LayerMask.LayerToName(i);
+                if (!string.IsNullOrEmpty(layerName))
+                {
+                    layers.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["name"] = layerName,
+                    });
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["layers"] = layers,
+                ["count"] = layers.Count,
+                ["operation"] = "listLayers",
+            };
+        }
+
+        /// <summary>
+        /// Adds a new layer to the project.
+        /// </summary>
+        private static object AddLayer(Dictionary<string, object> payload)
+        {
+            var layer = EnsureValue(GetString(payload, "layer"), "layer");
+
+            // Check if layer already exists
+            for (int i = 0; i < 32; i++)
+            {
+                if (LayerMask.LayerToName(i) == layer)
+                {
+                    return new Dictionary<string, object>
+                    {
+                        ["layer"] = layer,
+                        ["index"] = i,
+                        ["added"] = false,
+                        ["message"] = "Layer already exists",
+                        ["operation"] = "addLayer",
+                    };
+                }
+            }
+
+            // Find first available layer slot (8-31, 0-7 are built-in)
+            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            var layersProp = tagManager.FindProperty("layers");
+
+            int availableIndex = -1;
+            for (int i = 8; i < 32; i++)
+            {
+                var layerProp = layersProp.GetArrayElementAtIndex(i);
+                if (string.IsNullOrEmpty(layerProp.stringValue))
+                {
+                    availableIndex = i;
+                    break;
+                }
+            }
+
+            if (availableIndex == -1)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["layer"] = layer,
+                    ["added"] = false,
+                    ["message"] = "No available layer slots (layers 8-31 are full)",
+                    ["operation"] = "addLayer",
+                };
+            }
+
+            var newLayerProp = layersProp.GetArrayElementAtIndex(availableIndex);
+            newLayerProp.stringValue = layer;
+            tagManager.ApplyModifiedProperties();
+
+            return new Dictionary<string, object>
+            {
+                ["layer"] = layer,
+                ["index"] = availableIndex,
+                ["added"] = true,
+                ["operation"] = "addLayer",
+            };
+        }
+
+        /// <summary>
+        /// Removes a layer from the project.
+        /// </summary>
+        private static object RemoveLayer(Dictionary<string, object> payload)
+        {
+            var layer = EnsureValue(GetString(payload, "layer"), "layer");
+
+            // Find layer index
+            int layerIndex = -1;
+            for (int i = 0; i < 32; i++)
+            {
+                if (LayerMask.LayerToName(i) == layer)
+                {
+                    layerIndex = i;
+                    break;
+                }
+            }
+
+            if (layerIndex == -1)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["layer"] = layer,
+                    ["removed"] = false,
+                    ["message"] = "Layer does not exist",
+                    ["operation"] = "removeLayer",
+                };
+            }
+
+            // Cannot remove built-in layers (0-7)
+            if (layerIndex < 8)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["layer"] = layer,
+                    ["index"] = layerIndex,
+                    ["removed"] = false,
+                    ["message"] = "Cannot remove built-in layers (0-7)",
+                    ["operation"] = "removeLayer",
+                };
+            }
+
+            // Remove layer using SerializedObject
+            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            var layersProp = tagManager.FindProperty("layers");
+
+            var layerProp = layersProp.GetArrayElementAtIndex(layerIndex);
+            layerProp.stringValue = "";
+            tagManager.ApplyModifiedProperties();
+
+            return new Dictionary<string, object>
+            {
+                ["layer"] = layer,
+                ["index"] = layerIndex,
+                ["removed"] = true,
+                ["operation"] = "removeLayer",
+            };
+        }
+
+        /// <summary>
         /// Gets a float value from payload, handling both direct float and nested dictionary cases.
         /// </summary>
         private static float? GetFloat(Dictionary<string, object> payload, string key)
@@ -2528,11 +3021,9 @@ namespace MCP.Editor
                 "defaultscreenwidth" => PlayerSettings.defaultScreenWidth,
                 "defaultscreenheight" => PlayerSettings.defaultScreenHeight,
                 "runinbackground" => PlayerSettings.runInBackground,
-                "displayresolutiondialog" => PlayerSettings.displayResolutionDialog.ToString(),
-                "defaultisfullscreen" => PlayerSettings.defaultIsFullScreen,
+                "fullscreenmode" => PlayerSettings.fullScreenMode.ToString(),
                 "defaultisnativeresolution" => PlayerSettings.defaultIsNativeResolution,
                 "allowfullscreenswitch" => PlayerSettings.allowFullscreenSwitch,
-                "capturesinglescreen" => PlayerSettings.captureSingleScreen,
                 "resizablewindow" => PlayerSettings.resizableWindow,
                 _ => throw new InvalidOperationException($"Unknown PlayerSettings property: {property}"),
             };
@@ -2561,17 +3052,21 @@ namespace MCP.Editor
                 case "runinbackground":
                     PlayerSettings.runInBackground = Convert.ToBoolean(value);
                     break;
-                case "defaultisfullscreen":
-                    PlayerSettings.defaultIsFullScreen = Convert.ToBoolean(value);
+                case "fullscreenmode":
+                    if (Enum.TryParse<FullScreenMode>(value.ToString(), true, out var mode))
+                    {
+                        PlayerSettings.fullScreenMode = mode;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Invalid FullScreenMode value: {value}");
+                    }
                     break;
                 case "defaultisnativeresolution":
                     PlayerSettings.defaultIsNativeResolution = Convert.ToBoolean(value);
                     break;
                 case "allowfullscreenswitch":
                     PlayerSettings.allowFullscreenSwitch = Convert.ToBoolean(value);
-                    break;
-                case "capturesinglescreen":
-                    PlayerSettings.captureSingleScreen = Convert.ToBoolean(value);
                     break;
                 case "resizablewindow":
                     PlayerSettings.resizableWindow = Convert.ToBoolean(value);
@@ -2732,7 +3227,7 @@ namespace MCP.Editor
                 "defaultcontactoffset" => Physics.defaultContactOffset,
                 "querieshittriggers" => Physics.queriesHitTriggers,
                 "querieshitbackfaces" => Physics.queriesHitBackfaces,
-                "autosimulation" => Physics.autoSimulation,
+                "simulationmode" => Physics.simulationMode.ToString(),
                 _ => throw new InvalidOperationException($"Unknown PhysicsSettings property: {property}"),
             };
         }
@@ -2772,8 +3267,15 @@ namespace MCP.Editor
                 case "querieshitbackfaces":
                     Physics.queriesHitBackfaces = Convert.ToBoolean(value);
                     break;
-                case "autosimulation":
-                    Physics.autoSimulation = Convert.ToBoolean(value);
+                case "simulationmode":
+                    if (Enum.TryParse<SimulationMode>(value.ToString(), true, out var simMode))
+                    {
+                        Physics.simulationMode = simMode;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Invalid SimulationMode value: {value}");
+                    }
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown PhysicsSettings property: {property}");
@@ -2866,7 +3368,6 @@ namespace MCP.Editor
             {
                 "serializationmode" => EditorSettings.serializationMode.ToString(),
                 "spritepackermode" => EditorSettings.spritePackerMode.ToString(),
-                "etctexturecompressorbehavior" => EditorSettings.etcTextureCompressorBehavior.ToString(),
                 "lineendingsfornewscripts" => EditorSettings.lineEndingsForNewScripts.ToString(),
                 "defaultbehaviormode" => EditorSettings.defaultBehaviorMode.ToString(),
                 "prefabregularenvironment" => EditorSettings.prefabRegularEnvironment?.name,
@@ -3676,6 +4177,7 @@ namespace MCP.Editor
                         "uguiRectAdjust" => HandleUguiRectAdjust(operationPayload),
                         "uguiAnchorManage" => HandleUguiAnchorManage(operationPayload),
                         "uguiManage" => HandleUguiManage(operationPayload),
+                        "tagLayerManage" => HandleTagLayerManage(operationPayload),
                         "scriptOutline" => HandleScriptOutline(operationPayload),
                         "prefabManage" => HandlePrefabManage(operationPayload),
                         "projectSettingsManage" => HandleProjectSettingsManage(operationPayload),
