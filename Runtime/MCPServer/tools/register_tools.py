@@ -248,6 +248,46 @@ def register_tools(server: Server) -> None:
         "additionalProperties": False,
     }
 
+    prefab_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "instantiate", "unpack", "applyOverrides", "revertOverrides"],
+                    "description": "Operation to perform. 'create' creates a new prefab from a GameObject, 'update' updates an existing prefab, 'inspect' reads prefab details, 'instantiate' creates an instance in the scene, 'unpack' unpacks a prefab instance, 'applyOverrides' applies instance modifications to the prefab asset, 'revertOverrides' reverts instance to prefab state.",
+                },
+                "prefabPath": {
+                    "type": "string",
+                    "description": "Asset path to the prefab (e.g. Assets/Prefabs/MyPrefab.prefab).",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Hierarchy path of the GameObject (for create/instantiate/unpack operations).",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Target parent path for instantiate operations.",
+                },
+                "replacePrefabOptions": {
+                    "type": "string",
+                    "enum": ["Default", "ConnectToPrefab", "ReplaceNameBased"],
+                    "description": "Options for updating prefab (update operation).",
+                },
+                "unpackMode": {
+                    "type": "string",
+                    "enum": ["Completely", "OutermostRoot"],
+                    "description": "Unpack mode: 'Completely' unpacks entire hierarchy, 'OutermostRoot' unpacks only the root.",
+                },
+                "includeChildren": {
+                    "type": "boolean",
+                    "description": "Whether to include child GameObjects when creating prefab.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     tool_definitions = [
         types.Tool(
             name="unity.ping",
@@ -288,6 +328,11 @@ def register_tools(server: Server) -> None:
             name="unity.script.outline",
             description="Produce a summary of a C# script, optionally including member signatures.",
             inputSchema=script_outline_schema,
+        ),
+        types.Tool(
+            name="unity.prefab.crud",
+            description="Manage Unity prefabs: create prefabs from GameObjects, update existing prefabs, inspect prefab assets, instantiate prefabs in scenes, unpack prefab instances, apply or revert instance overrides.",
+            inputSchema=prefab_manage_schema,
         ),
     ]
 
@@ -335,5 +380,8 @@ def register_tools(server: Server) -> None:
 
         if name == "unity.script.outline":
             return await _call_bridge_tool("scriptOutline", args)
+
+        if name == "unity.prefab.crud":
+            return await _call_bridge_tool("prefabManage", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")

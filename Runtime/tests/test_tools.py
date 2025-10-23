@@ -25,12 +25,14 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
             names,
             [
                 "unity.ping",
-                "unity.scene.manage",
-                "unity_gameobject_manage",
-                "unity.component.manage",
-                "unity.asset.manage",
+                "unity.scene.crud",
+                "unity.gameobject.crud",
+                "unity.component.crud",
+                "unity.asset.crud",
                 "unity.ugui.rectAdjust",
+                "unity.ugui.anchorManage",
                 "unity.script.outline",
+                "unity.prefab.crud",
             ],
         )
 
@@ -60,14 +62,14 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_call_tool_routes_commands_through_bridge(self) -> None:
         tool_cases = [
-            ("unity.scene.manage", "sceneManage", {"operation": "create"}),
+            ("unity.scene.crud", "sceneManage", {"operation": "create"}),
             (
-                "unity_gameobject_manage",
+                "unity.gameobject.crud",
                 "gameObjectManage",
                 {"operation": "create", "gameObjectPath": "Root"},
             ),
             (
-                "unity.component.manage",
+                "unity.component.crud",
                 "componentManage",
                 {
                     "operation": "add",
@@ -76,7 +78,7 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             (
-                "unity.component.manage",
+                "unity.component.crud",
                 "componentManage",
                 {
                     "operation": "inspect",
@@ -85,7 +87,7 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             (
-                "unity_gameobject_manage",
+                "unity.gameobject.crud",
                 "gameObjectManage",
                 {
                     "operation": "inspect",
@@ -93,12 +95,12 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
             (
-                "unity.asset.manage",
+                "unity.asset.crud",
                 "assetManage",
                 {"operation": "create", "assetPath": "Assets/Example.prefab"},
             ),
             (
-                "unity.asset.manage",
+                "unity.asset.crud",
                 "assetManage",
                 {"operation": "inspect", "assetPath": "Assets/Example.prefab"},
             ),
@@ -108,9 +110,24 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 {"gameObjectPath": "Canvas/Button"},
             ),
             (
+                "unity.ugui.anchorManage",
+                "uguiAnchorManage",
+                {"gameObjectPath": "Canvas/Button", "operation": "setAnchorPreset", "preset": "center"},
+            ),
+            (
                 "unity.script.outline",
                 "scriptOutline",
                 {"assetPath": "Assets/Scripts/Foo.cs"},
+            ),
+            (
+                "unity.prefab.crud",
+                "prefabManage",
+                {"operation": "create", "gameObjectPath": "Player", "prefabPath": "Assets/Prefabs/Player.prefab"},
+            ),
+            (
+                "unity.prefab.crud",
+                "prefabManage",
+                {"operation": "instantiate", "prefabPath": "Assets/Prefabs/Player.prefab"},
             ),
         ]
 
@@ -140,7 +157,7 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
         request = mcp_types.CallToolRequest(
             method="tools/call",
             params=mcp_types.CallToolRequestParams(
-                name="unity.scene.manage", arguments={"operation": "create"}
+                name="unity.scene.crud", arguments={"operation": "create"}
             )
         )
         with patch.object(
