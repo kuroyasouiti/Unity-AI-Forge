@@ -321,7 +321,7 @@ namespace MCP.Editor.Tests
             // Assert
             Assert.IsNotNull(result);
             Assert.AreEqual(5.0f, rigidbody.mass, 0.001f);
-            Assert.AreEqual(2.0f, rigidbody.drag, 0.001f);
+            Assert.AreEqual(2.0f, rigidbody.linearDamping, 0.001f);
         }
 
         [Test]
