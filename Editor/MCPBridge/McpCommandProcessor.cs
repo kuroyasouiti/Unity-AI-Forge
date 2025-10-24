@@ -45,6 +45,8 @@ namespace MCP.Editor
                 "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
                 "inputSystemManage" => HandleInputSystemManage(command.Payload),
                 "batchExecute" => HandleBatchExecute(command.Payload),
+                "tilemapManage" => HandleTilemapManage(command.Payload),
+                "navmeshManage" => HandleNavMeshManage(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -4189,6 +4191,8 @@ namespace MCP.Editor
                         "projectSettingsManage" => HandleProjectSettingsManage(operationPayload),
                         "renderPipelineManage" => HandleRenderPipelineManage(operationPayload),
                         "inputSystemManage" => HandleInputSystemManage(operationPayload),
+                        "tilemapManage" => HandleTilemapManage(operationPayload),
+                        "navmeshManage" => HandleNavMeshManage(operationPayload),
                         _ => throw new InvalidOperationException($"Unsupported tool name in batch: {toolName}"),
                     };
 
@@ -4228,5 +4232,559 @@ namespace MCP.Editor
                 ["results"] = results,
             };
         }
+
+        #region Tilemap Management
+
+        /// <summary>
+        /// Handles Tilemap management operations.
+        /// </summary>
+        private static object HandleTilemapManage(Dictionary<string, object> payload)
+        {
+            var operation = GetString(payload, "operation");
+            if (string.IsNullOrEmpty(operation))
+            {
+                throw new InvalidOperationException("operation is required");
+            }
+
+            return operation switch
+            {
+                "createTilemap" => CreateTilemap(payload),
+                "setTile" => SetTile(payload),
+                "getTile" => GetTile(payload),
+                "clearTile" => ClearTile(payload),
+                "fillArea" => FillArea(payload),
+                "inspectTilemap" => InspectTilemap(payload),
+                "clearAll" => ClearAllTiles(payload),
+                _ => throw new InvalidOperationException($"Unknown tilemapManage operation: {operation}"),
+            };
+        }
+
+        private static object CreateTilemap(Dictionary<string, object> payload)
+        {
+            var tilemapName = GetString(payload, "tilemapName") ?? "Tilemap";
+            var parentPath = GetString(payload, "parentPath");
+
+            // Create Grid parent
+            var gridGo = new GameObject("Grid");
+            var grid = gridGo.AddComponent<Grid>();
+
+            // Create Tilemap child
+            var tilemapGo = new GameObject(tilemapName);
+            tilemapGo.transform.SetParent(gridGo.transform);
+
+            var tilemap = tilemapGo.AddComponent<UnityEngine.Tilemaps.Tilemap>();
+            var renderer = tilemapGo.AddComponent<UnityEngine.Tilemaps.TilemapRenderer>();
+
+            // Set parent if specified
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = GameObject.Find(parentPath);
+                if (parent != null)
+                {
+                    gridGo.transform.SetParent(parent.transform);
+                }
+            }
+
+            Undo.RegisterCreatedObjectUndo(gridGo, "Create Tilemap");
+
+            return new Dictionary<string, object>
+            {
+                ["gridPath"] = GetHierarchyPath(gridGo),
+                ["tilemapPath"] = GetHierarchyPath(tilemapGo),
+                ["success"] = true,
+            };
+        }
+
+        private static object SetTile(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var tileAssetPath = EnsureValue(GetString(payload, "tileAssetPath"), "tileAssetPath");
+
+            var posX = GetInt(payload, "positionX", 0);
+            var posY = GetInt(payload, "positionY", 0);
+            var posZ = GetInt(payload, "positionZ", 0);
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var tilemap = go.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+            if (tilemap == null)
+            {
+                throw new InvalidOperationException($"Tilemap component not found on: {gameObjectPath}");
+            }
+
+            var tile = AssetDatabase.LoadAssetAtPath<UnityEngine.Tilemaps.TileBase>(tileAssetPath);
+            if (tile == null)
+            {
+                throw new InvalidOperationException($"Tile asset not found: {tileAssetPath}");
+            }
+
+            var position = new UnityEngine.Vector3Int(posX, posY, posZ);
+            Undo.RecordObject(tilemap, "Set Tile");
+            tilemap.SetTile(position, tile);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["position"] = new Dictionary<string, object>
+                {
+                    ["x"] = posX,
+                    ["y"] = posY,
+                    ["z"] = posZ,
+                },
+            };
+        }
+
+        private static object GetTile(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var posX = GetInt(payload, "positionX", 0);
+            var posY = GetInt(payload, "positionY", 0);
+            var posZ = GetInt(payload, "positionZ", 0);
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var tilemap = go.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+            if (tilemap == null)
+            {
+                throw new InvalidOperationException($"Tilemap component not found on: {gameObjectPath}");
+            }
+
+            var position = new UnityEngine.Vector3Int(posX, posY, posZ);
+            var tile = tilemap.GetTile(position);
+
+            return new Dictionary<string, object>
+            {
+                ["hasTile"] = tile != null,
+                ["tileName"] = tile != null ? tile.name : null,
+                ["position"] = new Dictionary<string, object>
+                {
+                    ["x"] = posX,
+                    ["y"] = posY,
+                    ["z"] = posZ,
+                },
+            };
+        }
+
+        private static object ClearTile(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var posX = GetInt(payload, "positionX", 0);
+            var posY = GetInt(payload, "positionY", 0);
+            var posZ = GetInt(payload, "positionZ", 0);
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var tilemap = go.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+            if (tilemap == null)
+            {
+                throw new InvalidOperationException($"Tilemap component not found on: {gameObjectPath}");
+            }
+
+            var position = new UnityEngine.Vector3Int(posX, posY, posZ);
+            Undo.RecordObject(tilemap, "Clear Tile");
+            tilemap.SetTile(position, null);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["position"] = new Dictionary<string, object>
+                {
+                    ["x"] = posX,
+                    ["y"] = posY,
+                    ["z"] = posZ,
+                },
+            };
+        }
+
+        private static object FillArea(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var tileAssetPath = EnsureValue(GetString(payload, "tileAssetPath"), "tileAssetPath");
+
+            var startX = GetInt(payload, "startX", 0);
+            var startY = GetInt(payload, "startY", 0);
+            var endX = GetInt(payload, "endX", 0);
+            var endY = GetInt(payload, "endY", 0);
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var tilemap = go.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+            if (tilemap == null)
+            {
+                throw new InvalidOperationException($"Tilemap component not found on: {gameObjectPath}");
+            }
+
+            var tile = AssetDatabase.LoadAssetAtPath<UnityEngine.Tilemaps.TileBase>(tileAssetPath);
+            if (tile == null)
+            {
+                throw new InvalidOperationException($"Tile asset not found: {tileAssetPath}");
+            }
+
+            Undo.RecordObject(tilemap, "Fill Area");
+
+            var tilesSet = 0;
+            for (int x = startX; x <= endX; x++)
+            {
+                for (int y = startY; y <= endY; y++)
+                {
+                    var position = new UnityEngine.Vector3Int(x, y, 0);
+                    tilemap.SetTile(position, tile);
+                    tilesSet++;
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["tilesSet"] = tilesSet,
+                ["area"] = new Dictionary<string, object>
+                {
+                    ["startX"] = startX,
+                    ["startY"] = startY,
+                    ["endX"] = endX,
+                    ["endY"] = endY,
+                },
+            };
+        }
+
+        private static object InspectTilemap(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var tilemap = go.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+            if (tilemap == null)
+            {
+                throw new InvalidOperationException($"Tilemap component not found on: {gameObjectPath}");
+            }
+
+            var bounds = tilemap.cellBounds;
+            var tileCount = 0;
+
+            for (int x = bounds.xMin; x < bounds.xMax; x++)
+            {
+                for (int y = bounds.yMin; y < bounds.yMax; y++)
+                {
+                    for (int z = bounds.zMin; z < bounds.zMax; z++)
+                    {
+                        if (tilemap.HasTile(new UnityEngine.Vector3Int(x, y, z)))
+                        {
+                            tileCount++;
+                        }
+                    }
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["gameObjectPath"] = gameObjectPath,
+                ["tileCount"] = tileCount,
+                ["bounds"] = new Dictionary<string, object>
+                {
+                    ["xMin"] = bounds.xMin,
+                    ["yMin"] = bounds.yMin,
+                    ["zMin"] = bounds.zMin,
+                    ["xMax"] = bounds.xMax,
+                    ["yMax"] = bounds.yMax,
+                    ["zMax"] = bounds.zMax,
+                    ["size"] = new Dictionary<string, object>
+                    {
+                        ["x"] = bounds.size.x,
+                        ["y"] = bounds.size.y,
+                        ["z"] = bounds.size.z,
+                    },
+                },
+            };
+        }
+
+        private static object ClearAllTiles(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var tilemap = go.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+            if (tilemap == null)
+            {
+                throw new InvalidOperationException($"Tilemap component not found on: {gameObjectPath}");
+            }
+
+            Undo.RecordObject(tilemap, "Clear All Tiles");
+            tilemap.ClearAllTiles();
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["gameObjectPath"] = gameObjectPath,
+            };
+        }
+
+        #endregion
+
+        #region NavMesh Management
+
+        /// <summary>
+        /// Handles NavMesh management operations.
+        /// </summary>
+        private static object HandleNavMeshManage(Dictionary<string, object> payload)
+        {
+            var operation = GetString(payload, "operation");
+            if (string.IsNullOrEmpty(operation))
+            {
+                throw new InvalidOperationException("operation is required");
+            }
+
+            return operation switch
+            {
+                "bakeNavMesh" => BakeNavMesh(payload),
+                "clearNavMesh" => ClearNavMesh(payload),
+                "addNavMeshAgent" => AddNavMeshAgent(payload),
+                "setDestination" => SetNavMeshDestination(payload),
+                "inspectNavMesh" => InspectNavMesh(payload),
+                "updateSettings" => UpdateNavMeshSettings(payload),
+                "createNavMeshSurface" => CreateNavMeshSurface(payload),
+                _ => throw new InvalidOperationException($"Unknown navmeshManage operation: {operation}"),
+            };
+        }
+
+        private static object BakeNavMesh(Dictionary<string, object> payload)
+        {
+#pragma warning disable CS0618
+            UnityEditor.AI.NavMeshBuilder.BuildNavMesh();
+#pragma warning restore CS0618
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["message"] = "NavMesh bake completed",
+            };
+        }
+
+        private static object ClearNavMesh(Dictionary<string, object> payload)
+        {
+#pragma warning disable CS0618
+            UnityEditor.AI.NavMeshBuilder.ClearAllNavMeshes();
+#pragma warning restore CS0618
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["message"] = "NavMesh cleared",
+            };
+        }
+
+        private static object AddNavMeshAgent(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var agent = go.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (agent == null)
+            {
+                agent = Undo.AddComponent<UnityEngine.AI.NavMeshAgent>(go);
+            }
+
+            // Set optional parameters if provided
+            if (payload.ContainsKey("agentSpeed"))
+            {
+                agent.speed = (float)GetFloat(payload, "agentSpeed");
+            }
+            if (payload.ContainsKey("agentAcceleration"))
+            {
+                agent.acceleration = (float)GetFloat(payload, "agentAcceleration");
+            }
+            if (payload.ContainsKey("agentStoppingDistance"))
+            {
+                agent.stoppingDistance = (float)GetFloat(payload, "agentStoppingDistance");
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["gameObjectPath"] = gameObjectPath,
+                ["agentProperties"] = new Dictionary<string, object>
+                {
+                    ["speed"] = agent.speed,
+                    ["acceleration"] = agent.acceleration,
+                    ["stoppingDistance"] = agent.stoppingDistance,
+                    ["radius"] = agent.radius,
+                    ["height"] = agent.height,
+                },
+            };
+        }
+
+        private static object SetNavMeshDestination(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+
+            if (!payload.ContainsKey("destinationX") || !payload.ContainsKey("destinationY") || !payload.ContainsKey("destinationZ"))
+            {
+                throw new InvalidOperationException("destinationX, destinationY, and destinationZ are required");
+            }
+
+            var destX = GetFloat(payload, "destinationX");
+            var destY = GetFloat(payload, "destinationY");
+            var destZ = GetFloat(payload, "destinationZ");
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            var agent = go.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (agent == null)
+            {
+                throw new InvalidOperationException($"NavMeshAgent component not found on: {gameObjectPath}");
+            }
+
+            var destination = new Vector3((float)destX, (float)destY, (float)destZ);
+            agent.SetDestination(destination);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["destination"] = new Dictionary<string, object>
+                {
+                    ["x"] = destX,
+                    ["y"] = destY,
+                    ["z"] = destZ,
+                },
+                ["hasPath"] = agent.hasPath,
+                ["pathPending"] = agent.pathPending,
+            };
+        }
+
+        private static object InspectNavMesh(Dictionary<string, object> payload)
+        {
+            var triangulation = UnityEngine.AI.NavMesh.CalculateTriangulation();
+            var settings = UnityEngine.AI.NavMesh.GetSettingsByIndex(0);
+
+            return new Dictionary<string, object>
+            {
+                ["triangulation"] = new Dictionary<string, object>
+                {
+                    ["vertexCount"] = triangulation.vertices.Length,
+                    ["triangleCount"] = triangulation.indices.Length / 3,
+                    ["areaCount"] = triangulation.areas.Length,
+                },
+                ["settings"] = new Dictionary<string, object>
+                {
+                    ["agentTypeID"] = settings.agentTypeID,
+                    ["agentRadius"] = settings.agentRadius,
+                    ["agentHeight"] = settings.agentHeight,
+                    ["agentSlope"] = settings.agentSlope,
+                    ["agentClimb"] = settings.agentClimb,
+                },
+            };
+        }
+
+        private static object UpdateNavMeshSettings(Dictionary<string, object> payload)
+        {
+            if (!payload.ContainsKey("settings"))
+            {
+                throw new InvalidOperationException("settings dictionary is required");
+            }
+
+            var settings = payload["settings"] as Dictionary<string, object>;
+            if (settings == null)
+            {
+                throw new InvalidOperationException("settings must be a dictionary");
+            }
+
+            // NavMesh settings are managed through the Navigation window and SerializedObject
+            // We'll use reflection to access UnityEditor.AI.NavMeshBuilder settings
+            var navMeshEditorHelpers = Type.GetType("UnityEditor.AI.NavMeshEditorHelpers, UnityEditor");
+            if (navMeshEditorHelpers == null)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["success"] = false,
+                    ["message"] = "NavMesh settings can only be modified through the Navigation window (Window > AI > Navigation). Runtime modification is not supported through this API.",
+                    ["requestedSettings"] = settings,
+                };
+            }
+
+            // For now, return current settings and a message
+            var currentSettings = UnityEngine.AI.NavMesh.GetSettingsByIndex(0);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = false,
+                ["message"] = "NavMesh settings modification is currently not supported. Please use Unity's Navigation window (Window > AI > Navigation) to modify NavMesh bake settings.",
+                ["currentSettings"] = new Dictionary<string, object>
+                {
+                    ["agentTypeID"] = currentSettings.agentTypeID,
+                    ["agentRadius"] = currentSettings.agentRadius,
+                    ["agentHeight"] = currentSettings.agentHeight,
+                    ["agentSlope"] = currentSettings.agentSlope,
+                    ["agentClimb"] = currentSettings.agentClimb,
+                },
+                ["requestedSettings"] = settings,
+            };
+        }
+
+        private static object CreateNavMeshSurface(Dictionary<string, object> payload)
+        {
+            var gameObjectPath = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+
+            var go = GameObject.Find(gameObjectPath);
+            if (go == null)
+            {
+                throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+            }
+
+            // Try to use NavMeshSurface from NavMesh Components package via reflection
+            var navMeshSurfaceType = Type.GetType("Unity.AI.Navigation.NavMeshSurface, Unity.AI.Navigation");
+            if (navMeshSurfaceType == null)
+            {
+                throw new InvalidOperationException("NavMeshSurface not found. Please install the 'NavMesh Components' package from Package Manager.");
+            }
+
+            var surface = go.GetComponent(navMeshSurfaceType);
+            if (surface == null)
+            {
+                surface = Undo.AddComponent(go, navMeshSurfaceType);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["gameObjectPath"] = gameObjectPath,
+                ["componentType"] = navMeshSurfaceType.FullName,
+            };
+        }
+
+        #endregion
     }
 }

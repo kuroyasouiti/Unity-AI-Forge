@@ -434,6 +434,111 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    tilemap_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["createTilemap", "setTile", "getTile", "clearTile", "fillArea", "inspectTilemap", "clearAll"],
+                    "description": "Operation to perform. 'createTilemap' creates a new Tilemap GameObject with Grid parent, 'setTile' places a tile at position, 'getTile' retrieves tile at position, 'clearTile' removes tile at position, 'fillArea' fills rectangular area with tiles, 'inspectTilemap' returns Tilemap information, 'clearAll' clears all tiles from Tilemap.",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Hierarchy path of the Tilemap GameObject (for setTile, getTile, clearTile, fillArea, inspectTilemap, clearAll operations).",
+                },
+                "tilemapName": {
+                    "type": "string",
+                    "description": "Name for the new Tilemap (for createTilemap operation).",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent path for the new Tilemap Grid (for createTilemap operation).",
+                },
+                "tileAssetPath": {
+                    "type": "string",
+                    "description": "Asset path to the tile (e.g., 'Assets/Tiles/MyTile.asset'). Required for setTile and fillArea operations.",
+                },
+                "positionX": {
+                    "type": "integer",
+                    "description": "X position in tilemap grid coordinates (for setTile, getTile, clearTile operations).",
+                },
+                "positionY": {
+                    "type": "integer",
+                    "description": "Y position in tilemap grid coordinates (for setTile, getTile, clearTile operations).",
+                },
+                "positionZ": {
+                    "type": "integer",
+                    "description": "Z position in tilemap grid coordinates (for setTile, getTile, clearTile operations). Default is 0.",
+                },
+                "startX": {
+                    "type": "integer",
+                    "description": "Start X position for area fill (for fillArea operation).",
+                },
+                "startY": {
+                    "type": "integer",
+                    "description": "Start Y position for area fill (for fillArea operation).",
+                },
+                "endX": {
+                    "type": "integer",
+                    "description": "End X position for area fill (for fillArea operation).",
+                },
+                "endY": {
+                    "type": "integer",
+                    "description": "End Y position for area fill (for fillArea operation).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    navmesh_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["bakeNavMesh", "clearNavMesh", "addNavMeshAgent", "setDestination", "inspectNavMesh", "updateSettings", "createNavMeshSurface"],
+                    "description": "Operation to perform. 'bakeNavMesh' bakes the NavMesh, 'clearNavMesh' clears baked NavMesh data, 'addNavMeshAgent' adds NavMeshAgent component to GameObject, 'setDestination' sets NavMeshAgent destination, 'inspectNavMesh' returns NavMesh statistics, 'updateSettings' modifies NavMesh bake settings, 'createNavMeshSurface' creates a NavMesh Surface component (requires NavMesh Components package).",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Hierarchy path of the GameObject (for addNavMeshAgent, setDestination, createNavMeshSurface operations).",
+                },
+                "destinationX": {
+                    "type": "number",
+                    "description": "X coordinate of destination (for setDestination operation).",
+                },
+                "destinationY": {
+                    "type": "number",
+                    "description": "Y coordinate of destination (for setDestination operation).",
+                },
+                "destinationZ": {
+                    "type": "number",
+                    "description": "Z coordinate of destination (for setDestination operation).",
+                },
+                "settings": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "NavMesh bake settings to update (for updateSettings operation). Properties: agentRadius, agentHeight, agentSlope, agentClimb, etc.",
+                },
+                "agentSpeed": {
+                    "type": "number",
+                    "description": "NavMeshAgent speed (for addNavMeshAgent operation).",
+                },
+                "agentAcceleration": {
+                    "type": "number",
+                    "description": "NavMeshAgent acceleration (for addNavMeshAgent operation).",
+                },
+                "agentStoppingDistance": {
+                    "type": "number",
+                    "description": "NavMeshAgent stopping distance (for addNavMeshAgent operation).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     ugui_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -625,6 +730,16 @@ def register_tools(server: Server) -> None:
             description="Execute multiple Unity operations in a single batch. Allows sequential execution of any tool operations with optional error handling. Returns results for all operations including successes and failures.",
             inputSchema=batch_execute_schema,
         ),
+        types.Tool(
+            name="unity.tilemap.manage",
+            description="Manage Unity Tilemap system. Create tilemaps with Grid parent, set/get/clear tiles at positions, fill rectangular areas with tiles, inspect tilemap information. Supports 2D grid-based tile placement for level design.",
+            inputSchema=tilemap_manage_schema,
+        ),
+        types.Tool(
+            name="unity.navmesh.manage",
+            description="Manage Unity NavMesh navigation system. Bake/clear NavMesh, add NavMeshAgent components to GameObjects, set agent destinations, inspect NavMesh statistics, and update bake settings. Supports runtime pathfinding for AI characters.",
+            inputSchema=navmesh_manage_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -692,5 +807,11 @@ def register_tools(server: Server) -> None:
 
         if name == "unity.batch.execute":
             return await _call_bridge_tool("batchExecute", args)
+
+        if name == "unity.tilemap.manage":
+            return await _call_bridge_tool("tilemapManage", args)
+
+        if name == "unity.navmesh.manage":
+            return await _call_bridge_tool("navmeshManage", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
