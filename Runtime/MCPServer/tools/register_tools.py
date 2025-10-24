@@ -539,6 +539,12 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    compile_schema: Dict[str, Any] = {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    }
+
     ugui_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -740,6 +746,11 @@ def register_tools(server: Server) -> None:
             description="Manage Unity NavMesh navigation system. Bake/clear NavMesh, add NavMeshAgent components to GameObjects, set agent destinations, inspect NavMesh statistics, and update bake settings. Supports runtime pathfinding for AI characters.",
             inputSchema=navmesh_manage_schema,
         ),
+        types.Tool(
+            name="unity.project.compile",
+            description="Compile Unity C# scripts. Refreshes the asset database and requests script compilation. Returns compilation status and any compilation errors. Use this after creating or modifying C# scripts to ensure they compile correctly.",
+            inputSchema=compile_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -813,5 +824,8 @@ def register_tools(server: Server) -> None:
 
         if name == "unity.navmesh.manage":
             return await _call_bridge_tool("navmeshManage", args)
+
+        if name == "unity.project.compile":
+            return await _call_bridge_tool("projectCompile", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")

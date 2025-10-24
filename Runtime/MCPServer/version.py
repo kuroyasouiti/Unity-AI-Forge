@@ -1,2 +1,2 @@
-SERVER_NAME = "Unity MCP Server"
+SERVER_NAME = "UnityMCPExtended"
 SERVER_VERSION = "0.2.0"

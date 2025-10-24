@@ -47,6 +47,7 @@ namespace MCP.Editor
                 "batchExecute" => HandleBatchExecute(command.Payload),
                 "tilemapManage" => HandleTilemapManage(command.Payload),
                 "navmeshManage" => HandleNavMeshManage(command.Payload),
+                "projectCompile" => HandleProjectCompile(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -4783,6 +4784,163 @@ namespace MCP.Editor
                 ["gameObjectPath"] = gameObjectPath,
                 ["componentType"] = navMeshSurfaceType.FullName,
             };
+        }
+
+        #endregion
+
+        #region Project Compile
+
+        /// <summary>
+        /// Handles project compilation operations.
+        /// </summary>
+        /// <param name="payload">Operation parameters (currently unused, reserved for future options).</param>
+        /// <returns>Result dictionary with compilation status and error information.</returns>
+        private static object HandleProjectCompile(Dictionary<string, object> payload)
+        {
+            try
+            {
+                // Refresh the asset database to pick up any new or modified scripts
+                AssetDatabase.Refresh();
+
+                // Request script compilation
+                UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
+
+                // Get current compilation status
+                bool isCompiling = UnityEditor.Compilation.CompilationPipeline.isCompiling;
+
+                var result = new Dictionary<string, object>
+                {
+                    ["success"] = true,
+                    ["message"] = "Compilation requested successfully",
+                    ["isCompiling"] = isCompiling,
+                    ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                };
+
+                // Check for compilation errors
+                var assemblies = UnityEditor.Compilation.CompilationPipeline.GetAssemblies();
+                var errorMessages = new List<string>();
+
+                // Note: We can't directly get compilation errors from CompilationPipeline
+                // Instead, we'll check the Console logs for compilation errors
+                var logEntries = GetConsoleLogEntries();
+                foreach (var entry in logEntries)
+                {
+                    if (entry.ContainsKey("type") && entry["type"].ToString() == "Error" &&
+                        entry.ContainsKey("message"))
+                    {
+                        var message = entry["message"].ToString();
+                        if (message.Contains("error CS") || message.Contains("CompilerError"))
+                        {
+                            errorMessages.Add(message);
+                        }
+                    }
+                }
+
+                if (errorMessages.Count > 0)
+                {
+                    result["hasErrors"] = true;
+                    result["errors"] = errorMessages;
+                    result["errorCount"] = errorMessages.Count;
+                }
+                else
+                {
+                    result["hasErrors"] = false;
+                    result["errors"] = new List<string>();
+                    result["errorCount"] = 0;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["success"] = false,
+                    ["message"] = $"Compilation request failed: {ex.Message}",
+                    ["error"] = ex.ToString(),
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets console log entries for error checking.
+        /// </summary>
+        /// <returns>List of log entry dictionaries.</returns>
+        private static List<Dictionary<string, object>> GetConsoleLogEntries()
+        {
+            var logEntries = new List<Dictionary<string, object>>();
+
+            try
+            {
+                // Use reflection to access Unity's internal LogEntries
+                var logEntriesType = Type.GetType("UnityEditor.LogEntries, UnityEditor");
+                if (logEntriesType == null)
+                {
+                    return logEntries;
+                }
+
+                var getCountMethod = logEntriesType.GetMethod("GetCount", BindingFlags.Static | BindingFlags.Public);
+                var startGettingEntriesMethod = logEntriesType.GetMethod("StartGettingEntries", BindingFlags.Static | BindingFlags.Public);
+                var getEntryInternalMethod = logEntriesType.GetMethod("GetEntryInternal", BindingFlags.Static | BindingFlags.Public);
+                var endGettingEntriesMethod = logEntriesType.GetMethod("EndGettingEntries", BindingFlags.Static | BindingFlags.Public);
+
+                if (getCountMethod == null || startGettingEntriesMethod == null ||
+                    getEntryInternalMethod == null || endGettingEntriesMethod == null)
+                {
+                    return logEntries;
+                }
+
+                var count = (int)getCountMethod.Invoke(null, null);
+                startGettingEntriesMethod.Invoke(null, null);
+
+                var logEntryType = Type.GetType("UnityEditor.LogEntry, UnityEditor");
+                if (logEntryType == null)
+                {
+                    endGettingEntriesMethod.Invoke(null, null);
+                    return logEntries;
+                }
+
+                for (int i = 0; i < Math.Min(count, 100); i++) // Limit to 100 entries
+                {
+                    var logEntry = Activator.CreateInstance(logEntryType);
+                    var parameters = new object[] { i, logEntry };
+                    var success = (bool)getEntryInternalMethod.Invoke(null, parameters);
+
+                    if (success)
+                    {
+                        var messageField = logEntryType.GetField("message");
+                        var modeField = logEntryType.GetField("mode");
+
+                        if (messageField != null && modeField != null)
+                        {
+                            var message = messageField.GetValue(logEntry)?.ToString() ?? "";
+                            var mode = (int)modeField.GetValue(logEntry);
+
+                            var entryType = mode switch
+                            {
+                                0 => "Log",
+                                1 => "Warning",
+                                2 => "Error",
+                                _ => "Unknown"
+                            };
+
+                            logEntries.Add(new Dictionary<string, object>
+                            {
+                                ["message"] = message,
+                                ["type"] = entryType,
+                            });
+                        }
+                    }
+                }
+
+                endGettingEntriesMethod.Invoke(null, null);
+            }
+            catch (Exception)
+            {
+                // Silently fail if we can't access log entries
+            }
+
+            return logEntries;
         }
 
         #endregion
