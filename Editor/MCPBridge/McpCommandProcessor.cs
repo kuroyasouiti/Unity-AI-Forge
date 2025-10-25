@@ -41,6 +41,7 @@ namespace MCP.Editor
                 "uguiManage" => HandleUguiManage(command.Payload),
                 "tagLayerManage" => HandleTagLayerManage(command.Payload),
                 "scriptOutline" => HandleScriptOutline(command.Payload),
+                "scriptCreate" => HandleScriptCreate(command.Payload),
                 "prefabManage" => HandlePrefabManage(command.Payload),
                 "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
                 "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
@@ -2000,6 +2001,285 @@ namespace MCP.Editor
             }
 
             return stack == 0;
+        }
+
+        /// <summary>
+        /// Handles script creation with templates for MonoBehaviour, ScriptableObject, Editor scripts, etc.
+        /// </summary>
+        private static object HandleScriptCreate(Dictionary<string, object> payload)
+        {
+            var scriptPath = EnsureValue(GetString(payload, "scriptPath"), "scriptPath");
+            var scriptType = GetString(payload, "scriptType") ?? "monoBehaviour";
+            var namespaceName = GetString(payload, "namespace");
+            var methods = GetList(payload, "methods");
+            var fields = GetList(payload, "fields");
+            var attributes = GetList(payload, "attributes");
+            var baseClass = GetString(payload, "baseClass");
+            var interfaces = GetList(payload, "interfaces");
+            var includeUsings = GetList(payload, "includeUsings");
+
+            // Extract class name from path
+            var className = Path.GetFileNameWithoutExtension(scriptPath);
+
+            // Validate script path
+            if (!scriptPath.EndsWith(".cs"))
+            {
+                scriptPath += ".cs";
+            }
+
+            // Generate script content
+            var scriptContent = GenerateScriptContent(
+                className,
+                scriptType,
+                namespaceName,
+                methods,
+                fields,
+                attributes,
+                baseClass,
+                interfaces,
+                includeUsings
+            );
+
+            // Ensure directory exists
+            EnsureDirectoryExists(scriptPath);
+
+            // Write file
+            File.WriteAllText(scriptPath, scriptContent, Encoding.UTF8);
+            AssetDatabase.ImportAsset(scriptPath, ImportAssetOptions.ForceSynchronousImport);
+
+            return new Dictionary<string, object>
+            {
+                ["scriptPath"] = scriptPath,
+                ["className"] = className,
+                ["scriptType"] = scriptType,
+                ["success"] = true,
+            };
+        }
+
+        private static string GenerateScriptContent(
+            string className,
+            string scriptType,
+            string namespaceName,
+            List<object> methods,
+            List<object> fields,
+            List<object> attributes,
+            string baseClass,
+            List<object> interfaces,
+            List<object> includeUsings)
+        {
+            var sb = new StringBuilder();
+            var indent = "";
+
+            // Add using statements
+            var usings = new List<string> { "UnityEngine" };
+
+            switch (scriptType.ToLower())
+            {
+                case "monobehaviour":
+                    break;
+                case "scriptableobject":
+                    break;
+                case "editor":
+                    usings.Add("UnityEditor");
+                    break;
+                case "class":
+                case "interface":
+                case "struct":
+                    // Basic usings only
+                    break;
+            }
+
+            // Add custom usings
+            if (includeUsings != null)
+            {
+                foreach (var u in includeUsings)
+                {
+                    var usingStr = u.ToString();
+                    if (!usings.Contains(usingStr))
+                    {
+                        usings.Add(usingStr);
+                    }
+                }
+            }
+
+            foreach (var u in usings)
+            {
+                sb.AppendLine($"using {u};");
+            }
+            sb.AppendLine();
+
+            // Add namespace if specified
+            if (!string.IsNullOrEmpty(namespaceName))
+            {
+                sb.AppendLine($"namespace {namespaceName}");
+                sb.AppendLine("{");
+                indent = "    ";
+            }
+
+            // Add class attributes
+            if (attributes != null)
+            {
+                foreach (var attr in attributes)
+                {
+                    sb.AppendLine($"{indent}[{attr}]");
+                }
+            }
+
+            // Add special attributes based on script type
+            switch (scriptType.ToLower())
+            {
+                case "scriptableobject":
+                    sb.AppendLine($"{indent}[CreateAssetMenu(fileName = \"{className}\", menuName = \"ScriptableObjects/{className}\")]");
+                    break;
+            }
+
+            // Determine base class
+            var actualBaseClass = baseClass;
+            if (string.IsNullOrEmpty(actualBaseClass))
+            {
+                actualBaseClass = scriptType.ToLower() switch
+                {
+                    "monobehaviour" => "MonoBehaviour",
+                    "scriptableobject" => "ScriptableObject",
+                    "editor" => "Editor",
+                    _ => null
+                };
+            }
+
+            // Build class/interface/struct declaration
+            var typeKeyword = scriptType.ToLower() switch
+            {
+                "interface" => "interface",
+                "struct" => "struct",
+                _ => "class"
+            };
+
+            var inheritance = new List<string>();
+            if (!string.IsNullOrEmpty(actualBaseClass))
+            {
+                inheritance.Add(actualBaseClass);
+            }
+            if (interfaces != null)
+            {
+                foreach (var iface in interfaces)
+                {
+                    inheritance.Add(iface.ToString());
+                }
+            }
+
+            var inheritanceStr = inheritance.Count > 0 ? " : " + string.Join(", ", inheritance) : "";
+            sb.AppendLine($"{indent}public {typeKeyword} {className}{inheritanceStr}");
+            sb.AppendLine($"{indent}{{");
+
+            var memberIndent = indent + "    ";
+
+            // Add fields
+            if (fields != null)
+            {
+                foreach (var field in fields)
+                {
+                    if (field is Dictionary<string, object> fieldDict)
+                    {
+                        var fieldName = GetString(fieldDict, "name");
+                        var fieldType = GetString(fieldDict, "type") ?? "string";
+                        var fieldVisibility = GetString(fieldDict, "visibility") ?? "private";
+                        var isSerialize = GetBool(fieldDict, "serialize", true);
+                        var defaultValue = GetString(fieldDict, "defaultValue");
+
+                        if (isSerialize && fieldVisibility == "private")
+                        {
+                            sb.AppendLine($"{memberIndent}[SerializeField]");
+                        }
+
+                        var defaultValueStr = !string.IsNullOrEmpty(defaultValue) ? $" = {defaultValue}" : "";
+                        sb.AppendLine($"{memberIndent}{fieldVisibility} {fieldType} {fieldName}{defaultValueStr};");
+                    }
+                    else
+                    {
+                        // Simple field definition as string
+                        sb.AppendLine($"{memberIndent}[SerializeField]");
+                        sb.AppendLine($"{memberIndent}private {field};");
+                    }
+                }
+                sb.AppendLine();
+            }
+
+            // Add methods
+            if (methods != null)
+            {
+                foreach (var method in methods)
+                {
+                    var methodName = method.ToString();
+                    var methodBody = GetMethodTemplate(methodName, scriptType);
+                    sb.AppendLine(methodBody.Replace("\n", "\n" + memberIndent).TrimEnd());
+                    sb.AppendLine();
+                }
+            }
+            else
+            {
+                // Add default methods based on script type
+                switch (scriptType.ToLower())
+                {
+                    case "monobehaviour":
+                        sb.AppendLine($"{memberIndent}private void Start()");
+                        sb.AppendLine($"{memberIndent}{{");
+                        sb.AppendLine($"{memberIndent}    ");
+                        sb.AppendLine($"{memberIndent}}}");
+                        sb.AppendLine();
+                        sb.AppendLine($"{memberIndent}private void Update()");
+                        sb.AppendLine($"{memberIndent}{{");
+                        sb.AppendLine($"{memberIndent}    ");
+                        sb.AppendLine($"{memberIndent}}}");
+                        break;
+                    case "scriptableobject":
+                        sb.AppendLine($"{memberIndent}private void OnEnable()");
+                        sb.AppendLine($"{memberIndent}{{");
+                        sb.AppendLine($"{memberIndent}    ");
+                        sb.AppendLine($"{memberIndent}}}");
+                        break;
+                    case "editor":
+                        sb.AppendLine($"{memberIndent}public override void OnInspectorGUI()");
+                        sb.AppendLine($"{memberIndent}{{");
+                        sb.AppendLine($"{memberIndent}    base.OnInspectorGUI();");
+                        sb.AppendLine($"{memberIndent}    ");
+                        sb.AppendLine($"{memberIndent}}}");
+                        break;
+                }
+            }
+
+            sb.AppendLine($"{indent}}}");
+
+            // Close namespace if specified
+            if (!string.IsNullOrEmpty(namespaceName))
+            {
+                sb.AppendLine("}");
+            }
+
+            return sb.ToString();
+        }
+
+        private static string GetMethodTemplate(string methodName, string scriptType)
+        {
+            var templates = new Dictionary<string, string>
+            {
+                ["Start"] = "private void Start()\n{\n    \n}",
+                ["Update"] = "private void Update()\n{\n    \n}",
+                ["FixedUpdate"] = "private void FixedUpdate()\n{\n    \n}",
+                ["LateUpdate"] = "private void LateUpdate()\n{\n    \n}",
+                ["Awake"] = "private void Awake()\n{\n    \n}",
+                ["OnEnable"] = "private void OnEnable()\n{\n    \n}",
+                ["OnDisable"] = "private void OnDisable()\n{\n    \n}",
+                ["OnDestroy"] = "private void OnDestroy()\n{\n    \n}",
+                ["OnTriggerEnter"] = "private void OnTriggerEnter(Collider other)\n{\n    \n}",
+                ["OnTriggerExit"] = "private void OnTriggerExit(Collider other)\n{\n    \n}",
+                ["OnTriggerStay"] = "private void OnTriggerStay(Collider other)\n{\n    \n}",
+                ["OnCollisionEnter"] = "private void OnCollisionEnter(Collision collision)\n{\n    \n}",
+                ["OnCollisionExit"] = "private void OnCollisionExit(Collision collision)\n{\n    \n}",
+                ["OnCollisionStay"] = "private void OnCollisionStay(Collision collision)\n{\n    \n}",
+                ["OnInspectorGUI"] = "public override void OnInspectorGUI()\n{\n    base.OnInspectorGUI();\n    \n}",
+            };
+
+            return templates.ContainsKey(methodName) ? templates[methodName] : $"private void {methodName}()\n{{\n    \n}}";
         }
 
         private static Dictionary<string, object> DescribeComponent(Component component)

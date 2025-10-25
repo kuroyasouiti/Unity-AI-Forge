@@ -248,6 +248,75 @@ def register_tools(server: Server) -> None:
         "additionalProperties": False,
     }
 
+    script_create_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "scriptPath": {
+                    "type": "string",
+                    "description": "Path under Assets/ for the new script (e.g. Assets/Scripts/PlayerController.cs). The .cs extension is optional.",
+                },
+                "scriptType": {
+                    "type": "string",
+                    "enum": ["monoBehaviour", "scriptableObject", "editor", "class", "interface", "struct"],
+                    "description": "Type of script to create. Default is 'monoBehaviour'.",
+                },
+                "namespace": {
+                    "type": "string",
+                    "description": "Optional namespace for the script.",
+                },
+                "methods": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of method names to generate (e.g. ['Start', 'Update', 'Awake']). Common methods are auto-templated.",
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            {"type": "string"},
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "type": {"type": "string"},
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": ["public", "private", "protected"],
+                                    },
+                                    "serialize": {"type": "boolean"},
+                                    "defaultValue": {"type": "string"},
+                                },
+                                "required": ["name"],
+                            },
+                        ]
+                    },
+                    "description": "List of fields to add. Can be simple strings like 'float speed' or objects with name, type, visibility, serialize, and defaultValue.",
+                },
+                "attributes": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of class-level attributes (e.g. ['RequireComponent(typeof(Rigidbody))']).",
+                },
+                "baseClass": {
+                    "type": "string",
+                    "description": "Custom base class to inherit from. Overrides the default base class for the script type.",
+                },
+                "interfaces": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of interfaces to implement (e.g. ['IPointerClickHandler', 'IBeginDragHandler']).",
+                },
+                "includeUsings": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Additional using statements to include (e.g. ['UnityEngine.UI', 'System.Collections']).",
+                },
+            },
+        },
+        ["scriptPath"],
+    )
+
     prefab_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -712,6 +781,11 @@ def register_tools(server: Server) -> None:
             inputSchema=script_outline_schema,
         ),
         types.Tool(
+            name="unity.script.create",
+            description="Create Unity C# scripts with templates. Generate MonoBehaviour, ScriptableObject, Editor scripts, or plain C# classes/interfaces/structs with custom namespaces, methods, fields, and attributes. Supports auto-generation of common Unity methods (Start, Update, Awake, etc.).",
+            inputSchema=script_create_schema,
+        ),
+        types.Tool(
             name="unity.prefab.crud",
             description="Manage Unity prefabs: create prefabs from GameObjects, update existing prefabs, inspect prefab assets, instantiate prefabs in scenes, unpack prefab instances, apply or revert instance overrides.",
             inputSchema=prefab_manage_schema,
@@ -803,6 +877,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity.script.outline":
             return await _call_bridge_tool("scriptOutline", args)
+
+        if name == "unity.script.create":
+            return await _call_bridge_tool("scriptCreate", args)
 
         if name == "unity.prefab.crud":
             return await _call_bridge_tool("prefabManage", args)
