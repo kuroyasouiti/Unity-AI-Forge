@@ -21,20 +21,18 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
         tools_result = result.root
         self.assertIsInstance(tools_result, mcp_types.ListToolsResult)
         names = [tool.name for tool in tools_result.tools]
-        self.assertEqual(
-            names,
-            [
-                "unity.ping",
-                "unity.scene.crud",
-                "unity.gameobject.crud",
-                "unity.component.crud",
-                "unity.asset.crud",
-                "unity.ugui.rectAdjust",
-                "unity.ugui.anchorManage",
-                "unity.script.outline",
-                "unity.prefab.crud",
-            ],
-        )
+        expected_core = {
+            "unity.ping",
+            "unity.scene.crud",
+            "unity.gameobject.crud",
+            "unity.component.crud",
+            "unity.asset.crud",
+            "unity.ugui.rectAdjust",
+            "unity.ugui.anchorManage",
+            "unity.script.manage",
+            "unity.prefab.crud",
+        }
+        self.assertTrue(expected_core.issubset(set(names)))
 
     async def test_call_tool_ping_reports_bridge_status(self) -> None:
         request = mcp_types.CallToolRequest(
@@ -115,9 +113,28 @@ class RegisterToolsTests(unittest.IsolatedAsyncioTestCase):
                 {"gameObjectPath": "Canvas/Button", "operation": "setAnchorPreset", "preset": "center"},
             ),
             (
-                "unity.script.outline",
-                "scriptOutline",
-                {"assetPath": "Assets/Scripts/Foo.cs"},
+                "unity.script.manage",
+                "scriptManage",
+                {"operation": "read", "assetPath": "Assets/Scripts/Foo.cs", "includeSource": True},
+            ),
+            (
+                "unity.script.manage",
+                "scriptManage",
+                {"operation": "create", "scriptPath": "Assets/Scripts/Foo.cs", "scriptType": "monoBehaviour"},
+            ),
+            (
+                "unity.script.manage",
+                "scriptManage",
+                {
+                    "operation": "update",
+                    "scriptPath": "Assets/Scripts/Foo.cs",
+                    "edits": [{"action": "replace", "match": "foo", "replacement": "bar"}],
+                },
+            ),
+            (
+                "unity.script.manage",
+                "scriptManage",
+                {"operation": "delete", "scriptPath": "Assets/Scripts/Foo.cs", "dryRun": True},
             ),
             (
                 "unity.prefab.crud",

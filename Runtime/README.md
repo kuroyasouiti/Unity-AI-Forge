@@ -52,4 +52,4 @@ uvicorn mcp_server.main:app --host %MCP_SERVER_HOST% --port %MCP_SERVER_PORT%
 - `unity.component.manage`
 - `unity.asset.manage`
 - `unity.ugui.rectAdjust`
-- `unity.script.outline`
+- `unity.script.manage`

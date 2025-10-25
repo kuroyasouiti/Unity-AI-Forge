@@ -231,30 +231,34 @@ def register_tools(server: Server) -> None:
         ["gameObjectPath", "operation"],
     )
 
-    script_outline_schema = {
-        "type": "object",
-        "properties": {
-            "guid": {"type": "string"},
-            "assetPath": {
-                "type": "string",
-                "description": "Path under Assets/. Either guid or assetPath is required.",
-            },
-            "includeMembers": {
-                "type": "boolean",
-                "description": "Whether to include member details in the outline.",
-            },
-        },
-        "required": [],
-        "additionalProperties": False,
-    }
-
-    script_create_schema = _schema_with_required(
+    script_manage_schema = _schema_with_required(
         {
             "type": "object",
             "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["read", "create", "update", "delete", "outline"],
+                    "description": "Operation to perform. Use 'read' to analyze scripts (and fetch source), 'create' to generate new scripts, 'update' to apply edits, and 'delete' to remove scripts. 'outline' is accepted for backwards compatibility.",
+                },
+                "guid": {
+                    "type": "string",
+                    "description": "Optional GUID lookup for scriptPath/assetPath.",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Path under Assets/. Required for outline when guid is not supplied and accepted as fallback for update/delete.",
+                },
+                "includeMembers": {
+                    "type": "boolean",
+                    "description": "Whether to include member details in the outline (read operation).",
+                },
+                "includeSource": {
+                    "type": "boolean",
+                    "description": "Whether to include the full script text in read responses. Default true.",
+                },
                 "scriptPath": {
                     "type": "string",
-                    "description": "Path under Assets/ for the new script (e.g. Assets/Scripts/PlayerController.cs). The .cs extension is optional.",
+                    "description": "Path under Assets/ for the script (e.g. Assets/Scripts/PlayerController.cs). Required for create/update/delete. The .cs extension is optional when creating.",
                 },
                 "scriptType": {
                     "type": "string",
@@ -291,7 +295,7 @@ def register_tools(server: Server) -> None:
                             },
                         ]
                     },
-                    "description": "List of fields to add. Can be simple strings like 'float speed' or objects with name, type, visibility, serialize, and defaultValue.",
+                    "description": "List of fields to add. Can be simple strings like 'float speed' or objects with name, type, visibility, serialize, and defaultValue (create operation).",
                 },
                 "attributes": {
                     "type": "array",
@@ -312,9 +316,54 @@ def register_tools(server: Server) -> None:
                     "items": {"type": "string"},
                     "description": "Additional using statements to include (e.g. ['UnityEngine.UI', 'System.Collections']).",
                 },
+                "edits": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string",
+                                "enum": ["replace", "insertBefore", "insertAfter", "delete"],
+                                "description": "Edit action applied during update.",
+                            },
+                            "match": {
+                                "type": "string",
+                                "description": "Text to locate in the script before applying the edit.",
+                            },
+                            "replacement": {
+                                "type": "string",
+                                "description": "Replacement text (replace/delete actions).",
+                            },
+                            "text": {
+                                "type": "string",
+                                "description": "Text to insert (insertBefore/insertAfter actions).",
+                            },
+                            "count": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Maximum occurrences to apply. Use 0 to apply to all matches.",
+                            },
+                            "caseSensitive": {
+                                "type": "boolean",
+                                "description": "Whether match comparison is case-sensitive. Default true.",
+                            },
+                            "allowMissingMatch": {
+                                "type": "boolean",
+                                "description": "When true, silently skip edits whose match text is missing.",
+                            },
+                        },
+                        "required": ["action", "match"],
+                        "additionalProperties": False,
+                    },
+                    "description": "Ordered list of textual edits for the update operation.",
+                },
+                "dryRun": {
+                    "type": "boolean",
+                    "description": "Preview the result without writing to disk (update/delete operations).",
+                },
             },
         },
-        ["scriptPath"],
+        ["operation"],
     )
 
     prefab_manage_schema = _schema_with_required(
@@ -776,14 +825,9 @@ def register_tools(server: Server) -> None:
             inputSchema=tag_layer_manage_schema,
         ),
         types.Tool(
-            name="unity.script.outline",
-            description="Produce a summary of a C# script, optionally including member signatures.",
-            inputSchema=script_outline_schema,
-        ),
-        types.Tool(
-            name="unity.script.create",
-            description="Create Unity C# scripts with templates. Generate MonoBehaviour, ScriptableObject, Editor scripts, or plain C# classes/interfaces/structs with custom namespaces, methods, fields, and attributes. Supports auto-generation of common Unity methods (Start, Update, Awake, etc.).",
-            inputSchema=script_create_schema,
+            name="unity.script.manage",
+            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview).",
+            inputSchema=script_manage_schema,
         ),
         types.Tool(
             name="unity.prefab.crud",
@@ -875,11 +919,8 @@ def register_tools(server: Server) -> None:
         if name == "unity.tagLayer.manage":
             return await _call_bridge_tool("tagLayerManage", args)
 
-        if name == "unity.script.outline":
-            return await _call_bridge_tool("scriptOutline", args)
-
-        if name == "unity.script.create":
-            return await _call_bridge_tool("scriptCreate", args)
+        if name == "unity.script.manage":
+            return await _call_bridge_tool("scriptManage", args)
 
         if name == "unity.prefab.crud":
             return await _call_bridge_tool("prefabManage", args)

@@ -332,13 +332,14 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 
 | Tool | Description | Key Operations |
 |------|-------------|----------------|
-| `unity.script.outline` | C# script analysis | Produce summary with optional member signatures |
+| `unity.script.manage` | C# script management | Read, generate, patch, or delete scripts |
 | `unity.batch.execute` | **Batch operations** | Execute multiple tools in one request |
 
-**Script Outline (`unity.script.outline`)**
-- Generate C# script summaries
-- Optional member signature inclusion
-- Support for GUID or asset path lookup
+**Script Manage (`unity.script.manage`)**
+- Read existing C# files (operation=`read`) with optional member signatures and raw source
+- Generate new MonoBehaviour/ScriptableObject/class templates (operation=`create`)
+- Apply safe textual updates via ordered edits or remove scripts entirely (operations=`update`/`delete`, with dry-run support)
+- Supports GUID or asset path lookup plus namespace/method/field customization
 
 **Batch Execute (`unity.batch.execute`)** - High Performance
 - Execute multiple operations sequentially
@@ -687,7 +688,7 @@ See detailed guide in:
 
 ### Developer Tools
 - ✅ **Batch operation execution** - Combine multiple operations
-- ✅ C# script outline and analysis
+- ✅ C# script read (structure + source)
 - ✅ Context-aware assistance with scene state
 - ✅ Structured error handling and reporting
 
@@ -702,7 +703,7 @@ See detailed guide in:
 | **Navigation** | 1 tool | NavMesh (7 operations) |
 | **UI** | 3 tools | UGUI unified + specialized tools |
 | **Systems** | 5 tools | Tags/Layers, Prefabs, Settings, Render Pipeline, Input |
-| **Utilities** | 2 tools | Script outline, Batch execute |
+| **Utilities** | 2 tools | Script read, Batch execute |
 | **Total** | **17 tools** | **100+ operations** |
 
 ---

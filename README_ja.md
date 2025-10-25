@@ -332,13 +332,14 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 
 | ツール | 説明 | 主な操作 |
 |------|------|---------|
-| `unity.script.outline` | C#スクリプト解析 | オプションのメンバーシグネチャ付きサマリーを生成 |
+| `unity.script.manage` | C#スクリプト管理 | 読み取り・テンプレ生成・部分更新・削除 |
 | `unity.batch.execute` | **バッチ操作** | 1リクエストで複数ツールを実行 |
 
-**スクリプトアウトライン (`unity.script.outline`)**
-- C#スクリプトサマリーを生成
-- オプションのメンバーシグネチャ含有
-- GUIDまたはアセットパス検索のサポート
+**スクリプト管理 (`unity.script.manage`)**
+- operation=`read` で既存C#スクリプトの構造とソース全文を取得（メンバー署名の有無を選択可）
+- operation=`create` で MonoBehaviour / ScriptableObject / C#クラスのテンプレートを生成
+- operation=`update` でテキスト置換・挿入・削除を順序付きで適用、operation=`delete` で不要スクリプトを削除(dryRun対応)
+- GUIDまたはアセットパス指定に対応し、名前空間・メソッド・フィールドを細かく指定可
 
 **バッチ実行 (`unity.batch.execute`)** - 高性能
 - 複数の操作を順次実行

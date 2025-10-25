@@ -40,8 +40,7 @@ namespace MCP.Editor
                 "uguiAnchorManage" => HandleUguiAnchorManage(command.Payload),
                 "uguiManage" => HandleUguiManage(command.Payload),
                 "tagLayerManage" => HandleTagLayerManage(command.Payload),
-                "scriptOutline" => HandleScriptOutline(command.Payload),
-                "scriptCreate" => HandleScriptCreate(command.Payload),
+                "scriptManage" => HandleScriptManage(command.Payload),
                 "prefabManage" => HandlePrefabManage(command.Payload),
                 "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
                 "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
@@ -1913,17 +1912,24 @@ namespace MCP.Editor
             return null;
         }
 
-        private static object HandleScriptOutline(Dictionary<string, object> payload)
+        private static object HandleScriptManage(Dictionary<string, object> payload)
         {
-            var guid = GetString(payload, "guid");
-            var assetPath = GetString(payload, "assetPath");
+            var operation = EnsureValue(GetString(payload, "operation"), "operation").ToLowerInvariant();
 
-            if (!string.IsNullOrEmpty(guid))
+            return operation switch
             {
-                assetPath = AssetDatabase.GUIDToAssetPath(guid);
-            }
+                "read" => HandleScriptRead(payload),
+                "outline" => HandleScriptRead(payload),
+                "create" => HandleScriptCreate(payload),
+                "update" => HandleScriptUpdate(payload),
+                "delete" => HandleScriptDelete(payload),
+                _ => throw new InvalidOperationException($"Unknown scriptManage operation: {operation}"),
+            };
+        }
 
-            assetPath = EnsureValue(assetPath, "assetPath");
+        private static object HandleScriptRead(Dictionary<string, object> payload)
+        {
+            var assetPath = ResolveScriptPath(payload, "assetPath", false);
             var fullPath = Path.GetFullPath(assetPath);
             if (!File.Exists(fullPath))
             {
@@ -1933,13 +1939,262 @@ namespace MCP.Editor
             var source = File.ReadAllText(fullPath);
             var outline = AnalyzeScriptOutline(source);
             var syntaxOk = CheckBraceBalance(source);
+            var includeSource = GetBool(payload, "includeSource", true);
 
-            return new Dictionary<string, object>
+            var result = new Dictionary<string, object>
             {
                 ["assetPath"] = assetPath,
                 ["syntaxOk"] = syntaxOk,
                 ["outline"] = outline,
             };
+
+            if (includeSource)
+            {
+                result["source"] = source;
+            }
+
+            return result;
+        }
+
+        private static string ResolveScriptPath(Dictionary<string, object> payload, string preferredKey, bool allowAssetFallback)
+        {
+            var keyUsed = preferredKey;
+            var path = GetString(payload, preferredKey);
+
+            if (allowAssetFallback && string.IsNullOrEmpty(path))
+            {
+                var assetValue = GetString(payload, "assetPath");
+                if (!string.IsNullOrEmpty(assetValue))
+                {
+                    path = assetValue;
+                    keyUsed = "assetPath";
+                }
+            }
+
+            var guid = GetString(payload, "guid");
+            if (!string.IsNullOrEmpty(guid))
+            {
+                var guidPath = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrEmpty(guidPath))
+                {
+                    throw new InvalidOperationException($"No asset found for guid: {guid}");
+                }
+
+                path = guidPath;
+                keyUsed = "guid";
+            }
+
+            path = EnsureValue(path, keyUsed);
+            path = path.Replace("\\", "/");
+
+            if (!path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("scriptPath must be under the Assets/ folder.");
+            }
+
+            return path;
+        }
+
+        private static object HandleScriptUpdate(Dictionary<string, object> payload)
+        {
+            var scriptPath = ResolveScriptPath(payload, "scriptPath", true);
+            var fullPath = Path.GetFullPath(scriptPath);
+            if (!File.Exists(fullPath))
+            {
+                throw new FileNotFoundException("Script file not found", fullPath);
+            }
+
+            var editsList = GetList(payload, "edits");
+            if (editsList == null || editsList.Count == 0)
+            {
+                throw new InvalidOperationException("edits array is required for scriptManage update operation.");
+            }
+
+            var dryRun = GetBool(payload, "dryRun");
+            var source = File.ReadAllText(fullPath, Encoding.UTF8);
+            var updatedSource = source;
+            var editSummaries = ApplyScriptEdits(ref updatedSource, editsList);
+            var appliedCount = editSummaries.Sum(summary => summary.TryGetValue("appliedCount", out var value) ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : 0);
+
+            if (!dryRun && appliedCount > 0)
+            {
+                File.WriteAllText(fullPath, updatedSource, Encoding.UTF8);
+                AssetDatabase.ImportAsset(scriptPath, ImportAssetOptions.ForceSynchronousImport);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["scriptPath"] = scriptPath,
+                ["dryRun"] = dryRun,
+                ["changesMade"] = appliedCount,
+                ["appliedEdits"] = editSummaries,
+                ["updatedLength"] = updatedSource.Length,
+                ["previewSource"] = dryRun ? updatedSource : null,
+            };
+        }
+
+        private static object HandleScriptDelete(Dictionary<string, object> payload)
+        {
+            var scriptPath = ResolveScriptPath(payload, "scriptPath", true);
+            var dryRun = GetBool(payload, "dryRun");
+            var fullPath = Path.GetFullPath(scriptPath);
+            if (!File.Exists(fullPath))
+            {
+                throw new FileNotFoundException("Script file not found", fullPath);
+            }
+
+            if (!dryRun)
+            {
+                if (!AssetDatabase.DeleteAsset(scriptPath))
+                {
+                    throw new InvalidOperationException($"Failed to delete script at path: {scriptPath}");
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["scriptPath"] = scriptPath,
+                ["deleted"] = !dryRun,
+                ["dryRun"] = dryRun,
+            };
+        }
+
+        private static List<Dictionary<string, object>> ApplyScriptEdits(ref string source, List<object> edits)
+        {
+            var summaries = new List<Dictionary<string, object>>();
+
+            foreach (var edit in edits)
+            {
+                if (edit is not Dictionary<string, object> editDict)
+                {
+                    throw new InvalidOperationException("Each script edit must be an object with action and match fields.");
+                }
+
+                var action = EnsureValue(GetString(editDict, "action"), "edits.action").ToLowerInvariant();
+                var match = EnsureValue(GetString(editDict, "match"), "edits.match");
+                var count = GetInt(editDict, "count", 1);
+                if (count <= 0)
+                {
+                    count = int.MaxValue;
+                }
+
+                var caseSensitive = GetBool(editDict, "caseSensitive", true);
+                var allowMissing = GetBool(editDict, "allowMissingMatch");
+                var comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+                bool applied;
+                int occurrences = 0;
+
+                switch (action)
+                {
+                    case "replace":
+                        var replacement = EnsureValue(GetString(editDict, "replacement"), "edits.replacement");
+                        applied = TryApplyReplace(ref source, match, replacement, count, comparison, out occurrences);
+                        break;
+                    case "insertbefore":
+                        var beforeText = EnsureValue(GetString(editDict, "text"), "edits.text");
+                        applied = TryApplyInsert(ref source, match, beforeText, count, insertAfter: false, comparison, out occurrences);
+                        break;
+                    case "insertafter":
+                        var afterText = EnsureValue(GetString(editDict, "text"), "edits.text");
+                        applied = TryApplyInsert(ref source, match, afterText, count, insertAfter: true, comparison, out occurrences);
+                        break;
+                    case "delete":
+                        applied = TryApplyReplace(ref source, match, string.Empty, count, comparison, out occurrences);
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unsupported script edit action: {action}");
+                }
+
+                if (!applied && !allowMissing)
+                {
+                    throw new InvalidOperationException($"No matches found for edit action '{action}' with pattern '{match}'.");
+                }
+
+                summaries.Add(new Dictionary<string, object>
+                {
+                    ["action"] = action,
+                    ["match"] = match,
+                    ["appliedCount"] = occurrences,
+                    ["caseSensitive"] = caseSensitive,
+                });
+            }
+
+            return summaries;
+        }
+
+        private static bool TryApplyReplace(ref string content, string search, string replacement, int maxCount, StringComparison comparison, out int occurrences)
+        {
+            occurrences = 0;
+            if (string.IsNullOrEmpty(search))
+            {
+                return false;
+            }
+
+            var builder = new StringBuilder();
+            var currentIndex = 0;
+            while (true)
+            {
+                var index = content.IndexOf(search, currentIndex, comparison);
+                if (index < 0)
+                {
+                    builder.Append(content, currentIndex, content.Length - currentIndex);
+                    break;
+                }
+
+                builder.Append(content, currentIndex, index - currentIndex);
+                builder.Append(replacement);
+                occurrences++;
+                currentIndex = index + search.Length;
+
+                if (occurrences == maxCount)
+                {
+                    builder.Append(content, currentIndex, content.Length - currentIndex);
+                    break;
+                }
+            }
+
+            if (occurrences == 0)
+            {
+                return false;
+            }
+
+            content = builder.ToString();
+            return true;
+        }
+
+        private static bool TryApplyInsert(ref string content, string search, string insertion, int maxCount, bool insertAfter, StringComparison comparison, out int occurrences)
+        {
+            occurrences = 0;
+            if (string.IsNullOrEmpty(search))
+            {
+                return false;
+            }
+
+            var currentIndex = 0;
+            while (true)
+            {
+                var index = content.IndexOf(search, currentIndex, comparison);
+                if (index < 0)
+                {
+                    break;
+                }
+
+                var insertIndex = insertAfter ? index + search.Length : index;
+                content = content.Insert(insertIndex, insertion);
+                occurrences++;
+
+                currentIndex = insertAfter
+                    ? insertIndex + insertion.Length
+                    : insertIndex + insertion.Length + search.Length;
+
+                if (occurrences == maxCount)
+                {
+                    break;
+                }
+            }
+
+            return occurrences > 0;
         }
 
         private static List<object> AnalyzeScriptOutline(string source)
@@ -4555,7 +4810,7 @@ namespace MCP.Editor
                         "uguiAnchorManage" => HandleUguiAnchorManage(operationPayload),
                         "uguiManage" => HandleUguiManage(operationPayload),
                         "tagLayerManage" => HandleTagLayerManage(operationPayload),
-                        "scriptOutline" => HandleScriptOutline(operationPayload),
+                        "scriptManage" => HandleScriptManage(operationPayload),
                         "prefabManage" => HandlePrefabManage(operationPayload),
                         "projectSettingsManage" => HandleProjectSettingsManage(operationPayload),
                         "renderPipelineManage" => HandleRenderPipelineManage(operationPayload),

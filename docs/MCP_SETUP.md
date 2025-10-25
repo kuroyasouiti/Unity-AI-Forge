@@ -53,7 +53,7 @@ When the MCP server connects, the bridge streams:
 - Component Manage (add/remove/update components via reflection)
 - Asset Manage (text asset create/update/delete/rename/duplicate)
 - UGUI rect adjustment to align RectTransforms with pixel bounds
-- Script outline extraction with brace-balance syntax check
+- Script read (outline + source) with brace-balance syntax check
 - Bridge ping for health checks
 
 All destructive actions surface inside the Unity Editor before they are persisted to source control.
