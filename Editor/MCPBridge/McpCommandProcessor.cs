@@ -2568,21 +2568,28 @@ namespace MCP.Editor
         }
 
         /// <summary>
-        /// Resolves a GameObject from a payload dictionary by GlobalObjectId only.
+        /// Resolves a GameObject from a payload dictionary using GlobalObjectId or gameObjectPath.
         /// </summary>
         /// <param name="payload">Payload dictionary containing GameObject identification</param>
         /// <returns>Resolved GameObject</returns>
         /// <exception cref="InvalidOperationException">Thrown when GameObject cannot be resolved</exception>
         private static GameObject ResolveGameObjectFromPayload(Dictionary<string, object> payload)
         {
+            // Try GlobalObjectId first (if provided)
             var globalObjectIdString = GetString(payload, "gameObjectGlobalObjectId");
-
-            if (string.IsNullOrEmpty(globalObjectIdString))
+            if (!string.IsNullOrEmpty(globalObjectIdString))
             {
-                throw new InvalidOperationException("Payload must contain 'gameObjectGlobalObjectId' parameter");
+                return ResolveGameObjectByGlobalObjectId(globalObjectIdString);
             }
 
-            return ResolveGameObjectByGlobalObjectId(globalObjectIdString);
+            // Fall back to gameObjectPath
+            var gameObjectPath = GetString(payload, "gameObjectPath");
+            if (!string.IsNullOrEmpty(gameObjectPath))
+            {
+                return ResolveGameObject(gameObjectPath);
+            }
+
+            throw new InvalidOperationException("Payload must contain either 'gameObjectGlobalObjectId' or 'gameObjectPath' parameter");
         }
 
         /// <summary>
