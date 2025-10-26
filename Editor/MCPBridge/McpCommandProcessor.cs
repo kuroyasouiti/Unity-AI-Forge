@@ -3037,18 +3037,26 @@ namespace MCP.Editor
         }
 
         /// <summary>
-        /// Resolves an Asset reference by GUID only.
+        /// Resolves an Asset reference by GUID or asset path.
+        /// Prioritizes GUID over path when both are provided.
         /// </summary>
         private static UnityEngine.Object ResolveAssetReference(Dictionary<string, object> refDict, Type targetType)
         {
             var guid = GetString(refDict, "guid");
+            var path = GetString(refDict, "path");
 
-            if (string.IsNullOrEmpty(guid))
+            // GUID優先で処理
+            if (!string.IsNullOrEmpty(guid))
             {
-                throw new InvalidOperationException("Asset reference requires 'guid' parameter");
+                return ResolveAssetByGuid(guid, targetType);
             }
 
-            return ResolveAssetByGuid(guid, targetType);
+            if (!string.IsNullOrEmpty(path))
+            {
+                return ResolveAssetPath(path, targetType);
+            }
+
+            throw new InvalidOperationException("Asset reference requires either 'guid' or 'path' parameter");
         }
 
         /// <summary>

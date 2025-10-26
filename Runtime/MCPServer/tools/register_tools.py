@@ -113,7 +113,7 @@ def register_tools(server: Server) -> None:
                 "propertyChanges": {
                     "type": "object",
                     "additionalProperties": True,
-                    "description": "Property/value pairs to apply to the component. For UnityEngine.Object properties (e.g. Mesh, Material), use asset paths like 'Assets/Models/Sphere.fbx' or built-in resources like 'Library/unity default resources::Sphere'.",
+                    "description": "Property/value pairs to apply to the component. For UnityEngine.Object properties (e.g. Mesh, Material), you can use: 1) Asset reference with GUID (recommended): {'_ref': 'asset', 'guid': 'abc123...'}, 2) Asset reference with path: {'_ref': 'asset', 'path': 'Assets/Models/Sphere.fbx'}, 3) Direct asset path string: 'Assets/Models/Sphere.fbx', or 4) Built-in resources: 'Library/unity default resources::Sphere'. When both GUID and path are provided, GUID takes priority.",
                 },
                 "applyDefaults": {"type": "boolean"},
             },

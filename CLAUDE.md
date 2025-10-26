@@ -115,7 +115,11 @@ When setting component properties through `componentManage`:
 2. **Vectors**: `{"x": 1, "y": 2, "z": 3}` → Vector3/Vector2
 3. **Colors**: `{"r": 1, "g": 0, "b": 0, "a": 1}` → Color
 4. **Enums**: String name → enum value via `Enum.Parse()`
-5. **Unity Objects**: Asset path string → `AssetDatabase.LoadAssetAtPath()`
+5. **Unity Objects**: Multiple formats supported (GUID takes priority when both provided):
+   - Asset reference with GUID (recommended): `{"_ref": "asset", "guid": "abc123..."}`
+   - Asset reference with path: `{"_ref": "asset", "path": "Assets/Models/Sphere.fbx"}`
+   - Direct asset path string: `"Assets/Models/Sphere.fbx"`
+   - Built-in resources: `"Library/unity default resources::Sphere"`
 6. **Nested Objects**: Recursively processes dictionaries with `_ref` key
 
 ### Reconnection Strategy
@@ -159,6 +163,84 @@ private static object HandleTool(Dictionary<string, object> payload)
     // Return result dictionary
 }
 ```
+
+### Component Management Examples
+
+**Setting Component Properties with Asset References:**
+
+1. **Using GUID (Recommended):**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Player",
+     "componentType": "UnityEngine.MeshFilter",
+     "propertyChanges": {
+       "mesh": {
+         "_ref": "asset",
+         "guid": "abc123def456789"
+       }
+     }
+   }
+   ```
+
+2. **Using Asset Path:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Player",
+     "componentType": "UnityEngine.MeshRenderer",
+     "propertyChanges": {
+       "material": {
+         "_ref": "asset",
+         "path": "Assets/Materials/PlayerMaterial.mat"
+       }
+     }
+   }
+   ```
+
+3. **Using Direct Path String:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Enemy",
+     "componentType": "UnityEngine.MeshFilter",
+     "propertyChanges": {
+       "sharedMesh": "Assets/Models/Enemy.fbx"
+     }
+   }
+   ```
+
+4. **Using Built-in Resources:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Sphere",
+     "componentType": "UnityEngine.MeshFilter",
+     "propertyChanges": {
+       "sharedMesh": "Library/unity default resources::Sphere"
+     }
+   }
+   ```
+
+5. **Mixed Properties (Primitives and Assets):**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Character",
+     "componentType": "UnityEngine.SkinnedMeshRenderer",
+     "propertyChanges": {
+       "sharedMesh": {
+         "_ref": "asset",
+         "guid": "xyz789abc123"
+       },
+       "quality": "High",
+       "receiveShadows": true,
+       "updateWhenOffscreen": false
+     }
+   }
+   ```
+
+**Note:** When both GUID and path are provided in an asset reference, GUID takes priority for resolution.
 
 ## Adding New Tools
 
