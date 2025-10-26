@@ -780,92 +780,92 @@ def register_tools(server: Server) -> None:
 
     tool_definitions = [
         types.Tool(
-            name="unity.ping",
+            name="unity_ping",
             description="Verify bridge connectivity and return the latest heartbeat information.",
             inputSchema=ping_schema,
         ),
         types.Tool(
-            name="unity.scene.crud",
+            name="unity_scene_crud",
             description="Create, load, save, delete, or duplicate Unity scenes.",
             inputSchema=scene_manage_schema,
         ),
         types.Tool(
-            name="unity.gameobject.crud",
+            name="unity_gameobject_crud",
             description="Modify the active scene hierarchy (create, delete, move, rename, duplicate) or inspect GameObjects. Use 'inspect' operation to read all attached components with their properties.",
             inputSchema=game_object_manage_schema,
         ),
         types.Tool(
-            name="unity.component.crud",
+            name="unity_component_crud",
             description="Add, remove, update, or inspect components on a GameObject.",
             inputSchema=component_manage_schema,
         ),
         types.Tool(
-            name="unity.asset.crud",
+            name="unity_asset_crud",
             description="Create, update, rename, duplicate, delete, or inspect Assets/ files.",
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
-            name="unity.ugui.rectAdjust",
+            name="unity_ugui_rectAdjust",
             description="Adjust a RectTransform using uGUI layout utilities.",
             inputSchema=ugui_rect_adjust_schema,
         ),
         types.Tool(
-            name="unity.ugui.anchorManage",
+            name="unity_ugui_anchorManage",
             description="Manage RectTransform anchors: set custom values, apply presets (top-left, center, stretch, etc.), or convert between anchor-based and absolute positioning.",
             inputSchema=ugui_anchor_manage_schema,
         ),
         types.Tool(
-            name="unity.ugui.manage",
+            name="unity_ugui_manage",
             description="Unified UGUI management tool. Consolidates all UGUI operations: adjust RectTransform size (rectAdjust), set anchors (setAnchor/setAnchorPreset), convert positioning (convertToAnchored/convertToAbsolute), inspect RectTransform state (inspect), and update properties (updateRect).",
             inputSchema=ugui_manage_schema,
         ),
         types.Tool(
-            name="unity.tagLayer.manage",
+            name="unity_tagLayer_manage",
             description="Manage tags and layers in Unity. Set/get tags and layers on GameObjects (supports recursive layer setting for hierarchies). Add/remove tags and layers from the project. List all available tags and layers.",
             inputSchema=tag_layer_manage_schema,
         ),
         types.Tool(
-            name="unity.script.manage",
+            name="unity_script_manage",
             description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview).",
             inputSchema=script_manage_schema,
         ),
         types.Tool(
-            name="unity.prefab.crud",
+            name="unity_prefab_crud",
             description="Manage Unity prefabs: create prefabs from GameObjects, update existing prefabs, inspect prefab assets, instantiate prefabs in scenes, unpack prefab instances, apply or revert instance overrides.",
             inputSchema=prefab_manage_schema,
         ),
         types.Tool(
-            name="unity.projectSettings.crud",
+            name="unity_projectSettings_crud",
             description="Read, write, or list Unity Project Settings. Supports PlayerSettings, QualitySettings, TimeSettings, PhysicsSettings, AudioSettings, and EditorSettings.",
             inputSchema=project_settings_manage_schema,
         ),
         types.Tool(
-            name="unity.renderPipeline.manage",
+            name="unity_renderPipeline_manage",
             description="Manage Unity Render Pipeline. Inspect current pipeline (Built-in/URP/HDRP), change pipeline asset, read and update pipeline-specific settings.",
             inputSchema=render_pipeline_manage_schema,
         ),
         types.Tool(
-            name="unity.inputSystem.manage",
+            name="unity_inputSystem_manage",
             description="Manage Unity New Input System. Create Input Action assets, add action maps and actions, configure bindings, and inspect existing assets. Requires Input System package to be installed.",
             inputSchema=input_system_manage_schema,
         ),
         types.Tool(
-            name="unity.batch.execute",
+            name="unity_batch_execute",
             description="Execute multiple Unity operations in a single batch. Allows sequential execution of any tool operations with optional error handling. Returns results for all operations including successes and failures.",
             inputSchema=batch_execute_schema,
         ),
         types.Tool(
-            name="unity.tilemap.manage",
+            name="unity_tilemap_manage",
             description="Manage Unity Tilemap system. Create tilemaps with Grid parent, set/get/clear tiles at positions, fill rectangular areas with tiles, inspect tilemap information. Supports 2D grid-based tile placement for level design.",
             inputSchema=tilemap_manage_schema,
         ),
         types.Tool(
-            name="unity.navmesh.manage",
+            name="unity_navmesh_manage",
             description="Manage Unity NavMesh navigation system. Bake/clear NavMesh, add NavMeshAgent components to GameObjects, set agent destinations, inspect NavMesh statistics, and update bake settings. Supports runtime pathfinding for AI characters.",
             inputSchema=navmesh_manage_schema,
         ),
         types.Tool(
-            name="unity.project.compile",
+            name="unity_project_compile",
             description="Compile Unity C# scripts. Refreshes the asset database and requests script compilation. Returns compilation status and any compilation errors. Use this after creating or modifying C# scripts to ensure they compile correctly.",
             inputSchema=compile_schema,
         ),
@@ -884,7 +884,7 @@ def register_tools(server: Server) -> None:
 
         args = arguments or {}
 
-        if name == "unity.ping":
+        if name == "unity_ping":
             _ensure_bridge_connected()
             heartbeat = bridge_manager.get_last_heartbeat()
             bridge_response = await bridge_manager.send_command("pingUnityEditor", {})
@@ -895,55 +895,55 @@ def register_tools(server: Server) -> None:
             }
             return [types.TextContent(type="text", text=as_pretty_json(payload))]
 
-        if name == "unity.scene.crud":
+        if name == "unity_scene_crud":
             return await _call_bridge_tool("sceneManage", args)
 
-        if name == "unity.gameobject.crud":
+        if name == "unity_gameobject_crud":
             return await _call_bridge_tool("gameObjectManage", args)
 
-        if name == "unity.component.crud":
+        if name == "unity_component_crud":
             return await _call_bridge_tool("componentManage", args)
 
-        if name == "unity.asset.crud":
+        if name == "unity_asset_crud":
             return await _call_bridge_tool("assetManage", args)
 
-        if name == "unity.ugui.rectAdjust":
+        if name == "unity_ugui_rectAdjust":
             return await _call_bridge_tool("uguiRectAdjust", args)
 
-        if name == "unity.ugui.anchorManage":
+        if name == "unity_ugui_anchorManage":
             return await _call_bridge_tool("uguiAnchorManage", args)
 
-        if name == "unity.ugui.manage":
+        if name == "unity_ugui_manage":
             return await _call_bridge_tool("uguiManage", args)
 
-        if name == "unity.tagLayer.manage":
+        if name == "unity_tagLayer_manage":
             return await _call_bridge_tool("tagLayerManage", args)
 
-        if name == "unity.script.manage":
+        if name == "unity_script_manage":
             return await _call_bridge_tool("scriptManage", args)
 
-        if name == "unity.prefab.crud":
+        if name == "unity_prefab_crud":
             return await _call_bridge_tool("prefabManage", args)
 
-        if name == "unity.projectSettings.crud":
+        if name == "unity_projectSettings_crud":
             return await _call_bridge_tool("projectSettingsManage", args)
 
-        if name == "unity.renderPipeline.manage":
+        if name == "unity_renderPipeline_manage":
             return await _call_bridge_tool("renderPipelineManage", args)
 
-        if name == "unity.inputSystem.manage":
+        if name == "unity_inputSystem_manage":
             return await _call_bridge_tool("inputSystemManage", args)
 
-        if name == "unity.batch.execute":
+        if name == "unity_batch_execute":
             return await _call_bridge_tool("batchExecute", args)
 
-        if name == "unity.tilemap.manage":
+        if name == "unity_tilemap_manage":
             return await _call_bridge_tool("tilemapManage", args)
 
-        if name == "unity.navmesh.manage":
+        if name == "unity_navmesh_manage":
             return await _call_bridge_tool("navmeshManage", args)
 
-        if name == "unity.project.compile":
+        if name == "unity_project_compile":
             return await _call_bridge_tool("projectCompile", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
