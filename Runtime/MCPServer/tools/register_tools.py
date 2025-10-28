@@ -692,11 +692,22 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
-    compile_schema: Dict[str, Any] = {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": False,
-    }
+    compile_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "waitForCompletion": {
+                    "type": "boolean",
+                    "description": "If true, waits for compilation to complete before returning. Default is false.",
+                },
+                "timeoutSeconds": {
+                    "type": "integer",
+                    "description": "Maximum time to wait for compilation in seconds. Default is 60 seconds. Only used when waitForCompletion is true.",
+                },
+            },
+        },
+        [],
+    )
 
     hierarchy_builder_schema = _schema_with_required(
         {

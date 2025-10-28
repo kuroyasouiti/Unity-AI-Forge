@@ -7831,6 +7831,10 @@ namespace MCP.Editor
         {
             try
             {
+                // Get parameters
+                bool waitForCompletion = GetBool(payload, "waitForCompletion", false);
+                int timeoutSeconds = GetInt(payload, "timeoutSeconds", 60);
+
                 // Refresh the asset database to pick up any new or modified scripts
                 AssetDatabase.Refresh();
 
@@ -7846,7 +7850,41 @@ namespace MCP.Editor
                     ["message"] = "Compilation requested successfully",
                     ["isCompiling"] = isCompiling,
                     ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    ["waitedForCompletion"] = false,
                 };
+
+                // If waitForCompletion is true, wait for compilation to finish
+                if (waitForCompletion)
+                {
+                    var startTime = DateTime.UtcNow;
+                    var timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+                    // Wait for compilation to start if not already compiling
+                    while (!EditorApplication.isCompiling && (DateTime.UtcNow - startTime) < TimeSpan.FromSeconds(5))
+                    {
+                        System.Threading.Thread.Sleep(100);
+                    }
+
+                    // Wait for compilation to complete
+                    while (EditorApplication.isCompiling && (DateTime.UtcNow - startTime) < timeout)
+                    {
+                        System.Threading.Thread.Sleep(100);
+                    }
+
+                    if (EditorApplication.isCompiling)
+                    {
+                        result["success"] = false;
+                        result["message"] = $"Compilation timed out after {timeoutSeconds} seconds";
+                        result["timedOut"] = true;
+                        result["isCompiling"] = true;
+                        return result;
+                    }
+
+                    result["waitedForCompletion"] = true;
+                    result["compilationTimeMs"] = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
+                    result["isCompiling"] = false;
+                    result["message"] = "Compilation completed successfully";
+                }
 
                 // Check for compilation errors
                 var assemblies = UnityEditor.Compilation.CompilationPipeline.GetAssemblies();
@@ -7873,6 +7911,11 @@ namespace MCP.Editor
                     result["hasErrors"] = true;
                     result["errors"] = errorMessages;
                     result["errorCount"] = errorMessages.Count;
+                    if (waitForCompletion)
+                    {
+                        result["success"] = false;
+                        result["message"] = $"Compilation completed with {errorMessages.Count} error(s)";
+                    }
                 }
                 else
                 {
