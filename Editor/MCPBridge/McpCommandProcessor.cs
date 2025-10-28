@@ -3093,16 +3093,21 @@ namespace MCP.Editor
         {
             var created = new List<string>();
 
-            // Create Main Camera for 2D
-            var camera = new GameObject("Main Camera");
-            var cam = camera.AddComponent<Camera>();
-            cam.orthographic = true;
-            cam.orthographicSize = 5;
-            camera.tag = "MainCamera";
-            camera.transform.position = new Vector3(0, 0, -10);
+            // Check if Main Camera already exists
+            var existingCamera = Camera.main;
+            if (existingCamera == null)
+            {
+                // Create Main Camera for 2D
+                var camera = new GameObject("Main Camera");
+                var cam = camera.AddComponent<Camera>();
+                cam.orthographic = true;
+                cam.orthographicSize = 5;
+                camera.tag = "MainCamera";
+                camera.transform.position = new Vector3(0, 0, -10);
 
-            Undo.RegisterCreatedObjectUndo(camera, "Create Main Camera");
-            created.Add("Main Camera");
+                Undo.RegisterCreatedObjectUndo(camera, "Create Main Camera");
+                created.Add("Main Camera");
+            }
 
             return created;
         }
@@ -3111,26 +3116,35 @@ namespace MCP.Editor
         {
             var created = new List<string>();
 
-            // Create Canvas
-            var canvas = new GameObject("Canvas");
-            var canvasComp = canvas.AddComponent<Canvas>();
-            canvasComp.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.AddComponent<UnityEngine.UI.CanvasScaler>();
-            canvas.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+            // Check if Canvas already exists
+            var existingCanvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+            if (existingCanvas == null)
+            {
+                // Create Canvas
+                var canvas = new GameObject("Canvas");
+                var canvasComp = canvas.AddComponent<Canvas>();
+                canvasComp.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.AddComponent<UnityEngine.UI.CanvasScaler>();
+                canvas.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
-            Undo.RegisterCreatedObjectUndo(canvas, "Create Canvas");
-            created.Add("Canvas");
+                Undo.RegisterCreatedObjectUndo(canvas, "Create Canvas");
+                created.Add("Canvas");
+            }
 
-            // Create EventSystem
+            // Check if EventSystem already exists
             var includeEventSystem = GetBool(payload, "includeEventSystem", true);
             if (includeEventSystem)
             {
-                var eventSystem = new GameObject("EventSystem");
-                eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
-                eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                var existingEventSystem = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+                if (existingEventSystem == null)
+                {
+                    var eventSystem = new GameObject("EventSystem");
+                    eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                    eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
 
-                Undo.RegisterCreatedObjectUndo(eventSystem, "Create EventSystem");
-                created.Add("EventSystem");
+                    Undo.RegisterCreatedObjectUndo(eventSystem, "Create EventSystem");
+                    created.Add("EventSystem");
+                }
             }
 
             return created;
@@ -3140,14 +3154,19 @@ namespace MCP.Editor
         {
             var created = new List<string>();
 
-            // Create XR Origin (simplified - would need XR packages in real implementation)
-            var camera = new GameObject("Main Camera");
-            camera.AddComponent<Camera>();
-            camera.tag = "MainCamera";
-            camera.transform.position = new Vector3(0, 1.6f, 0);
+            // Check if Main Camera already exists
+            var existingCamera = Camera.main;
+            if (existingCamera == null)
+            {
+                // Create XR Origin (simplified - would need XR packages in real implementation)
+                var camera = new GameObject("Main Camera");
+                camera.AddComponent<Camera>();
+                camera.tag = "MainCamera";
+                camera.transform.position = new Vector3(0, 1.6f, 0);
 
-            Undo.RegisterCreatedObjectUndo(camera, "Create Main Camera");
-            created.Add("Main Camera");
+                Undo.RegisterCreatedObjectUndo(camera, "Create Main Camera");
+                created.Add("Main Camera");
+            }
 
             return created;
         }
