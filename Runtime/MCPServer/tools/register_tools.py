@@ -396,6 +396,15 @@ def register_tools(server: Server) -> None:
                     "type": "boolean",
                     "description": "Preview the result without writing to disk (update/delete operations).",
                 },
+                "waitForCompilation": {
+                    "type": "boolean",
+                    "description": "Wait for Unity compilation to complete after creating or updating scripts. Default is false. When true, the operation will block until compilation finishes or times out.",
+                },
+                "timeoutSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Only used when waitForCompilation is true.",
+                },
             },
         },
         ["operation"],
@@ -694,7 +703,17 @@ def register_tools(server: Server) -> None:
 
     compile_schema: Dict[str, Any] = {
         "type": "object",
-        "properties": {},
+        "properties": {
+            "waitForCompletion": {
+                "type": "boolean",
+                "description": "Wait for compilation to complete before returning. Default is false. When true, blocks until compilation finishes or times out.",
+            },
+            "timeoutSeconds": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Only used when waitForCompletion is true.",
+            },
+        },
         "additionalProperties": False,
     }
 
@@ -1205,7 +1224,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_script_manage",
-            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview).",
+            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). Supports waitForCompilation parameter to block until compilation completes.",
             inputSchema=script_manage_schema,
         ),
         types.Tool(
@@ -1245,7 +1264,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_project_compile",
-            description="Compile Unity C# scripts. Refreshes the asset database and requests script compilation. Returns compilation status and any compilation errors. Use this after creating or modifying C# scripts to ensure they compile correctly.",
+            description="Compile Unity C# scripts. Refreshes the asset database and requests script compilation. Returns compilation status and any compilation errors. Use this after creating or modifying C# scripts to ensure they compile correctly. Set waitForCompletion=true to block until compilation finishes.",
             inputSchema=compile_schema,
         ),
     ]
