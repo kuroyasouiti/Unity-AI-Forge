@@ -8,8 +8,10 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEditor;
+using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 
@@ -4763,23 +4765,292 @@ namespace MCP.Editor
         private static void ApplyProperty(Component component, string propertyName, object rawValue)
         {
             var type = component.GetType();
+
+            // Try property first
             var property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (property != null && property.CanWrite)
+            if (property != null)
             {
-                var converted = ConvertValue(rawValue, property.PropertyType);
-                property.SetValue(component, converted);
-                return;
+                // Check if it's a UnityEvent
+                if (typeof(UnityEventBase).IsAssignableFrom(property.PropertyType))
+                {
+                    var unityEvent = property.GetValue(component) as UnityEventBase;
+                    if (unityEvent != null)
+                    {
+                        ApplyUnityEvent(component, unityEvent, rawValue);
+                        return;
+                    }
+                }
+
+                if (property.CanWrite)
+                {
+                    var converted = ConvertValue(rawValue, property.PropertyType);
+                    property.SetValue(component, converted);
+                    return;
+                }
             }
 
+            // Try field
             var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             if (field != null)
             {
+                // Check if it's a UnityEvent
+                if (typeof(UnityEventBase).IsAssignableFrom(field.FieldType))
+                {
+                    var unityEvent = field.GetValue(component) as UnityEventBase;
+                    if (unityEvent != null)
+                    {
+                        ApplyUnityEvent(component, unityEvent, rawValue);
+                        return;
+                    }
+                }
+
                 var converted = ConvertValue(rawValue, field.FieldType);
                 field.SetValue(component, converted);
                 return;
             }
 
             throw new InvalidOperationException($"Property or field '{propertyName}' not found on {type.FullName}");
+        }
+
+        /// <summary>
+        /// Applies UnityEvent configuration (add/remove listeners).
+        /// Supports both simple string format ("GameObject.MethodName") and complex dictionary format.
+        /// </summary>
+        /// <param name="component">The component containing the UnityEvent</param>
+        /// <param name="unityEvent">The UnityEvent to configure</param>
+        /// <param name="rawValue">Configuration data (string or dictionary)</param>
+        private static void ApplyUnityEvent(Component component, UnityEventBase unityEvent, object rawValue)
+        {
+            // Simple string format: "GameObject.MethodName"
+            if (rawValue is string simpleFormat)
+            {
+                var parts = simpleFormat.Split('.');
+                if (parts.Length != 2)
+                {
+                    throw new InvalidOperationException($"Invalid UnityEvent format. Expected 'GameObjectPath.MethodName', got: {simpleFormat}");
+                }
+
+                var targetPath = parts[0];
+                var methodName = parts[1];
+                var target = ResolveGameObject(targetPath);
+
+                AddVoidListener(unityEvent, target, methodName);
+                EditorUtility.SetDirty(component);
+                return;
+            }
+
+            // Complex dictionary format
+            if (rawValue is Dictionary<string, object> eventConfig)
+            {
+                // Clear existing listeners if requested
+                var clearListeners = GetBool(eventConfig, "clearListeners", false);
+                if (clearListeners)
+                {
+                    RemoveAllListeners(unityEvent);
+                }
+
+                // Add new listeners
+                if (eventConfig.TryGetValue("listeners", out var listenersObj) && listenersObj is IList listenersList)
+                {
+                    foreach (var listenerObj in listenersList)
+                    {
+                        if (listenerObj is Dictionary<string, object> listenerConfig)
+                        {
+                            AddListener(unityEvent, listenerConfig);
+                        }
+                    }
+                }
+
+                EditorUtility.SetDirty(component);
+                return;
+            }
+
+            throw new InvalidOperationException($"UnityEvent value must be a string ('GameObject.MethodName') or dictionary with 'listeners' array");
+        }
+
+        /// <summary>
+        /// Adds a listener to a UnityEvent based on configuration.
+        /// </summary>
+        private static void AddListener(UnityEventBase unityEvent, Dictionary<string, object> config)
+        {
+            var targetPath = EnsureValue(GetString(config, "targetPath"), "targetPath");
+            var methodName = EnsureValue(GetString(config, "methodName"), "methodName");
+            var mode = GetString(config, "mode") ?? "Void";
+
+            var target = ResolveGameObject(targetPath);
+
+            switch (mode.ToLower())
+            {
+                case "void":
+                    AddVoidListener(unityEvent, target, methodName);
+                    break;
+
+                case "int":
+                    var intArg = GetInt(config, "argument", 0);
+                    AddIntListener(unityEvent, target, methodName, intArg);
+                    break;
+
+                case "float":
+                    var floatArg = GetFloat(config, "argument", 0f);
+                    AddFloatListener(unityEvent, target, methodName, floatArg);
+                    break;
+
+                case "string":
+                    var stringArg = GetString(config, "argument") ?? "";
+                    AddStringListener(unityEvent, target, methodName, stringArg);
+                    break;
+
+                case "bool":
+                    var boolArg = GetBool(config, "argument", false);
+                    AddBoolListener(unityEvent, target, methodName, boolArg);
+                    break;
+
+                case "object":
+                    var objectArg = ResolveObjectArgument(config);
+                    AddObjectListener(unityEvent, target, methodName, objectArg);
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unsupported UnityEvent mode: {mode}. Supported modes: Void, Int, Float, String, Bool, Object");
+            }
+        }
+
+        private static void AddVoidListener(UnityEventBase unityEvent, GameObject target, string methodName)
+        {
+            var targetComponent = FindComponentWithMethod(target, methodName, Type.EmptyTypes);
+            if (targetComponent == null)
+            {
+                throw new InvalidOperationException($"Method '{methodName}()' not found on any component of '{target.name}'");
+            }
+
+            var action = System.Delegate.CreateDelegate(typeof(UnityAction), targetComponent, methodName) as UnityAction;
+            UnityEventTools.AddVoidPersistentListener(unityEvent, action);
+        }
+
+        private static void AddIntListener(UnityEventBase unityEvent, GameObject target, string methodName, int argument)
+        {
+            var targetComponent = FindComponentWithMethod(target, methodName, new[] { typeof(int) });
+            if (targetComponent == null)
+            {
+                throw new InvalidOperationException($"Method '{methodName}(int)' not found on any component of '{target.name}'");
+            }
+
+            var action = System.Delegate.CreateDelegate(typeof(UnityAction<int>), targetComponent, methodName) as UnityAction<int>;
+            UnityEventTools.AddIntPersistentListener(unityEvent, action, argument);
+        }
+
+        private static void AddFloatListener(UnityEventBase unityEvent, GameObject target, string methodName, float argument)
+        {
+            var targetComponent = FindComponentWithMethod(target, methodName, new[] { typeof(float) });
+            if (targetComponent == null)
+            {
+                throw new InvalidOperationException($"Method '{methodName}(float)' not found on any component of '{target.name}'");
+            }
+
+            var action = System.Delegate.CreateDelegate(typeof(UnityAction<float>), targetComponent, methodName) as UnityAction<float>;
+            UnityEventTools.AddFloatPersistentListener(unityEvent, action, argument);
+        }
+
+        private static void AddStringListener(UnityEventBase unityEvent, GameObject target, string methodName, string argument)
+        {
+            var targetComponent = FindComponentWithMethod(target, methodName, new[] { typeof(string) });
+            if (targetComponent == null)
+            {
+                throw new InvalidOperationException($"Method '{methodName}(string)' not found on any component of '{target.name}'");
+            }
+
+            var action = System.Delegate.CreateDelegate(typeof(UnityAction<string>), targetComponent, methodName) as UnityAction<string>;
+            UnityEventTools.AddStringPersistentListener(unityEvent, action, argument);
+        }
+
+        private static void AddBoolListener(UnityEventBase unityEvent, GameObject target, string methodName, bool argument)
+        {
+            var targetComponent = FindComponentWithMethod(target, methodName, new[] { typeof(bool) });
+            if (targetComponent == null)
+            {
+                throw new InvalidOperationException($"Method '{methodName}(bool)' not found on any component of '{target.name}'");
+            }
+
+            var action = System.Delegate.CreateDelegate(typeof(UnityAction<bool>), targetComponent, methodName) as UnityAction<bool>;
+            UnityEventTools.AddBoolPersistentListener(unityEvent, action, argument);
+        }
+
+        private static void AddObjectListener(UnityEventBase unityEvent, GameObject target, string methodName, UnityEngine.Object argument)
+        {
+            if (argument == null)
+            {
+                throw new InvalidOperationException("Object argument cannot be null for Object mode listeners");
+            }
+
+            var argumentType = argument.GetType();
+            var targetComponent = FindComponentWithMethod(target, methodName, new[] { argumentType });
+            if (targetComponent == null)
+            {
+                throw new InvalidOperationException($"Method '{methodName}({argumentType.Name})' not found on any component of '{target.name}'");
+            }
+
+            // Use reflection to call the generic AddObjectPersistentListener<T> method
+            var addObjectMethod = typeof(UnityEventTools).GetMethods()
+                .FirstOrDefault(m => m.Name == "AddObjectPersistentListener" && m.IsGenericMethod);
+
+            if (addObjectMethod == null)
+            {
+                throw new InvalidOperationException("UnityEventTools.AddObjectPersistentListener method not found");
+            }
+
+            var genericMethod = addObjectMethod.MakeGenericMethod(argumentType);
+            var actionType = typeof(UnityAction<>).MakeGenericType(argumentType);
+            var action = System.Delegate.CreateDelegate(actionType, targetComponent, methodName);
+
+            genericMethod.Invoke(null, new object[] { unityEvent, action, argument });
+        }
+
+        private static Component FindComponentWithMethod(GameObject target, string methodName, Type[] parameterTypes)
+        {
+            var components = target.GetComponents<Component>();
+            foreach (var component in components)
+            {
+                if (component == null) continue;
+
+                var method = component.GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, parameterTypes, null);
+                if (method != null)
+                {
+                    return component;
+                }
+            }
+
+            return null;
+        }
+
+        private static UnityEngine.Object ResolveObjectArgument(Dictionary<string, object> config)
+        {
+            if (config.TryGetValue("argument", out var argObj))
+            {
+                if (argObj is string assetPath)
+                {
+                    var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+                    if (asset != null)
+                    {
+                        return asset;
+                    }
+                }
+                else if (argObj is Dictionary<string, object> refDict)
+                {
+                    return ResolveUnityObjectReference(refDict, typeof(UnityEngine.Object));
+                }
+            }
+
+            throw new InvalidOperationException("Object mode requires 'argument' parameter with asset path or object reference");
+        }
+
+        private static void RemoveAllListeners(UnityEventBase unityEvent)
+        {
+            // Clear persistent listeners
+            var persistentCount = unityEvent.GetPersistentEventCount();
+            for (int i = persistentCount - 1; i >= 0; i--)
+            {
+                UnityEventTools.RemovePersistentListener(unityEvent, i);
+            }
         }
 
         /// <summary>
@@ -6829,6 +7100,41 @@ namespace MCP.Editor
             }
 
             if (value is string strValue && int.TryParse(strValue, out var parsed))
+            {
+                return parsed;
+            }
+
+            return defaultValue;
+        }
+
+        private static float GetFloat(Dictionary<string, object> payload, string key, float defaultValue)
+        {
+            if (!payload.TryGetValue(key, out var value) || value == null)
+            {
+                return defaultValue;
+            }
+
+            if (value is float floatValue)
+            {
+                return floatValue;
+            }
+
+            if (value is double doubleValue)
+            {
+                return (float)doubleValue;
+            }
+
+            if (value is int intValue)
+            {
+                return (float)intValue;
+            }
+
+            if (value is long longValue)
+            {
+                return (float)longValue;
+            }
+
+            if (value is string strValue && float.TryParse(strValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
             {
                 return parsed;
             }

@@ -286,6 +286,171 @@ private static object HandleTool(Dictionary<string, object> payload)
 
 **Note:** When both GUID and path are provided in an asset reference, GUID takes priority for resolution.
 
+### Setting UnityEvent Listeners (NEW!)
+
+The component management tool now supports setting UnityEvent listeners (Button.onClick, Slider.onValueChanged, etc.)!
+
+**Simple Format (Single Listener, No Arguments):**
+```json
+{
+  "operation": "update",
+  "gameObjectPath": "Canvas/Button",
+  "componentType": "UnityEngine.UI.Button",
+  "propertyChanges": {
+    "onClick": "GameManager.OnButtonClick"
+  }
+}
+```
+
+**Complex Format (Multiple Listeners with Arguments):**
+```json
+{
+  "operation": "update",
+  "gameObjectPath": "Canvas/Button",
+  "componentType": "UnityEngine.UI.Button",
+  "propertyChanges": {
+    "onClick": {
+      "clearListeners": true,
+      "listeners": [
+        {
+          "targetPath": "GameManager",
+          "methodName": "OnButtonClick",
+          "mode": "Void"
+        },
+        {
+          "targetPath": "AudioManager",
+          "methodName": "PlaySound",
+          "mode": "String",
+          "argument": "button_click"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Supported Listener Modes:**
+- **Void** - No arguments: `void MethodName()`
+- **Int** - Integer argument: `void MethodName(int value)`
+- **Float** - Float argument: `void MethodName(float value)`
+- **String** - String argument: `void MethodName(string text)`
+- **Bool** - Boolean argument: `void MethodName(bool flag)`
+- **Object** - UnityEngine.Object argument: `void MethodName(GameObject obj)`
+
+**Examples:**
+
+1. **Button Click Event:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Canvas/StartButton",
+     "componentType": "UnityEngine.UI.Button",
+     "propertyChanges": {
+       "onClick": "GameManager.StartGame"
+     }
+   }
+   ```
+
+2. **Slider Value Changed:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Canvas/VolumeSlider",
+     "componentType": "UnityEngine.UI.Slider",
+     "propertyChanges": {
+       "onValueChanged": {
+         "listeners": [
+           {
+             "targetPath": "AudioManager",
+             "methodName": "SetVolume",
+             "mode": "Float"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+3. **Toggle State Changed:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Canvas/MuteToggle",
+     "componentType": "UnityEngine.UI.Toggle",
+     "propertyChanges": {
+       "onValueChanged": {
+         "listeners": [
+           {
+             "targetPath": "AudioManager",
+             "methodName": "SetMute",
+             "mode": "Bool"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+4. **Multiple Listeners on One Event:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Canvas/ActionButton",
+     "componentType": "UnityEngine.UI.Button",
+     "propertyChanges": {
+       "onClick": {
+         "listeners": [
+           {
+             "targetPath": "GameManager",
+             "methodName": "OnAction",
+             "mode": "Void"
+           },
+           {
+             "targetPath": "UIManager",
+             "methodName": "ShowFeedback",
+             "mode": "String",
+             "argument": "Action completed!"
+           },
+           {
+             "targetPath": "AudioManager",
+             "methodName": "PlaySound",
+             "mode": "String",
+             "argument": "action_sound"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+5. **Clear Existing Listeners:**
+   ```json
+   {
+     "operation": "update",
+     "gameObjectPath": "Canvas/ResetButton",
+     "componentType": "UnityEngine.UI.Button",
+     "propertyChanges": {
+       "onClick": {
+         "clearListeners": true,
+         "listeners": [
+           {
+             "targetPath": "GameManager",
+             "methodName": "Reset",
+             "mode": "Void"
+           }
+         ]
+       }
+     }
+   }
+   ```
+
+**Important Notes:**
+- The target GameObject must exist in the scene
+- The method must be public on a component attached to the target GameObject
+- The method signature must match the specified mode
+- Listeners are added as **persistent listeners** (saved in the scene)
+- Use `"clearListeners": true` to remove all existing listeners before adding new ones
+
 ## Adding New Tools
 
 1. **Define schema in `register_tools.py`:**

@@ -86,6 +86,7 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 **Component Management (`unity.component.crud`)**
 - Add components by fully qualified type name
 - Update component properties with dictionary-based changes
+- **NEW: UnityEvent listener support** (Button.onClick, Slider.onValueChanged, etc.)
 - Support for Unity Object references (meshes, materials, sprites)
 - Built-in resource loading (`Library/unity default resources::`)
 - Inspect component state and properties
@@ -96,6 +97,163 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 - Rename, duplicate, delete assets
 - Inspect asset metadata and contents
 - Auto-refresh AssetDatabase
+
+---
+
+### High-Level Tools (Recommended for Quick Development)
+
+| Tool | Description | Key Operations |
+|------|-------------|----------------|
+| `unity.scene.quickSetup` | **Instant scene setup** | Create 3D/2D/UI/VR/Empty scenes with proper defaults |
+| `unity.gameobject.createFromTemplate` | **GameObject templates** | Create primitives, lights, camera, player, enemy from templates |
+| `unity.ugui.createFromTemplate` | **UI element templates** | Create Button, Text, Image, Panel, ScrollView, InputField, Slider, Toggle, Dropdown |
+| `unity.ugui.layoutManage` | **Layout component management** | Add/update/remove layout groups (Horizontal/Vertical/Grid/ContentSizeFitter/etc.) |
+| `unity.hierarchy.builder` | **Declarative hierarchy creation** | Build complex nested GameObject structures in one command |
+| `unity.context.inspect` | **Scene context inspection** | Get comprehensive overview of scene hierarchy and state |
+
+**Scene Quick Setup (`unity.scene.quickSetup`)** - NEW!
+- **3D**: Creates Main Camera + Directional Light (checks for existing objects to avoid duplicates)
+- **2D**: Creates 2D Camera with orthographic projection
+- **UI**: Creates Canvas + EventSystem (checks for existing objects)
+- **VR**: Creates VR Camera setup
+- **Empty**: Empty scene with no default objects
+
+**Features:**
+- **Duplicate Prevention**: Automatically detects existing cameras, lights, canvas, and event systems
+- One-command scene initialization
+- Sensible defaults for each scene type
+- Perfect for rapid prototyping
+
+**Example - Setup UI Scene:**
+```json
+{
+  "tool": "sceneQuickSetup",
+  "payload": {
+    "setupType": "UI"
+  }
+}
+```
+
+**GameObject Templates (`unity.gameobject.createFromTemplate`)** - NEW!
+- **Primitives**: Cube, Sphere, Plane, Cylinder, Capsule, Quad (with MeshRenderer + Collider)
+- **Lights**: Directional, Point, Spot lights with proper defaults
+- **Special**: Camera, Empty, Player (with CharacterController), Enemy, Particle System, Audio Source
+
+**Features:**
+- Pre-configured components for each template
+- Transform properties (position, rotation, scale)
+- Undo support
+- Parent hierarchy support
+
+**Example - Create Player:**
+```json
+{
+  "tool": "gameObjectCreateFromTemplate",
+  "payload": {
+    "template": "Player",
+    "position": {"x": 0, "y": 1, "z": 0}
+  }
+}
+```
+
+**UI Element Templates (`unity.ugui.createFromTemplate`)** - NEW!
+- **Elements**: Button, Text, Image, RawImage, Panel, ScrollView, InputField, Slider, Toggle, Dropdown
+- Each template includes all necessary components (Image, Button, Text, etc.)
+- Customizable properties (text, fontSize, width, height, interactable, anchorPreset)
+- Automatically finds Canvas parent if not specified
+
+**Features:**
+- Complete UI elements in one command
+- Sensible defaults for each element type
+- RectTransform anchor presets
+- Parent hierarchy support
+
+**Example - Create Button:**
+```json
+{
+  "tool": "uguiCreateFromTemplate",
+  "payload": {
+    "template": "Button",
+    "text": "Start Game",
+    "width": 200,
+    "height": 50,
+    "anchorPreset": "center"
+  }
+}
+```
+
+**Layout Management (`unity.ugui.layoutManage`)** - NEW!
+- **Layout Groups**: HorizontalLayoutGroup, VerticalLayoutGroup, GridLayoutGroup
+- **Fitters**: ContentSizeFitter, LayoutElement, AspectRatioFitter
+- Operations: add, update, remove, inspect layout components
+- Full control over spacing, padding, alignment, child control
+
+**Example - Add Vertical Layout:**
+```json
+{
+  "tool": "uguiLayoutManage",
+  "payload": {
+    "operation": "add",
+    "gameObjectPath": "Canvas/Panel",
+    "layoutType": "VerticalLayoutGroup",
+    "spacing": 10,
+    "padding": {"left": 20, "right": 20, "top": 20, "bottom": 20}
+  }
+}
+```
+
+**Hierarchy Builder (`unity.hierarchy.builder`)** - NEW!
+- Build complex nested structures declaratively with JSON
+- Specify components, properties, and children in one definition
+- Supports fully qualified component type names
+- Recursive hierarchy creation with proper parenting
+
+**Example - Build Game Manager Hierarchy:**
+```json
+{
+  "tool": "hierarchyBuilder",
+  "payload": {
+    "hierarchy": {
+      "GameManager": {
+        "components": ["MyNamespace.GameManager"],
+        "children": {
+          "UI": {
+            "children": {
+              "ScoreText": {"components": ["UnityEngine.UI.Text"]},
+              "HealthBar": {"components": ["UnityEngine.UI.Slider"]}
+            }
+          },
+          "Audio": {
+            "children": {
+              "MusicSource": {"components": ["UnityEngine.AudioSource"]},
+              "SFXSource": {"components": ["UnityEngine.AudioSource"]}
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Context Inspector (`unity.context.inspect`)** - NEW!
+- Get comprehensive scene overview (hierarchy, GameObjects, components)
+- Filter by wildcard patterns (* and ?)
+- Control detail level (includeComponents, includeHierarchy, maxDepth)
+- Returns object counts (cameras, lights, canvas)
+
+**Example - Inspect Scene:**
+```json
+{
+  "tool": "contextInspect",
+  "payload": {
+    "includeHierarchy": true,
+    "includeComponents": true,
+    "maxDepth": 3,
+    "filter": "Player*"
+  }
+}
+```
 
 ---
 
@@ -490,7 +648,76 @@ Configure via **Tools > MCP Assistant** window:
 }
 ```
 
-### Example 3: Setup Input System
+### Example 3: Setup UI with Event Listeners (NEW!)
+
+```json
+{
+  "operations": [
+    {
+      "tool": "gameObjectManage",
+      "payload": {
+        "operation": "create",
+        "gameObjectPath": "GameManager",
+        "name": "GameManager"
+      }
+    },
+    {
+      "tool": "uguiCreateFromTemplate",
+      "payload": {
+        "template": "Button",
+        "name": "StartButton",
+        "text": "Start Game",
+        "positionY": 50
+      }
+    },
+    {
+      "tool": "uguiCreateFromTemplate",
+      "payload": {
+        "template": "Slider",
+        "name": "VolumeSlider",
+        "positionY": -50
+      }
+    },
+    {
+      "tool": "componentManage",
+      "payload": {
+        "operation": "update",
+        "gameObjectPath": "Canvas/StartButton",
+        "componentType": "UnityEngine.UI.Button",
+        "propertyChanges": {
+          "onClick": "GameManager.OnStartGame"
+        }
+      }
+    },
+    {
+      "tool": "componentManage",
+      "payload": {
+        "operation": "update",
+        "gameObjectPath": "Canvas/VolumeSlider",
+        "componentType": "UnityEngine.UI.Slider",
+        "propertyChanges": {
+          "onValueChanged": {
+            "listeners": [
+              {
+                "targetPath": "GameManager",
+                "methodName": "SetVolume",
+                "mode": "Float"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**UnityEvent Listener Modes:**
+- `Void` - No arguments
+- `Int`, `Float`, `String`, `Bool` - Primitive arguments
+- `Object` - UnityEngine.Object argument
+
+### Example 4: Setup Input System
 
 ```json
 {
@@ -668,6 +895,15 @@ See detailed guide in:
 - ✅ Asset creation and modification
 - ✅ Automatic reconnection after compilation
 
+### High-Level Tools
+- ✅ **Scene quick setup** - Instant 3D/2D/UI/VR scene initialization
+- ✅ **GameObject templates** - Pre-configured primitives, lights, and special objects
+- ✅ **UI element templates** - Complete UI components in one command
+- ✅ **Layout management** - Easy layout group and fitter configuration
+- ✅ **Hierarchy builder** - Declarative nested structure creation
+- ✅ **Context inspector** - Comprehensive scene state inspection
+- ✅ **Duplicate prevention** - Automatic detection of existing objects in scene setup
+
 ### 2D & Navigation
 - ✅ **2D Tilemap system** - Grid-based tile placement and area filling
 - ✅ **NavMesh system** - AI pathfinding and navigation
@@ -699,12 +935,13 @@ See detailed guide in:
 | Category | Tools | Operations |
 |----------|-------|------------|
 | **Core** | 5 tools | ping, scenes, GameObjects, components, assets |
+| **High-Level** | 6 tools | Scene quick setup, GameObject templates, UI templates, Layout manager, Hierarchy builder, Context inspector |
 | **2D** | 1 tool | Tilemap (7 operations) |
 | **Navigation** | 1 tool | NavMesh (7 operations) |
 | **UI** | 3 tools | UGUI unified + specialized tools |
 | **Systems** | 5 tools | Tags/Layers, Prefabs, Settings, Render Pipeline, Input |
 | **Utilities** | 2 tools | Script read, Batch execute |
-| **Total** | **17 tools** | **100+ operations** |
+| **Total** | **23 tools** | **120+ operations** |
 
 ---
 

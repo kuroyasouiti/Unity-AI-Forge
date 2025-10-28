@@ -99,6 +99,163 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 
 ---
 
+### 高レベルツール（迅速な開発に推奨）
+
+| ツール | 説明 | 主な操作 |
+|------|------|---------|
+| `unity.scene.quickSetup` | **即座にシーン設定** | 3D/2D/UI/VR/空のシーンを適切なデフォルトで作成 |
+| `unity.gameobject.createFromTemplate` | **GameObjectテンプレート** | テンプレートからプリミティブ、ライト、カメラ、プレイヤー、敵を作成 |
+| `unity.ugui.createFromTemplate` | **UI要素テンプレート** | Button、Text、Image、Panel、ScrollView、InputField、Slider、Toggle、Dropdownを作成 |
+| `unity.ugui.layoutManage` | **レイアウトコンポーネント管理** | レイアウトグループの追加/更新/削除（Horizontal/Vertical/Grid/ContentSizeFitter等） |
+| `unity.hierarchy.builder` | **宣言的階層作成** | 1つのコマンドで複雑なネストされたGameObject構造を構築 |
+| `unity.context.inspect` | **シーンコンテキスト検査** | シーン階層と状態の包括的な概要を取得 |
+
+**シーンクイックセットアップ (`unity.scene.quickSetup`)** - NEW!
+- **3D**: Main CameraとDirectional Lightを作成（既存オブジェクトをチェックして重複を回避）
+- **2D**: 正射投影を使用した2D Cameraを作成
+- **UI**: CanvasとEventSystemを作成（既存オブジェクトをチェック）
+- **VR**: VR Camera設定を作成
+- **Empty**: デフォルトオブジェクトなしの空のシーン
+
+**特徴:**
+- **重複防止**: 既存のカメラ、ライト、キャンバス、イベントシステムを自動検出
+- 1コマンドでシーンの初期化
+- 各シーンタイプに適切なデフォルト
+- 迅速なプロトタイピングに最適
+
+**例 - UIシーンのセットアップ:**
+```json
+{
+  "tool": "sceneQuickSetup",
+  "payload": {
+    "setupType": "UI"
+  }
+}
+```
+
+**GameObjectテンプレート (`unity.gameobject.createFromTemplate`)** - NEW!
+- **プリミティブ**: Cube、Sphere、Plane、Cylinder、Capsule、Quad（MeshRenderer + Collider付き）
+- **ライト**: Directional、Point、Spotライトと適切なデフォルト
+- **特殊**: Camera、Empty、Player（CharacterController付き）、Enemy、Particle System、Audio Source
+
+**特徴:**
+- 各テンプレート用の事前設定済みコンポーネント
+- Transform プロパティ（position、rotation、scale）
+- Undoサポート
+- 親階層サポート
+
+**例 - プレイヤーの作成:**
+```json
+{
+  "tool": "gameObjectCreateFromTemplate",
+  "payload": {
+    "template": "Player",
+    "position": {"x": 0, "y": 1, "z": 0}
+  }
+}
+```
+
+**UI要素テンプレート (`unity.ugui.createFromTemplate`)** - NEW!
+- **要素**: Button、Text、Image、RawImage、Panel、ScrollView、InputField、Slider、Toggle、Dropdown
+- 各テンプレートには必要なすべてのコンポーネントが含まれています（Image、Button、Text等）
+- カスタマイズ可能なプロパティ（text、fontSize、width、height、interactable、anchorPreset）
+- 指定がない場合、自動的にCanvasの親を検索
+
+**特徴:**
+- 1コマンドで完全なUI要素
+- 各要素タイプに適切なデフォルト
+- RectTransformアンカープリセット
+- 親階層サポート
+
+**例 - ボタンの作成:**
+```json
+{
+  "tool": "uguiCreateFromTemplate",
+  "payload": {
+    "template": "Button",
+    "text": "ゲーム開始",
+    "width": 200,
+    "height": 50,
+    "anchorPreset": "center"
+  }
+}
+```
+
+**レイアウト管理 (`unity.ugui.layoutManage`)** - NEW!
+- **レイアウトグループ**: HorizontalLayoutGroup、VerticalLayoutGroup、GridLayoutGroup
+- **フィッター**: ContentSizeFitter、LayoutElement、AspectRatioFitter
+- 操作: レイアウトコンポーネントの追加、更新、削除、検査
+- スペース、パディング、配置、子コントロールの完全な制御
+
+**例 - 縦型レイアウトの追加:**
+```json
+{
+  "tool": "uguiLayoutManage",
+  "payload": {
+    "operation": "add",
+    "gameObjectPath": "Canvas/Panel",
+    "layoutType": "VerticalLayoutGroup",
+    "spacing": 10,
+    "padding": {"left": 20, "right": 20, "top": 20, "bottom": 20}
+  }
+}
+```
+
+**階層ビルダー (`unity.hierarchy.builder`)** - NEW!
+- JSONで宣言的に複雑なネスト構造を構築
+- 1つの定義でコンポーネント、プロパティ、子を指定
+- 完全修飾コンポーネント型名をサポート
+- 適切な親子関係での再帰的階層作成
+
+**例 - ゲームマネージャー階層の構築:**
+```json
+{
+  "tool": "hierarchyBuilder",
+  "payload": {
+    "hierarchy": {
+      "GameManager": {
+        "components": ["MyNamespace.GameManager"],
+        "children": {
+          "UI": {
+            "children": {
+              "ScoreText": {"components": ["UnityEngine.UI.Text"]},
+              "HealthBar": {"components": ["UnityEngine.UI.Slider"]}
+            }
+          },
+          "Audio": {
+            "children": {
+              "MusicSource": {"components": ["UnityEngine.AudioSource"]},
+              "SFXSource": {"components": ["UnityEngine.AudioSource"]}
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**コンテキストインスペクター (`unity.context.inspect`)** - NEW!
+- 包括的なシーンの概要を取得（階層、GameObjects、コンポーネント）
+- ワイルドカードパターンでフィルタリング（*と?）
+- 詳細レベルの制御（includeComponents、includeHierarchy、maxDepth）
+- オブジェクト数を返す（カメラ、ライト、キャンバス）
+
+**例 - シーンの検査:**
+```json
+{
+  "tool": "contextInspect",
+  "payload": {
+    "includeHierarchy": true,
+    "includeComponents": true,
+    "maxDepth": 3,
+    "filter": "Player*"
+  }
+}
+```
+
+---
+
 ### 2D Tilemapシステム
 
 | ツール | 説明 | 主な操作 |
@@ -668,6 +825,15 @@ Assets/
 - ✅ アセットの作成と変更
 - ✅ コンパイル後の自動再接続
 
+### 高レベルツール
+- ✅ **シーンクイックセットアップ** - 即座に3D/2D/UI/VRシーンを初期化
+- ✅ **GameObjectテンプレート** - 事前設定されたプリミティブ、ライト、特殊オブジェクト
+- ✅ **UI要素テンプレート** - 1コマンドで完全なUIコンポーネント
+- ✅ **レイアウト管理** - レイアウトグループとフィッターの簡単な設定
+- ✅ **階層ビルダー** - 宣言的なネスト構造作成
+- ✅ **コンテキストインスペクター** - 包括的なシーン状態検査
+- ✅ **重複防止** - シーン設定時の既存オブジェクトの自動検出
+
 ### 2Dとナビゲーション
 - ✅ **2D Tilemapシステム** - グリッドベースのタイル配置とエリア塗りつぶし
 - ✅ **NavMeshシステム** - AIパスファインディングとナビゲーション
@@ -699,12 +865,13 @@ Assets/
 | カテゴリ | ツール数 | 操作 |
 |---------|---------|------|
 | **コア** | 5ツール | ping, シーン, GameObject, コンポーネント, アセット |
+| **高レベル** | 6ツール | シーンクイックセットアップ, GameObjectテンプレート, UIテンプレート, レイアウトマネージャー, 階層ビルダー, コンテキストインスペクター |
 | **2D** | 1ツール | Tilemap（7操作） |
 | **ナビゲーション** | 1ツール | NavMesh（7操作） |
 | **UI** | 3ツール | UGUI統合 + 専用ツール |
 | **システム** | 5ツール | タグ/レイヤー, Prefab, 設定, レンダーパイプライン, 入力 |
 | **ユーティリティ** | 2ツール | スクリプトアウトライン, バッチ実行 |
-| **合計** | **17ツール** | **100+操作** |
+| **合計** | **23ツール** | **120+操作** |
 
 ---
 
