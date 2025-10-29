@@ -400,14 +400,10 @@ def register_tools(server: Server) -> None:
                     "type": "boolean",
                     "description": "Preview the result without writing to disk (update/delete operations).",
                 },
-                "waitForCompilation": {
-                    "type": "boolean",
-                    "description": "Wait for Unity compilation to complete after creating or updating scripts. Default is false. When true, the operation will block until compilation finishes or times out.",
-                },
                 "timeoutSeconds": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Only used when waitForCompilation is true.",
+                    "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Compilation is now automatically awaited after script creation/update.",
                 },
             },
         },
@@ -704,22 +700,6 @@ def register_tools(server: Server) -> None:
         },
         ["operation"],
     )
-
-    compile_schema: Dict[str, Any] = {
-        "type": "object",
-        "properties": {
-            "waitForCompletion": {
-                "type": "boolean",
-                "description": "Wait for compilation to complete before returning. Default is false. When true, blocks until compilation finishes or times out.",
-            },
-            "timeoutSeconds": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Only used when waitForCompletion is true.",
-            },
-        },
-        "additionalProperties": False,
-    }
 
     hierarchy_builder_schema = _schema_with_required(
         {
@@ -1232,7 +1212,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_script_manage",
-            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). Supports waitForCompilation parameter to block until compilation completes.",
+            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). Script creation and updates now automatically wait for compilation to complete.",
             inputSchema=script_manage_schema,
         ),
         types.Tool(
@@ -1269,11 +1249,6 @@ def register_tools(server: Server) -> None:
             name="unity_navmesh_manage",
             description="Manage Unity NavMesh navigation system. Bake/clear NavMesh, add NavMeshAgent components to GameObjects, set agent destinations, inspect NavMesh statistics, and update bake settings. Supports runtime pathfinding for AI characters.",
             inputSchema=navmesh_manage_schema,
-        ),
-        types.Tool(
-            name="unity_project_compile",
-            description="Compile Unity C# scripts. Refreshes the asset database and requests script compilation. Returns compilation status and any compilation errors. Use this after creating or modifying C# scripts to ensure they compile correctly. Set waitForCompletion=true to block until compilation finishes.",
-            inputSchema=compile_schema,
         ),
     ]
 
@@ -1366,8 +1341,5 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_navmesh_manage":
             return await _call_bridge_tool("navmeshManage", args)
-
-        if name == "unity_project_compile":
-            return await _call_bridge_tool("projectCompile", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
