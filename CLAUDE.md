@@ -210,6 +210,37 @@ private static object HandleTool(Dictionary<string, object> payload)
 
 ### Component Management Examples
 
+**Using GlobalObjectId for GameObject Identification (Optional):**
+
+All component operations support `gameObjectGlobalObjectId` as an alternative to `gameObjectPath`:
+
+```json
+{
+  "operation": "update",
+  "gameObjectGlobalObjectId": "GlobalObjectId_V1-1-abc123def456789-1234-0",
+  "componentType": "UnityEngine.UI.Button",
+  "propertyChanges": {
+    "interactable": false
+  }
+}
+```
+
+**Benefits of GlobalObjectId:**
+- Uniquely identifies GameObjects across scene reloads
+- More reliable than hierarchy paths when objects move in the hierarchy
+- Survives GameObject renames
+- Priority over gameObjectPath when both are provided
+
+**When to use:**
+- When you need stable references to GameObjects
+- When GameObjects might move in the hierarchy
+- When you have the GlobalObjectId from a previous inspect operation
+
+**When to use gameObjectPath instead:**
+- For human-readable operations
+- When you know the exact hierarchy path
+- For simple, one-off operations
+
 **Setting Component Properties with Asset References:**
 
 1. **Using GUID (Recommended):**

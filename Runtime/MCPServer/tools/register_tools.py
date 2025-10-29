@@ -121,6 +121,10 @@ def register_tools(server: Server) -> None:
                     "type": "string",
                     "description": "Hierarchy path of the GameObject. Not required for multiple operations (use 'pattern' instead).",
                 },
+                "gameObjectGlobalObjectId": {
+                    "type": "string",
+                    "description": "Optional GlobalObjectId string to uniquely identify the GameObject (e.g., 'GlobalObjectId_V1-1-abc123-456-0'). If provided, this takes priority over gameObjectPath. Use this for precise GameObject identification across scene reloads.",
+                },
                 "componentType": {
                     "type": "string",
                     "description": "Fully qualified component type (e.g. UnityEngine.UI.Text).",
