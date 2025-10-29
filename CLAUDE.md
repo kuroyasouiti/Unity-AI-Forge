@@ -678,6 +678,42 @@ unity_hierarchy_builder({
 })
 ```
 
+### 5. Always Batch Script Operations
+
+**CRITICAL**: Script operations (create/update/delete) trigger Unity compilation which can take several seconds. Always use `unity_batch_execute` for multiple scripts:
+
+❌ **Avoid this (triggers compilation 3 times):**
+```python
+unity_script_manage({"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...})
+unity_script_manage({"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", ...})
+unity_script_manage({"operation": "create", "scriptPath": "Assets/Scripts/Weapon.cs", ...})
+# Each operation waits for compilation (30+ seconds total!)
+```
+
+✅ **Use this instead (triggers compilation once):**
+```python
+unity_batch_execute({
+    "operations": [
+        {"tool": "scriptManage", "payload": {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...}},
+        {"tool": "scriptManage", "payload": {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", ...}},
+        {"tool": "scriptManage", "payload": {"operation": "create", "scriptPath": "Assets/Scripts/Weapon.cs", ...}}
+    ]
+})
+# All scripts created, then single compilation wait (10 seconds total)
+```
+
+**Benefits of batching script operations:**
+- 10-20x faster for multiple scripts
+- Reduces compilation overhead
+- Better Unity Editor responsiveness
+- Single consolidated error report
+
+**When to batch:**
+- Creating multiple new scripts
+- Updating several scripts at once
+- Deleting old scripts
+- Any combination of script operations
+
 ## Common Use Cases
 
 ### Use Case 1: Create a Game Menu

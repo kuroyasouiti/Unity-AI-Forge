@@ -18,8 +18,16 @@ def _ensure_bridge_connected() -> None:
 
 async def _call_bridge_tool(tool_name: str, payload: Dict[str, Any]) -> list[types.Content]:
     _ensure_bridge_connected()
+
+    # Unity側のタイムアウトに15秒のバッファを追加してPython側のタイムアウトを設定
+    # これにより、Unity側でコンパイル完了を待つ時間が確保される
+    timeout_ms = 30_000  # デフォルト30秒
+    if "timeoutSeconds" in payload:
+        unity_timeout = payload["timeoutSeconds"]
+        timeout_ms = (unity_timeout + 15) * 1000
+
     try:
-        response = await bridge_manager.send_command(tool_name, payload)
+        response = await bridge_manager.send_command(tool_name, payload, timeout_ms=timeout_ms)
     except Exception as exc:
         raise RuntimeError(f'Unity bridge tool "{tool_name}" failed: {exc}') from exc
 
@@ -294,6 +302,10 @@ def register_tools(server: Server) -> None:
                 "includeSource": {
                     "type": "boolean",
                     "description": "Whether to include the full script text in read responses. Default true.",
+                },
+                "waitForCompilation": {
+                    "type": "boolean",
+                    "description": "Whether to wait for ongoing compilation to complete before reading the script (read operation). Default true. Set to false to read immediately even if compilation is in progress.",
                 },
                 "scriptPath": {
                     "type": "string",
@@ -1212,7 +1224,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_script_manage",
-            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). Script creation and updates now automatically wait for compilation to complete.",
+            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). All operations (create/update/delete/read) automatically wait for compilation to complete. IMPORTANT: For multiple script operations, use unity_batch_execute to process them together - this is much more efficient than individual calls and reduces compilation overhead.",
             inputSchema=script_manage_schema,
         ),
         types.Tool(

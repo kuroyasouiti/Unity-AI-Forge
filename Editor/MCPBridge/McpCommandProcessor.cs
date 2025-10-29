@@ -4099,6 +4099,18 @@ namespace MCP.Editor
                 throw new FileNotFoundException("Script file not found", fullPath);
             }
 
+            var waitForCompilation = GetBool(payload, "waitForCompilation", true);
+            var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
+
+            // Wait for any ongoing compilation to complete before reading
+            // This ensures we get the latest compiled state
+            if (waitForCompilation && EditorApplication.isCompiling)
+            {
+                var compilationResult = WaitForCompilation(timeoutSeconds);
+                // Continue even if compilation timed out or had errors
+                // User might still want to read the script
+            }
+
             var source = File.ReadAllText(fullPath);
             var outline = AnalyzeScriptOutline(source);
             var syntaxOk = CheckBraceBalance(source);
@@ -4210,6 +4222,7 @@ namespace MCP.Editor
         {
             var scriptPath = ResolveScriptPath(payload, "scriptPath", true);
             var dryRun = GetBool(payload, "dryRun");
+            var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
             var fullPath = Path.GetFullPath(scriptPath);
             if (!File.Exists(fullPath))
             {
@@ -4222,14 +4235,27 @@ namespace MCP.Editor
                 {
                     throw new InvalidOperationException($"Failed to delete script at path: {scriptPath}");
                 }
+
+                // Refresh AssetDatabase to trigger compilation
+                AssetDatabase.Refresh();
             }
 
-            return new Dictionary<string, object>
+            var result = new Dictionary<string, object>
             {
                 ["scriptPath"] = scriptPath,
                 ["deleted"] = !dryRun,
                 ["dryRun"] = dryRun,
             };
+
+            // Wait for compilation after script deletion (unless dry run)
+            if (!dryRun)
+            {
+                var compilationResult = WaitForCompilation(timeoutSeconds);
+                result["compilation"] = compilationResult;
+                result["success"] = (bool)compilationResult["success"];
+            }
+
+            return result;
         }
 
         private static List<Dictionary<string, object>> ApplyScriptEdits(ref string source, List<object> edits)
@@ -7935,7 +7961,8 @@ namespace MCP.Editor
         /// <param name="payload">Operation parameters (currently unused, reserved for future options).</param>
         /// <returns>Result dictionary with compilation status and error information.</returns>
         /// <summary>
-        /// Waits for Unity compilation to complete.
+        /// Waits for Unity compilation to complete with optimized polling.
+        /// Uses short sleep intervals (10ms) to improve Editor responsiveness while waiting.
         /// </summary>
         /// <param name="timeoutSeconds">Maximum time to wait in seconds. Default is 30 seconds.</param>
         /// <returns>Dictionary with compilation result including success status and any errors.</returns>
@@ -7945,14 +7972,16 @@ namespace MCP.Editor
             var timeoutMs = timeoutSeconds * 1000;
 
             // Wait for compilation to start (if not already started)
+            // Use 10ms sleep intervals for better responsiveness
             var initialWaitMs = 0;
             while (!EditorApplication.isCompiling && initialWaitMs < 2000)
             {
-                System.Threading.Thread.Sleep(50);
-                initialWaitMs += 50;
+                System.Threading.Thread.Sleep(10);  // Reduced from 50ms to 10ms
+                initialWaitMs += 10;
             }
 
             // Wait for compilation to complete
+            // Use 10ms sleep intervals to allow Unity Editor to remain responsive
             while (EditorApplication.isCompiling)
             {
                 var elapsed = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
@@ -7968,7 +7997,7 @@ namespace MCP.Editor
                     };
                 }
 
-                System.Threading.Thread.Sleep(100);
+                System.Threading.Thread.Sleep(10);  // Reduced from 100ms to 10ms
             }
 
             var totalElapsed = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds / 1000.0;
