@@ -56,7 +56,6 @@ namespace MCP.Editor
                 "batchExecute" => HandleBatchExecute(command.Payload),
                 "tilemapManage" => HandleTilemapManage(command.Payload),
                 "navmeshManage" => HandleNavMeshManage(command.Payload),
-                "projectCompile" => HandleProjectCompile(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -904,10 +903,25 @@ namespace MCP.Editor
         {
             var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
             var contents = GetString(payload, "contents") ?? string.Empty;
+            var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
+
             EnsureDirectoryExists(path);
             File.WriteAllText(path, contents, Encoding.UTF8);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-            return DescribeAsset(path);
+
+            var result = DescribeAsset(path);
+
+            // If this is a C# script file, wait for compilation to complete
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                var compilationResult = WaitForCompilation(timeoutSeconds);
+                if (result is Dictionary<string, object> dict)
+                {
+                    dict["compilation"] = compilationResult;
+                }
+            }
+
+            return result;
         }
 
         private static object UpdateAsset(Dictionary<string, object> payload)
@@ -915,6 +929,7 @@ namespace MCP.Editor
             var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
             var contents = GetString(payload, "contents");
             var overwrite = GetBool(payload, "overwrite", true);
+            var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
 
             if (!File.Exists(path) && !overwrite)
             {
@@ -924,7 +939,20 @@ namespace MCP.Editor
             EnsureDirectoryExists(path);
             File.WriteAllText(path, contents ?? string.Empty, Encoding.UTF8);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-            return DescribeAsset(path);
+
+            var result = DescribeAsset(path);
+
+            // If this is a C# script file, wait for compilation to complete
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                var compilationResult = WaitForCompilation(timeoutSeconds);
+                if (result is Dictionary<string, object> dict)
+                {
+                    dict["compilation"] = compilationResult;
+                }
+            }
+
+            return result;
         }
 
         private static object DeleteAsset(Dictionary<string, object> payload)
@@ -4146,7 +4174,6 @@ namespace MCP.Editor
             }
 
             var dryRun = GetBool(payload, "dryRun");
-            var waitForCompilation = GetBool(payload, "waitForCompilation", false);
             var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
             var source = File.ReadAllText(fullPath, Encoding.UTF8);
             var updatedSource = source;
@@ -4169,8 +4196,8 @@ namespace MCP.Editor
                 ["previewSource"] = dryRun ? updatedSource : null,
             };
 
-            // Wait for compilation if requested (and not a dry run)
-            if (waitForCompilation && !dryRun && appliedCount > 0)
+            // Always wait for compilation after script updates (unless dry run)
+            if (!dryRun && appliedCount > 0)
             {
                 var compilationResult = WaitForCompilation(timeoutSeconds);
                 result["compilation"] = compilationResult;
@@ -4418,7 +4445,6 @@ namespace MCP.Editor
             var baseClass = GetString(payload, "baseClass");
             var interfaces = GetList(payload, "interfaces");
             var includeUsings = GetList(payload, "includeUsings");
-            var waitForCompilation = GetBool(payload, "waitForCompilation", false);
             var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
 
             // Extract class name from path
@@ -4458,13 +4484,10 @@ namespace MCP.Editor
                 ["success"] = true,
             };
 
-            // Wait for compilation if requested
-            if (waitForCompilation)
-            {
-                var compilationResult = WaitForCompilation(timeoutSeconds);
-                result["compilation"] = compilationResult;
-                result["success"] = (bool)compilationResult["success"];
-            }
+            // Always wait for compilation after script creation
+            var compilationResult = WaitForCompilation(timeoutSeconds);
+            result["compilation"] = compilationResult;
+            result["success"] = (bool)compilationResult["success"];
 
             return result;
         }
@@ -7982,123 +8005,6 @@ namespace MCP.Editor
             };
         }
 
-        private static object HandleProjectCompile(Dictionary<string, object> payload)
-        {
-            try
-            {
-                // Get parameters
-                bool waitForCompletion = GetBool(payload, "waitForCompletion", false);
-                int timeoutSeconds = GetInt(payload, "timeoutSeconds", 60);
-
-                // Refresh the asset database to pick up any new or modified scripts
-                AssetDatabase.Refresh();
-
-                // Request script compilation
-                UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
-
-                // Check if we should wait for compilation to complete
-                if (waitForCompletion)
-                {
-                    var waitResult = WaitForCompilation(timeoutSeconds);
-                    waitResult["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                    return waitResult;
-                }
-
-                // Get current compilation status (original behavior)
-                bool isCompiling = EditorApplication.isCompiling;
-
-                var result = new Dictionary<string, object>
-                {
-                    ["success"] = true,
-                    ["message"] = "Compilation requested successfully",
-                    ["isCompiling"] = isCompiling,
-                    ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    ["waitedForCompletion"] = false,
-                };
-
-                // If waitForCompletion is true, wait for compilation to finish
-                if (waitForCompletion)
-                {
-                    var startTime = DateTime.UtcNow;
-                    var timeout = TimeSpan.FromSeconds(timeoutSeconds);
-
-                    // Wait for compilation to start if not already compiling
-                    while (!EditorApplication.isCompiling && (DateTime.UtcNow - startTime) < TimeSpan.FromSeconds(5))
-                    {
-                        System.Threading.Thread.Sleep(100);
-                    }
-
-                    // Wait for compilation to complete
-                    while (EditorApplication.isCompiling && (DateTime.UtcNow - startTime) < timeout)
-                    {
-                        System.Threading.Thread.Sleep(100);
-                    }
-
-                    if (EditorApplication.isCompiling)
-                    {
-                        result["success"] = false;
-                        result["message"] = $"Compilation timed out after {timeoutSeconds} seconds";
-                        result["timedOut"] = true;
-                        result["isCompiling"] = true;
-                        return result;
-                    }
-
-                    result["waitedForCompletion"] = true;
-                    result["compilationTimeMs"] = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
-                    result["isCompiling"] = false;
-                    result["message"] = "Compilation completed successfully";
-                }
-
-                // Check for compilation errors
-                var assemblies = UnityEditor.Compilation.CompilationPipeline.GetAssemblies();
-                var errorMessages = new List<string>();
-
-                // Note: We can't directly get compilation errors from CompilationPipeline
-                // Instead, we'll check the Console logs for compilation errors
-                var logEntries = GetConsoleLogEntries();
-                foreach (var entry in logEntries)
-                {
-                    if (entry.ContainsKey("type") && entry["type"].ToString() == "Error" &&
-                        entry.ContainsKey("message"))
-                    {
-                        var message = entry["message"].ToString();
-                        if (message.Contains("error CS") || message.Contains("CompilerError"))
-                        {
-                            errorMessages.Add(message);
-                        }
-                    }
-                }
-
-                if (errorMessages.Count > 0)
-                {
-                    result["hasErrors"] = true;
-                    result["errors"] = errorMessages;
-                    result["errorCount"] = errorMessages.Count;
-                    if (waitForCompletion)
-                    {
-                        result["success"] = false;
-                        result["message"] = $"Compilation completed with {errorMessages.Count} error(s)";
-                    }
-                }
-                else
-                {
-                    result["hasErrors"] = false;
-                    result["errors"] = new List<string>();
-                    result["errorCount"] = 0;
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                return new Dictionary<string, object>
-                {
-                    ["success"] = false,
-                    ["message"] = $"Compilation request failed: {ex.Message}",
-                    ["error"] = ex.ToString(),
-                };
-            }
-        }
 
         /// <summary>
         /// Gets console log entries for error checking.
