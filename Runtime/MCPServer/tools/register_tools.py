@@ -1224,7 +1224,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_script_manage",
-            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). All operations (create/update/delete/read) automatically wait for compilation to complete. IMPORTANT: For multiple script operations, use unity_batch_execute to process them together - this is much more efficient than individual calls and reduces compilation overhead.",
+            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). All operations (create/update/delete/read) automatically wait for compilation to complete.",
             inputSchema=script_manage_schema,
         ),
         types.Tool(
