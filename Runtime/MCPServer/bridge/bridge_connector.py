@@ -58,7 +58,7 @@ class BridgeConnector:
             self._task = None
 
     async def _connect_once(self) -> None:
-        url = f"ws://{env.unity_bridge_host}:{env.unity_bridge_port}/bridge"
+        url = _build_ws_url(env.unity_bridge_host, env.unity_bridge_port, "/bridge")
         logger.info("Attempting connection to Unity bridge at %s", url)
 
         try:
@@ -124,3 +124,13 @@ bridge_connector = BridgeConnector()
 
 def _is_socket_open(socket: ClientConnection) -> bool:
     return socket.state is not ConnectionState.CLOSED
+
+
+def _build_ws_url(host: str, port: int, path: str) -> str:
+    trimmed_host = (host or "").strip()
+    if not trimmed_host:
+        trimmed_host = "127.0.0.1"
+    if ":" in trimmed_host and not (trimmed_host.startswith("[") and trimmed_host.endswith("]")):
+        trimmed_host = f"[{trimmed_host}]"
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    return f"ws://{trimmed_host}:{port}{normalized_path}"

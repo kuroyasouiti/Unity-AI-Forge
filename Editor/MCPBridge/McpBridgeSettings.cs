@@ -191,11 +191,11 @@ namespace MCP.Editor
             }
         }
 
-        public string ListenerPrefix => $"http://{NormalizeHost(serverHost)}:{serverPort}/";
+        public string ListenerPrefix => $"http://{NormalizeHostForUri(serverHost)}:{serverPort}/";
 
-        public string BridgeWebSocketUrl => $"ws://{NormalizeHost(serverHost)}:{serverPort}/bridge";
+        public string BridgeWebSocketUrl => $"ws://{NormalizeHostForUri(serverHost)}:{serverPort}/bridge";
 
-        public string McpServerUrl => $"http://{NormalizeHost(serverHost)}:{serverPort}/mcp";
+        public string McpServerUrl => $"http://{NormalizeHostForUri(serverHost)}:{serverPort}/mcp";
 
         public void UseDefaultServerInstallPath()
         {
@@ -213,6 +213,19 @@ namespace MCP.Editor
         private static string NormalizeHost(string value)
         {
             return string.IsNullOrWhiteSpace(value) ? "127.0.0.1" : value.Trim();
+        }
+
+        private static string NormalizeHostForUri(string value)
+        {
+            var normalized = NormalizeHost(value);
+            if (normalized.Contains(":") &&
+                !(normalized.StartsWith("[", StringComparison.Ordinal) &&
+                  normalized.EndsWith("]", StringComparison.Ordinal)))
+            {
+                return $"[{normalized}]";
+            }
+
+            return normalized;
         }
 
         private static string NormalizeInstallPath(string value)
