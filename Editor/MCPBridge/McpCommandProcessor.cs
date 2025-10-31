@@ -5197,6 +5197,35 @@ namespace MCP.Editor
                     Convert.ToSingle(colorDict.GetValueOrDefault("a", 1f), CultureInfo.InvariantCulture));
             }
 
+            // Handle Unity serialization format for arrays: {"Array": {"size": N, "data[0]": value, "data[1]": value, ...}}
+            if (targetType.IsArray && rawValue is Dictionary<string, object> arrayDict)
+            {
+                if (arrayDict.TryGetValue("Array", out var arrayData) && arrayData is Dictionary<string, object> arrayContent)
+                {
+                    // Get array size
+                    int size = 0;
+                    if (arrayContent.TryGetValue("size", out var sizeObj))
+                    {
+                        size = Convert.ToInt32(sizeObj);
+                    }
+
+                    var elementType = targetType.GetElementType();
+                    var array = Array.CreateInstance(elementType, size);
+
+                    // Populate array elements
+                    for (int i = 0; i < size; i++)
+                    {
+                        var key = $"data[{i}]";
+                        if (arrayContent.TryGetValue(key, out var elementValue))
+                        {
+                            array.SetValue(ConvertValue(elementValue, elementType), i);
+                        }
+                    }
+
+                    return array;
+                }
+            }
+
             // Handle arrays
             if (targetType.IsArray && rawValue is IList rawList)
             {
