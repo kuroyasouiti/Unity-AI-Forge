@@ -6,6 +6,7 @@ import mcp.types as types
 from mcp.server import Server
 
 from ..bridge.bridge_manager import bridge_manager
+from ..logger import logger
 from ..utils.json_utils import as_pretty_json
 
 
