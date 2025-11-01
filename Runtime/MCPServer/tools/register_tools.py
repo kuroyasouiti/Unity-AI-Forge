@@ -1224,7 +1224,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_script_manage",
-            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). All operations (create/update/delete/read) automatically wait for compilation to complete.",
+            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). All operations (create/update/delete/read) automatically wait for compilation to complete. For multi-step script updates, prefer batching calls via 'unity_batch_execute' to keep edits atomic and reduce bridge churn.",
             inputSchema=script_manage_schema,
         ),
         types.Tool(
@@ -1367,6 +1367,17 @@ def register_tools(server: Server) -> None:
                             "completed": False,
                             "error": str(e),
                         }
+            if operation in ("create", "update", "delete"):
+                tip_content = types.TextContent(
+                    type="text",
+                    text="Tip: Batch scriptManage operations with 'unity_batch_execute' so UnityMCP applies script edits atomically.",
+                )
+                if isinstance(result, list):
+                    result.append(tip_content)
+                else:
+                    logger.info(
+                        "Consider batching scriptManage operations via unity_batch_execute to keep edits atomic."
+                    )
 
             return result
 
