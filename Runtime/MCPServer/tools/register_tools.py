@@ -279,148 +279,163 @@ def register_tools(server: Server) -> None:
         ["gameObjectPath", "operation"],
     )
 
-    script_manage_schema = _schema_with_required(
+    script_batch_manage_schema = _schema_with_required(
         {
             "type": "object",
             "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["read", "create", "update", "delete", "outline"],
-                    "description": "Operation to perform. Use 'read' to analyze scripts (and fetch source), 'create' to generate new scripts, 'update' to apply edits, and 'delete' to remove scripts. 'outline' is accepted for backwards compatibility.",
-                },
-                "guid": {
-                    "type": "string",
-                    "description": "Optional GUID lookup for scriptPath/assetPath.",
-                },
-                "assetPath": {
-                    "type": "string",
-                    "description": "Path under Assets/. Required for outline when guid is not supplied and accepted as fallback for update/delete.",
-                },
-                "includeMembers": {
-                    "type": "boolean",
-                    "description": "Whether to include member details in the outline (read operation).",
-                },
-                "includeSource": {
-                    "type": "boolean",
-                    "description": "Whether to include the full script text in read responses. Default true.",
-                },
-                "waitForCompilation": {
-                    "type": "boolean",
-                    "description": "Whether to wait for ongoing compilation to complete before reading the script (read operation). Default true. Set to false to read immediately even if compilation is in progress.",
-                },
-                "scriptPath": {
-                    "type": "string",
-                    "description": "Path under Assets/ for the script (e.g. Assets/Scripts/PlayerController.cs). Required for create/update/delete. The .cs extension is optional when creating.",
-                },
-                "scriptType": {
-                    "type": "string",
-                    "enum": ["monoBehaviour", "scriptableObject", "editor", "class", "interface", "struct"],
-                    "description": "Type of script to create. Default is 'monoBehaviour'.",
-                },
-                "namespace": {
-                    "type": "string",
-                    "description": "Optional namespace for the script.",
-                },
-                "methods": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of method names to generate (e.g. ['Start', 'Update', 'Awake']). Common methods are auto-templated.",
-                },
-                "fields": {
-                    "type": "array",
-                    "items": {
-                        "oneOf": [
-                            {"type": "string"},
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "type": {"type": "string"},
-                                    "visibility": {
-                                        "type": "string",
-                                        "enum": ["public", "private", "protected"],
-                                    },
-                                    "serialize": {"type": "boolean"},
-                                    "defaultValue": {"type": "string"},
-                                },
-                                "required": ["name"],
-                            },
-                        ]
-                    },
-                    "description": "List of fields to add. Can be simple strings like 'float speed' or objects with name, type, visibility, serialize, and defaultValue (create operation).",
-                },
-                "attributes": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of class-level attributes (e.g. ['RequireComponent(typeof(Rigidbody))']).",
-                },
-                "baseClass": {
-                    "type": "string",
-                    "description": "Custom base class to inherit from. Overrides the default base class for the script type.",
-                },
-                "interfaces": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of interfaces to implement (e.g. ['IPointerClickHandler', 'IBeginDragHandler']).",
-                },
-                "includeUsings": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Additional using statements to include (e.g. ['UnityEngine.UI', 'System.Collections']).",
-                },
-                "edits": {
+                "scripts": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "action": {
+                            "operation": {
                                 "type": "string",
-                                "enum": ["replace", "insertBefore", "insertAfter", "delete"],
-                                "description": "Edit action applied during update.",
+                                "enum": ["read", "create", "update", "delete", "outline"],
+                                "description": "Operation to perform. Use 'read' to analyze scripts (and fetch source), 'create' to generate new scripts, 'update' to apply edits, and 'delete' to remove scripts. 'outline' is accepted for backwards compatibility.",
                             },
-                            "match": {
+                            "guid": {
                                 "type": "string",
-                                "description": "Text to locate in the script before applying the edit.",
+                                "description": "Optional GUID lookup for scriptPath/assetPath.",
                             },
-                            "replacement": {
+                            "assetPath": {
                                 "type": "string",
-                                "description": "Replacement text (replace/delete actions).",
+                                "description": "Path under Assets/. Required for outline when guid is not supplied and accepted as fallback for update/delete.",
                             },
-                            "text": {
-                                "type": "string",
-                                "description": "Text to insert (insertBefore/insertAfter actions).",
-                            },
-                            "count": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "description": "Maximum occurrences to apply. Use 0 to apply to all matches.",
-                            },
-                            "caseSensitive": {
+                            "includeMembers": {
                                 "type": "boolean",
-                                "description": "Whether match comparison is case-sensitive. Default true.",
+                                "description": "Whether to include member details in the outline (read operation).",
                             },
-                            "allowMissingMatch": {
+                            "includeSource": {
                                 "type": "boolean",
-                                "description": "When true, silently skip edits whose match text is missing.",
+                                "description": "Whether to include the full script text in read responses. Default true.",
+                            },
+                            "waitForCompilation": {
+                                "type": "boolean",
+                                "description": "Whether to wait for ongoing compilation to complete before reading the script (read operation). Default true. Set to false to read immediately even if compilation is in progress.",
+                            },
+                            "scriptPath": {
+                                "type": "string",
+                                "description": "Path under Assets/ for the script (e.g. Assets/Scripts/PlayerController.cs). Required for create/update/delete. The .cs extension is optional when creating.",
+                            },
+                            "scriptType": {
+                                "type": "string",
+                                "enum": ["monoBehaviour", "scriptableObject", "editor", "class", "interface", "struct"],
+                                "description": "Type of script to create. Default is 'monoBehaviour'.",
+                            },
+                            "namespace": {
+                                "type": "string",
+                                "description": "Optional namespace for the script.",
+                            },
+                            "methods": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of method names to generate (e.g. ['Start', 'Update', 'Awake']). Common methods are auto-templated.",
+                            },
+                            "fields": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {"type": "string"},
+                                                "type": {"type": "string"},
+                                                "visibility": {
+                                                    "type": "string",
+                                                    "enum": ["public", "private", "protected"],
+                                                },
+                                                "serialize": {"type": "boolean"},
+                                                "defaultValue": {"type": "string"},
+                                            },
+                                            "required": ["name"],
+                                        },
+                                    ]
+                                },
+                                "description": "List of fields to add. Can be simple strings like 'float speed' or objects with name, type, visibility, serialize, and defaultValue (create operation).",
+                            },
+                            "attributes": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of class-level attributes (e.g. ['RequireComponent(typeof(Rigidbody))']).",
+                            },
+                            "baseClass": {
+                                "type": "string",
+                                "description": "Custom base class to inherit from. Overrides the default base class for the script type.",
+                            },
+                            "interfaces": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of interfaces to implement (e.g. ['IPointerClickHandler', 'IBeginDragHandler']).",
+                            },
+                            "includeUsings": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Additional using statements to include (e.g. ['UnityEngine.UI', 'System.Collections']).",
+                            },
+                            "edits": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "action": {
+                                            "type": "string",
+                                            "enum": ["replace", "insertBefore", "insertAfter", "delete"],
+                                            "description": "Edit action applied during update.",
+                                        },
+                                        "match": {
+                                            "type": "string",
+                                            "description": "Text to locate in the script before applying the edit.",
+                                        },
+                                        "replacement": {
+                                            "type": "string",
+                                            "description": "Replacement text (replace/delete actions).",
+                                        },
+                                        "text": {
+                                            "type": "string",
+                                            "description": "Text to insert (insertBefore/insertAfter actions).",
+                                        },
+                                        "count": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "description": "Maximum occurrences to apply. Use 0 to apply to all matches.",
+                                        },
+                                        "caseSensitive": {
+                                            "type": "boolean",
+                                            "description": "Whether match comparison is case-sensitive. Default true.",
+                                        },
+                                        "allowMissingMatch": {
+                                            "type": "boolean",
+                                            "description": "When true, silently skip edits whose match text is missing.",
+                                        },
+                                    },
+                                    "required": ["action", "match"],
+                                    "additionalProperties": False,
+                                },
+                                "description": "Ordered list of textual edits for the update operation.",
+                            },
+                            "dryRun": {
+                                "type": "boolean",
+                                "description": "Preview the result without writing to disk (update/delete operations).",
                             },
                         },
-                        "required": ["action", "match"],
+                        "required": ["operation"],
                         "additionalProperties": False,
                     },
-                    "description": "Ordered list of textual edits for the update operation.",
+                    "description": "Array of script operations to execute in batch. All scripts are processed atomically, then a single compilation is triggered.",
                 },
-                "dryRun": {
+                "stopOnError": {
                     "type": "boolean",
-                    "description": "Preview the result without writing to disk (update/delete operations).",
+                    "description": "If true, stops execution when a script operation fails. Default is false (continues on error).",
                 },
                 "timeoutSeconds": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Compilation is now automatically awaited after script creation/update.",
+                    "description": "Maximum time to wait for compilation in seconds. Default is 30 seconds. Compilation is automatically awaited after all script operations complete.",
                 },
             },
         },
-        ["operation"],
+        ["scripts"],
     )
 
     prefab_manage_schema = _schema_with_required(
@@ -549,39 +564,6 @@ def register_tools(server: Server) -> None:
             },
         },
         ["operation"],
-    )
-
-    batch_execute_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operations": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "tool": {
-                                "type": "string",
-                                "description": "Tool name to execute (e.g., 'gameObjectManage', 'componentManage', 'assetManage', etc.).",
-                            },
-                            "payload": {
-                                "type": "object",
-                                "additionalProperties": True,
-                                "description": "Payload for the tool operation.",
-                            },
-                        },
-                        "required": ["tool", "payload"],
-                        "additionalProperties": False,
-                    },
-                    "description": "Array of operations to execute in sequence.",
-                },
-                "stopOnError": {
-                    "type": "boolean",
-                    "description": "If true, stops execution when an operation fails. Default is false (continues on error).",
-                },
-            },
-        },
-        ["operations"],
     )
 
     tag_layer_manage_schema = _schema_with_required(
@@ -1224,9 +1206,9 @@ def register_tools(server: Server) -> None:
             inputSchema=tag_layer_manage_schema,
         ),
         types.Tool(
-            name="unity_script_manage",
-            description="Manage Unity C# scripts from a unified tool. Use operation='read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview). All operations (create/update/delete/read) automatically wait for compilation to complete. For multi-step script updates, prefer batching calls via 'unity_batch_execute' to keep edits atomic and reduce bridge churn.",
-            inputSchema=script_manage_schema,
+            name="unity_script_batch_manage",
+            description="Batch manage Unity C# scripts. Process multiple script operations (read/create/update/delete) atomically in a single request. All scripts are processed together, then a single compilation is triggered. This is the ONLY way to manage scripts - always use batch format even for single scripts. Use 'read' to analyze scripts (outline + source), 'create' to scaffold new ones, 'update' to apply textual edits, or 'delete' to remove scripts safely (with optional dry-run preview).",
+            inputSchema=script_batch_manage_schema,
         ),
         types.Tool(
             name="unity_prefab_crud",
@@ -1247,11 +1229,6 @@ def register_tools(server: Server) -> None:
             name="unity_inputSystem_manage",
             description="Manage Unity New Input System. Create Input Action assets, add action maps and actions, configure bindings, and inspect existing assets. Requires Input System package to be installed.",
             inputSchema=input_system_manage_schema,
-        ),
-        types.Tool(
-            name="unity_batch_execute",
-            description="Execute multiple Unity operations in a single batch. Allows sequential execution of any tool operations with optional error handling. Returns results for all operations including successes and failures.",
-            inputSchema=batch_execute_schema,
         ),
         types.Tool(
             name="unity_tilemap_manage",
@@ -1331,16 +1308,16 @@ def register_tools(server: Server) -> None:
         if name == "unity_tagLayer_manage":
             return await _call_bridge_tool("tagLayerManage", args)
 
-        if name == "unity_script_manage":
-            result = await _call_bridge_tool("scriptManage", args)
+        if name == "unity_script_batch_manage":
+            result = await _call_bridge_tool("scriptBatchManage", args)
 
-            # If the operation requires compilation, wait for it
-            operation = args.get("operation")
-            requires_compilation = operation in ("create", "update", "delete")
-
-            # Check if dryRun is true for delete operation
-            if operation == "delete" and args.get("dryRun"):
-                requires_compilation = False
+            # Check if any operations require compilation
+            scripts = args.get("scripts", [])
+            requires_compilation = any(
+                script.get("operation") in ("create", "update", "delete")
+                and not (script.get("operation") == "delete" and script.get("dryRun"))
+                for script in scripts
+            )
 
             if requires_compilation:
                 timeout_seconds = args.get("timeoutSeconds", 30)
@@ -1348,37 +1325,50 @@ def register_tools(server: Server) -> None:
                     logger.info("Waiting for compilation to complete (timeout=%ss)...", timeout_seconds)
                     compilation_result = await bridge_manager.await_compilation(timeout_seconds)
                     # Add compilation result to response
-                    if isinstance(result, dict):
-                        result["compilation"] = compilation_result
+                    if isinstance(result, list) and len(result) > 0:
+                        first_content = result[0]
+                        if isinstance(first_content, types.TextContent):
+                            import json
+                            try:
+                                response_data = json.loads(first_content.text)
+                                response_data["compilation"] = compilation_result
+                                result[0] = types.TextContent(type="text", text=as_pretty_json(response_data))
+                            except:
+                                pass
                     logger.info("Compilation complete: success=%s", compilation_result.get("success"))
                 except TimeoutError as e:
                     logger.warning("Compilation timeout: %s", e)
-                    if isinstance(result, dict):
-                        result["compilation"] = {
-                            "success": False,
-                            "completed": False,
-                            "timedOut": True,
-                            "message": str(e),
-                        }
+                    if isinstance(result, list) and len(result) > 0:
+                        first_content = result[0]
+                        if isinstance(first_content, types.TextContent):
+                            import json
+                            try:
+                                response_data = json.loads(first_content.text)
+                                response_data["compilation"] = {
+                                    "success": False,
+                                    "completed": False,
+                                    "timedOut": True,
+                                    "message": str(e),
+                                }
+                                result[0] = types.TextContent(type="text", text=as_pretty_json(response_data))
+                            except:
+                                pass
                 except Exception as e:
                     logger.error("Error waiting for compilation: %s", e)
-                    if isinstance(result, dict):
-                        result["compilation"] = {
-                            "success": False,
-                            "completed": False,
-                            "error": str(e),
-                        }
-            if operation in ("create", "update", "delete"):
-                tip_content = types.TextContent(
-                    type="text",
-                    text="Tip: Batch scriptManage operations with 'unity_batch_execute' so UnityMCP applies script edits atomically.",
-                )
-                if isinstance(result, list):
-                    result.append(tip_content)
-                else:
-                    logger.info(
-                        "Consider batching scriptManage operations via unity_batch_execute to keep edits atomic."
-                    )
+                    if isinstance(result, list) and len(result) > 0:
+                        first_content = result[0]
+                        if isinstance(first_content, types.TextContent):
+                            import json
+                            try:
+                                response_data = json.loads(first_content.text)
+                                response_data["compilation"] = {
+                                    "success": False,
+                                    "completed": False,
+                                    "error": str(e),
+                                }
+                                result[0] = types.TextContent(type="text", text=as_pretty_json(response_data))
+                            except:
+                                pass
 
             return result
 
@@ -1393,9 +1383,6 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_inputSystem_manage":
             return await _call_bridge_tool("inputSystemManage", args)
-
-        if name == "unity_batch_execute":
-            return await _call_bridge_tool("batchExecute", args)
 
         if name == "unity_tilemap_manage":
             return await _call_bridge_tool("tilemapManage", args)

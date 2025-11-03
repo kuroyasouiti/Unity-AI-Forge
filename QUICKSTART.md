@@ -188,16 +188,18 @@ unity_component_crud({
 })
 ```
 
-### Batch Operations
+### Script Batch Management
 
 ```python
-# Create multiple objects at once
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall1", "position": {"x": 5, "y": 0, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall2", "position": {"x": -5, "y": 0, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall3", "position": {"x": 0, "y": 0, "z": 5}}}
-    ]
+# Always use batch format for script operations (even single scripts)
+unity_script_batch_manage({
+    "scripts": [
+        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", "scriptType": "monoBehaviour"},
+        {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", "scriptType": "monoBehaviour"},
+        {"operation": "create", "scriptPath": "Assets/Scripts/GameManager.cs", "scriptType": "class"}
+    ],
+    "stopOnError": False,
+    "timeoutSeconds": 30
 })
 ```
 
@@ -220,9 +222,9 @@ unity_batch_execute({
    unity_context_inspect({"includeHierarchy": True})
    ```
 
-4. **Use batch execute for multiple operations**
+4. **Always use batch format for script operations**
    ```python
-   unity_batch_execute({"operations": [...]})
+   unity_script_batch_manage({"scripts": [...]})
    ```
 
 ### ❌ DON'T
@@ -372,7 +374,7 @@ unity_context_inspect({
 | Build hierarchy | `unity_hierarchy_builder` |
 | Manage layout | `unity_ugui_layoutManage` |
 | Inspect scene | `unity_context_inspect` |
-| Batch operations | `unity_batch_execute` |
+| Script batch management | `unity_script_batch_manage` |
 | Manage components | `unity_component_crud` |
 | Manage GameObjects | `unity_gameobject_crud` |
 | Manage assets | `unity_asset_crud` |

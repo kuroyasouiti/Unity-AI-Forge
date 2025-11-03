@@ -43,7 +43,7 @@ unity_context_inspect({"includeHierarchy": True})
 1. **Always use templates when available** - Much faster than manual creation
 2. **Check context before making changes** - Use `unity_context_inspect()`
 3. **Use hierarchy builder for complex structures** - Create entire trees in one command
-4. **Batch related operations** - Use `unity_batch_execute()` for efficiency
+4. **Always batch script operations** - Use `unity_script_batch_manage()` with scripts array for all script operations
 5. **Refer to the Quick Start guide** - Contains copy-paste examples for common tasks
 
 ## Project Overview
@@ -637,21 +637,7 @@ unity_component_crud({"operation": "add", "gameObjectPath": "Button", "component
 unity_ugui_createFromTemplate({"template": "Button", "text": "Click Me!"})
 ```
 
-### 3. Batch Operations When Possible
-
-Use `unity_batch_execute` for multiple related operations:
-
-```python
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectManage", "payload": {"operation": "create", "name": "Panel"}},
-        {"tool": "uguiCreateFromTemplate", "payload": {"template": "Button", "parentPath": "Panel"}},
-        {"tool": "uguiCreateFromTemplate", "payload": {"template": "Text", "parentPath": "Panel"}}
-    ]
-})
-```
-
-### 4. Use Hierarchy Builder for Complex Structures
+### 3. Use Hierarchy Builder for Complex Structures
 
 When creating multi-level hierarchies, use hierarchy builder instead of individual commands:
 
@@ -678,41 +664,40 @@ unity_hierarchy_builder({
 })
 ```
 
-### 5. Always Batch Script Operations
+### 4. Always Use Script Batch Management
 
-**CRITICAL**: Script operations (create/update/delete) trigger Unity compilation which can take several seconds. Always use `unity_batch_execute` for multiple scripts:
+**CRITICAL**: Script operations are now BATCH-ONLY. Always use `unity_script_batch_manage` with the `scripts` array, even for single scripts:
 
-❌ **Avoid this (triggers compilation 3 times):**
+✅ **Single script operation:**
 ```python
-unity_script_manage({"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...})
-unity_script_manage({"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", ...})
-unity_script_manage({"operation": "create", "scriptPath": "Assets/Scripts/Weapon.cs", ...})
-# Each operation waits for compilation (30+ seconds total!)
-```
-
-✅ **Use this instead (triggers compilation once):**
-```python
-unity_batch_execute({
-    "operations": [
-        {"tool": "scriptManage", "payload": {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...}},
-        {"tool": "scriptManage", "payload": {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", ...}},
-        {"tool": "scriptManage", "payload": {"operation": "create", "scriptPath": "Assets/Scripts/Weapon.cs", ...}}
-    ]
+unity_script_batch_manage({
+    "scripts": [
+        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...}
+    ],
+    "timeoutSeconds": 30
 })
-# All scripts created, then single compilation wait (10 seconds total)
 ```
 
-**Benefits of batching script operations:**
-- 10-20x faster for multiple scripts
-- Reduces compilation overhead
-- Better Unity Editor responsiveness
-- Single consolidated error report
+✅ **Multiple script operations (recommended):**
+```python
+unity_script_batch_manage({
+    "scripts": [
+        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...},
+        {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", ...},
+        {"operation": "create", "scriptPath": "Assets/Scripts/Weapon.cs", ...}
+    ],
+    "stopOnError": False,
+    "timeoutSeconds": 30
+})
+# All scripts created atomically, then single compilation (10-20x faster!)
+```
 
-**When to batch:**
-- Creating multiple new scripts
-- Updating several scripts at once
-- Deleting old scripts
-- Any combination of script operations
+**Benefits of batch-only script management:**
+- Consistent API - always use `scripts` array
+- 10-20x faster for multiple scripts
+- Atomic operations - all succeed or fail together (if stopOnError=true)
+- Single consolidated compilation
+- Better error reporting with per-script results
 
 ## Common Use Cases
 
@@ -949,130 +934,6 @@ unity_context_inspect({
     "filter": "Player*"  # Optional: filter by pattern
 })
 ```
-
-### Batch Execute (`unity_batch_execute`)
-
-The batch execute tool allows you to execute multiple Unity operations in a single request, improving efficiency for bulk operations.
-
-**Usage:**
-
-```json
-{
-  "operations": [
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "Player",
-        "name": "Player"
-      }
-    },
-    {
-      "tool": "componentManage",
-      "payload": {
-        "operation": "add",
-        "gameObjectPath": "Player",
-        "componentType": "UnityEngine.Rigidbody"
-      }
-    },
-    {
-      "tool": "componentManage",
-      "payload": {
-        "operation": "update",
-        "gameObjectPath": "Player",
-        "componentType": "UnityEngine.Rigidbody",
-        "propertyChanges": {
-          "mass": 2.0,
-          "useGravity": true
-        }
-      }
-    }
-  ],
-  "stopOnError": false
-}
-```
-
-**Parameters:**
-
-- **operations** (required): Array of operations to execute
-  - **tool**: Tool name (e.g., "gameObjectManage", "componentManage", "assetManage")
-  - **payload**: Operation-specific parameters
-- **stopOnError** (optional): If true, stops execution when an operation fails. Default is false.
-
-**Response:**
-
-```json
-{
-  "totalOperations": 3,
-  "executedOperations": 3,
-  "successCount": 3,
-  "failureCount": 0,
-  "results": [
-    {
-      "index": 0,
-      "success": true,
-      "tool": "gameObjectManage",
-      "result": { ... }
-    },
-    {
-      "index": 1,
-      "success": true,
-      "tool": "componentManage",
-      "result": { ... }
-    },
-    {
-      "index": 2,
-      "success": true,
-      "tool": "componentManage",
-      "result": { ... }
-    }
-  ]
-}
-```
-
-**Use Cases:**
-
-1. **Setup Multiple GameObjects:**
-   ```json
-   {
-     "operations": [
-       {"tool": "gameObjectManage", "payload": {"operation": "create", "gameObjectPath": "UI/Panel", "name": "Panel"}},
-       {"tool": "gameObjectManage", "payload": {"operation": "create", "gameObjectPath": "UI/Panel/Button", "name": "Button"}},
-       {"tool": "componentManage", "payload": {"operation": "add", "gameObjectPath": "UI/Panel/Button", "componentType": "UnityEngine.UI.Button"}}
-     ]
-   }
-   ```
-
-2. **Bulk Asset Creation:**
-   ```json
-   {
-     "operations": [
-       {"tool": "assetManage", "payload": {"operation": "create", "assetPath": "Assets/Scripts/Player.cs", "contents": "..."}},
-       {"tool": "assetManage", "payload": {"operation": "create", "assetPath": "Assets/Scripts/Enemy.cs", "contents": "..."}},
-       {"tool": "assetManage", "payload": {"operation": "create", "assetPath": "Assets/Scripts/GameManager.cs", "contents": "..."}}
-     ]
-   }
-   ```
-
-3. **Input System Setup:**
-   ```json
-   {
-     "operations": [
-       {"tool": "inputSystemManage", "payload": {"operation": "createAsset", "assetPath": "Assets/Input/Controls.inputactions"}},
-       {"tool": "inputSystemManage", "payload": {"operation": "addActionMap", "assetPath": "Assets/Input/Controls.inputactions", "mapName": "Player"}},
-       {"tool": "inputSystemManage", "payload": {"operation": "addAction", "assetPath": "Assets/Input/Controls.inputactions", "mapName": "Player", "actionName": "Move"}},
-       {"tool": "inputSystemManage", "payload": {"operation": "addBinding", "assetPath": "Assets/Input/Controls.inputactions", "mapName": "Player", "actionName": "Move", "path": "<Keyboard>/wasd"}}
-     ]
-   }
-   ```
-
-**Implementation Notes:**
-- Operations are executed sequentially in the order provided
-- Each operation result is recorded independently
-- If `stopOnError` is false (default), all operations are attempted even if some fail
-- If `stopOnError` is true, execution stops at the first error
-- The response includes detailed results for each operation with success/failure status
-- Failed operations include error messages
 
 ### Project Settings Management (`unity.projectSettings.crud`)
 

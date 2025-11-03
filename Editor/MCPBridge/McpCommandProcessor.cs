@@ -49,12 +49,11 @@ namespace MCP.Editor
                 "gameObjectCreateFromTemplate" => HandleGameObjectCreateFromTemplate(command.Payload),
                 "contextInspect" => HandleContextInspect(command.Payload),
                 "tagLayerManage" => HandleTagLayerManage(command.Payload),
-                "scriptManage" => HandleScriptManage(command.Payload),
+                "scriptBatchManage" => HandleScriptBatchManage(command.Payload),
                 "prefabManage" => HandlePrefabManage(command.Payload),
                 "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
                 "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
                 "inputSystemManage" => HandleInputSystemManage(command.Payload),
-                "batchExecute" => HandleBatchExecute(command.Payload),
                 "tilemapManage" => HandleTilemapManage(command.Payload),
                 "navmeshManage" => HandleNavMeshManage(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
@@ -4129,6 +4128,95 @@ namespace MCP.Editor
             }
         }
 
+        private static object HandleScriptBatchManage(Dictionary<string, object> payload)
+        {
+            if (!payload.TryGetValue("scripts", out var scriptsObj) || !(scriptsObj is List<object> scripts))
+            {
+                throw new InvalidOperationException("scripts array is required");
+            }
+
+            var stopOnError = GetBool(payload, "stopOnError", false);
+            var results = new List<Dictionary<string, object>>();
+            var successCount = 0;
+            var failureCount = 0;
+
+            for (int i = 0; i < scripts.Count; i++)
+            {
+                if (!(scripts[i] is Dictionary<string, object> scriptPayload))
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = false,
+                        ["error"] = "Invalid script operation format",
+                    });
+                    failureCount++;
+                    continue;
+                }
+
+                var operation = GetString(scriptPayload, "operation");
+                if (string.IsNullOrEmpty(operation))
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = false,
+                        ["error"] = "operation is required",
+                    });
+                    failureCount++;
+                    if (stopOnError) break;
+                    continue;
+                }
+
+                try
+                {
+                    object result = operation.ToLowerInvariant() switch
+                    {
+                        "read" => HandleScriptRead(scriptPayload),
+                        "outline" => HandleScriptRead(scriptPayload),
+                        "create" => HandleScriptCreate(scriptPayload),
+                        "update" => HandleScriptUpdate(scriptPayload),
+                        "delete" => HandleScriptDelete(scriptPayload),
+                        _ => throw new InvalidOperationException($"Unknown script operation: {operation}"),
+                    };
+
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = true,
+                        ["operation"] = operation,
+                        ["result"] = result,
+                    });
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["index"] = i,
+                        ["success"] = false,
+                        ["operation"] = operation,
+                        ["error"] = ex.Message,
+                    });
+                    failureCount++;
+
+                    if (stopOnError)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["totalScripts"] = scripts.Count,
+                ["executedScripts"] = successCount + failureCount,
+                ["successCount"] = successCount,
+                ["failureCount"] = failureCount,
+                ["results"] = results,
+            };
+        }
+
         private static object HandleScriptManage(Dictionary<string, object> payload)
         {
             var operation = EnsureValue(GetString(payload, "operation"), "operation").ToLowerInvariant();
@@ -7521,120 +7609,6 @@ namespace MCP.Editor
             }
 
             return value as List<object>;
-        }
-
-        /// <summary>
-        /// Handles batch execution of multiple operations.
-        /// </summary>
-        /// <param name="payload">Batch parameters including 'operations' array and 'stopOnError' flag.</param>
-        /// <returns>Result dictionary with array of operation results.</returns>
-        private static object HandleBatchExecute(Dictionary<string, object> payload)
-        {
-            if (!payload.TryGetValue("operations", out var operationsObj) || !(operationsObj is List<object> operations))
-            {
-                throw new InvalidOperationException("operations array is required");
-            }
-
-            var stopOnError = GetBool(payload, "stopOnError", false);
-            var results = new List<Dictionary<string, object>>();
-            var successCount = 0;
-            var failureCount = 0;
-
-            for (int i = 0; i < operations.Count; i++)
-            {
-                if (!(operations[i] is Dictionary<string, object> op))
-                {
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["index"] = i,
-                        ["success"] = false,
-                        ["error"] = "Invalid operation format",
-                    });
-                    failureCount++;
-                    continue;
-                }
-
-                var toolName = GetString(op, "tool");
-                if (string.IsNullOrEmpty(toolName))
-                {
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["index"] = i,
-                        ["success"] = false,
-                        ["error"] = "tool name is required",
-                    });
-                    failureCount++;
-                    if (stopOnError) break;
-                    continue;
-                }
-
-                var operationPayload = op.TryGetValue("payload", out var payloadObj) && payloadObj is Dictionary<string, object> dict
-                    ? dict
-                    : new Dictionary<string, object>();
-
-                try
-                {
-                    object result = toolName switch
-                    {
-                        "sceneManage" => HandleSceneManage(operationPayload),
-                        "gameObjectManage" => HandleGameObjectManage(operationPayload),
-                        "componentManage" => HandleComponentManage(operationPayload),
-                        "assetManage" => HandleAssetManage(operationPayload),
-                        "uguiRectAdjust" => HandleUguiRectAdjust(operationPayload),
-                        "uguiAnchorManage" => HandleUguiAnchorManage(operationPayload),
-                        "uguiManage" => HandleUguiManage(operationPayload),
-                        "uguiCreateFromTemplate" => HandleUguiCreateFromTemplate(operationPayload),
-                        "uguiLayoutManage" => HandleUguiLayoutManage(operationPayload),
-                        "hierarchyBuilder" => HandleHierarchyBuilder(operationPayload),
-                        "sceneQuickSetup" => HandleSceneQuickSetup(operationPayload),
-                        "gameObjectCreateFromTemplate" => HandleGameObjectCreateFromTemplate(operationPayload),
-                        "contextInspect" => HandleContextInspect(operationPayload),
-                        "tagLayerManage" => HandleTagLayerManage(operationPayload),
-                        "scriptManage" => HandleScriptManage(operationPayload),
-                        "prefabManage" => HandlePrefabManage(operationPayload),
-                        "projectSettingsManage" => HandleProjectSettingsManage(operationPayload),
-                        "renderPipelineManage" => HandleRenderPipelineManage(operationPayload),
-                        "inputSystemManage" => HandleInputSystemManage(operationPayload),
-                        "tilemapManage" => HandleTilemapManage(operationPayload),
-                        "navmeshManage" => HandleNavMeshManage(operationPayload),
-                        _ => throw new InvalidOperationException($"Unsupported tool name in batch: {toolName}"),
-                    };
-
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["index"] = i,
-                        ["success"] = true,
-                        ["tool"] = toolName,
-                        ["result"] = result,
-                    });
-                    successCount++;
-                }
-                catch (Exception ex)
-                {
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["index"] = i,
-                        ["success"] = false,
-                        ["tool"] = toolName,
-                        ["error"] = ex.Message,
-                    });
-                    failureCount++;
-
-                    if (stopOnError)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return new Dictionary<string, object>
-            {
-                ["totalOperations"] = operations.Count,
-                ["executedOperations"] = results.Count,
-                ["successCount"] = successCount,
-                ["failureCount"] = failureCount,
-                ["results"] = results,
-            };
         }
 
         #region Tilemap Management
