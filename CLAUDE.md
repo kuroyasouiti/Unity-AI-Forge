@@ -935,6 +935,96 @@ unity_context_inspect({
 })
 ```
 
+### Asset Management (`unity_asset_crud`)
+
+The asset management tool provides operations for working with Unity asset files.
+
+**IMPORTANT:** DO NOT use this tool for creating or updating C# scripts. Use `unity_script_batch_manage` instead, which handles compilation properly.
+
+**Operations:**
+
+1. **create** - Create a new asset file
+   ```python
+   unity_asset_crud({
+       "operation": "create",
+       "assetPath": "Assets/Data/Config.asset",
+       "content": "..."
+   })
+   ```
+
+2. **update** - Update an existing asset file
+   ```python
+   unity_asset_crud({
+       "operation": "update",
+       "assetPath": "Assets/Data/Config.asset",
+       "content": "..."
+   })
+   ```
+
+3. **rename** - Rename an asset
+   ```python
+   unity_asset_crud({
+       "operation": "rename",
+       "assetPath": "Assets/Textures/OldName.png",
+       "newName": "NewName.png"
+   })
+   ```
+
+4. **duplicate** - Duplicate an asset
+   ```python
+   unity_asset_crud({
+       "operation": "duplicate",
+       "assetPath": "Assets/Materials/Material.mat",
+       "newPath": "Assets/Materials/Material_Copy.mat"
+   })
+   ```
+
+5. **delete** - Delete an asset
+   ```python
+   unity_asset_crud({
+       "operation": "delete",
+       "assetPath": "Assets/Unused/OldAsset.asset"
+   })
+   ```
+
+6. **inspect** - Get information about an asset
+   ```python
+   unity_asset_crud({
+       "operation": "inspect",
+       "assetPath": "Assets/Textures/Sprite.png"
+   })
+   ```
+
+7. **findMultiple** - Find multiple assets using wildcard patterns
+   ```python
+   unity_asset_crud({
+       "operation": "findMultiple",
+       "pattern": "Assets/Textures/*.png"
+   })
+   ```
+
+8. **deleteMultiple** - Delete multiple assets using wildcard patterns
+   ```python
+   unity_asset_crud({
+       "operation": "deleteMultiple",
+       "pattern": "Assets/Temp/*.asset"
+   })
+   ```
+
+9. **inspectMultiple** - Inspect multiple assets using wildcard patterns
+   ```python
+   unity_asset_crud({
+       "operation": "inspectMultiple",
+       "pattern": "Assets/Materials/*.mat"
+   })
+   ```
+
+**Important Notes:**
+- This tool is for general asset files (textures, materials, prefabs, etc.)
+- For C# scripts, ALWAYS use `unity_script_batch_manage` instead
+- All asset paths must start with "Assets/"
+- Wildcard patterns support glob syntax (*, ?, etc.)
+
 ### Project Settings Management (`unity.projectSettings.crud`)
 
 The project settings management tool provides comprehensive operations for reading and writing Unity Project Settings across multiple categories.
@@ -1452,6 +1542,36 @@ unity_batch_execute({
         {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall4", "position": {"x": 0, "y": 0, "z": -5}}}
     ]
 })
+```
+
+#### ❌ Mistake 6: Using asset management tool for C# scripts
+
+**Wrong:**
+```python
+# Using asset tool to create scripts - will cause compilation issues!
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Scripts/Player.cs",
+    "content": "using UnityEngine; public class Player : MonoBehaviour { }"
+})
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Scripts/Enemy.cs",
+    "content": "using UnityEngine; public class Enemy : MonoBehaviour { }"
+})
+```
+
+**Right:**
+```python
+# Always use script batch manager for C# scripts
+unity_script_batch_manage({
+    "scripts": [
+        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n}"},
+        {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour\n{\n}"}
+    ],
+    "timeoutSeconds": 30
+})
+# Handles compilation automatically and properly!
 ```
 
 ### Performance Tips for Claude

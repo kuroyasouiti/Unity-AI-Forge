@@ -1016,7 +1016,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Create, update, rename, duplicate, delete, or inspect Assets/ files. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple' operations to perform bulk operations on multiple assets (e.g., pattern='Assets/Scripts/*.cs' to find all C# scripts).",
+            description="Create, update, rename, duplicate, delete, or inspect Assets/ files. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple' operations to perform bulk operations on multiple assets (e.g., pattern='Assets/Scripts/*.cs' to find all C# scripts). IMPORTANT: DO NOT use this tool for creating or updating C# scripts - use unity_script_batch_manage instead, which handles compilation properly.",
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
