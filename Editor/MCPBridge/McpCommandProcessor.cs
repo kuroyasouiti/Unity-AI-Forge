@@ -55,7 +55,7 @@ namespace MCP.Editor
                 "tilemapManage" => HandleTilemapManage(command.Payload),
                 "navmeshManage" => HandleNavMeshManage(command.Payload),
                 "constantConvert" => HandleConstantConvert(command.Payload),
-                "scriptBatchManage" => HandleScriptBatchManage(command.Payload),
+                "batchExecute" => HandleBatchExecute(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -7128,42 +7128,42 @@ namespace MCP.Editor
 
         #endregion
 
-        #region Script Batch Management
+        #region Batch Execute
 
         /// <summary>
-        /// Handles batch script management operations (create, update, delete multiple scripts).
-        /// Automatically triggers compilation after all operations complete.
+        /// Handles batch execution of multiple tool operations.
+        /// Automatically detects script changes and triggers compilation.
         /// </summary>
         /// <param name="payload">
         /// Required keys:
-        /// - scripts: List of script operations, each with:
-        ///   - operation: "create", "update", or "delete"
-        ///   - scriptPath: Path to the script file (e.g., "Assets/Scripts/Player.cs")
-        ///   - content: Script content (for create/update operations)
+        /// - operations: List of operations, each with:
+        ///   - tool: Tool name (e.g., "assetManage", "gameObjectManage")
+        ///   - payload: Tool-specific payload
         /// Optional keys:
-        /// - stopOnError: If true, stops batch on first error (default: true)
-        /// - timeoutSeconds: Maximum seconds to wait for compilation (default: 60)
+        /// - stopOnError: If true, stops batch on first error (default: false)
+        /// - awaitCompilation: If true, triggers compilation after script changes (default: true)
         /// </param>
-        private static object HandleScriptBatchManage(Dictionary<string, object> payload)
+        private static object HandleBatchExecute(Dictionary<string, object> payload)
         {
-            var scriptsList = GetList(payload, "scripts");
-            if (scriptsList == null || scriptsList.Count == 0)
+            var operationsList = GetList(payload, "operations");
+            if (operationsList == null || operationsList.Count == 0)
             {
-                throw new InvalidOperationException("scripts array is required and must not be empty");
+                throw new InvalidOperationException("operations array is required and must not be empty");
             }
 
-            var stopOnError = GetBool(payload, "stopOnError", true);
+            var stopOnError = GetBool(payload, "stopOnError", false);
             var results = new List<Dictionary<string, object>>();
             var hasErrors = false;
+            var hasScriptChanges = false;
 
-            foreach (var scriptObj in scriptsList)
+            foreach (var opObj in operationsList)
             {
-                if (!(scriptObj is Dictionary<string, object> scriptPayload))
+                if (!(opObj is Dictionary<string, object> opPayload))
                 {
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = false,
-                        ["error"] = "Invalid script entry: must be a dictionary"
+                        ["error"] = "Invalid operation entry: must be a dictionary"
                     });
                     hasErrors = true;
                     if (stopOnError) break;
@@ -7172,49 +7172,41 @@ namespace MCP.Editor
 
                 try
                 {
-                    var operation = GetString(scriptPayload, "operation");
-                    var scriptPath = GetString(scriptPayload, "scriptPath");
+                    var toolName = GetString(opPayload, "tool");
+                    var toolPayload = opPayload.TryGetValue("payload", out var payloadObj) && payloadObj is Dictionary<string, object> dict
+                        ? dict
+                        : new Dictionary<string, object>();
 
-                    if (string.IsNullOrEmpty(operation) || string.IsNullOrEmpty(scriptPath))
+                    if (string.IsNullOrEmpty(toolName))
                     {
-                        throw new InvalidOperationException("operation and scriptPath are required for each script");
+                        throw new InvalidOperationException("tool name is required for each operation");
                     }
 
-                    Dictionary<string, object> result;
+                    // Create a command for this operation
+                    var command = new McpIncomingCommand("batch_" + Guid.NewGuid().ToString(), toolName, toolPayload);
 
-                    switch (operation)
+                    // Execute the tool
+                    var result = Execute(command);
+
+                    // Check if this was a script-related operation
+                    if (IsScriptRelatedTool(toolName, toolPayload))
                     {
-                        case "create":
-                        case "update":
-                            var content = GetString(scriptPayload, "content");
-                            if (string.IsNullOrEmpty(content))
-                            {
-                                throw new InvalidOperationException("content is required for create/update operations");
-                            }
-                            result = ExecuteScriptWriteOperation(scriptPath, content, operation == "create");
-                            break;
-
-                        case "delete":
-                            result = ExecuteScriptDeleteOperation(scriptPath);
-                            break;
-
-                        default:
-                            throw new InvalidOperationException($"Unsupported script operation: {operation}");
+                        hasScriptChanges = true;
                     }
 
-                    results.Add(result);
-
-                    if (result.TryGetValue("success", out var success) && !(bool)success)
+                    results.Add(new Dictionary<string, object>
                     {
-                        hasErrors = true;
-                        if (stopOnError) break;
-                    }
+                        ["success"] = true,
+                        ["tool"] = toolName,
+                        ["result"] = result
+                    });
                 }
                 catch (Exception ex)
                 {
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = false,
+                        ["tool"] = opPayload.TryGetValue("tool", out var t) ? t : "unknown",
                         ["error"] = ex.Message
                     });
                     hasErrors = true;
@@ -7222,124 +7214,59 @@ namespace MCP.Editor
                 }
             }
 
-            // Refresh AssetDatabase and trigger compilation
-            AssetDatabase.Refresh();
-            CompilationPipeline.RequestScriptCompilation();
+            // If script changes were detected, trigger compilation
+            var compilationTriggered = false;
+            if (hasScriptChanges)
+            {
+                AssetDatabase.Refresh();
+                CompilationPipeline.RequestScriptCompilation();
+                compilationTriggered = true;
+            }
 
             return new Dictionary<string, object>
             {
                 ["success"] = !hasErrors,
                 ["processedCount"] = results.Count,
-                ["totalCount"] = scriptsList.Count,
+                ["totalCount"] = operationsList.Count,
                 ["results"] = results,
-                ["compilationRequested"] = true,
+                ["compilationTriggered"] = compilationTriggered,
                 ["message"] = hasErrors
-                    ? $"Batch completed with errors. Processed {results.Count}/{scriptsList.Count} scripts. Compilation requested."
-                    : $"Batch completed successfully. Processed {results.Count} scripts. Compilation requested."
+                    ? $"Batch completed with errors. Processed {results.Count}/{operationsList.Count} operations."
+                    : $"Batch completed successfully. Processed {results.Count} operations." +
+                      (compilationTriggered ? " Compilation triggered." : "")
             };
         }
 
-        private static Dictionary<string, object> ExecuteScriptWriteOperation(string scriptPath, string content, bool isCreate)
+        /// <summary>
+        /// Determines if a tool operation involves script changes that require compilation.
+        /// </summary>
+        private static bool IsScriptRelatedTool(string toolName, Dictionary<string, object> toolPayload)
         {
-            try
+            // Check if it's assetManage with .cs files
+            if (toolName == "assetManage")
             {
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(scriptPath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                var operation = GetString(toolPayload, "operation");
+                if (operation == "create" || operation == "update" || operation == "delete")
                 {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // Check if file exists for create operation
-                if (isCreate && File.Exists(scriptPath))
-                {
-                    return new Dictionary<string, object>
+                    var assetPath = GetString(toolPayload, "assetPath");
+                    if (!string.IsNullOrEmpty(assetPath) && assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
                     {
-                        ["success"] = false,
-                        ["scriptPath"] = scriptPath,
-                        ["operation"] = "create",
-                        ["error"] = $"Script already exists: {scriptPath}"
-                    };
+                        return true;
+                    }
                 }
 
-                // Check if file doesn't exist for update operation
-                if (!isCreate && !File.Exists(scriptPath))
+                // Check for multiple operations with patterns
+                if (operation == "createMultiple" || operation == "updateMultiple" || operation == "deleteMultiple")
                 {
-                    return new Dictionary<string, object>
+                    var pattern = GetString(toolPayload, "pattern");
+                    if (!string.IsNullOrEmpty(pattern) && pattern.Contains(".cs", StringComparison.OrdinalIgnoreCase))
                     {
-                        ["success"] = false,
-                        ["scriptPath"] = scriptPath,
-                        ["operation"] = "update",
-                        ["error"] = $"Script not found: {scriptPath}"
-                    };
+                        return true;
+                    }
                 }
-
-                // Write the script content
-                File.WriteAllText(scriptPath, content);
-
-                return new Dictionary<string, object>
-                {
-                    ["success"] = true,
-                    ["scriptPath"] = scriptPath,
-                    ["operation"] = isCreate ? "create" : "update",
-                    ["message"] = $"Script {(isCreate ? "created" : "updated")} successfully"
-                };
             }
-            catch (Exception ex)
-            {
-                return new Dictionary<string, object>
-                {
-                    ["success"] = false,
-                    ["scriptPath"] = scriptPath,
-                    ["operation"] = isCreate ? "create" : "update",
-                    ["error"] = ex.Message
-                };
-            }
-        }
 
-        private static Dictionary<string, object> ExecuteScriptDeleteOperation(string scriptPath)
-        {
-            try
-            {
-                if (!File.Exists(scriptPath))
-                {
-                    return new Dictionary<string, object>
-                    {
-                        ["success"] = false,
-                        ["scriptPath"] = scriptPath,
-                        ["operation"] = "delete",
-                        ["error"] = $"Script not found: {scriptPath}"
-                    };
-                }
-
-                // Delete the script file
-                File.Delete(scriptPath);
-
-                // Also delete .meta file if it exists
-                var metaPath = scriptPath + ".meta";
-                if (File.Exists(metaPath))
-                {
-                    File.Delete(metaPath);
-                }
-
-                return new Dictionary<string, object>
-                {
-                    ["success"] = true,
-                    ["scriptPath"] = scriptPath,
-                    ["operation"] = "delete",
-                    ["message"] = "Script deleted successfully"
-                };
-            }
-            catch (Exception ex)
-            {
-                return new Dictionary<string, object>
-                {
-                    ["success"] = false,
-                    ["scriptPath"] = scriptPath,
-                    ["operation"] = "delete",
-                    ["error"] = ex.Message
-                };
-            }
+            return false;
         }
 
         #endregion
