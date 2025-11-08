@@ -38,6 +38,7 @@ namespace MCP.Editor
                 "gameObjectManage" => HandleGameObjectManage(command.Payload),
                 "componentManage" => HandleComponentManage(command.Payload),
                 "assetManage" => HandleAssetManage(command.Payload),
+                "assetBatchManage" => HandleAssetBatchManage(command.Payload),
                 "uguiRectAdjust" => HandleUguiRectAdjust(command.Payload),
                 "uguiAnchorManage" => HandleUguiAnchorManage(command.Payload),
                 "uguiManage" => HandleUguiManage(command.Payload),
@@ -1167,6 +1168,82 @@ namespace MCP.Editor
                 ["pattern"] = pattern,
                 ["count"] = results.Count,
                 ["assets"] = results,
+            };
+        }
+
+        /// <summary>
+        /// Handles batch asset management operations.
+        /// Executes multiple asset operations in sequence.
+        /// </summary>
+        /// <param name="payload">
+        /// Required keys:
+        /// - assets: Array of asset operation dictionaries
+        /// Optional keys:
+        /// - stopOnError: If true, stops on first error (default: false)
+        /// </param>
+        private static object HandleAssetBatchManage(Dictionary<string, object> payload)
+        {
+            var assetsList = GetList(payload, "assets");
+            if (assetsList == null || assetsList.Count == 0)
+            {
+                throw new InvalidOperationException("assets array is required and must not be empty");
+            }
+
+            var stopOnError = GetBool(payload, "stopOnError", false);
+            var results = new List<Dictionary<string, object>>();
+            var hasErrors = false;
+
+            foreach (var assetObj in assetsList)
+            {
+                if (!(assetObj is Dictionary<string, object> assetPayload))
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["error"] = "Invalid asset entry: must be a dictionary"
+                    });
+                    hasErrors = true;
+                    if (stopOnError) break;
+                    continue;
+                }
+
+                try
+                {
+                    // Execute the asset operation using HandleAssetManage
+                    var result = HandleAssetManage(assetPayload);
+
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = true,
+                        ["operation"] = GetString(assetPayload, "operation"),
+                        ["result"] = result
+                    });
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["operation"] = GetString(assetPayload, "operation") ?? "unknown",
+                        ["error"] = ex.Message
+                    });
+                    hasErrors = true;
+                    if (stopOnError) break;
+                }
+            }
+
+            // Refresh AssetDatabase once after all operations
+            AssetDatabase.Refresh();
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = !hasErrors,
+                ["processedCount"] = results.Count,
+                ["totalCount"] = assetsList.Count,
+                ["results"] = results,
+                ["message"] = hasErrors
+                    ? $"Batch completed with errors. Processed {results.Count}/{assetsList.Count} operations."
+                    : $"Batch completed successfully. Processed {results.Count} operations."
             };
         }
 

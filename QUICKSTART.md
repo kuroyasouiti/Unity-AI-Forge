@@ -378,6 +378,7 @@ unity_context_inspect({
 | Manage components | `unity_component_crud` |
 | Manage GameObjects | `unity_gameobject_crud` |
 | Manage assets | `unity_asset_crud` |
+| Asset batch management | `unity_asset_batch_manage` |
 
 ## 🎨 Anchor Presets for UI
 

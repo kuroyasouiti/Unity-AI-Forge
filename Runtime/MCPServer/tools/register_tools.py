@@ -197,6 +197,62 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    asset_batch_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "operation": {
+                                "type": "string",
+                                "enum": ["create", "update", "delete", "rename", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
+                                "description": "Operation to perform.",
+                            },
+                            "assetPath": {
+                                "type": "string",
+                                "description": "Path under Assets/ for the target asset.",
+                            },
+                            "destinationPath": {
+                                "type": "string",
+                                "description": "Destination path for rename/duplicate operations.",
+                            },
+                            "contents": {
+                                "type": "string",
+                                "description": "File contents for create and update operations.",
+                            },
+                            "overwrite": {
+                                "type": "boolean",
+                                "description": "Whether to overwrite existing assets.",
+                            },
+                            "pattern": {
+                                "type": "string",
+                                "description": "Wildcard pattern for multiple operations.",
+                            },
+                            "useRegex": {
+                                "type": "boolean",
+                                "description": "If true, treats 'pattern' as regex.",
+                            },
+                            "includeProperties": {
+                                "type": "boolean",
+                                "description": "For inspectMultiple: include detailed properties.",
+                            },
+                        },
+                        "required": ["operation"],
+                    },
+                    "description": "Array of asset operations to execute in sequence.",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "If true, stops batch execution on first error. Default is false (continues on errors).",
+                },
+            },
+        },
+        ["assets"],
+    )
+
     ugui_rect_adjust_schema = _schema_with_required(
         {
             "type": "object",
@@ -1091,6 +1147,11 @@ def register_tools(server: Server) -> None:
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
+            name="unity_asset_batch_manage",
+            description="Execute multiple asset operations in a single batch! Process multiple assets with one command by providing an array of asset operations. Each operation can create, update, delete, rename, duplicate, or inspect assets. Operations are executed sequentially. Perfect for managing multiple assets efficiently without multiple round trips. Use stopOnError to control failure handling.",
+            inputSchema=asset_batch_manage_schema,
+        ),
+        types.Tool(
             name="unity_ugui_rectAdjust",
             description="Adjust a RectTransform using uGUI layout utilities.",
             inputSchema=ugui_rect_adjust_schema,
@@ -1217,6 +1278,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_asset_crud":
             return await _call_bridge_tool("assetManage", args)
+
+        if name == "unity_asset_batch_manage":
+            return await _call_bridge_tool("assetBatchManage", args)
 
         if name == "unity_ugui_rectAdjust":
             return await _call_bridge_tool("uguiRectAdjust", args)

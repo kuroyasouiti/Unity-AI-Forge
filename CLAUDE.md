@@ -1025,6 +1025,138 @@ The asset management tool provides operations for working with Unity asset files
 - All asset paths must start with "Assets/"
 - Wildcard patterns support glob syntax (*, ?, etc.)
 
+### Asset Batch Management (`unity_asset_batch_manage`)
+
+The asset batch management tool allows you to execute multiple asset operations in a single command, making it much more efficient than calling `unity_asset_crud` multiple times.
+
+**Benefits:**
+- Execute multiple asset operations in one command
+- Reduce round trips between Python and Unity
+- Single AssetDatabase refresh after all operations
+- Better error handling with per-operation results
+- Optional stop-on-error behavior
+
+**Format:**
+```python
+unity_asset_batch_manage({
+    "assets": [
+        {"operation": "create", "assetPath": "...", "contents": "..."},
+        {"operation": "update", "assetPath": "...", "contents": "..."},
+        # ... more operations
+    ],
+    "stopOnError": False  # Optional: stop on first error (default: False)
+})
+```
+
+**Examples:**
+
+1. **Create Multiple Assets:**
+   ```python
+   unity_asset_batch_manage({
+       "assets": [
+           {
+               "operation": "create",
+               "assetPath": "Assets/Data/Config1.txt",
+               "contents": "Configuration 1"
+           },
+           {
+               "operation": "create",
+               "assetPath": "Assets/Data/Config2.txt",
+               "contents": "Configuration 2"
+           },
+           {
+               "operation": "create",
+               "assetPath": "Assets/Data/Config3.txt",
+               "contents": "Configuration 3"
+           }
+       ]
+   })
+   ```
+
+2. **Mixed Operations:**
+   ```python
+   unity_asset_batch_manage({
+       "assets": [
+           {
+               "operation": "create",
+               "assetPath": "Assets/NewMaterial.mat",
+               "contents": "material content"
+           },
+           {
+               "operation": "duplicate",
+               "assetPath": "Assets/Prefabs/Enemy.prefab",
+               "destinationPath": "Assets/Prefabs/Enemy_Variant.prefab"
+           },
+           {
+               "operation": "delete",
+               "assetPath": "Assets/Old/Unused.asset"
+           },
+           {
+               "operation": "inspect",
+               "assetPath": "Assets/Textures/Sprite.png"
+           }
+       ],
+       "stopOnError": True  # Stop if any operation fails
+   })
+   ```
+
+3. **Update Multiple Assets:**
+   ```python
+   unity_asset_batch_manage({
+       "assets": [
+           {
+               "operation": "update",
+               "assetPath": "Assets/Data/Level1.json",
+               "contents": '{"level": 1, "enemies": 5}'
+           },
+           {
+               "operation": "update",
+               "assetPath": "Assets/Data/Level2.json",
+               "contents": '{"level": 2, "enemies": 10}'
+           },
+           {
+               "operation": "update",
+               "assetPath": "Assets/Data/Level3.json",
+               "contents": '{"level": 3, "enemies": 15}'
+           }
+       ]
+   })
+   ```
+
+**Response Format:**
+```json
+{
+    "success": true,
+    "processedCount": 3,
+    "totalCount": 3,
+    "results": [
+        {
+            "success": true,
+            "operation": "create",
+            "result": {"path": "Assets/Data/Config1.txt", "guid": "..."}
+        },
+        {
+            "success": true,
+            "operation": "create",
+            "result": {"path": "Assets/Data/Config2.txt", "guid": "..."}
+        },
+        {
+            "success": false,
+            "operation": "create",
+            "error": "Asset already exists"
+        }
+    ],
+    "message": "Batch completed with errors. Processed 3/3 operations."
+}
+```
+
+**Important Notes:**
+- All operations use the same parameters as `unity_asset_crud`
+- AssetDatabase is refreshed once after all operations complete
+- Use `stopOnError: true` to halt execution on first failure
+- Each operation result includes `success`, `operation`, and either `result` or `error`
+- This tool is NOT for C# scripts - use dedicated script tools for compilation handling
+
 ### Project Settings Management (`unity.projectSettings.crud`)
 
 The project settings management tool provides comprehensive operations for reading and writing Unity Project Settings across multiple categories.
@@ -1572,6 +1704,42 @@ unity_script_batch_manage({
     "timeoutSeconds": 30
 })
 # Handles compilation automatically and properly!
+```
+
+#### ❌ Mistake 7: Creating multiple assets without using batch management
+
+**Wrong:**
+```python
+# Calling asset_crud multiple times - inefficient!
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Data/Level1.json",
+    "contents": '{"level": 1}'
+})
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Data/Level2.json",
+    "contents": '{"level": 2}'
+})
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Data/Level3.json",
+    "contents": '{"level": 3}'
+})
+# Multiple round trips, multiple AssetDatabase refreshes
+```
+
+**Right:**
+```python
+# Use batch asset management - efficient!
+unity_asset_batch_manage({
+    "assets": [
+        {"operation": "create", "assetPath": "Assets/Data/Level1.json", "contents": '{"level": 1}'},
+        {"operation": "create", "assetPath": "Assets/Data/Level2.json", "contents": '{"level": 2}'},
+        {"operation": "create", "assetPath": "Assets/Data/Level3.json", "contents": '{"level": 3}'}
+    ]
+})
+# Single round trip, single AssetDatabase refresh!
 ```
 
 ### Performance Tips for Claude
