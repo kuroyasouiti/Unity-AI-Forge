@@ -109,9 +109,18 @@ def register_tools(server: Server) -> None:
                     "type": "boolean",
                     "description": "For inspectMultiple operation: if true, includes component type names in results. Default is false.",
                 },
-                "payload": {
-                    "type": "object",
-                    "additionalProperties": True,
+                "includeProperties": {
+                    "type": "boolean",
+                    "description": "For inspect operation: if false, only returns component types without properties. Default is true. Use this to improve performance when you only need component type information.",
+                },
+                "componentFilter": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "For inspect operation: optional list of component types to inspect (e.g. ['UnityEngine.Transform', 'UnityEngine.UI.Button']). If specified, only these components will be inspected. Use this to improve performance when you only need specific components.",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "For multiple operations (findMultiple, deleteMultiple, inspectMultiple): maximum number of GameObjects to process. Default is 1000. Use this to prevent timeouts when working with large numbers of objects.",
                 },
             },
         },
@@ -152,6 +161,23 @@ def register_tools(server: Server) -> None:
                 "useRegex": {
                     "type": "boolean",
                     "description": "If true, treats 'pattern' as a regular expression instead of wildcard pattern. Default is false.",
+                },
+                "includeProperties": {
+                    "type": "boolean",
+                    "description": "For inspect/inspectMultiple operations: if false, only returns component type without properties. Default is true. Use this to improve performance when you only need to check if a component exists.",
+                },
+                "propertyFilter": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "For inspect/inspectMultiple operations: optional list of property/field names to inspect (e.g. ['position', 'rotation', 'enabled']). If specified, only these properties will be inspected. Use this to improve performance when you only need specific properties.",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "For multiple operations (addMultiple, removeMultiple, updateMultiple, inspectMultiple): maximum number of GameObjects to process. Default is 1000. Use this to prevent timeouts when working with large numbers of objects.",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "For multiple operations: if true, stops execution on first error. If false (default), continues processing remaining items and returns both successes and errors.",
                 },
             },
         },
@@ -1096,12 +1122,12 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_gameobject_crud",
-            description="Modify the active scene hierarchy (create, delete, move, rename, duplicate) or inspect GameObjects. Use 'inspect' operation to read all attached components with their properties. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple' operations (e.g., pattern='Enemy*' to find all enemies).",
+            description="Modify the active scene hierarchy (create, delete, move, rename, duplicate) or inspect GameObjects. Use 'inspect' operation to read all attached components with their properties. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple' operations (e.g., pattern='Enemy*' to find all enemies). Performance tips: Use 'includeProperties=false' for faster inspect, 'componentFilter' to inspect specific components only, and 'maxResults' to limit multiple operations (default 1000).",
             inputSchema=game_object_manage_schema,
         ),
         types.Tool(
             name="unity_component_crud",
-            description="Add, remove, update, or inspect components on a GameObject. Supports wildcard/regex patterns with 'addMultiple', 'removeMultiple', 'updateMultiple', and 'inspectMultiple' operations to perform bulk operations on multiple GameObjects (e.g., pattern='Player/Weapon*' to add colliders to all weapons).",
+            description="Add, remove, update, or inspect components on a GameObject. Supports wildcard/regex patterns with 'addMultiple', 'removeMultiple', 'updateMultiple', and 'inspectMultiple' operations to perform bulk operations on multiple GameObjects (e.g., pattern='Player/Weapon*' to add colliders to all weapons). Performance tips: Use 'includeProperties=false' for faster inspect, 'propertyFilter' to inspect specific properties only, 'maxResults' to limit multiple operations (default 1000), and 'stopOnError=false' for better error handling in batch operations.",
             inputSchema=component_manage_schema,
         ),
         types.Tool(

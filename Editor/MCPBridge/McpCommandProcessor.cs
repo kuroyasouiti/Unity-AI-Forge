@@ -393,6 +393,20 @@ namespace MCP.Editor
             var components = go.GetComponents<Component>();
             var componentsList = new List<Dictionary<string, object>>();
 
+            // Check if properties should be included (default: true)
+            var includeProperties = true;
+            if (payload.TryGetValue("includeProperties", out var includePropObj))
+            {
+                includeProperties = Convert.ToBoolean(includePropObj);
+            }
+
+            // Get component filter if specified
+            HashSet<string> componentFilter = null;
+            if (payload.TryGetValue("componentFilter", out var filterObj) && filterObj is List<object> filterList)
+            {
+                componentFilter = new HashSet<string>(filterList.Select(f => f.ToString()));
+            }
+
             foreach (var component in components)
             {
                 if (component == null)
@@ -401,53 +415,81 @@ namespace MCP.Editor
                 }
 
                 var componentType = component.GetType();
-                var properties = new Dictionary<string, object>();
+                var componentTypeName = componentType.FullName;
 
-                // Get all public properties
-                var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-                foreach (var prop in propertyInfos)
+                // Skip if component filter is specified and this component doesn't match
+                if (componentFilter != null && !componentFilter.Contains(componentTypeName))
                 {
-                    if (!prop.CanRead)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        var value = prop.GetValue(component);
-                        properties[prop.Name] = SerializeValue(value);
-                    }
-                    catch (Exception ex)
-                    {
-                        properties[prop.Name] = $"<Error: {ex.Message}>";
-                    }
-                }
-
-                // Get all public fields
-                var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-                foreach (var field in fieldInfos)
-                {
-                    try
-                    {
-                        var value = field.GetValue(component);
-                        properties[field.Name] = SerializeValue(value);
-                    }
-                    catch (Exception ex)
-                    {
-                        properties[field.Name] = $"<Error: {ex.Message}>";
-                    }
+                    continue;
                 }
 
                 var componentData = new Dictionary<string, object>
                 {
-                    ["type"] = componentType.FullName,
-                    ["properties"] = properties,
+                    ["type"] = componentTypeName,
                 };
 
                 // Add enabled state for Behaviour components
                 if (component is Behaviour behaviour)
                 {
                     componentData["enabled"] = behaviour.enabled;
+                }
+
+                // Only include properties if requested
+                if (includeProperties)
+                {
+                    var properties = new Dictionary<string, object>();
+
+                    // Properties that cause memory leaks in edit mode (use shared versions instead)
+                    var dangerousProperties = new HashSet<string>
+                    {
+                        "mesh",      // Use sharedMesh instead
+                        "material",  // Use sharedMaterial instead
+                        "materials", // Use sharedMaterials instead
+                    };
+
+                    // Get all public properties
+                    var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                    foreach (var prop in propertyInfos)
+                    {
+                        if (!prop.CanRead)
+                        {
+                            continue;
+                        }
+
+                        // Skip dangerous properties that cause memory leaks
+                        if (dangerousProperties.Contains(prop.Name))
+                        {
+                            properties[prop.Name] = $"<Skipped:{prop.Name}:UseSharedVersion>";
+                            continue;
+                        }
+
+                        try
+                        {
+                            var value = prop.GetValue(component);
+                            properties[prop.Name] = SerializeValue(value);
+                        }
+                        catch (Exception ex)
+                        {
+                            properties[prop.Name] = $"<Error: {ex.Message}>";
+                        }
+                    }
+
+                    // Get all public fields
+                    var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                    foreach (var field in fieldInfos)
+                    {
+                        try
+                        {
+                            var value = field.GetValue(component);
+                            properties[field.Name] = SerializeValue(value);
+                        }
+                        catch (Exception ex)
+                        {
+                            properties[field.Name] = $"<Error: {ex.Message}>";
+                        }
+                    }
+
+                    componentData["properties"] = properties;
                 }
 
                 componentsList.Add(componentData);
@@ -465,8 +507,16 @@ namespace MCP.Editor
         {
             var pattern = EnsureValue(GetString(payload, "pattern"), "pattern");
             var useRegex = GetBool(payload, "useRegex");
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000); // Default max 1000 objects
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
 
             var results = new List<Dictionary<string, object>>();
             foreach (var go in gameObjects)
@@ -485,7 +535,9 @@ namespace MCP.Editor
             return new Dictionary<string, object>
             {
                 ["pattern"] = pattern,
-                ["count"] = results.Count,
+                ["totalCount"] = totalCount,
+                ["returnedCount"] = results.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["gameObjects"] = results,
             };
         }
@@ -494,8 +546,17 @@ namespace MCP.Editor
         {
             var pattern = EnsureValue(GetString(payload, "pattern"), "pattern");
             var useRegex = GetBool(payload, "useRegex");
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000); // Default max 1000 objects
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
+
             var deletedPaths = new List<string>();
 
             foreach (var go in gameObjects)
@@ -508,7 +569,9 @@ namespace MCP.Editor
             return new Dictionary<string, object>
             {
                 ["pattern"] = pattern,
-                ["count"] = deletedPaths.Count,
+                ["totalCount"] = totalCount,
+                ["deletedCount"] = deletedPaths.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["deleted"] = deletedPaths,
             };
         }
@@ -518,8 +581,16 @@ namespace MCP.Editor
             var pattern = EnsureValue(GetString(payload, "pattern"), "pattern");
             var useRegex = GetBool(payload, "useRegex");
             var includeComponents = GetBool(payload, "includeComponents");
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000); // Default max 1000 objects
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
 
             var results = new List<Dictionary<string, object>>();
             foreach (var go in gameObjects)
@@ -555,7 +626,9 @@ namespace MCP.Editor
             return new Dictionary<string, object>
             {
                 ["pattern"] = pattern,
-                ["count"] = results.Count,
+                ["totalCount"] = totalCount,
+                ["returnedCount"] = results.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["gameObjects"] = results,
             };
         }
@@ -652,50 +725,98 @@ namespace MCP.Editor
                 throw new InvalidOperationException($"Component {type.FullName} not found on {go.name}");
             }
 
-            var properties = new Dictionary<string, object>();
-            var componentType = component.GetType();
-
-            // Get all public properties
-            var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var prop in propertyInfos)
-            {
-                if (!prop.CanRead)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var value = prop.GetValue(component);
-                    properties[prop.Name] = SerializeValue(value);
-                }
-                catch (Exception ex)
-                {
-                    properties[prop.Name] = $"<Error: {ex.Message}>";
-                }
-            }
-
-            // Get all public fields
-            var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var field in fieldInfos)
-            {
-                try
-                {
-                    var value = field.GetValue(component);
-                    properties[field.Name] = SerializeValue(value);
-                }
-                catch (Exception ex)
-                {
-                    properties[field.Name] = $"<Error: {ex.Message}>";
-                }
-            }
-
-            return new Dictionary<string, object>
+            var result = new Dictionary<string, object>
             {
                 ["gameObject"] = GetHierarchyPath(go),
-                ["type"] = componentType.FullName,
-                ["properties"] = properties,
+                ["type"] = component.GetType().FullName,
             };
+
+            // Check if properties should be included (default: true)
+            var includeProperties = true;
+            if (payload.TryGetValue("includeProperties", out var includePropObj))
+            {
+                includeProperties = Convert.ToBoolean(includePropObj);
+            }
+
+            // Only include properties if requested
+            if (includeProperties)
+            {
+                var properties = new Dictionary<string, object>();
+                var componentType = component.GetType();
+
+                // Get property filter if specified
+                HashSet<string> propertyFilter = null;
+                if (payload.TryGetValue("propertyFilter", out var filterObj) && filterObj is List<object> filterList)
+                {
+                    propertyFilter = new HashSet<string>(filterList.Select(f => f.ToString()));
+                }
+
+                // Properties that cause memory leaks in edit mode
+                var dangerousProperties = new HashSet<string>
+                {
+                    "mesh",      // Use sharedMesh instead
+                    "material",  // Use sharedMaterial instead
+                    "materials", // Use sharedMaterials instead
+                };
+
+                // Get all public properties
+                var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var prop in propertyInfos)
+                {
+                    if (!prop.CanRead)
+                    {
+                        continue;
+                    }
+
+                    // Skip if property filter is specified and this property doesn't match
+                    if (propertyFilter != null && !propertyFilter.Contains(prop.Name))
+                    {
+                        continue;
+                    }
+
+                    // Skip dangerous properties that cause memory leaks
+                    if (dangerousProperties.Contains(prop.Name))
+                    {
+                        properties[prop.Name] = $"<Skipped:{prop.Name}:UseSharedVersion>";
+                        continue;
+                    }
+
+                    try
+                    {
+                        var value = prop.GetValue(component);
+                        properties[prop.Name] = SerializeValue(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        properties[prop.Name] = $"<Error: {ex.Message}>";
+                    }
+                }
+
+                // Get all public fields
+                var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                foreach (var field in fieldInfos)
+                {
+                    // Skip if property filter is specified and this field doesn't match
+                    if (propertyFilter != null && !propertyFilter.Contains(field.Name))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var value = field.GetValue(component);
+                        properties[field.Name] = SerializeValue(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        properties[field.Name] = $"<Error: {ex.Message}>";
+                    }
+                }
+
+                result["properties"] = properties;
+            }
+
+            return result;
         }
 
         private static object AddMultipleComponents(Dictionary<string, object> payload)
@@ -704,26 +825,93 @@ namespace MCP.Editor
             var useRegex = GetBool(payload, "useRegex");
             var componentTypeName = EnsureValue(GetString(payload, "componentType"), "componentType");
             var type = ResolveType(componentTypeName);
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000);
+            var stopOnError = GetBool(payload, "stopOnError");
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
+
             var results = new List<Dictionary<string, object>>();
+            var errors = new List<Dictionary<string, object>>();
+
+            // Get property changes if specified
+            var propertyChanges = payload.ContainsKey("propertyChanges") && payload["propertyChanges"] is Dictionary<string, object> changes
+                ? changes
+                : new Dictionary<string, object>();
 
             foreach (var go in gameObjects)
             {
-                var component = go.AddComponent(type);
-                results.Add(new Dictionary<string, object>
+                try
                 {
-                    ["gameObject"] = GetHierarchyPath(go),
-                    ["type"] = type.FullName,
-                });
+                    // Check if component already exists
+                    var existingComponent = go.GetComponent(type);
+                    if (existingComponent != null)
+                    {
+                        if (stopOnError)
+                        {
+                            throw new InvalidOperationException($"Component {type.FullName} already exists on {GetHierarchyPath(go)}");
+                        }
+
+                        errors.Add(new Dictionary<string, object>
+                        {
+                            ["gameObject"] = GetHierarchyPath(go),
+                            ["error"] = $"Component {type.FullName} already exists",
+                        });
+                        continue;
+                    }
+
+                    var component = go.AddComponent(type);
+                    if (component == null)
+                    {
+                        throw new InvalidOperationException($"Failed to add component {type.FullName} to {GetHierarchyPath(go)}");
+                    }
+
+                    // Apply initial property changes if specified
+                    foreach (var kvp in propertyChanges)
+                    {
+                        ApplyProperty(component, kvp.Key, kvp.Value);
+                    }
+
+                    EditorUtility.SetDirty(go);
+
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["gameObject"] = GetHierarchyPath(go),
+                        ["type"] = type.FullName,
+                        ["success"] = true,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new Dictionary<string, object>
+                    {
+                        ["gameObject"] = GetHierarchyPath(go),
+                        ["error"] = ex.Message,
+                    });
+
+                    if (stopOnError)
+                    {
+                        break;
+                    }
+                }
             }
 
             return new Dictionary<string, object>
             {
                 ["pattern"] = pattern,
                 ["componentType"] = type.FullName,
-                ["count"] = results.Count,
+                ["totalCount"] = totalCount,
+                ["successCount"] = results.Count,
+                ["errorCount"] = errors.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["results"] = results,
+                ["errors"] = errors,
             };
         }
 
@@ -733,22 +921,57 @@ namespace MCP.Editor
             var useRegex = GetBool(payload, "useRegex");
             var componentTypeName = EnsureValue(GetString(payload, "componentType"), "componentType");
             var type = ResolveType(componentTypeName);
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000);
+            var stopOnError = GetBool(payload, "stopOnError");
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
+
             var results = new List<Dictionary<string, object>>();
+            var errors = new List<Dictionary<string, object>>();
 
             foreach (var go in gameObjects)
             {
-                var component = go.GetComponent(type);
-                if (component != null)
+                try
                 {
-                    UnityEngine.Object.DestroyImmediate(component);
-                    results.Add(new Dictionary<string, object>
+                    var component = go.GetComponent(type);
+                    if (component != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(component);
+                        results.Add(new Dictionary<string, object>
+                        {
+                            ["gameObject"] = GetHierarchyPath(go),
+                            ["type"] = type.FullName,
+                            ["removed"] = true,
+                        });
+                    }
+                    else
+                    {
+                        // Component not found - add to errors if stopOnError is true
+                        if (stopOnError)
+                        {
+                            throw new InvalidOperationException($"Component {type.FullName} not found on {GetHierarchyPath(go)}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new Dictionary<string, object>
                     {
                         ["gameObject"] = GetHierarchyPath(go),
-                        ["type"] = type.FullName,
-                        ["removed"] = true,
+                        ["error"] = ex.Message,
                     });
+
+                    if (stopOnError)
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -756,8 +979,12 @@ namespace MCP.Editor
             {
                 ["pattern"] = pattern,
                 ["componentType"] = type.FullName,
-                ["count"] = results.Count,
+                ["totalCount"] = totalCount,
+                ["successCount"] = results.Count,
+                ["errorCount"] = errors.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["results"] = results,
+                ["errors"] = errors,
             };
         }
 
@@ -767,32 +994,67 @@ namespace MCP.Editor
             var useRegex = GetBool(payload, "useRegex");
             var componentTypeName = EnsureValue(GetString(payload, "componentType"), "componentType");
             var type = ResolveType(componentTypeName);
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000);
+            var stopOnError = GetBool(payload, "stopOnError");
             var propertyChanges = payload.ContainsKey("propertyChanges") && payload["propertyChanges"] is Dictionary<string, object> changes
                 ? changes
                 : new Dictionary<string, object>();
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
+
             var results = new List<Dictionary<string, object>>();
+            var errors = new List<Dictionary<string, object>>();
 
             foreach (var go in gameObjects)
             {
-                var component = go.GetComponent(type);
-                if (component != null)
+                try
                 {
-                    // Apply each property change using existing ApplyProperty method
-                    foreach (var kvp in propertyChanges)
+                    var component = go.GetComponent(type);
+                    if (component != null)
                     {
-                        ApplyProperty(component, kvp.Key, kvp.Value);
+                        // Apply each property change using existing ApplyProperty method
+                        foreach (var kvp in propertyChanges)
+                        {
+                            ApplyProperty(component, kvp.Key, kvp.Value);
+                        }
+
+                        EditorUtility.SetDirty(component);
+
+                        results.Add(new Dictionary<string, object>
+                        {
+                            ["gameObject"] = GetHierarchyPath(go),
+                            ["type"] = type.FullName,
+                            ["updated"] = true,
+                        });
                     }
-
-                    EditorUtility.SetDirty(component);
-
-                    results.Add(new Dictionary<string, object>
+                    else
+                    {
+                        // Component not found
+                        if (stopOnError)
+                        {
+                            throw new InvalidOperationException($"Component {type.FullName} not found on {GetHierarchyPath(go)}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new Dictionary<string, object>
                     {
                         ["gameObject"] = GetHierarchyPath(go),
-                        ["type"] = type.FullName,
-                        ["updated"] = true,
+                        ["error"] = ex.Message,
                     });
+
+                    if (stopOnError)
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -800,8 +1062,12 @@ namespace MCP.Editor
             {
                 ["pattern"] = pattern,
                 ["componentType"] = type.FullName,
-                ["count"] = results.Count,
+                ["totalCount"] = totalCount,
+                ["successCount"] = results.Count,
+                ["errorCount"] = errors.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["results"] = results,
+                ["errors"] = errors,
             };
         }
 
@@ -811,59 +1077,116 @@ namespace MCP.Editor
             var useRegex = GetBool(payload, "useRegex");
             var componentTypeName = EnsureValue(GetString(payload, "componentType"), "componentType");
             var type = ResolveType(componentTypeName);
+            var maxResults = GetInt(payload, "maxResults", defaultValue: 1000);
+
+            // Check if properties should be included (default: true)
+            var includeProperties = true;
+            if (payload.TryGetValue("includeProperties", out var includePropObj))
+            {
+                includeProperties = Convert.ToBoolean(includePropObj);
+            }
+
+            // Get property filter if specified
+            HashSet<string> propertyFilter = null;
+            if (payload.TryGetValue("propertyFilter", out var filterObj) && filterObj is List<object> filterList)
+            {
+                propertyFilter = new HashSet<string>(filterList.Select(f => f.ToString()));
+            }
 
             var gameObjects = McpWildcardUtility.ResolveGameObjects(pattern, useRegex);
+            var totalCount = gameObjects.Count;
+
+            // Limit results to prevent timeout
+            if (gameObjects.Count > maxResults)
+            {
+                gameObjects = gameObjects.Take(maxResults).ToList();
+            }
+
             var results = new List<Dictionary<string, object>>();
+
+            // Properties that cause memory leaks in edit mode
+            var dangerousProperties = new HashSet<string>
+            {
+                "mesh",      // Use sharedMesh instead
+                "material",  // Use sharedMaterial instead
+                "materials", // Use sharedMaterials instead
+            };
 
             foreach (var go in gameObjects)
             {
                 var component = go.GetComponent(type);
                 if (component != null)
                 {
-                    var properties = new Dictionary<string, object>();
-                    var componentType = component.GetType();
-
-                    // Get all public properties
-                    var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-                    foreach (var prop in propertyInfos)
-                    {
-                        if (!prop.CanRead)
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            var value = prop.GetValue(component);
-                            properties[prop.Name] = SerializeValue(value);
-                        }
-                        catch (Exception ex)
-                        {
-                            properties[prop.Name] = $"<Error: {ex.Message}>";
-                        }
-                    }
-
-                    // Get all public fields
-                    var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-                    foreach (var field in fieldInfos)
-                    {
-                        try
-                        {
-                            var value = field.GetValue(component);
-                            properties[field.Name] = SerializeValue(value);
-                        }
-                        catch (Exception ex)
-                        {
-                            properties[field.Name] = $"<Error: {ex.Message}>";
-                        }
-                    }
-
-                    results.Add(new Dictionary<string, object>
+                    var resultData = new Dictionary<string, object>
                     {
                         ["gameObject"] = GetHierarchyPath(go),
-                        ["type"] = componentType.FullName,
-                        ["properties"] = properties,
-                    });
+                        ["type"] = component.GetType().FullName,
+                    };
+
+                    // Only include properties if requested
+                    if (includeProperties)
+                    {
+                        var properties = new Dictionary<string, object>();
+                        var componentType = component.GetType();
+
+                        // Get all public properties
+                        var propertyInfos = componentType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                        foreach (var prop in propertyInfos)
+                        {
+                            if (!prop.CanRead)
+                            {
+                                continue;
+                            }
+
+                            // Skip if property filter is specified and this property doesn't match
+                            if (propertyFilter != null && !propertyFilter.Contains(prop.Name))
+                            {
+                                continue;
+                            }
+
+                            // Skip dangerous properties that cause memory leaks
+                            if (dangerousProperties.Contains(prop.Name))
+                            {
+                                properties[prop.Name] = $"<Skipped:{prop.Name}:UseSharedVersion>";
+                                continue;
+                            }
+
+                            try
+                            {
+                                var value = prop.GetValue(component);
+                                properties[prop.Name] = SerializeValue(value);
+                            }
+                            catch (Exception ex)
+                            {
+                                properties[prop.Name] = $"<Error: {ex.Message}>";
+                            }
+                        }
+
+                        // Get all public fields
+                        var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                        foreach (var field in fieldInfos)
+                        {
+                            // Skip if property filter is specified and this field doesn't match
+                            if (propertyFilter != null && !propertyFilter.Contains(field.Name))
+                            {
+                                continue;
+                            }
+
+                            try
+                            {
+                                var value = field.GetValue(component);
+                                properties[field.Name] = SerializeValue(value);
+                            }
+                            catch (Exception ex)
+                            {
+                                properties[field.Name] = $"<Error: {ex.Message}>";
+                            }
+                        }
+
+                        resultData["properties"] = properties;
+                    }
+
+                    results.Add(resultData);
                 }
             }
 
@@ -871,7 +1194,9 @@ namespace MCP.Editor
             {
                 ["pattern"] = pattern,
                 ["componentType"] = type.FullName,
-                ["count"] = results.Count,
+                ["totalCount"] = totalCount,
+                ["returnedCount"] = results.Count,
+                ["truncated"] = totalCount > maxResults,
                 ["results"] = results,
             };
         }
@@ -6416,9 +6741,28 @@ namespace MCP.Editor
         /// <returns>A serialized representation suitable for JSON.</returns>
         private static object SerializeValue(object value)
         {
+            return SerializeValue(value, 0, 3, 50);
+        }
+
+        /// <summary>
+        /// Serializes a value for JSON output with depth and size limits.
+        /// </summary>
+        /// <param name="value">The value to serialize.</param>
+        /// <param name="depth">Current recursion depth.</param>
+        /// <param name="maxDepth">Maximum recursion depth (default: 3).</param>
+        /// <param name="maxItems">Maximum items in collections (default: 50).</param>
+        /// <returns>A serialized representation suitable for JSON.</returns>
+        private static object SerializeValue(object value, int depth, int maxDepth, int maxItems)
+        {
             if (value == null)
             {
                 return null;
+            }
+
+            // Check depth limit
+            if (depth >= maxDepth)
+            {
+                return $"<MaxDepthReached:{value.GetType().Name}>";
             }
 
             // Handle Unity Object references
@@ -6515,13 +6859,20 @@ namespace MCP.Editor
                 return value.ToString();
             }
 
-            // Handle arrays and lists
+            // Handle arrays and lists with size limit
             if (value is IEnumerable enumerable && !(value is string))
             {
                 var list = new List<object>();
+                int count = 0;
                 foreach (var item in enumerable)
                 {
-                    list.Add(SerializeValue(item));
+                    if (count >= maxItems)
+                    {
+                        list.Add($"<TruncatedAt{maxItems}Items>");
+                        break;
+                    }
+                    list.Add(SerializeValue(item, depth + 1, maxDepth, maxItems));
+                    count++;
                 }
                 return list;
             }
@@ -6673,11 +7024,26 @@ namespace MCP.Editor
             var properties = new Dictionary<string, object>();
             var type = component.GetType();
 
+            // Properties that cause memory leaks in edit mode (use shared versions instead)
+            var dangerousProperties = new HashSet<string>
+            {
+                "mesh",      // Use sharedMesh instead
+                "material",  // Use sharedMaterial instead
+                "materials", // Use sharedMaterials instead
+            };
+
             // Serialize public properties
             foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (prop.CanRead && !prop.GetIndexParameters().Any())
                 {
+                    // Skip dangerous properties that cause memory leaks
+                    if (dangerousProperties.Contains(prop.Name))
+                    {
+                        properties[prop.Name] = $"<Skipped:{prop.Name}:UseSharedVersion>";
+                        continue;
+                    }
+
                     try
                     {
                         var value = prop.GetValue(component);
