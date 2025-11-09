@@ -67,7 +67,8 @@ unity_component_crud({
 5. **Optimize inspect operations** - Use `includeProperties=false` for existence checks, `propertyFilter` for specific properties
 6. **Limit batch operations** - Use `maxResults` parameter to prevent timeouts (default: 1000)
 7. **Handle errors gracefully** - Use `stopOnError=false` in batch operations to continue on failures
-8. **Refer to the Quick Start guide** - Contains copy-paste examples for common tasks
+8. **NEVER edit .meta files** - Unity manages these automatically; manual editing can break references and cause corruption
+9. **Refer to the Quick Start guide** - Contains copy-paste examples for common tasks
 
 ## Project Overview
 
@@ -1982,6 +1983,31 @@ unity_script_batch_manage({
 })
 # Handles compilation automatically and properly!
 ```
+
+#### ❌ Mistake 7: Editing Unity .meta files
+
+**Wrong:**
+```python
+# NEVER directly edit .meta files - they're managed by Unity!
+unity_asset_crud({
+    "operation": "update",
+    "assetPath": "Assets/Scripts/Player.cs.meta",
+    "content": "fileFormatVersion: 2\nguid: 12345..."
+})
+```
+
+**Why this is dangerous:**
+- Unity automatically generates and manages .meta files
+- Each .meta file contains critical GUID information that Unity uses to track references
+- Manual editing can break asset references throughout your project
+- Can cause scenes, prefabs, and scripts to lose their connections
+- May result in "missing script" errors or broken prefabs
+
+**What to do instead:**
+- Let Unity manage .meta files automatically
+- If you need to fix broken references, use Unity's built-in tools
+- Never use Read, Write, or Edit tools on .meta files
+- If you accidentally created a .meta file, delete it and let Unity regenerate it
 
 ### Performance Tips for Claude
 
