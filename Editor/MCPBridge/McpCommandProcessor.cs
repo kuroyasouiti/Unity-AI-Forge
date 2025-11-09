@@ -902,29 +902,61 @@ namespace MCP.Editor
         private static object CreateAsset(Dictionary<string, object> payload)
         {
             var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
-            var contents = GetString(payload, "contents") ?? string.Empty;
+            var assetTypeName = EnsureValue(GetString(payload, "assetType"), "assetType");
 
             EnsureDirectoryExists(path);
-            File.WriteAllText(path, contents, Encoding.UTF8);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
 
-            return DescribeAsset(path);
+            var assetType = ResolveType(assetTypeName);
+
+            // Check if it's a ScriptableObject
+            if (assetType.IsSubclassOf(typeof(ScriptableObject)))
+            {
+                var instance = ScriptableObject.CreateInstance(assetType);
+
+                // Apply property changes if provided
+                if (payload.TryGetValue("propertyChanges", out var propertyObj) && propertyObj is Dictionary<string, object> propertyChanges)
+                {
+                    foreach (var kvp in propertyChanges)
+                    {
+                        ApplyProperty(instance, kvp.Key, kvp.Value);
+                    }
+                }
+
+                AssetDatabase.CreateAsset(instance, path);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+
+                return DescribeAsset(path);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Asset type {assetTypeName} is not a ScriptableObject. Only ScriptableObject creation is supported. Use Edit/Write tools for script files.");
+            }
         }
 
         private static object UpdateAsset(Dictionary<string, object> payload)
         {
             var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
-            var contents = GetString(payload, "contents");
-            var overwrite = GetBool(payload, "overwrite", true);
 
-            if (!File.Exists(path) && !overwrite)
+            // Load the asset
+            var asset = AssetDatabase.LoadMainAssetAtPath(path);
+            if (asset == null)
             {
-                throw new InvalidOperationException($"Asset does not exist: {path}");
+                throw new InvalidOperationException($"Asset not found or cannot be loaded: {path}");
             }
 
-            EnsureDirectoryExists(path);
-            File.WriteAllText(path, contents ?? string.Empty, Encoding.UTF8);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            // Apply property changes
+            if (payload.TryGetValue("propertyChanges", out var propertyObj) && propertyObj is Dictionary<string, object> propertyChanges)
+            {
+                foreach (var kvp in propertyChanges)
+                {
+                    ApplyProperty(asset, kvp.Key, kvp.Value);
+                }
+            }
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
 
             return DescribeAsset(path);
         }
@@ -6701,7 +6733,17 @@ namespace MCP.Editor
         /// <param name="value">The value to set.</param>
         private static void ApplyProperty(Component component, string propertyName, object value)
         {
-            var type = component.GetType();
+            ApplyPropertyToObject(component, propertyName, value);
+        }
+
+        private static void ApplyProperty(UnityEngine.Object obj, string propertyName, object value)
+        {
+            ApplyPropertyToObject(obj, propertyName, value);
+        }
+
+        private static void ApplyPropertyToObject(UnityEngine.Object obj, string propertyName, object value)
+        {
+            var type = obj.GetType();
 
             // Try property first
             var prop = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
@@ -6710,9 +6752,9 @@ namespace MCP.Editor
                 try
                 {
                     var converted = ConvertValue(value, prop.PropertyType);
-                    prop.SetValue(component, converted);
-                    Undo.RecordObject(component, $"Set {propertyName}");
-                    EditorUtility.SetDirty(component);
+                    prop.SetValue(obj, converted);
+                    Undo.RecordObject(obj, $"Set {propertyName}");
+                    EditorUtility.SetDirty(obj);
                     return;
                 }
                 catch (Exception ex)
@@ -6728,9 +6770,9 @@ namespace MCP.Editor
                 try
                 {
                     var converted = ConvertValue(value, field.FieldType);
-                    field.SetValue(component, converted);
-                    Undo.RecordObject(component, $"Set {propertyName}");
-                    EditorUtility.SetDirty(component);
+                    field.SetValue(obj, converted);
+                    Undo.RecordObject(obj, $"Set {propertyName}");
+                    EditorUtility.SetDirty(obj);
                     return;
                 }
                 catch (Exception ex)

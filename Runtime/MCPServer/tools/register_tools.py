@@ -7,6 +7,7 @@ from mcp.server import Server
 
 from ..bridge.bridge_manager import bridge_manager
 from ..logger import logger
+from ..services.editor_log_watcher import editor_log_watcher
 from ..utils.json_utils import as_pretty_json
 
 
@@ -631,6 +632,24 @@ def register_tools(server: Server) -> None:
         ["operations"],
     )
 
+    console_log_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "logType": {
+                    "type": "string",
+                    "enum": ["all", "normal", "warning", "error"],
+                    "description": "Type of log messages to retrieve. 'all' returns all messages, 'normal' returns info/debug messages, 'warning' returns warnings, 'error' returns errors.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of log lines to retrieve. Default is 800.",
+                },
+            },
+        },
+        [],
+    )
+
     hierarchy_builder_schema = _schema_with_required(
         {
             "type": "object",
@@ -1180,6 +1199,11 @@ def register_tools(server: Server) -> None:
             description="Execute multiple Unity tool operations in a single batch. Supports any combination of tools (assetManage, gameObjectManage, componentManage, etc.). Automatically detects script changes and waits for compilation to complete. Perfect for complex multi-step operations like creating multiple GameObjects, setting up scenes, or managing assets. Each operation specifies a tool name and its payload. Operations are executed sequentially, and results are returned for each operation.",
             inputSchema=batch_execute_schema,
         ),
+        types.Tool(
+            name="unity_console_log",
+            description="Retrieve Unity Editor console log messages. Returns recent log output filtered by type (all/normal/warning/error). Useful for debugging compilation errors, runtime issues, and monitoring Unity's console output.",
+            inputSchema=console_log_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -1331,6 +1355,30 @@ def register_tools(server: Server) -> None:
             else:
                 # No compilation needed or awaitCompilation disabled
                 return [types.TextContent(type="text", text=as_pretty_json(batch_result))]
+
+        if name == "unity_console_log":
+            log_type = args.get("logType", "all")
+            limit = args.get("limit", 800)
+
+            snapshot = editor_log_watcher.get_snapshot(limit)
+
+            if log_type == "all":
+                lines = snapshot.lines
+                message = "No log events captured yet. Confirm the Unity Editor log path." if not lines else None
+            elif log_type == "normal":
+                lines = snapshot.normal_lines
+                message = "No normal log events captured yet." if not lines else None
+            elif log_type == "warning":
+                lines = snapshot.warning_lines
+                message = "No warning log events captured yet." if not lines else None
+            elif log_type == "error":
+                lines = snapshot.error_lines
+                message = "No error log events captured yet." if not lines else None
+            else:
+                return [types.TextContent(type="text", text=f"Unknown log type: {log_type}")]
+
+            body = "\n".join(lines) if lines else (message or "")
+            return [types.TextContent(type="text", text=body)]
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
 
