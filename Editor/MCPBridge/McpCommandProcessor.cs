@@ -43,6 +43,7 @@ namespace MCP.Editor
                 "uguiManage" => HandleUguiManage(command.Payload),
                 "uguiCreateFromTemplate" => HandleUguiCreateFromTemplate(command.Payload),
                 "uguiLayoutManage" => HandleUguiLayoutManage(command.Payload),
+                "uguiDetectOverlaps" => HandleUguiDetectOverlaps(command.Payload),
                 "hierarchyBuilder" => HandleHierarchyBuilder(command.Payload),
                 "sceneQuickSetup" => HandleSceneQuickSetup(command.Payload),
                 "gameObjectCreateFromTemplate" => HandleGameObjectCreateFromTemplate(command.Payload),
@@ -2734,9 +2735,22 @@ namespace MCP.Editor
             };
             SetAnchorPreset(rectTransform, presetPayload);
 
-            // Apply size
+            // Apply size (with validation to prevent negative values)
             var width = GetFloat(payload, "width") ?? defaultWidth;
             var height = GetFloat(payload, "height") ?? defaultHeight;
+
+            if (width < 0)
+            {
+                Debug.LogWarning($"[ApplyCommonRectTransformSettings] Width cannot be negative. Clamping {width} to 0.");
+                width = 0;
+            }
+
+            if (height < 0)
+            {
+                Debug.LogWarning($"[ApplyCommonRectTransformSettings] Height cannot be negative. Clamping {height} to 0.");
+                height = 0;
+            }
+
             rectTransform.sizeDelta = new Vector2(width, height);
 
             // Apply position
@@ -3265,6 +3279,192 @@ namespace MCP.Editor
                 ["aspectMode"] = fitter.aspectMode.ToString(),
                 ["aspectRatio"] = fitter.aspectRatio,
             };
+        }
+
+        /// <summary>
+        /// Detects overlapping UI elements in the scene.
+        /// Can check a specific GameObject for overlaps with others, or check all UI elements for overlaps with each other.
+        /// </summary>
+        /// <param name="payload">Detection parameters including 'gameObjectPath', 'checkAll', 'includeChildren', and 'threshold'.</param>
+        /// <returns>Result dictionary with list of overlapping UI element pairs.</returns>
+        private static object HandleUguiDetectOverlaps(Dictionary<string, object> payload)
+        {
+            try
+            {
+                var gameObjectPath = GetString(payload, "gameObjectPath");
+                var checkAll = GetBool(payload, "checkAll", false);
+                var includeChildren = GetBool(payload, "includeChildren", false);
+                var threshold = GetFloat(payload, "threshold") ?? 0f;
+
+                Debug.Log($"[uguiDetectOverlaps] Detecting overlaps - checkAll={checkAll}, includeChildren={includeChildren}, threshold={threshold}");
+
+                var overlaps = new List<Dictionary<string, object>>();
+
+                if (checkAll)
+                {
+                    // Check all UI elements for overlaps with each other
+                    var allRects = UnityEngine.Object.FindObjectsOfType<RectTransform>();
+                    var rectList = new List<RectTransform>();
+
+                    foreach (var rect in allRects)
+                    {
+                        // Only include RectTransforms that are under a Canvas
+                        if (rect.GetComponentInParent<Canvas>() != null)
+                        {
+                            rectList.Add(rect);
+                        }
+                    }
+
+                    Debug.Log($"[uguiDetectOverlaps] Checking {rectList.Count} UI elements");
+
+                    for (int i = 0; i < rectList.Count; i++)
+                    {
+                        for (int j = i + 1; j < rectList.Count; j++)
+                        {
+                            var overlap = DetectRectOverlap(rectList[i], rectList[j], threshold);
+                            if (overlap != null)
+                            {
+                                overlaps.Add(overlap);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Check specific GameObject for overlaps
+                    if (string.IsNullOrEmpty(gameObjectPath))
+                    {
+                        throw new InvalidOperationException("gameObjectPath is required when checkAll is false");
+                    }
+
+                    var targetGo = ResolveGameObject(gameObjectPath);
+                    var targetRects = new List<RectTransform>();
+
+                    if (includeChildren)
+                    {
+                        targetRects.AddRange(targetGo.GetComponentsInChildren<RectTransform>());
+                    }
+                    else
+                    {
+                        var rect = targetGo.GetComponent<RectTransform>();
+                        if (rect != null)
+                        {
+                            targetRects.Add(rect);
+                        }
+                    }
+
+                    // Get all other RectTransforms in the scene
+                    var allRects = UnityEngine.Object.FindObjectsOfType<RectTransform>();
+                    var otherRects = new List<RectTransform>();
+
+                    foreach (var rect in allRects)
+                    {
+                        // Only include RectTransforms that are under a Canvas and not in targetRects
+                        if (rect.GetComponentInParent<Canvas>() != null && !targetRects.Contains(rect))
+                        {
+                            otherRects.Add(rect);
+                        }
+                    }
+
+                    Debug.Log($"[uguiDetectOverlaps] Checking {targetRects.Count} target elements against {otherRects.Count} other elements");
+
+                    foreach (var targetRect in targetRects)
+                    {
+                        foreach (var otherRect in otherRects)
+                        {
+                            var overlap = DetectRectOverlap(targetRect, otherRect, threshold);
+                            if (overlap != null)
+                            {
+                                overlaps.Add(overlap);
+                            }
+                        }
+                    }
+                }
+
+                Debug.Log($"[uguiDetectOverlaps] Found {overlaps.Count} overlaps");
+
+                return new Dictionary<string, object>
+                {
+                    ["overlaps"] = overlaps,
+                    ["count"] = overlaps.Count,
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[uguiDetectOverlaps] Error: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Detects if two RectTransforms overlap in world space.
+        /// </summary>
+        /// <param name="rect1">First RectTransform.</param>
+        /// <param name="rect2">Second RectTransform.</param>
+        /// <param name="threshold">Minimum overlap area to be considered overlapping.</param>
+        /// <returns>Dictionary with overlap information, or null if no overlap.</returns>
+        private static Dictionary<string, object> DetectRectOverlap(RectTransform rect1, RectTransform rect2, float threshold)
+        {
+            // Get world corners for both rectangles
+            Vector3[] corners1 = new Vector3[4];
+            Vector3[] corners2 = new Vector3[4];
+            rect1.GetWorldCorners(corners1);
+            rect2.GetWorldCorners(corners2);
+
+            // Calculate bounds in 2D (using x and y coordinates)
+            float rect1MinX = Mathf.Min(corners1[0].x, corners1[1].x, corners1[2].x, corners1[3].x);
+            float rect1MaxX = Mathf.Max(corners1[0].x, corners1[1].x, corners1[2].x, corners1[3].x);
+            float rect1MinY = Mathf.Min(corners1[0].y, corners1[1].y, corners1[2].y, corners1[3].y);
+            float rect1MaxY = Mathf.Max(corners1[0].y, corners1[1].y, corners1[2].y, corners1[3].y);
+
+            float rect2MinX = Mathf.Min(corners2[0].x, corners2[1].x, corners2[2].x, corners2[3].x);
+            float rect2MaxX = Mathf.Max(corners2[0].x, corners2[1].x, corners2[2].x, corners2[3].x);
+            float rect2MinY = Mathf.Min(corners2[0].y, corners2[1].y, corners2[2].y, corners2[3].y);
+            float rect2MaxY = Mathf.Max(corners2[0].y, corners2[1].y, corners2[2].y, corners2[3].y);
+
+            // Check for overlap
+            bool overlapsX = rect1MinX < rect2MaxX && rect1MaxX > rect2MinX;
+            bool overlapsY = rect1MinY < rect2MaxY && rect1MaxY > rect2MinY;
+
+            if (overlapsX && overlapsY)
+            {
+                // Calculate overlap area
+                float overlapWidth = Mathf.Min(rect1MaxX, rect2MaxX) - Mathf.Max(rect1MinX, rect2MinX);
+                float overlapHeight = Mathf.Min(rect1MaxY, rect2MaxY) - Mathf.Max(rect1MinY, rect2MinY);
+                float overlapArea = overlapWidth * overlapHeight;
+
+                if (overlapArea >= threshold)
+                {
+                    return new Dictionary<string, object>
+                    {
+                        ["element1"] = GetHierarchyPath(rect1.gameObject),
+                        ["element2"] = GetHierarchyPath(rect2.gameObject),
+                        ["overlapArea"] = overlapArea,
+                        ["overlapWidth"] = overlapWidth,
+                        ["overlapHeight"] = overlapHeight,
+                        ["element1Bounds"] = new Dictionary<string, object>
+                        {
+                            ["minX"] = rect1MinX,
+                            ["maxX"] = rect1MaxX,
+                            ["minY"] = rect1MinY,
+                            ["maxY"] = rect1MaxY,
+                            ["width"] = rect1MaxX - rect1MinX,
+                            ["height"] = rect1MaxY - rect1MinY,
+                        },
+                        ["element2Bounds"] = new Dictionary<string, object>
+                        {
+                            ["minX"] = rect2MinX,
+                            ["maxX"] = rect2MaxX,
+                            ["minY"] = rect2MinY,
+                            ["maxY"] = rect2MaxY,
+                            ["width"] = rect2MaxX - rect2MinX,
+                            ["height"] = rect2MaxY - rect2MinY,
+                        },
+                    };
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

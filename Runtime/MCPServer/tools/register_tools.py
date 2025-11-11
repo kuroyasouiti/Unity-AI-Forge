@@ -853,11 +853,13 @@ def register_tools(server: Server) -> None:
                 },
                 "width": {
                     "type": "number",
-                    "description": "Width of the UI element. Default varies by template.",
+                    "minimum": 0,
+                    "description": "Width of the UI element. Must be non-negative. Default varies by template.",
                 },
                 "height": {
                     "type": "number",
-                    "description": "Height of the UI element. Default varies by template.",
+                    "minimum": 0,
+                    "description": "Height of the UI element. Must be non-negative. Default varies by template.",
                 },
                 "positionX": {
                     "type": "number",
@@ -949,11 +951,13 @@ def register_tools(server: Server) -> None:
                 # GridLayoutGroup specific
                 "cellSizeX": {
                     "type": "number",
-                    "description": "Cell width for GridLayoutGroup.",
+                    "minimum": 0,
+                    "description": "Cell width for GridLayoutGroup. Must be non-negative.",
                 },
                 "cellSizeY": {
                     "type": "number",
-                    "description": "Cell height for GridLayoutGroup.",
+                    "minimum": 0,
+                    "description": "Cell height for GridLayoutGroup. Must be non-negative.",
                 },
                 "constraint": {
                     "type": "string",
@@ -986,12 +990,12 @@ def register_tools(server: Server) -> None:
                     "description": "Vertical fit mode for ContentSizeFitter.",
                 },
                 # LayoutElement specific
-                "minWidth": {"type": "number", "description": "Minimum width for LayoutElement."},
-                "minHeight": {"type": "number", "description": "Minimum height for LayoutElement."},
-                "preferredWidth": {"type": "number", "description": "Preferred width for LayoutElement."},
-                "preferredHeight": {"type": "number", "description": "Preferred height for LayoutElement."},
-                "flexibleWidth": {"type": "number", "description": "Flexible width for LayoutElement."},
-                "flexibleHeight": {"type": "number", "description": "Flexible height for LayoutElement."},
+                "minWidth": {"type": "number", "minimum": 0, "description": "Minimum width for LayoutElement. Must be non-negative."},
+                "minHeight": {"type": "number", "minimum": 0, "description": "Minimum height for LayoutElement. Must be non-negative."},
+                "preferredWidth": {"type": "number", "minimum": 0, "description": "Preferred width for LayoutElement. Must be non-negative."},
+                "preferredHeight": {"type": "number", "minimum": 0, "description": "Preferred height for LayoutElement. Must be non-negative."},
+                "flexibleWidth": {"type": "number", "minimum": 0, "description": "Flexible width for LayoutElement. Must be non-negative."},
+                "flexibleHeight": {"type": "number", "minimum": 0, "description": "Flexible height for LayoutElement. Must be non-negative."},
                 "ignoreLayout": {
                     "type": "boolean",
                     "description": "Whether to ignore parent layout for LayoutElement.",
@@ -1091,11 +1095,13 @@ def register_tools(server: Server) -> None:
                 },
                 "sizeDeltaX": {
                     "type": "number",
-                    "description": "Size delta X. Used with updateRect operation.",
+                    "minimum": 0,
+                    "description": "Size delta X. Must be non-negative. Used with updateRect operation.",
                 },
                 "sizeDeltaY": {
                     "type": "number",
-                    "description": "Size delta Y. Used with updateRect operation.",
+                    "minimum": 0,
+                    "description": "Size delta Y. Must be non-negative. Used with updateRect operation.",
                 },
                 "pivotX": {
                     "type": "number",
@@ -1124,6 +1130,32 @@ def register_tools(server: Server) -> None:
             },
         },
         ["gameObjectPath", "operation"],
+    )
+
+    ugui_detect_overlaps_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject path to check for overlaps. If not specified, checks all UI elements in the scene.",
+                },
+                "checkAll": {
+                    "type": "boolean",
+                    "description": "If true, checks all UI elements in the scene for overlaps with each other. If false (default), checks the specified GameObject against others.",
+                },
+                "includeChildren": {
+                    "type": "boolean",
+                    "description": "If true, includes child UI elements in the check. Default is false.",
+                },
+                "threshold": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Minimum overlap area (in square units) to be considered overlapping. Default is 0 (any overlap).",
+                },
+            },
+        },
+        [],
     )
 
     tool_definitions = [
@@ -1196,6 +1228,11 @@ def register_tools(server: Server) -> None:
             name="unity_ugui_layoutManage",
             description="Manage layout components (HorizontalLayoutGroup, VerticalLayoutGroup, GridLayoutGroup, ContentSizeFitter, LayoutElement, AspectRatioFitter) on UI GameObjects. Add, update, remove, or inspect layout settings. Makes it easy for Claude to create organized UI layouts with proper spacing and alignment.",
             inputSchema=ugui_layout_manage_schema,
+        ),
+        types.Tool(
+            name="unity_ugui_detectOverlaps",
+            description="Detect overlapping UI elements in the scene. Can check a specific GameObject for overlaps with others, or check all UI elements for overlaps with each other. Returns a list of overlapping pairs with their overlap areas and bounds. Useful for debugging UI layout issues and ensuring proper UI element positioning.",
+            inputSchema=ugui_detect_overlaps_schema,
         ),
         types.Tool(
             name="unity_tagLayer_manage",
@@ -1316,6 +1353,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_ugui_layoutManage":
             return await _call_bridge_tool("uguiLayoutManage", args)
+
+        if name == "unity_ugui_detectOverlaps":
+            return await _call_bridge_tool("uguiDetectOverlaps", args)
 
         if name == "unity_tagLayer_manage":
             return await _call_bridge_tool("tagLayerManage", args)
