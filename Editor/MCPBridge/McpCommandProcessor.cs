@@ -6559,7 +6559,7 @@ namespace MCP.Editor
         /// <summary>
         /// Gets compilation result by checking for compilation errors.
         /// This is called after compilation completes to check if there were any errors.
-        /// Uses CompilationPipeline API for accurate error detection.
+        /// Uses enhanced console log parsing for more accurate error and warning detection.
         /// </summary>
         /// <returns>Dictionary with compilation result including success status and any errors.</returns>
         public static Dictionary<string, object> GetCompilationResult()
@@ -6568,52 +6568,61 @@ namespace MCP.Editor
             var warningMessages = new List<string>();
             var assemblyInfo = new List<string>();
 
-            // Use CompilationPipeline to get accurate compilation status
-            var assemblies = CompilationPipeline.GetAssemblies();
-            var hasCompilerErrors = false;
-
-            foreach (var assembly in assemblies)
+            // Get assembly information
+            try
             {
-                var compilerMessages = CompilationPipeline.GetCompileMessages();
-
-                foreach (var message in compilerMessages)
+                var assemblies = CompilationPipeline.GetAssemblies();
+                foreach (var assembly in assemblies)
                 {
-                    if (message.type == CompilerMessageType.Error)
-                    {
-                        hasCompilerErrors = true;
-                        var errorText = $"{message.file}({message.line},{message.column}): error {message.code}: {message.message}";
-                        errorMessages.Add(errorText);
-                    }
-                    else if (message.type == CompilerMessageType.Warning)
-                    {
-                        var warningText = $"{message.file}({message.line},{message.column}): warning {message.code}: {message.message}";
-                        warningMessages.Add(warningText);
-                    }
+                    assemblyInfo.Add($"{assembly.name} ({assembly.sourceFiles.Length} files)");
                 }
-
-                assemblyInfo.Add($"{assembly.name} ({assembly.sourceFiles.Length} files)");
+            }
+            catch
+            {
+                // Ignore if we can't get assembly info
             }
 
-            // Fallback: If CompilationPipeline doesn't report errors, check console logs
-            // This catches runtime and other non-compiler errors
-            if (!hasCompilerErrors)
-            {
-                var logEntries = GetConsoleLogEntries(limit: 200); // Increased from 100 to 200
+            // Parse console logs for errors and warnings
+            // This is the most reliable way to get compilation messages after compilation completes
+            var logEntries = GetConsoleLogEntries(limit: 200); // Increased from 100 to 200
 
-                foreach (var entry in logEntries)
+            foreach (var entry in logEntries)
+            {
+                if (!entry.ContainsKey("type") || !entry.ContainsKey("message"))
                 {
-                    if (entry.ContainsKey("type") && entry["type"].ToString() == "Error" &&
-                        entry.ContainsKey("message"))
+                    continue;
+                }
+
+                var message = entry["message"].ToString();
+                var entryType = entry["type"].ToString();
+
+                if (entryType == "Error")
+                {
+                    // Enhanced error detection patterns
+                    if (message.Contains("error CS", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("CompilerError", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("Build failed", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("compilation error", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("error :", StringComparison.OrdinalIgnoreCase))
                     {
-                        var message = entry["message"].ToString();
-                        // More comprehensive error detection
-                        if (message.Contains("error CS") ||
-                            message.Contains("CompilerError") ||
-                            message.Contains("Build failed") ||
-                            message.Contains("compilation error", StringComparison.OrdinalIgnoreCase))
+                        // Avoid duplicates
+                        if (!errorMessages.Contains(message))
                         {
                             errorMessages.Add(message);
-                            hasCompilerErrors = true;
+                        }
+                    }
+                }
+                else if (entryType == "Warning")
+                {
+                    // Enhanced warning detection patterns
+                    if (message.Contains("warning CS", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("CompilerWarning", StringComparison.OrdinalIgnoreCase) ||
+                        message.Contains("warning :", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Avoid duplicates and limit to 20 warnings
+                        if (!warningMessages.Contains(message) && warningMessages.Count < 20)
+                        {
+                            warningMessages.Add(message);
                         }
                     }
                 }
@@ -6628,12 +6637,13 @@ namespace MCP.Editor
                 ["hasErrors"] = hasErrors,
                 ["hasWarnings"] = warningMessages.Count > 0,
                 ["errors"] = errorMessages,
-                ["warnings"] = warningMessages.Count > 0 ? warningMessages.Take(20).ToList() : new List<string>(),
+                ["warnings"] = warningMessages,
                 ["errorCount"] = errorMessages.Count,
                 ["warningCount"] = warningMessages.Count,
                 ["assemblies"] = assemblyInfo,
                 ["message"] = hasErrors
-                    ? $"Compilation completed with {errorMessages.Count} error(s) and {warningMessages.Count} warning(s)"
+                    ? $"Compilation completed with {errorMessages.Count} error(s)" +
+                      (warningMessages.Count > 0 ? $" and {warningMessages.Count} warning(s)" : "")
                     : (warningMessages.Count > 0
                         ? $"Compilation completed successfully with {warningMessages.Count} warning(s)"
                         : "Compilation completed successfully"),

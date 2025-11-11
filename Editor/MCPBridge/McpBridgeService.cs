@@ -36,6 +36,8 @@ namespace MCP.Editor
         private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(10);
         private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(30);
         private const string WasConnectedBeforeCompileKey = "McpBridge_WasConnectedBeforeCompile";
+        private const string CompilationStartTimeKey = "McpBridge_CompilationStartTime";
+        private const string PendingCompilationResultKey = "McpBridge_PendingCompilationResult";
 
         private static readonly ConcurrentQueue<string> IncomingMessages = new();
         private static readonly Queue<Action> MainThreadActions = new();
@@ -690,6 +692,32 @@ namespace MCP.Editor
                         Debug.Log("MCP Bridge: Sent bridge restart signal after compilation/reload.");
                     }
 
+                    // Check for pending compilation result and send it
+                    if (EditorPrefs.HasKey(PendingCompilationResultKey))
+                    {
+                        try
+                        {
+                            var resultJson = EditorPrefs.GetString(PendingCompilationResultKey, "");
+                            if (!string.IsNullOrEmpty(resultJson))
+                            {
+                                var compilationResult = MiniJson.Deserialize(resultJson) as Dictionary<string, object>;
+                                if (compilationResult != null)
+                                {
+                                    Send(McpBridgeMessages.CreateCompilationComplete(compilationResult));
+                                    Debug.Log($"MCP Bridge: Sent pending compilation result on connection (success: {compilationResult["success"]})");
+
+                                    // クリーンアップ
+                                    EditorPrefs.DeleteKey(PendingCompilationResultKey);
+                                    EditorPrefs.DeleteKey(CompilationStartTimeKey);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogError($"MCP Bridge: Failed to send pending compilation result: {ex.Message}");
+                        }
+                    }
+
                     MarkContextDirty();
                     PushContext();
                     Debug.Log("MCP Bridge: Client connected successfully.");
@@ -1031,11 +1059,37 @@ namespace MCP.Editor
 
             _isCompiling = true;
             _compilationStartTime = DateTime.UtcNow;
+
+            // コンパイル開始時刻を保存（アセンブリリロード後も経過時間を計算できるように）
+            EditorPrefs.SetString(CompilationStartTimeKey, _compilationStartTime.Ticks.ToString());
         }
 
         private static void OnCompilationFinished(object obj)
         {
             _isCompiling = false;
+
+            // コンパイル結果を保存（アセンブリリロード後に送信するため）
+            try
+            {
+                var compilationResult = McpCommandProcessor.GetCompilationResult();
+
+                // 経過時間を計算
+                var startTimeTicks = EditorPrefs.GetString(CompilationStartTimeKey, "");
+                if (!string.IsNullOrEmpty(startTimeTicks) && long.TryParse(startTimeTicks, out var ticks))
+                {
+                    var startTime = new DateTime(ticks);
+                    var elapsedSeconds = (DateTime.UtcNow - startTime).TotalSeconds;
+                    compilationResult["elapsedSeconds"] = (int)elapsedSeconds;
+                }
+
+                // コンパイル結果をJSON形式で保存
+                EditorPrefs.SetString(PendingCompilationResultKey, MiniJson.Serialize(compilationResult));
+                Debug.Log($"MCP Bridge: Compilation finished, result saved for post-reload transmission");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"MCP Bridge: Failed to save compilation result: {ex.Message}");
+            }
 
             // コンパイル結果を取得して送信
             lock (MainThreadActions)
@@ -1058,7 +1112,7 @@ namespace MCP.Editor
                     ["type"] = "compilation:started",
                     ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 };
-                Send(MiniJson.Serialize(message));
+                Send(message);
                 Debug.Log("MCP Bridge: Sent compilation started message");
             }
             catch (Exception ex)
@@ -1088,7 +1142,7 @@ namespace MCP.Editor
                     ["elapsedSeconds"] = (int)elapsedSeconds,
                     ["status"] = "compiling",
                 };
-                Send(MiniJson.Serialize(message));
+                Send(message);
             }
             catch (Exception ex)
             {
@@ -1184,6 +1238,7 @@ namespace MCP.Editor
             if (EditorPrefs.GetBool(WasConnectedBeforeCompileKey, false))
             {
                 Debug.Log("MCP Bridge: Assembly reloaded, reconnection will be initiated...");
+                // Note: コンパイル結果の送信はRegisterSocket()内で処理される
             }
         }
 
