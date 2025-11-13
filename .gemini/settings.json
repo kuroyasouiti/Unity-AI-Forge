@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "unity-mcp": {
+      "command": "C:\\Users\\garuf\\.local\\bin\\uv.exe",
+      "args": [
+        "run",
+        "--directory",
+        "C:\\Users\\garuf\\AppData\\Local\\UnityMCP\\MCPServer",
+        "main.py"
+      ]
+    }
+  }
+}

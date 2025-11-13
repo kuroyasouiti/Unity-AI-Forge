@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(claude mcp list)",
+      "Bash(claude mcp:*)",
+      "mcp__unity-mcp__unity_ping",
+      "mcp__unity-mcp__unity_constant_convert",
+      "mcp__unity-mcp__unity_asset_crud",
+      "mcp__unity-mcp__unity_project_compile",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(nul)",
+      "Bash(exit 0)",
+      "Bash(timeout /t 8 /nobreak)",
+      "mcp__unity-mcp__unity_context_inspect",
+      "mcp__unity-mcp__unity_scene_crud",
+      "mcp__unity-mcp__unity_gameobject_crud",
+      "mcp__unity-mcp__unity_console_log",
+      "mcp__unity-mcp__unity_gameobject_createFromTemplate",
+      "mcp__unity-mcp__unity_component_crud",
+      "mcp__unity-mcp__unity_ugui_createFromTemplate",
+      "mcp__unity-mcp__unity_ugui_manage",
+      "mcp__unity-mcp__unity_tagLayer_manage",
+      "mcp__unity-mcp__unity_hierarchy_builder",
+      "mcp__unity-mcp__unity_projectSettings_crud",
+      "mcp__unity-mcp__unity_renderPipeline_manage",
+      "mcp__unity-mcp__unity_inputSystem_manage",
+      "mcp__unity-mcp__unity_scene_quickSetup",
+      "mcp__unity-mcp__unity_tilemap_manage",
+      "mcp__unity-mcp__unity_navmesh_manage",
+      "mcp__unity-mcp__unity_prefab_crud",
+      "mcp__unity-mcp__unity_ugui_layoutManage",
+      "mcp__unity-mcp__unity_batch_execute",
+      "Bash(python:*)",
+      "mcp__unity-mcp__unity_await_compilation",
+      "mcp__unity-mcp__unity_ugui_detectOverlaps"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enableAllProjectMcpServers": false
+}
