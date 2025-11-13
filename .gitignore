@@ -66,23 +66,23 @@ Assets/Runtime/unity_mcp_server.egg-info/
 UserSettings/Layouts/
 
 # SkillPackage - Python artifacts
-SkillPackage/.venv/
-SkillPackage/src/__pycache__/
-SkillPackage/src/**/__pycache__/
-SkillPackage/src/*.pyc
-SkillPackage/src/**/*.pyc
-SkillPackage/*.egg-info/
-SkillPackage/dist/
-SkillPackage/build/
+.claude/skills/SkillForUnity/.venv/
+.claude/skills/SkillForUnity/src/__pycache__/
+.claude/skills/SkillForUnity/src/**/__pycache__/
+.claude/skills/SkillForUnity/src/*.pyc
+.claude/skills/SkillForUnity/src/**/*.pyc
+.claude/skills/SkillForUnity/*.egg-info/
+.claude/skills/SkillForUnity/dist/
+.claude/skills/SkillForUnity/build/
 
 # SkillPackage - Generated configuration files
-SkillPackage/config/mcp-config.json
-SkillPackage/config/claude-desktop.json
-SkillPackage/config/cursor.json
-SkillPackage/config/.env
+.claude/skills/SkillForUnity/config/mcp-config.json
+.claude/skills/SkillForUnity/config/claude-desktop.json
+.claude/skills/SkillForUnity/config/cursor.json
+.claude/skills/SkillForUnity/config/.env
 
 # SkillPackage - Keep .meta files out (Unity only)
-SkillPackage/src/**/*.meta
+.claude/skills/SkillForUnity/src/**/*.meta
 
 AGENTS.md
 CLAUDE.md
