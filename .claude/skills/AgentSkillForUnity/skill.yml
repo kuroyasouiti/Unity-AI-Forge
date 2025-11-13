@@ -1,0 +1,90 @@
+name: unity-mcp
+version: 1.0.0
+description: "Comprehensive Unity Editor integration through Model Context Protocol"
+author: "UnityMCP Team"
+license: MIT
+
+# Skill entrypoint
+entrypoint: src/main.py
+interpreter: python3
+
+# Runtime environment
+runtime:
+  python: ">=3.10"
+  platform:
+    - windows
+    - linux
+    - macos
+
+# Python dependencies
+dependencies:
+  - mcp>=0.9.0
+  - uvicorn
+  - starlette
+  - websockets
+
+# Unity-side prerequisites
+prerequisites:
+  - name: Unity Editor
+    version: ">=2021.3"
+    description: "Unity Editor with MCPBridge installed"
+  - name: MCP Bridge
+    location: "../Assets/Editor/MCPBridge/"
+    description: "Unity C# WebSocket Bridge component"
+
+# Skill capabilities
+capabilities:
+  tools: 30+
+  categories:
+    - scene_management        # Create, load, save, delete scenes
+    - gameobject_operations   # Create, move, rename, delete GameObjects
+    - component_editing       # Add, update, remove components
+    - ui_creation            # Create UI elements with templates
+    - asset_management       # Asset file operations
+    - prefab_workflow        # Prefab creation and management
+    - tilemap_design         # 2D tilemap operations
+    - navmesh_operations     # NavMesh baking and agents
+    - input_system           # New Input System management
+    - batch_operations       # Batch execute multiple operations
+
+# MCP configuration
+mcp:
+  transport: stdio
+  default_timeout_ms: 30000
+  bridge:
+    host: localhost
+    port: 7077
+    path: /bridge
+    protocol: ws
+
+# Quick examples
+examples:
+  - path: examples/01-basic-scene-setup.py
+    description: "Set up a 3D game scene with player and obstacles"
+  - path: examples/02-ui-creation.py
+    description: "Create a complete UI menu system"
+  - path: examples/03-game-level.py
+    description: "Build a game level with terrain and enemies"
+  - path: examples/04-prefab-workflow.py
+    description: "Create and manage prefabs"
+
+# Documentation structure
+documentation:
+  quick_start: QUICKSTART.md
+  readme: README.md
+  api_reference: docs/api-reference/
+  guides: docs/guides/
+  troubleshooting: docs/troubleshooting.md
+
+# Setup and configuration
+setup:
+  install_script:
+    windows: setup/install.ps1
+    linux: setup/install.sh
+    macos: setup/install.sh
+  config_helper: setup/configure.py
+  templates:
+    - config/mcp-config.json.template
+    - config/claude-desktop.json.example
+    - config/cursor.json.example
+    - config/.env.example

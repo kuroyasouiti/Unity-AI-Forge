@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "unity-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/absolute/path/to/SkillPackage",
+        "src/main.py"
+      ],
+      "env": {
+        "MCP_SERVER_TRANSPORT": "stdio",
+        "MCP_LOG_LEVEL": "info",
+        "MCP_BRIDGE_HOST": "localhost",
+        "MCP_BRIDGE_PORT": "7077"
+      }
+    }
+  }
+}

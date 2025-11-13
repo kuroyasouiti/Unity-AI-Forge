@@ -16,12 +16,8 @@ sysinfo.txt
 __pycache__/
 ProjectSettings/
 
-# Unity Assets (keep only MCPServer and MCPBridge code)
+# Unity Assets (keep only MCPBridge code, MCPServer moved to SkillPackage)
 Assets/*
-!Assets/Runtime
-Assets/Runtime/*
-!Assets/Runtime/MCPServer
-!Assets/Runtime/MCPServer/**
 !Assets/Editor
 Assets/Editor/*
 !Assets/Editor/MCPBridge
@@ -69,5 +65,26 @@ Assets/Runtime/.venv/
 Assets/Runtime/unity_mcp_server.egg-info/
 UserSettings/Layouts/
 
+# SkillPackage - Python artifacts
+SkillPackage/.venv/
+SkillPackage/src/__pycache__/
+SkillPackage/src/**/__pycache__/
+SkillPackage/src/*.pyc
+SkillPackage/src/**/*.pyc
+SkillPackage/*.egg-info/
+SkillPackage/dist/
+SkillPackage/build/
+
+# SkillPackage - Generated configuration files
+SkillPackage/config/mcp-config.json
+SkillPackage/config/claude-desktop.json
+SkillPackage/config/cursor.json
+SkillPackage/config/.env
+
+# SkillPackage - Keep .meta files out (Unity only)
+SkillPackage/src/**/*.meta
+
 AGENTS.md
 CLAUDE.md
+Packages/
+.claude/settings.local.json

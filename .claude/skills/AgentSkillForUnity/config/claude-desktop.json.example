@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "unity-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "D:/Projects/MCP/SkillPackage",
+        "src/main.py"
+      ],
+      "env": {
+        "MCP_SERVER_TRANSPORT": "stdio",
+        "MCP_LOG_LEVEL": "info"
+      }
+    }
+  }
+}

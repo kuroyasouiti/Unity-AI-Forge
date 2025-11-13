@@ -1,53 +1,63 @@
-# UnityMCP - Model Context Protocol Server for Unity
+# UnityMCP - Unity Editor Integration via Model Context Protocol
 
-UnityMCP is a comprehensive Model Context Protocol (MCP) server that enables AI assistants to interact with Unity Editor in real-time. It provides extensive tools for scene management, GameObject manipulation, component editing, asset operations, 2D Tilemap design, NavMesh navigation, UI layout, prefabs, input systems, and more.
+**Enable AI assistants to control Unity Editor in real-time through the Model Context Protocol.**
 
-## Architecture
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
+[![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-UnityMCP uses a **bidirectional WebSocket bridge** architecture:
+## 📦 What's New: Skill Package Structure
+
+UnityMCP has been restructured as a **Claude Agent Skill** for easier setup and distribution!
 
 ```
-AI Client (Claude Code/Cursor) <--(MCP)--> Python Server <--(WebSocket)--> Unity Editor Bridge
+UnityMCP/
+├── Assets/Editor/MCPBridge/    # Unity C# WebSocket Bridge
+└── SkillPackage/                # ⭐ Standalone MCP Skill Package
+    ├── src/                     # Python MCP Server
+    ├── setup/                   # Installation scripts
+    ├── examples/                # Practical tutorials
+    ├── docs/                    # Comprehensive documentation
+    └── config/                  # Configuration templates
 ```
 
-### Components
+## 🚀 Quick Start
 
-1. **Unity C# Bridge** (`Assets/Editor/MCPBridge/`) - WebSocket server running inside Unity Editor
-2. **Python MCP Server** (`Assets/Runtime/MCPServer/`) - MCP protocol implementation that connects to the bridge
+### 1. Install the Skill Package
 
-## Quick Start
-
-### 1. Unity Editor Setup
-
-1. Open your Unity project
-2. Import the UnityMCP package
-3. Go to **Tools > MCP Assistant**
-4. Click **Start Bridge**
-5. The bridge will listen on `ws://localhost:7077/bridge` by default
-
-### 2. Python Server Setup
+**Navigate to SkillPackage directory:**
 
 ```bash
-# Navigate to the MCP server directory
-cd Assets/Runtime/MCPServer
-
-# Run with uv (recommended)
-uv run main.py
-
-# Or with Python directly
-python main.py --transport stdio
+cd SkillPackage
 ```
 
-### 3. Configure MCP Client
+**Windows:**
+```powershell
+.\setup\install.ps1
+```
 
-Add to your MCP client configuration (e.g., Claude Desktop):
+**Linux/macOS:**
+```bash
+./setup/install.sh
+```
 
+### 2. Start Unity Bridge
+
+1. Open Unity Editor with this project
+2. Go to **Tools > MCP Assistant**
+3. Click **Start Bridge**
+4. Wait for "Connected" status
+
+### 3. Configure Your MCP Client
+
+**Claude Desktop** - Add to your config:
 ```json
 {
   "mcpServers": {
-    "unity": {
+    "unity-mcp": {
       "command": "uv",
-      "args": ["run", "--directory", "D:/Projects/MCP/Assets/Runtime/MCPServer", "main.py"],
+      "args": ["run", "--directory", "/path/to/SkillPackage", "src/main.py"],
       "env": {
         "MCP_SERVER_TRANSPORT": "stdio",
         "MCP_LOG_LEVEL": "info"
@@ -57,978 +67,201 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 }
 ```
 
-## Available Tools
-
-### Core Operations
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.ping` | Verify bridge connectivity | Returns Unity version, project name, timestamp |
-| `unity.scene.crud` | Scene management | create, load, save, delete, duplicate scenes |
-| `unity.gameobject.crud` | GameObject hierarchy management | create, delete, move, rename, duplicate, inspect GameObjects |
-| `unity.component.crud` | Component operations | add, remove, update, inspect components on GameObjects |
-| `unity.asset.crud` | Asset file operations | create, update, rename, duplicate, delete, inspect Assets/ files |
-
-**Scene Management (`unity.scene.crud`)**
-- Create new scenes with default GameObjects
-- Load scenes additively or single mode
-- Save active or all open scenes
-- Delete and duplicate scenes
-- Full AssetDatabase integration
-
-**GameObject Management (`unity.gameobject.crud`)**
-- Create GameObjects with parent hierarchy
-- Move GameObjects in hierarchy
-- Rename and duplicate with children
-- Inspect to see all attached components and properties
-- Delete with undo support
-
-**Component Management (`unity.component.crud`)**
-- Add components by fully qualified type name
-- Update component properties with dictionary-based changes
-- **NEW: UnityEvent listener support** (Button.onClick, Slider.onValueChanged, etc.)
-- Support for Unity Object references (meshes, materials, sprites)
-- Built-in resource loading (`Library/unity default resources::`)
-- Inspect component state and properties
-
-**Asset Management (`unity.asset.crud`)**
-- Create text-based assets (C# scripts, JSON, configs)
-- Update existing asset contents
-- Rename, duplicate, delete assets
-- Inspect asset metadata and contents
-- Auto-refresh AssetDatabase
-
-> **Tip:** After generating or editing C# scripts, batch as many changes as you can, then run `unity.project.compile` once to refresh the AssetDatabase, trigger Unity compilation, and confirm no errors remain before continuing.
-
----
-
-### High-Level Tools (Recommended for Quick Development)
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.scene.quickSetup` | **Instant scene setup** | Create 3D/2D/UI/VR/Empty scenes with proper defaults |
-| `unity.gameobject.createFromTemplate` | **GameObject templates** | Create primitives, lights, camera, player, enemy from templates |
-| `unity.ugui.createFromTemplate` | **UI element templates** | Create Button, Text, Image, Panel, ScrollView, InputField, Slider, Toggle, Dropdown |
-| `unity.ugui.layoutManage` | **Layout component management** | Add/update/remove layout groups (Horizontal/Vertical/Grid/ContentSizeFitter/etc.) |
-| `unity.hierarchy.builder` | **Declarative hierarchy creation** | Build complex nested GameObject structures in one command |
-| `unity.context.inspect` | **Scene context inspection** | Get comprehensive overview of scene hierarchy and state |
-
-**Scene Quick Setup (`unity.scene.quickSetup`)** - NEW!
-- **3D**: Creates Main Camera + Directional Light (checks for existing objects to avoid duplicates)
-- **2D**: Creates 2D Camera with orthographic projection
-- **UI**: Creates Canvas + EventSystem (checks for existing objects)
-- **VR**: Creates VR Camera setup
-- **Empty**: Empty scene with no default objects
-
-**Features:**
-- **Duplicate Prevention**: Automatically detects existing cameras, lights, canvas, and event systems
-- One-command scene initialization
-- Sensible defaults for each scene type
-- Perfect for rapid prototyping
-
-**Example - Setup UI Scene:**
-```json
-{
-  "tool": "sceneQuickSetup",
-  "payload": {
-    "setupType": "UI"
-  }
-}
+Or run the configuration helper:
+```bash
+cd SkillPackage
+python setup/configure.py
 ```
 
-**GameObject Templates (`unity.gameobject.createFromTemplate`)** - NEW!
-- **Primitives**: Cube, Sphere, Plane, Cylinder, Capsule, Quad (with MeshRenderer + Collider)
-- **Lights**: Directional, Point, Spot lights with proper defaults
-- **Special**: Camera, Empty, Player (with CharacterController), Enemy, Particle System, Audio Source
+### 4. Test Connection
 
-**Features:**
-- Pre-configured components for each template
-- Transform properties (position, rotation, scale)
-- Undo support
-- Parent hierarchy support
+```
+Can you test the Unity MCP connection?
+```
 
-**Example - Create Player:**
-```json
-{
-  "tool": "gameObjectCreateFromTemplate",
-  "payload": {
+The AI should call `unity_ping()` and show Unity version information.
+
+## 📚 Documentation
+
+### For Users
+
+- **[SkillPackage/QUICKSTART.md](SkillPackage/QUICKSTART.md)** - Get started in 5 minutes
+- **[SkillPackage/README.md](SkillPackage/README.md)** - Complete skill documentation
+- **[SkillPackage/examples/](SkillPackage/examples/)** - Practical examples and tutorials
+
+### For Developers
+
+- **[SkillPackage/docs/](SkillPackage/docs/)** - API reference and guides
+- **[CLAUDE.md](CLAUDE.md)** - Instructions for Claude Code integration
+- **[AGENTS.md](AGENTS.md)** - Repository guidelines
+
+## 🏗️ Architecture
+
+```
+AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity C# Bridge
+                                      (SkillPackage/src/)                   (Assets/Editor/)
+```
+
+### Components
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| **Unity C# Bridge** | `Assets/Editor/MCPBridge/` | WebSocket server running inside Unity Editor |
+| **Python MCP Server** | `SkillPackage/src/` | MCP protocol implementation |
+| **Setup Scripts** | `SkillPackage/setup/` | Installation and configuration helpers |
+| **Examples** | `SkillPackage/examples/` | Practical tutorials and guides |
+| **Documentation** | `SkillPackage/docs/` | API reference and best practices |
+
+## ✨ Features
+
+### Core Capabilities
+
+- **30+ Unity Tools** - Complete control over Unity Editor
+- **Scene Management** - Create, load, save, delete scenes
+- **GameObject Operations** - Full hierarchy manipulation
+- **Component Editing** - Add, update, remove components
+- **UI Creation** - Templates for buttons, panels, text, etc.
+- **Asset Management** - Asset file operations
+- **Prefab Workflow** - Create and manage prefabs
+- **Batch Operations** - Execute multiple commands efficiently
+
+### Advanced Features
+
+- **Tilemap Design** - 2D tilemap operations
+- **NavMesh Operations** - Navigation mesh and agents
+- **Input System** - New Input System management
+- **Project Settings** - Configure Unity settings
+- **Render Pipeline** - Manage render pipeline settings
+- **Automatic Compilation** - Detects and waits for Unity compilation
+
+## 🎮 Example: Create a 3D Game Scene
+
+```python
+# Set up a 3D scene
+unity_scene_quickSetup({"setupType": "3D"})
+
+# Create ground
+unity_gameobject_createFromTemplate({
+    "template": "Plane",
+    "name": "Ground",
+    "scale": {"x": 10, "y": 1, "z": 10}
+})
+
+# Create player
+unity_gameobject_createFromTemplate({
     "template": "Player",
+    "name": "Player",
     "position": {"x": 0, "y": 1, "z": 0}
-  }
-}
+})
+
+# Add obstacles
+unity_batch_execute({
+    "operations": [
+        {"tool": "gameObjectCreateFromTemplate",
+         "payload": {"template": "Cube", "name": "Wall1",
+                    "position": {"x": 5, "y": 0.5, "z": 0}}},
+        {"tool": "gameObjectCreateFromTemplate",
+         "payload": {"template": "Cube", "name": "Wall2",
+                    "position": {"x": -5, "y": 0.5, "z": 0}}}
+    ]
+})
 ```
 
-**UI Element Templates (`unity.ugui.createFromTemplate`)** - NEW!
-- **Elements**: Button, Text, Image, RawImage, Panel, ScrollView, InputField, Slider, Toggle, Dropdown
-- Each template includes all necessary components (Image, Button, Text, etc.)
-- Customizable properties (text, fontSize, width, height, interactable, anchorPreset)
-- Automatically finds Canvas parent if not specified
+See [SkillPackage/examples/](SkillPackage/examples/) for more tutorials.
 
-**Features:**
-- Complete UI elements in one command
-- Sensible defaults for each element type
-- RectTransform anchor presets
-- Parent hierarchy support
+## 🛠️ Development
 
-**Example - Create Button:**
-```json
-{
-  "tool": "uguiCreateFromTemplate",
-  "payload": {
-    "template": "Button",
-    "text": "Start Game",
-    "width": 200,
-    "height": 50,
-    "anchorPreset": "center"
-  }
-}
-```
-
-**Layout Management (`unity.ugui.layoutManage`)** - NEW!
-- **Layout Groups**: HorizontalLayoutGroup, VerticalLayoutGroup, GridLayoutGroup
-- **Fitters**: ContentSizeFitter, LayoutElement, AspectRatioFitter
-- Operations: add, update, remove, inspect layout components
-- Full control over spacing, padding, alignment, child control
-
-**Example - Add Vertical Layout:**
-```json
-{
-  "tool": "uguiLayoutManage",
-  "payload": {
-    "operation": "add",
-    "gameObjectPath": "Canvas/Panel",
-    "layoutType": "VerticalLayoutGroup",
-    "spacing": 10,
-    "padding": {"left": 20, "right": 20, "top": 20, "bottom": 20}
-  }
-}
-```
-
-**Hierarchy Builder (`unity.hierarchy.builder`)** - NEW!
-- Build complex nested structures declaratively with JSON
-- Specify components, properties, and children in one definition
-- Supports fully qualified component type names
-- Recursive hierarchy creation with proper parenting
-
-**Example - Build Game Manager Hierarchy:**
-```json
-{
-  "tool": "hierarchyBuilder",
-  "payload": {
-    "hierarchy": {
-      "GameManager": {
-        "components": ["MyNamespace.GameManager"],
-        "children": {
-          "UI": {
-            "children": {
-              "ScoreText": {"components": ["UnityEngine.UI.Text"]},
-              "HealthBar": {"components": ["UnityEngine.UI.Slider"]}
-            }
-          },
-          "Audio": {
-            "children": {
-              "MusicSource": {"components": ["UnityEngine.AudioSource"]},
-              "SFXSource": {"components": ["UnityEngine.AudioSource"]}
-            }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-**Context Inspector (`unity.context.inspect`)** - NEW!
-- Get comprehensive scene overview (hierarchy, GameObjects, components)
-- Filter by wildcard patterns (* and ?)
-- Control detail level (includeComponents, includeHierarchy, maxDepth)
-- Returns object counts (cameras, lights, canvas)
-
-**Example - Inspect Scene:**
-```json
-{
-  "tool": "contextInspect",
-  "payload": {
-    "includeHierarchy": true,
-    "includeComponents": true,
-    "maxDepth": 3,
-    "filter": "Player*"
-  }
-}
-```
-
----
-
-### 2D Tilemap System
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.tilemap.manage` | 2D Tilemap operations | createTilemap, setTile, getTile, clearTile, fillArea, inspectTilemap, clearAll |
-
-**Tilemap Management (`unity.tilemap.manage`)**
-- **createTilemap**: Create new Tilemap with Grid parent automatically
-- **setTile**: Place tiles at specific grid coordinates (X, Y, Z)
-- **getTile**: Retrieve tile information at position
-- **clearTile**: Remove tile from position
-- **fillArea**: Fill rectangular areas with tiles efficiently
-- **inspectTilemap**: Get bounds, tile count, and statistics
-- **clearAll**: Remove all tiles from Tilemap
-
-**Features:**
-- Automatic Grid parent creation
-- Support for 3D tile positioning (Z-axis)
-- Efficient area filling with undo support
-- Integration with Unity's 2D Tilemap system
-- Perfect for level design and procedural generation
-
-**Example - Create 2D Level:**
-```json
-{
-  "tool": "tilemapManage",
-  "payload": {
-    "operation": "fillArea",
-    "gameObjectPath": "Grid/Level1",
-    "tileAssetPath": "Assets/Tiles/Ground.asset",
-    "startX": 0,
-    "startY": 0,
-    "endX": 20,
-    "endY": 15
-  }
-}
-```
-
----
-
-### Navigation System (NavMesh)
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.navmesh.manage` | NavMesh and AI navigation | bakeNavMesh, clearNavMesh, addNavMeshAgent, setDestination, inspectNavMesh, createNavMeshSurface |
-
-**NavMesh Management (`unity.navmesh.manage`)**
-- **bakeNavMesh**: Bake navigation mesh for current scene
-- **clearNavMesh**: Clear all baked NavMesh data
-- **addNavMeshAgent**: Add NavMeshAgent component with configuration
-  - Configure speed, acceleration, stopping distance
-  - Set agent properties (radius, height)
-- **setDestination**: Set NavMeshAgent target destination
-  - Returns path status (hasPath, pathPending)
-- **inspectNavMesh**: Get NavMesh statistics
-  - Triangulation data (vertices, triangles, areas)
-  - Agent settings (radius, height, slope, climb)
-- **updateSettings**: View current NavMesh bake settings (read-only)
-- **createNavMeshSurface**: Add NavMeshSurface component (requires NavMesh Components package)
-
-**Features:**
-- Real-time NavMesh baking
-- Full NavMeshAgent configuration
-- Runtime pathfinding control
-- NavMesh statistics and debugging
-- Support for NavMesh Components package
-
-**Example - Setup AI Agent:**
-```json
-{
-  "operations": [
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "addNavMeshAgent",
-        "gameObjectPath": "Enemy",
-        "agentSpeed": 3.5,
-        "agentStoppingDistance": 1.0
-      }
-    },
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "setDestination",
-        "gameObjectPath": "Enemy",
-        "destinationX": 10.0,
-        "destinationY": 0.0,
-        "destinationZ": 5.0
-      }
-    }
-  ]
-}
-```
-
----
-
-### UI System (UGUI)
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.ugui.manage` | **Unified UGUI management** | rectAdjust, setAnchor, setAnchorPreset, convertToAnchored, convertToAbsolute, inspect, updateRect |
-| `unity.ugui.rectAdjust` | Adjust RectTransform size | Layout-based size adjustments |
-| `unity.ugui.anchorManage` | RectTransform anchor management | Custom anchors, presets, position conversion |
-
-**Unified UGUI Tool (`unity.ugui.manage`)** - Recommended
-- **rectAdjust**: Adjust RectTransform based on world corners
-- **setAnchor**: Set custom anchor values (min/max X/Y)
-- **setAnchorPreset**: Apply common presets (top-left, center, stretch, etc.)
-- **convertToAnchored**: Convert absolute to anchored positioning
-- **convertToAbsolute**: Convert anchored to absolute positioning
-- **inspect**: Get RectTransform state
-- **updateRect**: Update RectTransform properties directly
-
-**Anchor Presets:**
-- Position: top-left, top-center, top-right, middle-left, center, middle-right, bottom-left, bottom-center, bottom-right
-- Stretch: stretch-horizontal, stretch-vertical, stretch-all, stretch-top, stretch-middle, stretch-bottom
-
-**Features:**
-- Preserve visual position when changing anchors
-- Support for CanvasScaler reference resolution
-- Direct property updates (anchoredPosition, sizeDelta, pivot, offsets)
-- Complete RectTransform control
-
----
-
-### Tags and Layers
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.tagLayer.manage` | Tag and layer management | GameObject: setTag, getTag, setLayer, getLayer, setLayerRecursive<br>Project: listTags, addTag, removeTag, listLayers, addLayer, removeLayer |
-
-**Tag and Layer Management (`unity.tagLayer.manage`)**
-- **GameObject Operations:**
-  - setTag/getTag: Manage tags on individual GameObjects
-  - setLayer/getLayer: Set layer by name or index
-  - setLayerRecursive: Set layer on GameObject and all children
-- **Project Operations:**
-  - listTags/listLayers: View all available tags/layers
-  - addTag/addLayer: Create new tags/layers in project
-  - removeTag/removeLayer: Delete tags/layers from project
-
-**Features:**
-- Layer names or indices supported
-- Recursive layer setting for hierarchies
-- Complete tag/layer project management
-- Integration with Physics and rendering systems
-
----
-
-### Prefabs
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.prefab.crud` | Prefab workflow | create, update, inspect, instantiate, unpack, applyOverrides, revertOverrides |
-
-**Prefab Management (`unity.prefab.crud`)**
-- **create**: Create new prefab from scene GameObject
-  - Option to include children
-- **update**: Update existing prefab from modified instance
-- **inspect**: Get prefab asset information
-- **instantiate**: Create prefab instance in scene
-  - Maintains prefab connection
-  - Optional parent specification
-- **unpack**: Unpack prefab instance to regular GameObjects
-  - OutermostRoot or Completely modes
-- **applyOverrides**: Apply instance modifications to prefab asset
-- **revertOverrides**: Revert instance to prefab state
-
-**Features:**
-- Full prefab workflow support
-- Nested prefab handling
-- Override management
-- Instance tracking
-
----
-
-### Project Settings
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.projectSettings.crud` | Project settings management | read, write, list settings |
-| `unity.renderPipeline.manage` | Render pipeline management | inspect, setAsset, getSettings |
-
-**Project Settings (`unity.projectSettings.crud`)**
-- **Categories:**
-  - player: PlayerSettings (company name, product name, version, screen settings)
-  - quality: QualitySettings (quality levels, shadows, anti-aliasing)
-  - time: Time settings (fixedDeltaTime, timeScale)
-  - physics: Physics settings (gravity, collision, iterations)
-  - audio: AudioSettings (DSP buffer, sample rate, voices)
-  - editor: EditorSettings (serialization mode, line endings)
-
-**Render Pipeline (`unity.renderPipeline.manage`)**
-- **inspect**: Check current pipeline (Built-in/URP/HDRP/Custom)
-- **setAsset**: Change render pipeline asset
-- **getSettings**: Read pipeline-specific settings
-- Pipeline-specific property access through reflection
-
----
-
-### Input System
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.inputSystem.manage` | New Input System management | listActions, createAsset, addActionMap, addAction, addBinding, inspectAsset, deleteAsset, deleteActionMap, deleteAction, deleteBinding |
-
-**Input System (`unity.inputSystem.manage`)** - Requires Input System Package
-- **Asset Management:**
-  - listActions: Find all .inputactions files
-  - createAsset: Create new Input Action asset
-  - inspectAsset: View action maps and actions
-  - deleteAsset: Remove Input Action asset
-- **Action Maps:**
-  - addActionMap: Add action map to asset
-  - deleteActionMap: Remove action map
-- **Actions:**
-  - addAction: Add action to map (Button, Value, PassThrough)
-  - deleteAction: Remove action
-- **Bindings:**
-  - addBinding: Add input binding to action
-  - deleteBinding: Remove specific or all bindings
-
-**Common Binding Paths:**
-- Keyboard: `<Keyboard>/space`, `<Keyboard>/w`, `<Keyboard>/escape`
-- Mouse: `<Mouse>/leftButton`, `<Mouse>/position`, `<Mouse>/delta`
-- Gamepad: `<Gamepad>/buttonSouth`, `<Gamepad>/leftStick`
-
----
-
-### Utilities
-
-| Tool | Description | Key Operations |
-|------|-------------|----------------|
-| `unity.project.compile` | Trigger Unity compilation | Refresh assets, request compile, optionally await results |
-| `unity.batch.execute` | **Batch operations** | Execute multiple tools in one request |
-
-**Project Compile (`unity.project.compile`)**
-- Refresh the AssetDatabase before compiling (toggle with `refreshAssetDatabase`)
-- Ask Unity to start C# compilation (controlled by `requestScriptCompilation`)
-- Waits for the next compilation result by default (`awaitCompletion` defaults to `true`) so errors surface immediately
-- Batch multiple script edits before running to keep Unity recompiles to a minimum
-- Recommended immediately after creating or editing scripts so you can confirm the Editor compiles cleanly before proceeding
-
-**Batch Execute (`unity.batch.execute`)** - High Performance
-- Execute multiple operations sequentially
-- Mix any tools (tilemap, navmesh, gameObject, etc.)
-- Error handling with stopOnError flag
-- Individual operation result tracking
-- Perfect for complex scene setups
-
-**Batch Execution Features:**
-- **Sequential Processing**: Operations execute in order
-- **Error Control**: Continue or stop on first error
-- **Result Tracking**: Get success/failure for each operation
-- **Tool Mixing**: Combine any Unity tools in one batch
-- **Performance**: Reduced network overhead
-
-**Supported in Batch:**
-All tools can be used in batch operations: sceneManage, gameObjectManage, componentManage, assetManage, tilemapManage, navmeshManage, uguiManage, tagLayerManage, prefabManage, projectSettingsManage, renderPipelineManage, inputSystemManage
-
----
-
-## Available Resources
-
-| Resource | Description |
-|----------|-------------|
-| `unity://project/structure` | Project directory structure and asset listings |
-| `unity://editor/log` | Unity Editor log (recent entries) |
-| `unity://scene/active` | Active scene hierarchy and GameObject information |
-| `unity://scene/list` | List of all scenes in the project |
-| `unity://asset/{guid}` | Asset details by GUID |
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MCP_SERVER_TRANSPORT` | Transport mode: `stdio` or `websocket` | `stdio` |
-| `MCP_SERVER_HOST` | WebSocket server host (websocket mode) | `127.0.0.1` |
-| `MCP_SERVER_PORT` | WebSocket server port (websocket mode) | `7070` |
-| `MCP_BRIDGE_TOKEN` | Optional authentication token | - |
-| `MCP_LOG_LEVEL` | Log level: `trace`, `debug`, `info`, `warn`, `error` | `info` |
-
-### Unity Bridge Settings
-
-Configure via **Tools > MCP Assistant** window:
-
-- **Bridge Port**: Port for WebSocket listener (default: 7077)
-- **Context Update Interval**: How often to push scene updates (default: 5s)
-- **Heartbeat Interval**: Connection health check interval (default: 10s)
-
----
-
-## Example Usage
-
-### Example 1: Build Complete 2D Level with Navigation
-
-```json
-{
-  "operations": [
-    {
-      "tool": "tilemapManage",
-      "payload": {
-        "operation": "createTilemap",
-        "tilemapName": "Arena"
-      }
-    },
-    {
-      "tool": "tilemapManage",
-      "payload": {
-        "operation": "fillArea",
-        "gameObjectPath": "Grid/Arena",
-        "tileAssetPath": "Assets/Tiles/Floor.asset",
-        "startX": 0,
-        "startY": 0,
-        "endX": 20,
-        "endY": 20
-      }
-    },
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "bakeNavMesh"
-      }
-    },
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "Player",
-        "name": "Player"
-      }
-    },
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "addNavMeshAgent",
-        "gameObjectPath": "Player",
-        "agentSpeed": 5.0
-      }
-    }
-  ],
-  "stopOnError": true
-}
-```
-
-### Example 2: Create UI Hierarchy
-
-```json
-{
-  "operations": [
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "Canvas/Panel",
-        "name": "Panel"
-      }
-    },
-    {
-      "tool": "componentManage",
-      "payload": {
-        "operation": "add",
-        "gameObjectPath": "Canvas/Panel",
-        "componentType": "UnityEngine.UI.Image"
-      }
-    },
-    {
-      "tool": "uguiManage",
-      "payload": {
-        "operation": "setAnchorPreset",
-        "gameObjectPath": "Canvas/Panel",
-        "preset": "center",
-        "preservePosition": true
-      }
-    },
-    {
-      "tool": "uguiManage",
-      "payload": {
-        "operation": "updateRect",
-        "gameObjectPath": "Canvas/Panel",
-        "sizeDeltaX": 200,
-        "sizeDeltaY": 100
-      }
-    }
-  ]
-}
-```
-
-### Example 3: Setup UI with Event Listeners (NEW!)
-
-```json
-{
-  "operations": [
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "GameManager",
-        "name": "GameManager"
-      }
-    },
-    {
-      "tool": "uguiCreateFromTemplate",
-      "payload": {
-        "template": "Button",
-        "name": "StartButton",
-        "text": "Start Game",
-        "positionY": 50
-      }
-    },
-    {
-      "tool": "uguiCreateFromTemplate",
-      "payload": {
-        "template": "Slider",
-        "name": "VolumeSlider",
-        "positionY": -50
-      }
-    },
-    {
-      "tool": "componentManage",
-      "payload": {
-        "operation": "update",
-        "gameObjectPath": "Canvas/StartButton",
-        "componentType": "UnityEngine.UI.Button",
-        "propertyChanges": {
-          "onClick": "GameManager.OnStartGame"
-        }
-      }
-    },
-    {
-      "tool": "componentManage",
-      "payload": {
-        "operation": "update",
-        "gameObjectPath": "Canvas/VolumeSlider",
-        "componentType": "UnityEngine.UI.Slider",
-        "propertyChanges": {
-          "onValueChanged": {
-            "listeners": [
-              {
-                "targetPath": "GameManager",
-                "methodName": "SetVolume",
-                "mode": "Float"
-              }
-            ]
-          }
-        }
-      }
-    }
-  ]
-}
-```
-
-**UnityEvent Listener Modes:**
-- `Void` - No arguments
-- `Int`, `Float`, `String`, `Bool` - Primitive arguments
-- `Object` - UnityEngine.Object argument
-
-### Example 4: Setup Input System
-
-```json
-{
-  "operations": [
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "createAsset",
-        "assetPath": "Assets/Input/PlayerControls.inputactions"
-      }
-    },
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "addActionMap",
-        "assetPath": "Assets/Input/PlayerControls.inputactions",
-        "mapName": "Player"
-      }
-    },
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "addAction",
-        "assetPath": "Assets/Input/PlayerControls.inputactions",
-        "mapName": "Player",
-        "actionName": "Move",
-        "actionType": "Value"
-      }
-    },
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "addBinding",
-        "assetPath": "Assets/Input/PlayerControls.inputactions",
-        "mapName": "Player",
-        "actionName": "Move",
-        "path": "<Keyboard>/wasd"
-      }
-    }
-  ]
-}
-```
-
-### Example 4: Manage Tags and Layers
-
-```json
-{
-  "operations": [
-    {
-      "tool": "tagLayerManage",
-      "payload": {
-        "operation": "addTag",
-        "tag": "Enemy"
-      }
-    },
-    {
-      "tool": "tagLayerManage",
-      "payload": {
-        "operation": "addLayer",
-        "layer": "Characters"
-      }
-    },
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "EnemyGroup",
-        "name": "EnemyGroup"
-      }
-    },
-    {
-      "tool": "tagLayerManage",
-      "payload": {
-        "operation": "setLayerRecursive",
-        "gameObjectPath": "EnemyGroup",
-        "layer": "Characters"
-      }
-    },
-    {
-      "tool": "tagLayerManage",
-      "payload": {
-        "operation": "setTag",
-        "gameObjectPath": "EnemyGroup",
-        "tag": "Enemy"
-      }
-    }
-  ]
-}
-```
-
-### Example 5: Prefab Workflow
-
-```json
-{
-  "operations": [
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "PlayerCharacter",
-        "name": "PlayerCharacter"
-      }
-    },
-    {
-      "tool": "componentManage",
-      "payload": {
-        "operation": "add",
-        "gameObjectPath": "PlayerCharacter",
-        "componentType": "UnityEngine.CharacterController"
-      }
-    },
-    {
-      "tool": "prefabManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "PlayerCharacter",
-        "prefabPath": "Assets/Prefabs/Player.prefab",
-        "includeChildren": true
-      }
-    },
-    {
-      "tool": "prefabManage",
-      "payload": {
-        "operation": "instantiate",
-        "prefabPath": "Assets/Prefabs/Player.prefab",
-        "parentPath": "GameWorld"
-      }
-    }
-  ]
-}
-```
-
----
-
-## Development
-
-### File Structure
+### Project Structure
 
 ```
-Assets/
-├── Editor/
-│   └── MCPBridge/                    # Unity C# bridge
-│       ├── McpBridgeService.cs            # WebSocket server
-│       ├── McpCommandProcessor.cs         # Tool execution (4700+ lines)
-│       ├── McpContextCollector.cs         # Context gathering
-│       ├── McpBridgeWindow.cs             # Unity Editor UI
-│       └── McpBridgeSettings.cs           # Configuration
-└── Runtime/
-    └── MCPServer/                    # Python MCP server
-        ├── main.py                        # Server entrypoint
-        ├── bridge/                        # WebSocket client
-        │   ├── bridge_manager.py          # Connection management
-        │   └── messages.py                # Message protocol
-        ├── tools/                         # Tool definitions
-        │   └── register_tools.py          # All tool schemas (800+ lines)
-        └── resources/                     # Resource providers
-            └── register_resources.py
+UnityMCP/
+├── Assets/
+│   └── Editor/
+│       └── MCPBridge/           # Unity C# Bridge
+│           ├── McpBridgeService.cs
+│           ├── McpCommandProcessor.cs
+│           └── McpContextCollector.cs
+│
+├── SkillPackage/                # Python MCP Skill
+│   ├── src/                     # MCP Server source
+│   │   ├── bridge/              # Unity Bridge communication
+│   │   ├── tools/               # MCP tool definitions
+│   │   ├── resources/           # MCP resources
+│   │   └── main.py              # Entry point
+│   ├── setup/                   # Installation scripts
+│   ├── examples/                # Tutorials
+│   ├── docs/                    # Documentation
+│   ├── config/                  # Configuration templates
+│   ├── skill.yml                # Skill manifest
+│   └── pyproject.toml           # Python package config
+│
+├── ProjectSettings/             # Unity project settings
+├── Packages/                    # Unity packages
+└── README.md                    # This file
 ```
 
-### Adding New Tools
+### Install Dev Dependencies
 
-See detailed guide in:
-- [CLAUDE.md](../CLAUDE.md) - Complete development documentation
-- [TILEMAP_NAVMESH_TOOLS.md](../TILEMAP_NAVMESH_TOOLS.md) - TileMap & NavMesh tool reference
-- [BATCH_PROCESSING_EXAMPLES.md](../BATCH_PROCESSING_EXAMPLES.md) - Batch operation examples
+```bash
+cd SkillPackage
+uv sync --dev
+```
 
----
+### Run Tests
 
-## Features
+```bash
+cd SkillPackage
+pytest
+```
 
-### Core Features
-- ✅ Real-time Unity Editor integration via WebSocket
-- ✅ Comprehensive scene and GameObject management
-- ✅ Component manipulation with property updates
-- ✅ Asset creation and modification
-- ✅ Automatic reconnection after compilation
+### Format Code
 
-### High-Level Tools
-- ✅ **Scene quick setup** - Instant 3D/2D/UI/VR scene initialization
-- ✅ **GameObject templates** - Pre-configured primitives, lights, and special objects
-- ✅ **UI element templates** - Complete UI components in one command
-- ✅ **Layout management** - Easy layout group and fitter configuration
-- ✅ **Hierarchy builder** - Declarative nested structure creation
-- ✅ **Context inspector** - Comprehensive scene state inspection
-- ✅ **Duplicate prevention** - Automatic detection of existing objects in scene setup
+```bash
+cd SkillPackage
+black src/
+ruff check src/
+```
 
-### 2D & Navigation
-- ✅ **2D Tilemap system** - Grid-based tile placement and area filling
-- ✅ **NavMesh system** - AI pathfinding and navigation
-- ✅ Real-time NavMesh baking and agent control
+## 🤝 Contributing
 
-### UI & Layout
-- ✅ UGUI layout and positioning tools
-- ✅ RectTransform anchor management
-- ✅ Position conversion (anchored ↔ absolute)
-- ✅ Anchor presets (stretch, center, corners)
+Contributions are welcome! Please:
 
-### Advanced Systems
-- ✅ Tag and layer management (GameObject & Project)
-- ✅ Prefab workflow (create, update, instantiate, override management)
-- ✅ Project settings configuration (6 categories)
-- ✅ Render pipeline management (Built-in/URP/HDRP)
-- ✅ Input System integration (New Input System)
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests and documentation
+5. Submit a pull request
 
-### Developer Tools
-- ✅ **Batch operation execution** - Combine multiple operations
-- ✅ Project compile trigger (refresh + error summary)
-- ✅ Context-aware assistance with scene state
-- ✅ Structured error handling and reporting
+See [AGENTS.md](AGENTS.md) for coding guidelines.
 
----
+## 📄 License
 
-## Tool Reference Summary
+MIT License - see [LICENSE](LICENSE) for details.
 
-| Category | Tools | Operations |
-|----------|-------|------------|
-| **Core** | 5 tools | ping, scenes, GameObjects, components, assets |
-| **High-Level** | 6 tools | Scene quick setup, GameObject templates, UI templates, Layout manager, Hierarchy builder, Context inspector |
-| **2D** | 1 tool | Tilemap (7 operations) |
-| **Navigation** | 1 tool | NavMesh (7 operations) |
-| **UI** | 3 tools | UGUI unified + specialized tools |
-| **Systems** | 5 tools | Tags/Layers, Prefabs, Settings, Render Pipeline, Input |
-| **Utilities** | 2 tools | Project compile, Batch execute |
-| **Total** | **23 tools** | **120+ operations** |
+## 🙏 Acknowledgments
+
+- **Model Context Protocol** by Anthropic
+- **Unity Technologies** for the amazing game engine
+- All contributors and community members
+
+## 🆘 Support
+
+- **Quick Start**: [SkillPackage/QUICKSTART.md](SkillPackage/QUICKSTART.md)
+- **Examples**: [SkillPackage/examples/](SkillPackage/examples/)
+- **Troubleshooting**: [SkillPackage/docs/troubleshooting.md](SkillPackage/docs/troubleshooting.md)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/unity-mcp/issues)
+
+## 🔄 Migration from Old Structure
+
+If you were using the old structure (`Assets/Runtime/MCPServer/`):
+
+1. The MCP server has been moved to `SkillPackage/src/`
+2. Update your MCP client configuration to point to the new location
+3. Run `SkillPackage/setup/install.ps1` (Windows) or `setup/install.sh` (Linux/macOS)
+4. The Unity Bridge (`Assets/Editor/MCPBridge/`) remains unchanged
 
 ---
 
-## Requirements
+**Made with ❤️ for the Unity and AI community**
 
-- Unity 2021.3 or later (2022.3+ recommended)
-- Python 3.10 or later
-- uv (recommended) or pip
-- Optional: Input System package (for `unity.inputSystem.manage`)
-- Optional: NavMesh Components package (for `createNavMeshSurface`)
-
----
-
-## Troubleshooting
-
-### Bridge not connecting
-
-1. Check Unity Console for errors
-2. Verify bridge is started in **Tools > MCP Assistant**
-3. Ensure no firewall blocking localhost:7077
-4. Check Python server logs for connection errors
-
-### Tools failing
-
-1. Verify GameObject paths are correct (use hierarchy paths like "Canvas/Panel/Button")
-2. Check component type names are fully qualified (e.g., "UnityEngine.UI.Text")
-3. For Tilemap: ensure Grid and Tilemap components exist
-4. For NavMesh: ensure NavMesh is baked before adding agents
-5. Review Unity Console for detailed error messages
-
-### After compilation
-
-The bridge automatically saves connection state and reconnects after Unity recompiles scripts. No manual intervention needed.
-
-### TileMap issues
-
-- Verify tile assets exist at specified paths
-- Check Grid and Tilemap hierarchy structure
-- Use `inspectTilemap` to verify state
-
-### NavMesh issues
-
-- Ensure geometry is marked as Navigation Static
-- Bake NavMesh before testing agents
-- Check NavMesh visualization in Scene view (Window > AI > Navigation)
-- `updateSettings` is read-only - use Unity Navigation window for bake settings
-
----
-
-## Performance Tips
-
-1. **Use Batch Operations**: Combine multiple operations for better performance
-2. **Limit Context Updates**: Increase context update interval for large scenes
-3. **Batch Tilemap Operations**: Use `fillArea` instead of multiple `setTile` calls
-4. **Cache Asset References**: Load assets once, reuse in multiple operations
-5. **Stop on Error**: Set `stopOnError: true` for dependent operations
-
----
-
-## Documentation
-
-- **Main Documentation**: [CLAUDE.md](../CLAUDE.md)
-- **TileMap & NavMesh Guide**: [TILEMAP_NAVMESH_TOOLS.md](../TILEMAP_NAVMESH_TOOLS.md)
-- **Batch Processing Examples**: [BATCH_PROCESSING_EXAMPLES.md](../BATCH_PROCESSING_EXAMPLES.md)
-- **This File**: Complete tool reference and quick start
-
----
-
-## License
-
-[Add your license here]
-
-## Contributing
-
-Contributions are welcome! Please read the development guide in [CLAUDE.md](../CLAUDE.md).
-
-## Support
-
-For issues, questions, or feature requests:
-1. Check Unity Console for error messages
-2. Review documentation in [CLAUDE.md](../CLAUDE.md)
-3. Check example batch operations in [BATCH_PROCESSING_EXAMPLES.md](../BATCH_PROCESSING_EXAMPLES.md)
-4. Create an issue on the project repository
-
----
-
-**UnityMCP** - Comprehensive Unity Editor automation through Model Context Protocol
+**Start building amazing Unity projects with AI assistance today!** 🚀
