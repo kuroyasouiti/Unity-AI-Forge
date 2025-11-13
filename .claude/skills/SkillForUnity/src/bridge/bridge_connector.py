@@ -7,9 +7,9 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 from websockets.protocol import State as ConnectionState
 
-from ..config.env import env
-from ..logger import logger
-from .bridge_manager import bridge_manager
+from config.env import env
+from logger import logger
+from bridge.bridge_manager import bridge_manager
 
 
 class BridgeConnector:

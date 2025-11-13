@@ -8,11 +8,11 @@ import mcp.types as types
 from mcp.server import Server
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-from ..bridge.bridge_manager import bridge_manager
-from ..config.env import env
-from ..logger import logger
-from ..utils.fs_utils import path_exists
-from ..utils.project_structure import build_project_structure_summary
+from bridge.bridge_manager import bridge_manager
+from config.env import env
+from logger import logger
+from utils.fs_utils import path_exists
+from utils.project_structure import build_project_structure_summary
 
 
 def _sanitize_unity_path(asset_path: str) -> str:

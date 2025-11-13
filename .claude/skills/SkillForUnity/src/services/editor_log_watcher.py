@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from ..config.env import env
-from ..logger import logger
+from config.env import env
+from logger import logger
 
 MAX_LINES = 2000
 

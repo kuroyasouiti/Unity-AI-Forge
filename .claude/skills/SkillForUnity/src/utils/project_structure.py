@@ -6,7 +6,7 @@ from typing import Iterable
 
 import anyio
 
-from .fs_utils import path_exists
+from utils.fs_utils import path_exists
 
 TARGET_EXTENSIONS = {
     ".cs",

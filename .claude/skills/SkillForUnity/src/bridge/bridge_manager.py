@@ -12,9 +12,9 @@ from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 from websockets.protocol import State as ConnectionState
 
-from ..config.env import env
-from ..logger import logger
-from .messages import (
+from config.env import env
+from logger import logger
+from bridge.messages import (
     BridgeCommandResultMessage,
     BridgeContextUpdateMessage,
     BridgeHelloMessage,

@@ -5,10 +5,10 @@ from typing import Any, Dict
 import mcp.types as types
 from mcp.server import Server
 
-from ..bridge.bridge_manager import bridge_manager
-from ..logger import logger
-from ..services.editor_log_watcher import editor_log_watcher
-from ..utils.json_utils import as_pretty_json
+from bridge.bridge_manager import bridge_manager
+from logger import logger
+from services.editor_log_watcher import editor_log_watcher
+from utils.json_utils import as_pretty_json
 
 
 def _ensure_bridge_connected() -> None:

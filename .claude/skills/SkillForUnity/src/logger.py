@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from .config.env import env
+from config.env import env
 
 TRACE_LEVEL = 5
 
