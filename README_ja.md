@@ -12,8 +12,8 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 
 ### コンポーネント
 
-1. **Unity C#ブリッジ** (`Assets/Editor/MCPBridge/`) - Unity Editor内で動作するWebSocketサーバー
-2. **Python MCPサーバー** (`Assets/Runtime/MCPServer/`) - ブリッジに接続するMCPプロトコル実装
+1. **Unity C#ブリッジ** (`Assets/SkillForUnity/Editor/MCPBridge/`) - Unity Editor内で動作するWebSocketサーバー（Claude SkillのZIPを同梱）
+2. **Claude Skill (Python MCPサーバー)** (`.claude/skills/SkillForUnity/src/`) - ブリッジに接続するMCPプロトコル実装
 
 ## クイックスタート
 
@@ -32,16 +32,19 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 1. このリポジトリをダウンロード
 2. `Assets/SkillForUnity`をあなたのUnityプロジェクトの`Assets/`フォルダにコピー
 
-### 2. MCPスキルのインストール
+### 2. Claude Skillのインストール
 
-**方法A: Claude Desktopスキルフォルダにコピー**
+Unityパッケージには `Assets/SkillForUnity/Editor/MCPBridge/SkillForUnity.zip` が同梱されています。
+
+**方法A: 同梱ZIPをClaude Desktopのskillsフォルダへコピー**
 
 ```bash
-# スキルフォルダをコピー
-cp -r .claude/skills/SkillForUnity ~/.claude/skills/
+# Claude SkillのZIPをコピー
+cp Assets/SkillForUnity/Editor/MCPBridge/SkillForUnity.zip ~/.claude/skills/
 
-# またはZIPファイルをコピーして展開
-unzip SkillForUnity.zip -d ~/.claude/skills/
+# 展開して ~/.claude/skills/SkillForUnity を作成
+cd ~/.claude/skills
+unzip -o SkillForUnity.zip
 ```
 
 **方法B: MCPウィンドウから登録**
@@ -635,24 +638,32 @@ unity_script_batch_manage({
 ### ファイル構造
 
 ```
-Assets/
-├── Editor/
-│   └── MCPBridge/                    # Unity C#ブリッジ
-│       ├── McpBridgeService.cs            # WebSocketサーバー
-│       ├── McpCommandProcessor.cs         # ツール実行（4700+行）
-│       ├── McpContextCollector.cs         # コンテキスト収集
-│       ├── McpBridgeWindow.cs             # Unity Editor UI
-│       └── McpBridgeSettings.cs           # 設定
-└── Runtime/
-    └── MCPServer/                    # Python MCPサーバー
-        ├── main.py                        # サーバーエントリポイント
-        ├── bridge/                        # WebSocketクライアント
-        │   ├── bridge_manager.py          # 接続管理
-        │   └── messages.py                # メッセージプロトコル
-        ├── tools/                         # ツール定義
-        │   └── register_tools.py          # 全ツールスキーマ（800+行）
-        └── resources/                     # リソースプロバイダー
-            └── register_resources.py
+SkillForUnity/
+├── Assets/
+│   └── SkillForUnity/
+│       └── Editor/
+│           └── MCPBridge/                    # Unity C#ブリッジ（Claude Skill ZIP同梱）
+│               ├── McpBridgeService.cs            # WebSocketサーバー
+│               ├── McpCommandProcessor.cs         # ツール実行（4700+行）
+│               ├── McpContextCollector.cs         # コンテキスト収集
+│               ├── McpBridgeWindow.cs             # Unity Editor UI
+│               ├── McpBridgeSettings.cs           # 設定
+│               └── SkillForUnity.zip              # Claude Skillアーカイブ
+│
+├── .claude/
+│   └── skills/
+│       └── SkillForUnity/                    # Claude Skill (Python MCPサーバー)
+│           ├── src/                               # サーバー実装
+│           │   ├── bridge/                        # Unityブリッジ通信
+│           │   ├── tools/                         # ツール定義
+│           │   ├── resources/                     # リソース
+│           │   └── main.py                        # エントリポイント
+│           ├── docs/                              # ドキュメント
+│           ├── examples/                          # チュートリアル
+│           ├── setup/                             # インストールスクリプト
+│           ├── config/                            # 設定テンプレート
+│           ├── skill.yml                          # スキル定義
+│           └── pyproject.toml                     # Pythonパッケージ構成
 ```
 
 ### 新しいツールの追加

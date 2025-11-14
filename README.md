@@ -13,8 +13,8 @@ SkillForUnity has been restructured as a **Claude Agent Skill** for easier setup
 
 ```
 SkillForUnity/
-├── Assets/Editor/MCPBridge/    # Unity C# WebSocket Bridge
-└── SkillPackage/                # ⭐ Standalone MCP Skill Package
+├── Assets/SkillForUnity/Editor/MCPBridge/    # Unity C# WebSocket Bridge + bundled Claude Skill zip
+└── .claude/skills/SkillForUnity/             # ⭐ Claude Skill source (Python MCP server, docs, tools)
     ├── src/                     # Python MCP Server
     ├── setup/                   # Installation scripts
     ├── examples/                # Practical tutorials
@@ -39,16 +39,19 @@ SkillForUnity/
 1. Download this repository
 2. Copy `Assets/SkillForUnity` to your Unity project's `Assets/` folder
 
-### 2. Install MCP Skill
+### 2. Install Claude Skill Package
 
-**Option A: Copy to Claude Desktop Skills Folder**
+The Unity package already bundles the Claude Skill archive at `Assets/SkillForUnity/Editor/MCPBridge/SkillForUnity.zip`.
+
+**Option A: Copy the bundled zip to Claude Desktop's skills folder**
 
 ```bash
-# Copy the skill folder
-cp -r .claude/skills/SkillForUnity ~/.claude/skills/
+# Copy the Claude Skill zip
+cp Assets/SkillForUnity/Editor/MCPBridge/SkillForUnity.zip ~/.claude/skills/
 
-# Or copy the ZIP file and extract
-unzip SkillForUnity.zip -d ~/.claude/skills/
+# Extract to create ~/.claude/skills/SkillForUnity
+cd ~/.claude/skills
+unzip -o SkillForUnity.zip
 ```
 
 **Option B: Register via MCP Window**
@@ -95,13 +98,13 @@ The AI should call `unity_ping()` and show Unity version information.
 
 ### For Users
 
-- **[SkillPackage/QUICKSTART.md](SkillPackage/QUICKSTART.md)** - Get started in 5 minutes
-- **[SkillPackage/README.md](SkillPackage/README.md)** - Complete skill documentation
-- **[SkillPackage/examples/](SkillPackage/examples/)** - Practical examples and tutorials
+- **[Claude Skill QUICKSTART](.claude/skills/SkillForUnity/QUICKSTART.md)** - Get started in 5 minutes
+- **[Claude Skill README](.claude/skills/SkillForUnity/README.md)** - Complete skill documentation
+- **[Claude Skill examples](.claude/skills/SkillForUnity/examples/)** - Practical tutorials and walkthroughs
 
 ### For Developers
 
-- **[SkillPackage/docs/](SkillPackage/docs/)** - API reference and guides
+- **[Claude Skill docs](.claude/skills/SkillForUnity/docs/)** - API reference and guides
 - **[CLAUDE.md](CLAUDE.md)** - Instructions for Claude Code integration
 - **[AGENTS.md](AGENTS.md)** - Repository guidelines
 
@@ -109,18 +112,18 @@ The AI should call `unity_ping()` and show Unity version information.
 
 ```
 AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity C# Bridge
-                                      (SkillPackage/src/)                   (Assets/Editor/)
+                                      (.claude/skills/SkillForUnity/src/)   (Assets/SkillForUnity/Editor/)
 ```
 
 ### Components
 
 | Component | Location | Description |
 |-----------|----------|-------------|
-| **Unity C# Bridge** | `Assets/Editor/MCPBridge/` | WebSocket server running inside Unity Editor |
-| **Python MCP Server** | `SkillPackage/src/` | MCP protocol implementation |
-| **Setup Scripts** | `SkillPackage/setup/` | Installation and configuration helpers |
-| **Examples** | `SkillPackage/examples/` | Practical tutorials and guides |
-| **Documentation** | `SkillPackage/docs/` | API reference and best practices |
+| **Unity C# Bridge** | `Assets/SkillForUnity/Editor/MCPBridge/` | WebSocket server running inside Unity Editor |
+| **Python MCP Server** | `.claude/skills/SkillForUnity/src/` | MCP protocol implementation |
+| **Setup Scripts** | `.claude/skills/SkillForUnity/setup/` | Installation and configuration helpers |
+| **Examples** | `.claude/skills/SkillForUnity/examples/` | Practical tutorials and guides |
+| **Documentation** | `.claude/skills/SkillForUnity/docs/` | API reference and best practices |
 
 ## ✨ Features
 
@@ -216,7 +219,7 @@ unity_batch_execute({
 })
 ```
 
-See [SkillPackage/examples/](SkillPackage/examples/) for more tutorials.
+See [.claude/skills/SkillForUnity/examples/](.claude/skills/SkillForUnity/examples/) for more tutorials.
 
 ## 🛠️ Development
 
@@ -225,48 +228,52 @@ See [SkillPackage/examples/](SkillPackage/examples/) for more tutorials.
 ```
 SkillForUnity/
 ├── Assets/
-│   └── Editor/
-│       └── MCPBridge/           # Unity C# Bridge
-│           ├── McpBridgeService.cs
-│           ├── McpCommandProcessor.cs
-│           └── McpContextCollector.cs
+│   └── SkillForUnity/
+│       └── Editor/
+│           └── MCPBridge/           # Unity C# Bridge + bundled Claude Skill zip
+│               ├── McpBridgeService.cs
+│               ├── McpCommandProcessor.cs
+│               ├── McpContextCollector.cs
+│               └── SkillForUnity.zip
 │
-├── SkillPackage/                # Python MCP Skill
-│   ├── src/                     # MCP Server source
-│   │   ├── bridge/              # Unity Bridge communication
-│   │   ├── tools/               # MCP tool definitions
-│   │   ├── resources/           # MCP resources
-│   │   └── main.py              # Entry point
-│   ├── setup/                   # Installation scripts
-│   ├── examples/                # Tutorials
-│   ├── docs/                    # Documentation
-│   ├── config/                  # Configuration templates
-│   ├── skill.yml                # Skill manifest
-│   └── pyproject.toml           # Python package config
+├── .claude/
+│   └── skills/
+│       └── SkillForUnity/           # Claude Skill (Python MCP server)
+│           ├── src/                 # Server source
+│           │   ├── bridge/          # Unity Bridge communication
+│           │   ├── tools/           # MCP tool definitions
+│           │   ├── resources/       # MCP resources
+│           │   └── main.py          # Entry point
+│           ├── setup/               # Installation scripts
+│           ├── examples/            # Tutorials
+│           ├── docs/                # Documentation
+│           ├── config/              # Configuration templates
+│           ├── skill.yml            # Skill manifest
+│           └── pyproject.toml       # Python package config
 │
-├── ProjectSettings/             # Unity project settings
-├── Packages/                    # Unity packages
-└── README.md                    # This file
+├── ProjectSettings/                 # Unity project settings
+├── Packages/                        # Unity packages
+└── README.md                        # This file
 ```
 
 ### Install Dev Dependencies
 
 ```bash
-cd SkillPackage
+cd .claude/skills/SkillForUnity
 uv sync --dev
 ```
 
 ### Run Tests
 
 ```bash
-cd SkillPackage
+cd .claude/skills/SkillForUnity
 pytest
 ```
 
 ### Format Code
 
 ```bash
-cd SkillPackage
+cd .claude/skills/SkillForUnity
 black src/
 ruff check src/
 ```
@@ -295,9 +302,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🆘 Support
 
-- **Quick Start**: [SkillPackage/QUICKSTART.md](SkillPackage/QUICKSTART.md)
-- **Examples**: [SkillPackage/examples/](SkillPackage/examples/)
-- **Troubleshooting**: [SkillPackage/docs/troubleshooting.md](SkillPackage/docs/troubleshooting.md)
+- **Quick Start**: [.claude/skills/SkillForUnity/QUICKSTART.md](.claude/skills/SkillForUnity/QUICKSTART.md)
+- **Examples**: [.claude/skills/SkillForUnity/examples/](.claude/skills/SkillForUnity/examples/)
+- **Troubleshooting**: [.claude/skills/SkillForUnity/docs/troubleshooting.md](.claude/skills/SkillForUnity/docs/troubleshooting.md)
 - **Issues**: [GitHub Issues](https://github.com/yourusername/SkillForUnity/issues)
 
 ## 🔄 Migration from Old Structure
@@ -305,9 +312,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 If you were using the old structure (`Assets/Runtime/MCPServer/` or `SkillPackage/`):
 
 1. **Unity Side**: Install via Unity Package Manager (see installation instructions above)
-   - The Unity Bridge remains at `Assets/Editor/MCPBridge/` (unchanged)
-2. **MCP Server Side**: Copy `.claude/skills/SkillForUnity` to your Claude Desktop skills folder
-   - Or configure via MCP Window
+   - The Unity Bridge remains at `Assets/SkillForUnity/Editor/MCPBridge/` (unchanged)
+2. **Claude Skill Side**: Extract `Assets/SkillForUnity/Editor/MCPBridge/SkillForUnity.zip` into your Claude Desktop skills folder (creates `~/.claude/skills/SkillForUnity`)
+   - Or configure via MCP Window by pointing to the extracted `skill.yml`
    - Or manually add to `claude_desktop_config.json`
 3. Remove old installation files if desired
 

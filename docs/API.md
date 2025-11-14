@@ -2,6 +2,8 @@
 
 Complete reference for all MCP tools available in SkillForUnity.
 
+> This Claude Skill lives under `.claude/skills/SkillForUnity` and is bundled with the Unity package as `Assets/SkillForUnity/Editor/MCPBridge/SkillForUnity.zip`.
+
 ---
 
 ## Table of Contents
