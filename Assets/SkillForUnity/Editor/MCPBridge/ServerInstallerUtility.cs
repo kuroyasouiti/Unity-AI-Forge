@@ -21,8 +21,25 @@ namespace MCP.Editor
             }
         }
 
+        private static string GetEmbeddedSkillZipPath()
+        {
+            var assetsPath = Application.dataPath;
+            if (string.IsNullOrEmpty(assetsPath))
+            {
+                return null;
+            }
+
+            return Path.Combine(assetsPath, "SkillForUnity", "Editor", "MCPBridge", "SkillForUnity.zip");
+        }
+
         private static string FindSkillZipPath()
         {
+            var embeddedZipPath = GetEmbeddedSkillZipPath();
+            if (!string.IsNullOrEmpty(embeddedZipPath) && File.Exists(embeddedZipPath))
+            {
+                return embeddedZipPath;
+            }
+
             var projectRoot = Path.GetDirectoryName(Application.dataPath);
             if (string.IsNullOrEmpty(projectRoot))
             {
