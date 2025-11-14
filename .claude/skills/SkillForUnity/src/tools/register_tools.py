@@ -423,45 +423,6 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
-    input_system_manage_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["listActions", "createAsset", "addActionMap", "addAction", "addBinding", "inspectAsset", "deleteAsset", "deleteActionMap", "deleteAction", "deleteBinding"],
-                    "description": "Operation to perform. 'listActions' lists all Input Action assets, 'createAsset' creates new asset, 'addActionMap' adds action map, 'addAction' adds action to map, 'addBinding' adds binding to action, 'inspectAsset' inspects asset contents, 'deleteAsset' deletes entire asset, 'deleteActionMap' deletes action map, 'deleteAction' deletes action, 'deleteBinding' deletes specific binding or all bindings.",
-                },
-                "assetPath": {
-                    "type": "string",
-                    "description": "Path to InputActionAsset file (e.g., Assets/Input/PlayerControls.inputactions).",
-                },
-                "mapName": {
-                    "type": "string",
-                    "description": "Name of the action map (for addActionMap, addAction, addBinding, deleteActionMap, deleteAction, deleteBinding operations).",
-                },
-                "actionName": {
-                    "type": "string",
-                    "description": "Name of the action (for addAction, addBinding, deleteAction, deleteBinding operations).",
-                },
-                "actionType": {
-                    "type": "string",
-                    "enum": ["Button", "Value", "PassThrough"],
-                    "description": "Type of action (for addAction operation). Default is 'Button'.",
-                },
-                "path": {
-                    "type": "string",
-                    "description": "Binding path (e.g., '<Keyboard>/space', '<Mouse>/leftButton') for addBinding operation.",
-                },
-                "bindingIndex": {
-                    "type": "integer",
-                    "description": "Index of binding to delete (for deleteBinding operation). Omit or set to -1 to delete all bindings.",
-                },
-            },
-        },
-        ["operation"],
-    )
-
     tag_layer_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -481,111 +442,6 @@ def register_tools(server: Server) -> None:
                 },
                 "layer": {
                     "description": "Layer name (string) or layer index (integer) for setLayer, setLayerRecursive operations. Layer name (string) for addLayer, removeLayer operations.",
-                },
-            },
-        },
-        ["operation"],
-    )
-
-    tilemap_manage_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["createTilemap", "setTile", "getTile", "clearTile", "fillArea", "inspectTilemap", "clearAll"],
-                    "description": "Operation to perform. 'createTilemap' creates a new Tilemap GameObject with Grid parent, 'setTile' places a tile at position, 'getTile' retrieves tile at position, 'clearTile' removes tile at position, 'fillArea' fills rectangular area with tiles, 'inspectTilemap' returns Tilemap information, 'clearAll' clears all tiles from Tilemap.",
-                },
-                "gameObjectPath": {
-                    "type": "string",
-                    "description": "Hierarchy path of the Tilemap GameObject (for setTile, getTile, clearTile, fillArea, inspectTilemap, clearAll operations).",
-                },
-                "tilemapName": {
-                    "type": "string",
-                    "description": "Name for the new Tilemap (for createTilemap operation).",
-                },
-                "parentPath": {
-                    "type": "string",
-                    "description": "Parent path for the new Tilemap Grid (for createTilemap operation).",
-                },
-                "tileAssetPath": {
-                    "type": "string",
-                    "description": "Asset path to the tile (e.g., 'Assets/Tiles/MyTile.asset'). Required for setTile and fillArea operations.",
-                },
-                "positionX": {
-                    "type": "integer",
-                    "description": "X position in tilemap grid coordinates (for setTile, getTile, clearTile operations).",
-                },
-                "positionY": {
-                    "type": "integer",
-                    "description": "Y position in tilemap grid coordinates (for setTile, getTile, clearTile operations).",
-                },
-                "positionZ": {
-                    "type": "integer",
-                    "description": "Z position in tilemap grid coordinates (for setTile, getTile, clearTile operations). Default is 0.",
-                },
-                "startX": {
-                    "type": "integer",
-                    "description": "Start X position for area fill (for fillArea operation).",
-                },
-                "startY": {
-                    "type": "integer",
-                    "description": "Start Y position for area fill (for fillArea operation).",
-                },
-                "endX": {
-                    "type": "integer",
-                    "description": "End X position for area fill (for fillArea operation).",
-                },
-                "endY": {
-                    "type": "integer",
-                    "description": "End Y position for area fill (for fillArea operation).",
-                },
-            },
-        },
-        ["operation"],
-    )
-
-    navmesh_manage_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["bakeNavMesh", "clearNavMesh", "addNavMeshAgent", "setDestination", "inspectNavMesh", "updateSettings", "createNavMeshSurface"],
-                    "description": "Operation to perform. 'bakeNavMesh' bakes the NavMesh, 'clearNavMesh' clears baked NavMesh data, 'addNavMeshAgent' adds NavMeshAgent component to GameObject, 'setDestination' sets NavMeshAgent destination, 'inspectNavMesh' returns NavMesh statistics, 'updateSettings' modifies NavMesh bake settings, 'createNavMeshSurface' creates a NavMesh Surface component (requires NavMesh Components package).",
-                },
-                "gameObjectPath": {
-                    "type": "string",
-                    "description": "Hierarchy path of the GameObject (for addNavMeshAgent, setDestination, createNavMeshSurface operations).",
-                },
-                "destinationX": {
-                    "type": "number",
-                    "description": "X coordinate of destination (for setDestination operation).",
-                },
-                "destinationY": {
-                    "type": "number",
-                    "description": "Y coordinate of destination (for setDestination operation).",
-                },
-                "destinationZ": {
-                    "type": "number",
-                    "description": "Z coordinate of destination (for setDestination operation).",
-                },
-                "settings": {
-                    "type": "object",
-                    "additionalProperties": True,
-                    "description": "NavMesh bake settings to update (for updateSettings operation). Properties: agentRadius, agentHeight, agentSlope, agentClimb, etc.",
-                },
-                "agentSpeed": {
-                    "type": "number",
-                    "description": "NavMeshAgent speed (for addNavMeshAgent operation).",
-                },
-                "agentAcceleration": {
-                    "type": "number",
-                    "description": "NavMeshAgent acceleration (for addNavMeshAgent operation).",
-                },
-                "agentStoppingDistance": {
-                    "type": "number",
-                    "description": "NavMeshAgent stopping distance (for addNavMeshAgent operation).",
                 },
             },
         },
@@ -1323,21 +1179,6 @@ def register_tools(server: Server) -> None:
             inputSchema=render_pipeline_manage_schema,
         ),
         types.Tool(
-            name="unity_inputSystem_manage",
-            description="Manage Unity New Input System. Create Input Action assets, add action maps and actions, configure bindings, and inspect existing assets. Requires Input System package to be installed.",
-            inputSchema=input_system_manage_schema,
-        ),
-        types.Tool(
-            name="unity_tilemap_manage",
-            description="Manage Unity Tilemap system. Create tilemaps with Grid parent, set/get/clear tiles at positions, fill rectangular areas with tiles, inspect tilemap information. Supports 2D grid-based tile placement for level design.",
-            inputSchema=tilemap_manage_schema,
-        ),
-        types.Tool(
-            name="unity_navmesh_manage",
-            description="Manage Unity NavMesh navigation system. Bake/clear NavMesh, add NavMeshAgent components to GameObjects, set agent destinations, inspect NavMesh statistics, and update bake settings. Supports runtime pathfinding for AI characters.",
-            inputSchema=navmesh_manage_schema,
-        ),
-        types.Tool(
             name="unity_constant_convert",
             description="Convert between Unity constants and numeric values. Supports enum types (e.g., KeyCode.Space ↔ 32), Unity built-in colors (e.g., 'red' ↔ RGBA), and layer names/indices. Also provides listing operations for available values.",
             inputSchema=constant_convert_schema,
@@ -1441,15 +1282,6 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_renderPipeline_manage":
             return await _call_bridge_tool("renderPipelineManage", args)
-
-        if name == "unity_inputSystem_manage":
-            return await _call_bridge_tool("inputSystemManage", args)
-
-        if name == "unity_tilemap_manage":
-            return await _call_bridge_tool("tilemapManage", args)
-
-        if name == "unity_navmesh_manage":
-            return await _call_bridge_tool("navmeshManage", args)
 
         if name == "unity_constant_convert":
             return await _call_bridge_tool("constantConvert", args)

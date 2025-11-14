@@ -17,37 +17,48 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 
 ## クイックスタート
 
-### 1. Unity Editorのセットアップ
+### 1. Unityパッケージのインストール
 
-1. Unityプロジェクトを開く
-2. SkillForUnityパッケージをインポート
-3. **Tools > MCP Assistant**を開く
-4. **Start Bridge**をクリック
-5. ブリッジがデフォルトで`ws://localhost:7077/bridge`でリッスンします
+**方法A: Unity Package Manager経由（推奨）**
 
-### 2. Pythonサーバーのセットアップ
+1. Unity Editorを開く
+2. **Window > Package Manager**を開く
+3. **+ (プラス)** ボタン → **Add package from git URL...**をクリック
+4. 次のURLを入力: `https://github.com/yourusername/SkillForUnity.git?path=/Assets/SkillForUnity`
+5. **Add**をクリック
+
+**方法B: 手動インストール**
+
+1. このリポジトリをダウンロード
+2. `Assets/SkillForUnity`をあなたのUnityプロジェクトの`Assets/`フォルダにコピー
+
+### 2. MCPスキルのインストール
+
+**方法A: Claude Desktopスキルフォルダにコピー**
 
 ```bash
-# MCPサーバーディレクトリに移動
-cd Assets/Runtime/MCPServer
+# スキルフォルダをコピー
+cp -r .claude/skills/SkillForUnity ~/.claude/skills/
 
-# uv で実行（推奨）
-uv run main.py
-
-# または Python で直接実行
-python main.py --transport stdio
+# またはZIPファイルをコピーして展開
+unzip SkillForUnity.zip -d ~/.claude/skills/
 ```
 
-### 3. MCPクライアントの設定
+**方法B: MCPウィンドウから登録**
 
-MCPクライアント設定に追加（例：Claude Desktop）：
+1. Claude Desktopを開く
+2. MCP設定ウィンドウを開く
+3. スキル設定で新しいMCPサーバーを追加
 
+**方法C: 手動設定**
+
+Claude Desktopの設定ファイル（`~/.claude/claude_desktop_config.json`）に追加：
 ```json
 {
   "mcpServers": {
-    "unity": {
+    "skill-for-unity": {
       "command": "uv",
-      "args": ["run", "--directory", "D:/Projects/MCP/Assets/Runtime/MCPServer", "main.py"],
+      "args": ["run", "--directory", "/path/to/.claude/skills/SkillForUnity", "src/main.py"],
       "env": {
         "MCP_SERVER_TRANSPORT": "stdio",
         "MCP_LOG_LEVEL": "info"
@@ -56,6 +67,62 @@ MCPクライアント設定に追加（例：Claude Desktop）：
   }
 }
 ```
+
+### 3. Unity Bridgeの起動
+
+1. Unityプロジェクトを開く
+2. **Tools > MCP Assistant**を開く
+3. **Start Bridge**をクリック
+4. ステータスが「Connected」になるまで待つ
+
+### 4. 接続テスト
+
+Claude Desktopで以下のように尋ねてください：
+```
+Unity MCP接続をテストしてください
+```
+
+AIが`unity_ping()`を呼び出し、Unityバージョン情報を表示するはずです。
+
+## 📝 スクリプト管理
+
+SkillForUnityは、C#スクリプトを効率的に作成・管理するための強力な**バッチスクリプト管理**システムを提供します。
+
+### 主な機能
+
+- **バッチ操作** - 複数のスクリプトを1つのアトミック操作で作成、更新、削除
+- **自動コンパイル** - 全操作後に単一の統合コンパイル
+- **10-20倍高速** - 個別スクリプト操作と比較
+- **エラー処理** - `stopOnError`制御によるスクリプト毎のエラーレポート
+- **名前空間サポート** - フォルダ構造からの自動名前空間生成
+
+### 例: 複数スクリプトの作成
+
+```python
+unity_script_batch_manage({
+    "scripts": [
+        {
+            "operation": "create",
+            "scriptPath": "Assets/Scripts/Player.cs",
+            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    void Start()\n    {\n        Debug.Log(\"Player initialized\");\n    }\n}"
+        },
+        {
+            "operation": "create",
+            "scriptPath": "Assets/Scripts/Enemy.cs",
+            "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour\n{\n    public float health = 100f;\n}"
+        },
+        {
+            "operation": "create",
+            "scriptPath": "Assets/Scripts/GameManager.cs",
+            "content": "using UnityEngine;\n\npublic class GameManager : MonoBehaviour\n{\n    public static GameManager Instance { get; private set; }\n}"
+        }
+    ],
+    "stopOnError": False,
+    "timeoutSeconds": 30
+})
+```
+
+**重要**: スクリプト操作には必ず`unity_script_batch_manage()`を使用してください。単一スクリプトの場合でも同様です。これにより、適切なコンパイル処理が保証されます。
 
 ## 利用可能なツール
 
@@ -256,102 +323,6 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 
 ---
 
-### 2D Tilemapシステム
-
-| ツール | 説明 | 主な操作 |
-|------|------|---------|
-| `unity.tilemap.manage` | 2D Tilemap操作 | createTilemap, setTile, getTile, clearTile, fillArea, inspectTilemap, clearAll |
-
-**Tilemap管理 (`unity.tilemap.manage`)**
-- **createTilemap**: Gridを親として自動的に新しいTilemapを作成
-- **setTile**: 特定のグリッド座標（X, Y, Z）にタイルを配置
-- **getTile**: 位置のタイル情報を取得
-- **clearTile**: 位置からタイルを削除
-- **fillArea**: タイルで矩形エリアを効率的に塗りつぶし
-- **inspectTilemap**: 境界、タイル数、統計情報を取得
-- **clearAll**: Tilemapから全てのタイルを削除
-
-**特徴:**
-- 自動Grid親作成
-- 3Dタイル配置のサポート（Z軸）
-- Undoサポート付き効率的なエリア塗りつぶし
-- Unityの2D Tilemapシステムとの統合
-- レベルデザインと手続き型生成に最適
-
-**例 - 2Dレベルの作成:**
-```json
-{
-  "tool": "tilemapManage",
-  "payload": {
-    "operation": "fillArea",
-    "gameObjectPath": "Grid/Level1",
-    "tileAssetPath": "Assets/Tiles/Ground.asset",
-    "startX": 0,
-    "startY": 0,
-    "endX": 20,
-    "endY": 15
-  }
-}
-```
-
----
-
-### ナビゲーションシステム (NavMesh)
-
-| ツール | 説明 | 主な操作 |
-|------|------|---------|
-| `unity.navmesh.manage` | NavMeshとAIナビゲーション | bakeNavMesh, clearNavMesh, addNavMeshAgent, setDestination, inspectNavMesh, createNavMeshSurface |
-
-**NavMesh管理 (`unity.navmesh.manage`)**
-- **bakeNavMesh**: 現在のシーンのナビゲーションメッシュをベイク
-- **clearNavMesh**: 全てのベイク済みNavMeshデータをクリア
-- **addNavMeshAgent**: 設定付きNavMeshAgentコンポーネントを追加
-  - スピード、加速度、停止距離を設定
-  - エージェントプロパティ（半径、高さ）を設定
-- **setDestination**: NavMeshAgentのターゲット目的地を設定
-  - パス状態を返す（hasPath, pathPending）
-- **inspectNavMesh**: NavMesh統計情報を取得
-  - 三角分割データ（頂点、三角形、エリア）
-  - エージェント設定（半径、高さ、傾斜、登攀）
-- **updateSettings**: 現在のNavMeshベイク設定を表示（読み取り専用）
-- **createNavMeshSurface**: NavMeshSurfaceコンポーネントを追加（NavMesh Componentsパッケージが必要）
-
-**特徴:**
-- リアルタイムNavMeshベイク
-- 完全なNavMeshAgent設定
-- ランタイムパスファインディング制御
-- NavMesh統計とデバッグ
-- NavMesh Componentsパッケージのサポート
-
-**例 - AIエージェントのセットアップ:**
-```json
-{
-  "operations": [
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "addNavMeshAgent",
-        "gameObjectPath": "Enemy",
-        "agentSpeed": 3.5,
-        "agentStoppingDistance": 1.0
-      }
-    },
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "setDestination",
-        "gameObjectPath": "Enemy",
-        "destinationX": 10.0,
-        "destinationY": 0.0,
-        "destinationZ": 5.0
-      }
-    }
-  ]
-}
-```
-
----
-
 ### UIシステム (UGUI)
 
 | ツール | 説明 | 主な操作 |
@@ -456,35 +427,6 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 
 ---
 
-### 入力システム
-
-| ツール | 説明 | 主な操作 |
-|------|------|---------|
-| `unity.inputSystem.manage` | New Input System管理 | listActions, createAsset, addActionMap, addAction, addBinding, inspectAsset, deleteAsset, deleteActionMap, deleteAction, deleteBinding |
-
-**入力システム (`unity.inputSystem.manage`)** - Input Systemパッケージが必要
-- **アセット管理:**
-  - listActions: 全ての.inputactionsファイルを検索
-  - createAsset: 新しいInput Actionアセットを作成
-  - inspectAsset: アクションマップとアクションを表示
-  - deleteAsset: Input Actionアセットを削除
-- **アクションマップ:**
-  - addActionMap: アセットにアクションマップを追加
-  - deleteActionMap: アクションマップを削除
-- **アクション:**
-  - addAction: マップにアクションを追加（Button, Value, PassThrough）
-  - deleteAction: アクションを削除
-- **バインディング:**
-  - addBinding: アクションに入力バインディングを追加
-  - deleteBinding: 特定または全てのバインディングを削除
-
-**一般的なバインディングパス:**
-- キーボード: `<Keyboard>/space`, `<Keyboard>/w`, `<Keyboard>/escape`
-- マウス: `<Mouse>/leftButton`, `<Mouse>/position`, `<Mouse>/delta`
-- ゲームパッド: `<Gamepad>/buttonSouth`, `<Gamepad>/leftStick`
-
----
-
 ### ユーティリティ
 
 | ツール | 説明 | 主な操作 |
@@ -554,58 +496,7 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 
 ## 使用例
 
-### 例1: ナビゲーション付き完全な2Dレベル構築
-
-```json
-{
-  "operations": [
-    {
-      "tool": "tilemapManage",
-      "payload": {
-        "operation": "createTilemap",
-        "tilemapName": "Arena"
-      }
-    },
-    {
-      "tool": "tilemapManage",
-      "payload": {
-        "operation": "fillArea",
-        "gameObjectPath": "Grid/Arena",
-        "tileAssetPath": "Assets/Tiles/Floor.asset",
-        "startX": 0,
-        "startY": 0,
-        "endX": 20,
-        "endY": 20
-      }
-    },
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "bakeNavMesh"
-      }
-    },
-    {
-      "tool": "gameObjectManage",
-      "payload": {
-        "operation": "create",
-        "gameObjectPath": "Player",
-        "name": "Player"
-      }
-    },
-    {
-      "tool": "navmeshManage",
-      "payload": {
-        "operation": "addNavMeshAgent",
-        "gameObjectPath": "Player",
-        "agentSpeed": 5.0
-      }
-    }
-  ],
-  "stopOnError": true
-}
-```
-
-### 例2: UIヒエラルキーの作成
+### 例1: UIヒエラルキーの作成
 
 ```json
 {
@@ -648,51 +539,7 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 }
 ```
 
-### 例3: 入力システムのセットアップ
-
-```json
-{
-  "operations": [
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "createAsset",
-        "assetPath": "Assets/Input/PlayerControls.inputactions"
-      }
-    },
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "addActionMap",
-        "assetPath": "Assets/Input/PlayerControls.inputactions",
-        "mapName": "Player"
-      }
-    },
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "addAction",
-        "assetPath": "Assets/Input/PlayerControls.inputactions",
-        "mapName": "Player",
-        "actionName": "Move",
-        "actionType": "Value"
-      }
-    },
-    {
-      "tool": "inputSystemManage",
-      "payload": {
-        "operation": "addBinding",
-        "assetPath": "Assets/Input/PlayerControls.inputactions",
-        "mapName": "Player",
-        "actionName": "Move",
-        "path": "<Keyboard>/wasd"
-      }
-    }
-  ]
-}
-```
-
-### 例4: タグとレイヤーの管理
+### 例2: タグとレイヤーの管理
 
 ```json
 {
@@ -739,7 +586,7 @@ MCPクライアント設定に追加（例：Claude Desktop）：
 }
 ```
 
-### 例5: Prefabワークフロー
+### 例3: Prefabワークフロー
 
 ```json
 {
@@ -835,10 +682,10 @@ Assets/
 - ✅ **コンテキストインスペクター** - 包括的なシーン状態検査
 - ✅ **重複防止** - シーン設定時の既存オブジェクトの自動検出
 
-### 2Dとナビゲーション
-- ✅ **2D Tilemapシステム** - グリッドベースのタイル配置とエリア塗りつぶし
-- ✅ **NavMeshシステム** - AIパスファインディングとナビゲーション
-- ✅ リアルタイムNavMeshベイクとエージェント制御
+### スクリプト管理
+- ✅ **バッチスクリプト管理** - 複数のC#スクリプトを一括作成・更新・削除
+- ✅ **自動コンパイル** - 全操作後に単一の統合コンパイル
+- ✅ **10-20倍高速** - 個別スクリプト操作と比較
 
 ### UIとレイアウト
 - ✅ UGUIレイアウトと配置ツール
@@ -851,7 +698,6 @@ Assets/
 - ✅ Prefabワークフロー（作成、更新、インスタンス化、オーバーライド管理）
 - ✅ プロジェクト設定構成（6カテゴリ）
 - ✅ レンダーパイプライン管理（Built-in/URP/HDRP）
-- ✅ Input System統合（New Input System）
 
 ### 開発者ツール
 - ✅ **バッチ操作実行** - 複数の操作を組み合わせ
@@ -867,12 +713,11 @@ Assets/
 |---------|---------|------|
 | **コア** | 5ツール | ping, シーン, GameObject, コンポーネント, アセット |
 | **高レベル** | 6ツール | シーンクイックセットアップ, GameObjectテンプレート, UIテンプレート, レイアウトマネージャー, 階層ビルダー, コンテキストインスペクター |
-| **2D** | 1ツール | Tilemap（7操作） |
-| **ナビゲーション** | 1ツール | NavMesh（7操作） |
 | **UI** | 3ツール | UGUI統合 + 専用ツール |
-| **システム** | 5ツール | タグ/レイヤー, Prefab, 設定, レンダーパイプライン, 入力 |
-| **ユーティリティ** | 2ツール | スクリプトアウトライン, バッチ実行 |
-| **合計** | **23ツール** | **120+操作** |
+| **システム** | 3ツール | タグ/レイヤー, Prefab, 設定, レンダーパイプライン |
+| **スクリプト管理** | 1ツール | バッチスクリプト作成・更新・削除 |
+| **ユーティリティ** | 1ツール | バッチ実行 |
+| **合計** | **19ツール** | **80+操作** |
 
 ---
 
@@ -881,8 +726,6 @@ Assets/
 - Unity 2021.3以降（2022.3以降推奨）
 - Python 3.10以降
 - uv（推奨）またはpip
-- オプション: Input Systemパッケージ（`unity.inputSystem.manage`用）
-- オプション: NavMesh Componentsパッケージ（`createNavMeshSurface`用）
 
 ---
 
@@ -899,26 +742,17 @@ Assets/
 
 1. GameObjectパスが正しいか確認（"Canvas/Panel/Button"のような階層パスを使用）
 2. コンポーネント型名が完全修飾されているか確認（例: "UnityEngine.UI.Text"）
-3. Tilemap用: GridとTilemapコンポーネントが存在するか確認
-4. NavMesh用: エージェント追加前にNavMeshがベイクされているか確認
-5. Unity Consoleで詳細なエラーメッセージを確認
+3. Unity Consoleで詳細なエラーメッセージを確認
 
 ### コンパイル後
 
 ブリッジはUnityがスクリプトを再コンパイルした後、自動的に接続状態を保存して再接続します。手動での介入は不要です。
 
-### TileMap問題
+### スクリプト管理の問題
 
-- 指定されたパスにタイルアセットが存在するか確認
-- GridとTilemapの階層構造を確認
-- `inspectTilemap`を使用して状態を確認
-
-### NavMesh問題
-
-- ジオメトリがNavigation Staticとしてマークされているか確認
-- エージェントをテストする前にNavMeshをベイク
-- Sceneビューでナビゲーション可視化を確認（Window > AI > Navigation）
-- `updateSettings`は読み取り専用 - ベイク設定にはUnity Navigationウィンドウを使用
+- スクリプト操作には常に`unity_script_batch_manage()`を使用
+- 単一スクリプトの場合でもバッチ管理を使用してコンパイルを適切に処理
+- コンパイルエラーはUnity Consoleで確認
 
 ---
 

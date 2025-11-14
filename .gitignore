@@ -14,6 +14,8 @@
 AssetBundles/
 UserSettings/
 UserSettings/Layouts/
+Packages/
+ProjectSettings/
 
 # Unity crash and debug files
 sysinfo.txt

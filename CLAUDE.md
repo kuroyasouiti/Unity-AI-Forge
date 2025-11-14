@@ -1562,120 +1562,137 @@ The render pipeline management tool provides operations for inspecting and confi
 - Uses reflection to access pipeline-specific settings
 - All changes are saved to the asset automatically
 
-### Input System Management (`unity.inputSystem.manage`)
+### Script Management (`unity_script_batch_manage`)
 
-The input system management tool provides operations for working with Unity's New Input System (requires Input System package).
+The script management tool provides comprehensive operations for creating, updating, and managing C# scripts in Unity with automatic compilation handling.
+
+**CRITICAL: This is the ONLY tool for script operations. DO NOT use `unity_asset_crud` for C# scripts.**
 
 **Operations:**
 
-1. **listActions** - List all Input Action assets
-   ```json
-   {
-     "operation": "listActions"
-   }
-   ```
-   Returns all .inputactions files in the project.
+All operations use the batch format with a `scripts` array, even for single scripts:
 
-2. **createAsset** - Create a new Input Action asset
-   ```json
-   {
-     "operation": "createAsset",
-     "assetPath": "Assets/Input/PlayerControls.inputactions"
-   }
-   ```
+```python
+unity_script_batch_manage({
+    "scripts": [
+        {
+            "operation": "create",  # or "update", "delete"
+            "scriptPath": "Assets/Scripts/Player.cs",
+            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    // Your code here\n}"
+        }
+    ],
+    "stopOnError": False,  # Continue processing on errors (default: False)
+    "timeoutSeconds": 30   # Compilation timeout (default: 30)
+})
+```
 
-3. **addActionMap** - Add an action map to an asset
-   ```json
-   {
-     "operation": "addActionMap",
-     "assetPath": "Assets/Input/PlayerControls.inputactions",
-     "mapName": "Player"
-   }
-   ```
+**Available Operations:**
 
-4. **addAction** - Add an action to a map
-   ```json
-   {
-     "operation": "addAction",
-     "assetPath": "Assets/Input/PlayerControls.inputactions",
-     "mapName": "Player",
-     "actionName": "Jump",
-     "actionType": "Button"
-   }
-   ```
-   Action types: Button, Value, PassThrough
-
-5. **addBinding** - Add a binding to an action
-   ```json
-   {
-     "operation": "addBinding",
-     "assetPath": "Assets/Input/PlayerControls.inputactions",
-     "mapName": "Player",
-     "actionName": "Jump",
-     "path": "<Keyboard>/space"
-   }
-   ```
-   Common binding paths:
-   - Keyboard: `<Keyboard>/space`, `<Keyboard>/w`, `<Keyboard>/escape`
-   - Mouse: `<Mouse>/leftButton`, `<Mouse>/position`, `<Mouse>/delta`
-   - Gamepad: `<Gamepad>/buttonSouth`, `<Gamepad>/leftStick`
-
-6. **inspectAsset** - Inspect Input Action asset contents
-   ```json
-   {
-     "operation": "inspectAsset",
-     "assetPath": "Assets/Input/PlayerControls.inputactions"
-   }
-   ```
-   Returns action maps and their actions.
-
-7. **deleteAsset** - Delete entire Input Action asset
-   ```json
-   {
-     "operation": "deleteAsset",
-     "assetPath": "Assets/Input/PlayerControls.inputactions"
-   }
-   ```
-   Permanently deletes the .inputactions file.
-
-8. **deleteActionMap** - Delete an action map from asset
-   ```json
-   {
-     "operation": "deleteActionMap",
-     "assetPath": "Assets/Input/PlayerControls.inputactions",
-     "mapName": "Player"
-   }
+1. **create** - Create a new C# script
+   ```python
+   unity_script_batch_manage({
+       "scripts": [
+           {
+               "operation": "create",
+               "scriptPath": "Assets/Scripts/PlayerController.cs",
+               "content": "using UnityEngine;\n\npublic class PlayerController : MonoBehaviour\n{\n    void Start()\n    {\n        Debug.Log(\"Player initialized\");\n    }\n}"
+           }
+       ]
+   })
    ```
 
-9. **deleteAction** - Delete an action from a map
-   ```json
-   {
-     "operation": "deleteAction",
-     "assetPath": "Assets/Input/PlayerControls.inputactions",
-     "mapName": "Player",
-     "actionName": "Jump"
-   }
+2. **update** - Update an existing C# script
+   ```python
+   unity_script_batch_manage({
+       "scripts": [
+           {
+               "operation": "update",
+               "scriptPath": "Assets/Scripts/PlayerController.cs",
+               "content": "using UnityEngine;\n\npublic class PlayerController : MonoBehaviour\n{\n    public float speed = 5f;\n    \n    void Update()\n    {\n        // Movement code\n    }\n}"
+           }
+       ]
+   })
    ```
 
-10. **deleteBinding** - Delete binding(s) from an action
-    ```json
-    {
-      "operation": "deleteBinding",
-      "assetPath": "Assets/Input/PlayerControls.inputactions",
-      "mapName": "Player",
-      "actionName": "Jump",
-      "bindingIndex": 0
-    }
-    ```
-    - Omit `bindingIndex` or set to -1 to delete ALL bindings from the action
-    - Specify `bindingIndex` (0, 1, 2, ...) to delete a specific binding
+3. **delete** - Delete a C# script
+   ```python
+   unity_script_batch_manage({
+       "scripts": [
+           {
+               "operation": "delete",
+               "scriptPath": "Assets/Scripts/OldScript.cs"
+           }
+       ]
+   })
+   ```
 
-**Implementation Notes:**
-- Uses reflection to access Input System API (UnityEngine.InputSystem.InputActionAsset)
-- Requires Input System package to be installed via Package Manager
-- All changes are automatically saved to the asset
-- The tool creates .inputactions files which can be used in runtime code
-- Delete operations are permanent and cannot be undone
+**Batch Operations (Recommended):**
+
+Creating/updating multiple scripts in one call triggers only a single compilation:
+
+```python
+unity_script_batch_manage({
+    "scripts": [
+        {
+            "operation": "create",
+            "scriptPath": "Assets/Scripts/Player.cs",
+            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour { }"
+        },
+        {
+            "operation": "create",
+            "scriptPath": "Assets/Scripts/Enemy.cs",
+            "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour { }"
+        },
+        {
+            "operation": "create",
+            "scriptPath": "Assets/Scripts/GameManager.cs",
+            "content": "using UnityEngine;\n\npublic class GameManager : MonoBehaviour { }"
+        }
+    ],
+    "stopOnError": False,
+    "timeoutSeconds": 45
+})
+```
+
+**Key Features:**
+
+- **Automatic Compilation**: Handles Unity's script compilation automatically
+- **Batch Processing**: Process multiple scripts with single compilation (10-20x faster)
+- **Error Handling**: `stopOnError=false` continues processing all scripts even if one fails
+- **Compilation Timeout**: Configurable timeout for compilation process
+- **Atomic Operations**: When `stopOnError=true`, all scripts succeed or all fail together
+
+**Performance Benefits:**
+
+| Approach | Scripts | Compilations | Time |
+|----------|---------|--------------|------|
+| Individual operations | 10 scripts | 10 compilations | ~60-120s |
+| Batch operation | 10 scripts | 1 compilation | ~5-10s |
+
+**Return Value:**
+
+```python
+{
+    "totalCount": 3,
+    "successCount": 3,
+    "errorCount": 0,
+    "results": [
+        {"scriptPath": "Assets/Scripts/Player.cs", "status": "success"},
+        {"scriptPath": "Assets/Scripts/Enemy.cs", "status": "success"},
+        {"scriptPath": "Assets/Scripts/GameManager.cs", "status": "success"}
+    ],
+    "errors": [],
+    "compilationSucceeded": True
+}
+```
+
+**Important Notes:**
+- All script paths must start with "Assets/"
+- Scripts must have `.cs` extension
+- Compilation happens automatically after all file operations
+- The tool waits for compilation to complete before returning
+- If compilation fails, the response includes compilation errors
+- NEVER use `unity_asset_crud` for C# scripts - it bypasses compilation handling
 
 ### Prefab Management (`unity.prefab.crud`)
 
