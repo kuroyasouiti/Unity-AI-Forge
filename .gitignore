@@ -27,12 +27,12 @@ sysinfo.txt
 Assets/*
 !Assets/Editor/
 Assets/Editor/*
-!Assets/Editor/MCPBridge/
-!Assets/Editor/MCPBridge.meta
+!Assets/SkillForUnity/Editor/MCPBridge/
+!Assets/SkillForUnity/Editor/MCPBridge.meta
 
 # Editor-specific exclusions
-Assets/Editor/MCPBridge/SkillPackager.cs
-Assets/Editor/MCPBridge/SkillPackager.cs.meta
+Assets/SkillForUnity/Editor/MCPBridge/SkillPackager.cs
+Assets/SkillForUnity/Editor/MCPBridge/SkillPackager.cs.meta
 
 # ================================================================
 # Build Outputs
