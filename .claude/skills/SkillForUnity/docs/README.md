@@ -16,7 +16,7 @@
 - **[TOOL_SELECTION_GUIDE.md](TOOL_SELECTION_GUIDE.md)** - How to choose the right tool
 
 ### Advanced Guides
-- **[CLAUDE.md](../../CLAUDE.md)** - Detailed guidance for Claude Code integration
+- **[CLAUDE.md](../../../../CLAUDE.md)** - Detailed guidance for Claude Code integration
 - **Examples** - See [examples/](../examples/) directory for practical tutorials
 
 ---
@@ -35,7 +35,7 @@
 → Read **[TOOL_SELECTION_GUIDE.md](TOOL_SELECTION_GUIDE.md)** (decision trees + workflows)
 
 #### ...integrate with Claude Code
-→ Read **[CLAUDE.md](../../CLAUDE.md)** (comprehensive guide)
+→ Read **[CLAUDE.md](../../../../CLAUDE.md)** (comprehensive guide)
 
 #### ...see practical examples
 → Check **[examples/](../examples/)** directory

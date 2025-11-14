@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🎯 What is Skill for Unity?
 
@@ -26,20 +26,20 @@ Skill for Unity enables AI assistants (Claude, Cursor, etc.) to interact with Un
 
 **Windows (PowerShell):**
 ```powershell
-cd SkillPackage
+cd SkillForUnity
 .\setup\install.ps1
 ```
 
 **Linux/macOS:**
 ```bash
-cd SkillPackage
+cd SkillForUnity
 ./setup/install.sh
 ```
 
 ### 2. Unity Setup
 
 1. Open your Unity project
-2. Import the MCPBridge package from `../Assets/Editor/MCPBridge/`
+2. Import the MCPBridge package from `Assets/SkillForUnity/Editor/MCPBridge/`
 3. Go to **Tools > MCP Assistant**
 4. Click **Start Bridge**
 
@@ -58,7 +58,7 @@ This generates configuration files in `config/` directory. Copy the appropriate 
   "mcpServers": {
     "skill-for-unity": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/SkillPackage", "src/main.py"],
+      "args": ["run", "--directory", "/path/to/SkillForUnity", "src/main.py"],
       "env": {
         "MCP_SERVER_TRANSPORT": "stdio",
         "MCP_LOG_LEVEL": "info"
@@ -165,7 +165,7 @@ AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity 
 
 **Components:**
 - **Python MCP Server** (`src/`) - Model Context Protocol implementation
-- **Unity C# Bridge** (`../Assets/Editor/MCPBridge/`) - WebSocket server in Unity Editor
+- **Unity C# Bridge** (`Assets/SkillForUnity/Editor/MCPBridge/`) - WebSocket server in Unity Editor
 
 ## 💻 Development
 
@@ -200,7 +200,7 @@ Contributions are welcome! Please:
 
 ## 📄 License
 
-MIT License - see [LICENSE](../LICENSE) for details
+MIT License - see [MIT License](https://opensource.org/licenses/MIT) for details
 
 ## 🆘 Support
 

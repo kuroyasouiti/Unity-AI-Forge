@@ -8,7 +8,6 @@ This directory contains practical examples demonstrating how to use the Unity MC
 2. **[UI Creation](02-ui-creation.md)** - Build a complete UI menu system
 3. **[Game Level Design](03-game-level.md)** - Design a game level with terrain and enemies
 4. **[Prefab Workflow](04-prefab-workflow.md)** - Create and manage prefabs efficiently
-5. **[Batch Operations](05-batch-operations.md)** - Perform bulk operations on multiple GameObjects
 
 ## Example Structure
 

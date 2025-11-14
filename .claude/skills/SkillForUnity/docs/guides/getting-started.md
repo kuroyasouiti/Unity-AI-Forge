@@ -254,7 +254,7 @@ If you encounter issues:
 1. Check [Troubleshooting Guide](../troubleshooting.md)
 2. Verify Unity MCP Bridge is running (Tools > MCP Assistant)
 3. Check Unity Console for error messages
-4. Review [CLAUDE.md](../../../CLAUDE.md) for detailed documentation
+4. Review [CLAUDE.md](../../../../../CLAUDE.md) for detailed documentation
 
 ## Example: Complete First Project
 

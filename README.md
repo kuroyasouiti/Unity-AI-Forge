@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 📦 What's New: Skill Package Structure
 
@@ -106,7 +106,7 @@ The AI should call `unity_ping()` and show Unity version information.
 
 - **[Claude Skill docs](.claude/skills/SkillForUnity/docs/)** - API reference and guides
 - **[CLAUDE.md](CLAUDE.md)** - Instructions for Claude Code integration
-- **[AGENTS.md](AGENTS.md)** - Repository guidelines
+- **[Best Practices guide](.claude/skills/SkillForUnity/docs/guides/best-practices.md)** - Repository guidelines and tips
 
 ## 🏗️ Architecture
 
@@ -288,11 +288,11 @@ Contributions are welcome! Please:
 4. Add tests and documentation
 5. Submit a pull request
 
-See [AGENTS.md](AGENTS.md) for coding guidelines.
+See [.claude/skills/SkillForUnity/docs/guides/best-practices.md](.claude/skills/SkillForUnity/docs/guides/best-practices.md) for coding guidelines.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [MIT License](https://opensource.org/licenses/MIT) for details.
 
 ## 🙏 Acknowledgments
 

@@ -12,13 +12,13 @@
 
 ### Windows
 ```powershell
-cd SkillPackage
+cd SkillForUnity
 .\setup\install.ps1
 ```
 
 ### Linux/macOS
 ```bash
-cd SkillPackage
+cd SkillForUnity
 chmod +x setup/install.sh
 ./setup/install.sh
 ```
@@ -32,7 +32,7 @@ This will:
 
 1. **Open Unity Editor** with your project
 2. **Import MCPBridge** (if not already imported):
-   - The bridge is located at `../Assets/Editor/MCPBridge/`
+   - The bridge is located at `Assets/SkillForUnity/Editor/MCPBridge/`
    - It should be automatically available if you opened the Unity project
 3. **Start the Bridge**:
    - Go to **Tools > MCP Assistant**
@@ -59,7 +59,7 @@ This will:
       "args": [
         "run",
         "--directory",
-        "C:/Projects/MCP/SkillPackage",
+        "C:/Projects/MCP/SkillForUnity",
         "src/main.py"
       ],
       "env": {
@@ -71,7 +71,7 @@ This will:
 }
 ```
 
-3. Replace `C:/Projects/MCP/SkillPackage` with your actual path
+3. Replace `C:/Projects/MCP/SkillForUnity` with your actual path
 
 4. Restart Claude Desktop
 

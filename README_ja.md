@@ -669,9 +669,10 @@ SkillForUnity/
 ### 新しいツールの追加
 
 詳細なガイドは以下を参照:
-- [CLAUDE.md](../CLAUDE.md) - 完全な開発ドキュメント
-- [TILEMAP_NAVMESH_TOOLS.md](../TILEMAP_NAVMESH_TOOLS.md) - TileMap & NavMeshツールリファレンス
-- [BATCH_PROCESSING_EXAMPLES.md](../BATCH_PROCESSING_EXAMPLES.md) - バッチ操作の例
+- [CLAUDE.md](CLAUDE.md) - 完全な開発ドキュメント
+- [Tilemapツールリファレンス](.claude/skills/SkillForUnity/docs/TOOLS_REFERENCE.md#24-unity_tilemap_manage) - TileMapツールリファレンス
+- [NavMeshツールリファレンス](.claude/skills/SkillForUnity/docs/TOOLS_REFERENCE.md#25-unity_navmesh_manage) - NavMeshツールリファレンス
+- [TOOL_SELECTION_GUIDE.md](.claude/skills/SkillForUnity/docs/TOOL_SELECTION_GUIDE.md) - バッチ操作やワークフローのまとめ
 
 ---
 
@@ -779,28 +780,29 @@ SkillForUnity/
 
 ## ドキュメント
 
-- **メインドキュメント**: [CLAUDE.md](../CLAUDE.md)
-- **TileMap & NavMeshガイド**: [TILEMAP_NAVMESH_TOOLS.md](../TILEMAP_NAVMESH_TOOLS.md)
-- **バッチ処理例**: [BATCH_PROCESSING_EXAMPLES.md](../BATCH_PROCESSING_EXAMPLES.md)
+- **メインドキュメント**: [CLAUDE.md](CLAUDE.md)
+- **TileMapガイド**: [Tilemapツールリファレンス](.claude/skills/SkillForUnity/docs/TOOLS_REFERENCE.md#24-unity_tilemap_manage)
+- **NavMeshガイド**: [NavMeshツールリファレンス](.claude/skills/SkillForUnity/docs/TOOLS_REFERENCE.md#25-unity_navmesh_manage)
+- **バッチ処理例**: [TOOL_SELECTION_GUIDE.md](.claude/skills/SkillForUnity/docs/TOOL_SELECTION_GUIDE.md)
 - **このファイル**: 完全なツールリファレンスとクイックスタート
 
 ---
 
 ## ライセンス
 
-[ライセンスをここに追加]
+MIT License - [MIT License](https://opensource.org/licenses/MIT)
 
 ## 貢献
 
 
-貢献を歓迎します！開発ガイドは[CLAUDE.md](../CLAUDE.md)をお読みください。
+貢献を歓迎します！開発ガイドは[CLAUDE.md](CLAUDE.md)をお読みください。
 
 ## サポート
 
 問題、質問、機能リクエストについて:
 1. Unity Consoleでエラーメッセージを確認
-2. [CLAUDE.md](../CLAUDE.md)のドキュメントを確認
-3. [BATCH_PROCESSING_EXAMPLES.md](../BATCH_PROCESSING_EXAMPLES.md)のバッチ操作例を確認
+2. [CLAUDE.md](CLAUDE.md)のドキュメントを確認
+3. [TOOL_SELECTION_GUIDE.md](.claude/skills/SkillForUnity/docs/TOOL_SELECTION_GUIDE.md)でバッチ操作のワークフローを確認
 4. プロジェクトリポジトリにissueを作成
 
 ---
