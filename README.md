@@ -31,7 +31,7 @@ SkillForUnity/
 1. Open Unity Editor
 2. Open **Window > Package Manager**
 3. Click **+ (Plus)** button → **Add package from git URL...**
-4. Enter: `https://github.com/yourusername/SkillForUnity.git?path=/Assets/SkillForUnity`
+4. Enter: `https://github.com/kuroyasouiti/SkillForUnity.git?path=/Assets/SkillForUnity`
 5. Click **Add**
 
 **Option B: Manual Installation**

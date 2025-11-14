@@ -24,7 +24,7 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 1. Unity Editorを開く
 2. **Window > Package Manager**を開く
 3. **+ (プラス)** ボタン → **Add package from git URL...**をクリック
-4. 次のURLを入力: `https://github.com/yourusername/SkillForUnity.git?path=/Assets/SkillForUnity`
+4. 次のURLを入力: `https://github.com/kuroyasouiti/SkillForUnity.git?path=/Assets/SkillForUnity`
 5. **Add**をクリック
 
 **方法B: 手動インストール**
