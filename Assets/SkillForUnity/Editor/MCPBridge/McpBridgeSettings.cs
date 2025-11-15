@@ -252,6 +252,12 @@ namespace MCP.Editor
                 // keep trimmed fallback
             }
 
+            // For skill packages (.zip files), return path as-is without appending folder name
+            if (trimmed.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed;
+            }
+
             return EnsureServerFolder(trimmed);
         }
 
