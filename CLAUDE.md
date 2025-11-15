@@ -508,6 +508,98 @@ The component management tool now supports setting UnityEvent listeners (Button.
 - Listeners are added as **persistent listeners** (saved in the scene)
 - Use `"clearListeners": true` to remove all existing listeners before adding new ones
 
+### Updating RectTransform Properties
+
+**IMPORTANT:** RectTransform properties can be updated using **TWO METHODS** with the same results:
+
+**Method 1: Using `unity_component_crud` (Recommended for consistency)**
+```python
+unity_component_crud({
+    "operation": "update",
+    "gameObjectPath": "Canvas/Panel",
+    "componentType": "UnityEngine.RectTransform",
+    "propertyChanges": {
+        "anchoredPosition": {"x": 100, "y": 200},  # Dictionary format
+        "sizeDelta": {"x": 300, "y": 400},
+        "pivot": {"x": 0.5, "y": 0.5},
+        "anchorMin": {"x": 0, "y": 0},
+        "anchorMax": {"x": 1, "y": 1}
+    }
+})
+```
+
+**Method 2: Using `unity_ugui_manage` with `updateRect` operation**
+
+Supports BOTH dictionary format and individual fields format:
+
+```python
+# Dictionary format (same as unity_component_crud)
+unity_ugui_manage({
+    "operation": "updateRect",
+    "gameObjectPath": "Canvas/Panel",
+    "anchoredPosition": {"x": 100, "y": 200},
+    "sizeDelta": {"x": 300, "y": 400},
+    "pivot": {"x": 0.5, "y": 0.5}
+})
+
+# Individual fields format (legacy support)
+unity_ugui_manage({
+    "operation": "updateRect",
+    "gameObjectPath": "Canvas/Panel",
+    "anchoredPositionX": 100,
+    "anchoredPositionY": 200,
+    "sizeDeltaX": 300,
+    "sizeDeltaY": 400,
+    "pivotX": 0.5,
+    "pivotY": 0.5
+})
+```
+
+**Supported RectTransform Properties:**
+- `anchoredPosition` / `anchoredPositionX`, `anchoredPositionY` - Position relative to anchors
+- `sizeDelta` / `sizeDeltaX`, `sizeDeltaY` - Size when not stretched
+- `pivot` / `pivotX`, `pivotY` - Pivot point (0-1 range)
+- `offsetMin` / `offsetMinX`, `offsetMinY` - Lower-left corner offset
+- `offsetMax` / `offsetMaxX`, `offsetMaxY` - Upper-right corner offset
+- `anchorMin` - Anchor min point (0-1 range, dictionary format only)
+- `anchorMax` - Anchor max point (0-1 range, dictionary format only)
+
+**Best Practices:**
+1. Use **dictionary format** for consistency with other component updates
+2. Use `unity_component_crud` for general component property updates
+3. Use `unity_ugui_manage` for UGUI-specific operations like anchor presets and conversions
+4. Both methods produce identical results - choose based on your workflow preference
+
+**Common UI Positioning Examples:**
+
+```python
+# Center a UI element
+unity_ugui_manage({
+    "operation": "updateRect",
+    "gameObjectPath": "Canvas/Title",
+    "anchoredPosition": {"x": 0, "y": 0},
+    "anchorMin": {"x": 0.5, "y": 0.5},
+    "anchorMax": {"x": 0.5, "y": 0.5}
+})
+
+# Stretch horizontally at the top
+unity_ugui_manage({
+    "operation": "updateRect",
+    "gameObjectPath": "Canvas/TopBar",
+    "sizeDelta": {"x": 0, "y": 50},  # Full width, 50px height
+    "anchorMin": {"x": 0, "y": 1},
+    "anchorMax": {"x": 1, "y": 1}
+})
+
+# Position at specific pixel coordinates
+unity_ugui_manage({
+    "operation": "updateRect",
+    "gameObjectPath": "Canvas/Button",
+    "anchoredPosition": {"x": 100, "y": -50},
+    "sizeDelta": {"x": 200, "y": 60}
+})
+```
+
 ## Adding New Tools
 
 1. **Define schema in `register_tools.py`:**

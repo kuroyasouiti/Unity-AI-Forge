@@ -1008,48 +1008,104 @@ def register_tools(server: Server) -> None:
                     "type": "number",
                     "description": "Absolute Y position in parent space. Used with convertToAnchored operation.",
                 },
-                # updateRect parameters
+                # updateRect parameters - supports both dictionary format and individual fields
+                "anchoredPosition": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                    },
+                    "description": "Anchored position as dictionary (e.g., {'x': 100, 'y': 200}). Alternative to anchoredPositionX/Y. Used with updateRect operation.",
+                },
                 "anchoredPositionX": {
                     "type": "number",
-                    "description": "Anchored position X. Used with updateRect operation.",
+                    "description": "Anchored position X (individual field format). Alternative to anchoredPosition dictionary. Used with updateRect operation.",
                 },
                 "anchoredPositionY": {
                     "type": "number",
-                    "description": "Anchored position Y. Used with updateRect operation.",
+                    "description": "Anchored position Y (individual field format). Alternative to anchoredPosition dictionary. Used with updateRect operation.",
+                },
+                "sizeDelta": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number", "minimum": 0},
+                        "y": {"type": "number", "minimum": 0},
+                    },
+                    "description": "Size delta as dictionary (e.g., {'x': 300, 'y': 400}). Alternative to sizeDeltaX/Y. Used with updateRect operation.",
                 },
                 "sizeDeltaX": {
                     "type": "number",
                     "minimum": 0,
-                    "description": "Size delta X. Must be non-negative. Used with updateRect operation.",
+                    "description": "Size delta X (individual field format). Must be non-negative. Alternative to sizeDelta dictionary. Used with updateRect operation.",
                 },
                 "sizeDeltaY": {
                     "type": "number",
                     "minimum": 0,
-                    "description": "Size delta Y. Must be non-negative. Used with updateRect operation.",
+                    "description": "Size delta Y (individual field format). Must be non-negative. Alternative to sizeDelta dictionary. Used with updateRect operation.",
+                },
+                "pivot": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number", "minimum": 0, "maximum": 1},
+                        "y": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                    "description": "Pivot point as dictionary (e.g., {'x': 0.5, 'y': 0.5}). Alternative to pivotX/Y. Used with updateRect operation.",
                 },
                 "pivotX": {
                     "type": "number",
-                    "description": "Pivot X (0-1 range). Used with updateRect operation.",
+                    "description": "Pivot X (0-1 range, individual field format). Alternative to pivot dictionary. Used with updateRect operation.",
                 },
                 "pivotY": {
                     "type": "number",
-                    "description": "Pivot Y (0-1 range). Used with updateRect operation.",
+                    "description": "Pivot Y (0-1 range, individual field format). Alternative to pivot dictionary. Used with updateRect operation.",
+                },
+                "offsetMin": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                    },
+                    "description": "Offset min as dictionary (e.g., {'x': 10, 'y': 10}). Alternative to offsetMinX/Y. Used with updateRect operation.",
                 },
                 "offsetMinX": {
                     "type": "number",
-                    "description": "Offset min X. Used with updateRect operation.",
+                    "description": "Offset min X (individual field format). Alternative to offsetMin dictionary. Used with updateRect operation.",
                 },
                 "offsetMinY": {
                     "type": "number",
-                    "description": "Offset min Y. Used with updateRect operation.",
+                    "description": "Offset min Y (individual field format). Alternative to offsetMin dictionary. Used with updateRect operation.",
+                },
+                "offsetMax": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                    },
+                    "description": "Offset max as dictionary (e.g., {'x': -10, 'y': -10}). Alternative to offsetMaxX/Y. Used with updateRect operation.",
                 },
                 "offsetMaxX": {
                     "type": "number",
-                    "description": "Offset max X. Used with updateRect operation.",
+                    "description": "Offset max X (individual field format). Alternative to offsetMax dictionary. Used with updateRect operation.",
                 },
                 "offsetMaxY": {
                     "type": "number",
-                    "description": "Offset max Y. Used with updateRect operation.",
+                    "description": "Offset max Y (individual field format). Alternative to offsetMax dictionary. Used with updateRect operation.",
+                },
+                "anchorMin": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number", "minimum": 0, "maximum": 1},
+                        "y": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                    "description": "Anchor min as dictionary (e.g., {'x': 0, 'y': 0}). Used with updateRect operation.",
+                },
+                "anchorMax": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number", "minimum": 0, "maximum": 1},
+                        "y": {"type": "number", "minimum": 0, "maximum": 1},
+                    },
+                    "description": "Anchor max as dictionary (e.g., {'x': 1, 'y': 1}). Used with updateRect operation.",
                 },
             },
         },
@@ -1120,7 +1176,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_ugui_manage",
-            description="Unified UGUI management tool. Consolidates all UGUI operations: adjust RectTransform size (rectAdjust), set anchors (setAnchor/setAnchorPreset), convert positioning (convertToAnchored/convertToAbsolute), inspect RectTransform state (inspect), and update properties (updateRect).",
+            description="Unified UGUI management tool. Consolidates all UGUI operations: adjust RectTransform size (rectAdjust), set anchors (setAnchor/setAnchorPreset), convert positioning (convertToAnchored/convertToAbsolute), inspect RectTransform state (inspect), and update properties (updateRect). The updateRect operation supports BOTH dictionary format (e.g., anchoredPosition={'x': 100, 'y': 200}) and individual fields format (e.g., anchoredPositionX=100, anchoredPositionY=200) for flexibility and consistency with unity.component.crud.",
             inputSchema=ugui_manage_schema,
         ),
         types.Tool(

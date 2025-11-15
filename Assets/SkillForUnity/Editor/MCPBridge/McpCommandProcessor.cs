@@ -2331,63 +2331,150 @@ namespace MCP.Editor
         /// </summary>
         private static void ExecuteUpdateRect(RectTransform rectTransform, Dictionary<string, object> payload)
         {
-            // Update anchoredPosition if provided
-            var anchoredPositionX = GetFloat(payload, "anchoredPositionX");
-            var anchoredPositionY = GetFloat(payload, "anchoredPositionY");
-            if (anchoredPositionX.HasValue || anchoredPositionY.HasValue)
+            // Update anchoredPosition - supports both dictionary format and individual fields
+            if (payload.TryGetValue("anchoredPosition", out var anchoredPosObj) && anchoredPosObj is Dictionary<string, object> anchoredPosDict)
             {
+                // Dictionary format: {"anchoredPosition": {"x": 100, "y": 200}}
                 var pos = rectTransform.anchoredPosition;
                 rectTransform.anchoredPosition = new Vector2(
-                    anchoredPositionX ?? pos.x,
-                    anchoredPositionY ?? pos.y
+                    GetFloat(anchoredPosDict, "x") ?? pos.x,
+                    GetFloat(anchoredPosDict, "y") ?? pos.y
                 );
             }
-
-            // Update sizeDelta if provided
-            var sizeDeltaX = GetFloat(payload, "sizeDeltaX");
-            var sizeDeltaY = GetFloat(payload, "sizeDeltaY");
-            if (sizeDeltaX.HasValue || sizeDeltaY.HasValue)
+            else
             {
+                // Individual fields format: {"anchoredPositionX": 100, "anchoredPositionY": 200}
+                var anchoredPositionX = GetFloat(payload, "anchoredPositionX");
+                var anchoredPositionY = GetFloat(payload, "anchoredPositionY");
+                if (anchoredPositionX.HasValue || anchoredPositionY.HasValue)
+                {
+                    var pos = rectTransform.anchoredPosition;
+                    rectTransform.anchoredPosition = new Vector2(
+                        anchoredPositionX ?? pos.x,
+                        anchoredPositionY ?? pos.y
+                    );
+                }
+            }
+
+            // Update sizeDelta - supports both dictionary format and individual fields
+            if (payload.TryGetValue("sizeDelta", out var sizeDeltaObj) && sizeDeltaObj is Dictionary<string, object> sizeDeltaDict)
+            {
+                // Dictionary format: {"sizeDelta": {"x": 300, "y": 400}}
                 var size = rectTransform.sizeDelta;
                 rectTransform.sizeDelta = new Vector2(
-                    sizeDeltaX ?? size.x,
-                    sizeDeltaY ?? size.y
+                    GetFloat(sizeDeltaDict, "x") ?? size.x,
+                    GetFloat(sizeDeltaDict, "y") ?? size.y
                 );
             }
-
-            // Update pivot if provided
-            var pivotX = GetFloat(payload, "pivotX");
-            var pivotY = GetFloat(payload, "pivotY");
-            if (pivotX.HasValue || pivotY.HasValue)
+            else
             {
+                // Individual fields format: {"sizeDeltaX": 300, "sizeDeltaY": 400}
+                var sizeDeltaX = GetFloat(payload, "sizeDeltaX");
+                var sizeDeltaY = GetFloat(payload, "sizeDeltaY");
+                if (sizeDeltaX.HasValue || sizeDeltaY.HasValue)
+                {
+                    var size = rectTransform.sizeDelta;
+                    rectTransform.sizeDelta = new Vector2(
+                        sizeDeltaX ?? size.x,
+                        sizeDeltaY ?? size.y
+                    );
+                }
+            }
+
+            // Update pivot - supports both dictionary format and individual fields
+            if (payload.TryGetValue("pivot", out var pivotObj) && pivotObj is Dictionary<string, object> pivotDict)
+            {
+                // Dictionary format: {"pivot": {"x": 0.5, "y": 0.5}}
                 var pivot = rectTransform.pivot;
                 rectTransform.pivot = new Vector2(
-                    pivotX ?? pivot.x,
-                    pivotY ?? pivot.y
+                    GetFloat(pivotDict, "x") ?? pivot.x,
+                    GetFloat(pivotDict, "y") ?? pivot.y
                 );
             }
-
-            // Update offsetMin if provided
-            var offsetMinX = GetFloat(payload, "offsetMinX");
-            var offsetMinY = GetFloat(payload, "offsetMinY");
-            if (offsetMinX.HasValue || offsetMinY.HasValue)
+            else
             {
+                // Individual fields format: {"pivotX": 0.5, "pivotY": 0.5}
+                var pivotX = GetFloat(payload, "pivotX");
+                var pivotY = GetFloat(payload, "pivotY");
+                if (pivotX.HasValue || pivotY.HasValue)
+                {
+                    var pivot = rectTransform.pivot;
+                    rectTransform.pivot = new Vector2(
+                        pivotX ?? pivot.x,
+                        pivotY ?? pivot.y
+                    );
+                }
+            }
+
+            // Update offsetMin - supports both dictionary format and individual fields
+            if (payload.TryGetValue("offsetMin", out var offsetMinObj) && offsetMinObj is Dictionary<string, object> offsetMinDict)
+            {
+                // Dictionary format: {"offsetMin": {"x": 10, "y": 10}}
                 var offset = rectTransform.offsetMin;
                 rectTransform.offsetMin = new Vector2(
-                    offsetMinX ?? offset.x,
-                    offsetMinY ?? offset.y
+                    GetFloat(offsetMinDict, "x") ?? offset.x,
+                    GetFloat(offsetMinDict, "y") ?? offset.y
+                );
+            }
+            else
+            {
+                // Individual fields format: {"offsetMinX": 10, "offsetMinY": 10}
+                var offsetMinX = GetFloat(payload, "offsetMinX");
+                var offsetMinY = GetFloat(payload, "offsetMinY");
+                if (offsetMinX.HasValue || offsetMinY.HasValue)
+                {
+                    var offset = rectTransform.offsetMin;
+                    rectTransform.offsetMin = new Vector2(
+                        offsetMinX ?? offset.x,
+                        offsetMinY ?? offset.y
+                    );
+                }
+            }
+
+            // Update offsetMax - supports both dictionary format and individual fields
+            if (payload.TryGetValue("offsetMax", out var offsetMaxObj) && offsetMaxObj is Dictionary<string, object> offsetMaxDict)
+            {
+                // Dictionary format: {"offsetMax": {"x": -10, "y": -10}}
+                var offset = rectTransform.offsetMax;
+                rectTransform.offsetMax = new Vector2(
+                    GetFloat(offsetMaxDict, "x") ?? offset.x,
+                    GetFloat(offsetMaxDict, "y") ?? offset.y
+                );
+            }
+            else
+            {
+                // Individual fields format: {"offsetMaxX": -10, "offsetMaxY": -10}
+                var offsetMaxX = GetFloat(payload, "offsetMaxX");
+                var offsetMaxY = GetFloat(payload, "offsetMaxY");
+                if (offsetMaxX.HasValue || offsetMaxY.HasValue)
+                {
+                    var offset = rectTransform.offsetMax;
+                    rectTransform.offsetMax = new Vector2(
+                        offsetMaxX ?? offset.x,
+                        offsetMaxY ?? offset.y
+                    );
+                }
+            }
+
+            // Update anchorMin - supports both dictionary format and individual fields
+            if (payload.TryGetValue("anchorMin", out var anchorMinObj) && anchorMinObj is Dictionary<string, object> anchorMinDict)
+            {
+                // Dictionary format: {"anchorMin": {"x": 0, "y": 0}}
+                var anchor = rectTransform.anchorMin;
+                rectTransform.anchorMin = new Vector2(
+                    GetFloat(anchorMinDict, "x") ?? anchor.x,
+                    GetFloat(anchorMinDict, "y") ?? anchor.y
                 );
             }
 
-            // Update offsetMax if provided
-            var offsetMaxX = GetFloat(payload, "offsetMaxX");
-            var offsetMaxY = GetFloat(payload, "offsetMaxY");
-            if (offsetMaxX.HasValue || offsetMaxY.HasValue)
+            // Update anchorMax - supports both dictionary format and individual fields
+            if (payload.TryGetValue("anchorMax", out var anchorMaxObj) && anchorMaxObj is Dictionary<string, object> anchorMaxDict)
             {
-                var offset = rectTransform.offsetMax;
-                rectTransform.offsetMax = new Vector2(
-                    offsetMaxX ?? offset.x,
-                    offsetMaxY ?? offset.y
+                // Dictionary format: {"anchorMax": {"x": 1, "y": 1}}
+                var anchor = rectTransform.anchorMax;
+                rectTransform.anchorMax = new Vector2(
+                    GetFloat(anchorMaxDict, "x") ?? anchor.x,
+                    GetFloat(anchorMaxDict, "y") ?? anchor.y
                 );
             }
         }
