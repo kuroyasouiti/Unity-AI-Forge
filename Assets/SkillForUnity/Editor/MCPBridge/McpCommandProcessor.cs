@@ -525,10 +525,14 @@ namespace MCP.Editor
         {
             var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
             var target = ResolveGameObject(path);
-            UnityEngine.Object.DestroyImmediate(target);
+
+            // Use Undo-aware destruction for proper editor integration
+            Undo.DestroyObjectImmediate(target);
+
             return new Dictionary<string, object>
             {
                 ["deleted"] = path,
+                ["success"] = true,
             };
         }
 
@@ -855,7 +859,10 @@ namespace MCP.Editor
             }
 
             EditorUtility.SetDirty(component);
-            return DescribeComponent(component);
+
+            var result = DescribeComponent(component);
+            result["success"] = true;
+            return result;
         }
 
         private static object InspectComponent(Dictionary<string, object> payload)
@@ -4890,6 +4897,10 @@ namespace MCP.Editor
             {
                 return i;
             }
+            if (value is long l)
+            {
+                return (float)l;
+            }
             if (value is string s && float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
             {
                 return parsed;
@@ -6315,6 +6326,24 @@ namespace MCP.Editor
                 };
             }
 
+            // Handle Quaternion
+            if (value is Quaternion quat)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["x"] = quat.x,
+                    ["y"] = quat.y,
+                    ["z"] = quat.z,
+                    ["w"] = quat.w,
+                };
+            }
+
+            // Handle Matrix4x4 (skip to avoid large output)
+            if (value is Matrix4x4 matrix)
+            {
+                return $"<Matrix4x4>";
+            }
+
             // Handle Color
             if (value is Color color)
             {
@@ -6659,9 +6688,25 @@ namespace MCP.Editor
             {
                 try
                 {
-                    var converted = ConvertValue(value, prop.PropertyType);
-                    prop.SetValue(obj, converted);
+                    // IMPORTANT: Record undo BEFORE making changes
                     Undo.RecordObject(obj, $"Set {propertyName}");
+                    var converted = ConvertValue(value, prop.PropertyType);
+
+                    Debug.Log($"[MCP] Setting {type.Name}.{propertyName} = {converted} (converted from {value})");
+
+                    prop.SetValue(obj, converted);
+
+                    // Verify the value was actually set
+                    var actualValue = prop.GetValue(obj);
+                    Debug.Log($"[MCP] After set, {type.Name}.{propertyName} = {actualValue}");
+
+                    // For RectTransform, force canvas update
+                    if (obj is RectTransform rectTransform)
+                    {
+                        Canvas.ForceUpdateCanvases();
+                        Debug.Log($"[MCP] Forced Canvas update for RectTransform");
+                    }
+
                     EditorUtility.SetDirty(obj);
                     return;
                 }
@@ -6683,9 +6728,10 @@ namespace MCP.Editor
             {
                 try
                 {
+                    // IMPORTANT: Record undo BEFORE making changes
+                    Undo.RecordObject(obj, $"Set {propertyName}");
                     var converted = ConvertValue(value, field.FieldType);
                     field.SetValue(obj, converted);
-                    Undo.RecordObject(obj, $"Set {propertyName}");
                     EditorUtility.SetDirty(obj);
                     return;
                 }
@@ -6758,9 +6804,19 @@ namespace MCP.Editor
             // Handle Vector2
             if (targetType == typeof(Vector2) && value is Dictionary<string, object> v2Dict)
             {
+                Debug.Log($"[MCP] Converting Dictionary to Vector2. Keys: {string.Join(", ", v2Dict.Keys)}");
+                var x = GetFloat(v2Dict, "x");
+                var y = GetFloat(v2Dict, "y");
+                Debug.Log($"[MCP] Vector2 x={x}, y={y}");
+
+                if (!x.HasValue || !y.HasValue)
+                {
+                    Debug.LogWarning($"[MCP] Failed to get x or y from Dictionary. x={x}, y={y}. Dict contents: {MiniJson.Serialize(v2Dict)}");
+                }
+
                 return new Vector2(
-                    GetFloat(v2Dict, "x") ?? 0f,
-                    GetFloat(v2Dict, "y") ?? 0f
+                    x ?? 0f,
+                    y ?? 0f
                 );
             }
 
