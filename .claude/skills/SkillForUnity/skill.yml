@@ -29,7 +29,7 @@ prerequisites:
     version: ">=2021.3"
     description: "Unity Editor with MCPBridge installed"
   - name: MCP Bridge
-    location: "../Assets/Editor/MCPBridge/"
+    location: "../../../Assets/SkillForUnity/Editor/MCPBridge/"
     description: "Unity C# WebSocket Bridge component"
 
 # Skill capabilities
@@ -60,13 +60,13 @@ mcp:
 
 # Quick examples
 examples:
-  - path: examples/01-basic-scene-setup.py
+  - path: examples/01-basic-scene-setup.md
     description: "Set up a 3D game scene with player and obstacles"
-  - path: examples/02-ui-creation.py
+  - path: examples/02-ui-creation.md
     description: "Create a complete UI menu system"
-  - path: examples/03-game-level.py
+  - path: examples/03-game-level.md
     description: "Build a game level with terrain and enemies"
-  - path: examples/04-prefab-workflow.py
+  - path: examples/04-prefab-workflow.md
     description: "Create and manage prefabs"
 
 # Documentation structure
