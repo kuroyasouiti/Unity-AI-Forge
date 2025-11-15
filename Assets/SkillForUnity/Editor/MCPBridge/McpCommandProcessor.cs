@@ -2414,6 +2414,20 @@ namespace MCP.Editor
                     GetFloat(anchorMinDict, "y") ?? anchor.y
                 );
             }
+            else
+            {
+                // Individual fields format: {"anchorMinX": 0, "anchorMinY": 0}
+                var anchorMinX = GetFloat(payload, "anchorMinX");
+                var anchorMinY = GetFloat(payload, "anchorMinY");
+                if (anchorMinX.HasValue || anchorMinY.HasValue)
+                {
+                    var anchor = rectTransform.anchorMin;
+                    rectTransform.anchorMin = new Vector2(
+                        anchorMinX ?? anchor.x,
+                        anchorMinY ?? anchor.y
+                    );
+                }
+            }
 
             // Update anchorMax - supports both dictionary format and individual fields
             if (payload.TryGetValue("anchorMax", out var anchorMaxObj) && anchorMaxObj is Dictionary<string, object> anchorMaxDict)
@@ -2424,6 +2438,20 @@ namespace MCP.Editor
                     GetFloat(anchorMaxDict, "x") ?? anchor.x,
                     GetFloat(anchorMaxDict, "y") ?? anchor.y
                 );
+            }
+            else
+            {
+                // Individual fields format: {"anchorMaxX": 1, "anchorMaxY": 1}
+                var anchorMaxX = GetFloat(payload, "anchorMaxX");
+                var anchorMaxY = GetFloat(payload, "anchorMaxY");
+                if (anchorMaxX.HasValue || anchorMaxY.HasValue)
+                {
+                    var anchor = rectTransform.anchorMax;
+                    rectTransform.anchorMax = new Vector2(
+                        anchorMaxX ?? anchor.x,
+                        anchorMaxY ?? anchor.y
+                    );
+                }
             }
         }
 

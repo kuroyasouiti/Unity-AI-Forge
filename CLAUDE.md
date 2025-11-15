@@ -561,8 +561,8 @@ unity_ugui_manage({
 - `pivot` / `pivotX`, `pivotY` - Pivot point (0-1 range)
 - `offsetMin` / `offsetMinX`, `offsetMinY` - Lower-left corner offset
 - `offsetMax` / `offsetMaxX`, `offsetMaxY` - Upper-right corner offset
-- `anchorMin` - Anchor min point (0-1 range, dictionary format only)
-- `anchorMax` - Anchor max point (0-1 range, dictionary format only)
+- `anchorMin` / `anchorMinX`, `anchorMinY` - Anchor min point (0-1 range)
+- `anchorMax` / `anchorMaxX`, `anchorMaxY` - Anchor max point (0-1 range)
 
 **Best Practices:**
 1. Use **dictionary format** for consistency with other component updates
@@ -573,13 +573,25 @@ unity_ugui_manage({
 **Common UI Positioning Examples:**
 
 ```python
-# Center a UI element
+# Center a UI element (dictionary format)
 unity_ugui_manage({
     "operation": "updateRect",
     "gameObjectPath": "Canvas/Title",
     "anchoredPosition": {"x": 0, "y": 0},
     "anchorMin": {"x": 0.5, "y": 0.5},
     "anchorMax": {"x": 0.5, "y": 0.5}
+})
+
+# Center a UI element (individual fields format - equivalent to above)
+unity_ugui_manage({
+    "operation": "updateRect",
+    "gameObjectPath": "Canvas/Title",
+    "anchoredPositionX": 0,
+    "anchoredPositionY": 0,
+    "anchorMinX": 0.5,
+    "anchorMinY": 0.5,
+    "anchorMaxX": 0.5,
+    "anchorMaxY": 0.5
 })
 
 # Stretch horizontally at the top

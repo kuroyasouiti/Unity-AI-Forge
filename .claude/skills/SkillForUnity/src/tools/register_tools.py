@@ -957,22 +957,30 @@ def register_tools(server: Server) -> None:
                     "enum": ["widthOrHeight", "expand", "shrink"],
                     "description": "Match mode for rectAdjust operation.",
                 },
-                # setAnchor parameters
+                # setAnchor parameters (also used with updateRect for individual field format)
                 "anchorMinX": {
                     "type": "number",
-                    "description": "Anchor min X (0-1 range). Used with setAnchor operation.",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Anchor min X (0-1 range). Used with setAnchor operation. Alternative to anchorMin dictionary with updateRect operation.",
                 },
                 "anchorMinY": {
                     "type": "number",
-                    "description": "Anchor min Y (0-1 range). Used with setAnchor operation.",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Anchor min Y (0-1 range). Used with setAnchor operation. Alternative to anchorMin dictionary with updateRect operation.",
                 },
                 "anchorMaxX": {
                     "type": "number",
-                    "description": "Anchor max X (0-1 range). Used with setAnchor operation.",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Anchor max X (0-1 range). Used with setAnchor operation. Alternative to anchorMax dictionary with updateRect operation.",
                 },
                 "anchorMaxY": {
                     "type": "number",
-                    "description": "Anchor max Y (0-1 range). Used with setAnchor operation.",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Anchor max Y (0-1 range). Used with setAnchor operation. Alternative to anchorMax dictionary with updateRect operation.",
                 },
                 # setAnchorPreset parameters
                 "preset": {
@@ -1045,10 +1053,14 @@ def register_tools(server: Server) -> None:
                 },
                 "pivotX": {
                     "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
                     "description": "Pivot X (0-1 range, individual field format). Alternative to pivot dictionary. Used with updateRect operation.",
                 },
                 "pivotY": {
                     "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
                     "description": "Pivot Y (0-1 range, individual field format). Alternative to pivot dictionary. Used with updateRect operation.",
                 },
                 "offsetMin": {
