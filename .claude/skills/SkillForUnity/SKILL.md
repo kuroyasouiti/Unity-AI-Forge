@@ -45,6 +45,7 @@ Before using these tools, ensure:
 - **Asset CRUD**: Create, update, rename, duplicate, delete, and inspect assets
 - **Script batch management**: Create/update multiple C# scripts with automatic compilation
 - **Prefab workflow**: Create, instantiate, update, apply/revert prefab overrides
+- **Design patterns**: Generate production-ready implementations of common design patterns (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
 
 ### 🎯 Advanced Features
 - **Tilemap operations**: Create and modify 2D tilemaps
@@ -191,6 +192,43 @@ unity_script_batch_manage({
     ],
     "timeoutSeconds": 30
 })
+```
+
+### Design Pattern Generation
+```python
+# Generate Singleton pattern
+unity_designPattern_generate({
+    "patternType": "singleton",
+    "className": "GameManager",
+    "scriptPath": "Assets/Scripts/GameManager.cs",
+    "options": {
+        "persistent": True,
+        "threadSafe": True,
+        "monoBehaviour": True
+    }
+})
+
+# Generate ObjectPool pattern
+unity_designPattern_generate({
+    "patternType": "objectpool",
+    "className": "BulletPool",
+    "scriptPath": "Assets/Scripts/BulletPool.cs",
+    "options": {
+        "pooledType": "Bullet",
+        "defaultCapacity": "100",
+        "maxSize": "500"
+    }
+})
+
+# Generate StateMachine pattern
+unity_designPattern_generate({
+    "patternType": "statemachine",
+    "className": "PlayerStateMachine",
+    "scriptPath": "Assets/Scripts/PlayerStateMachine.cs",
+    "namespace": "MyGame.Player"
+})
+
+# Available patterns: singleton, objectpool, statemachine, observer, command, factory, servicelocator
 ```
 
 ## Best Practices
@@ -374,9 +412,9 @@ unity_batch_execute({
 
 ## Complete Tool Reference
 
-**📚 For detailed documentation of all 28 tools, see [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)**
+**📚 For detailed documentation of all 29 tools, see [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)**
 
-The tools are organized into 9 categories:
+The tools are organized into 10 categories:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
@@ -385,12 +423,13 @@ The tools are organized into 9 categories:
 | **GameObject Operations** | 3 | GameObject CRUD, templates, tag/layer management |
 | **Component Management** | 1 | Component CRUD with batch operations |
 | **Asset Management** | 2 | Asset operations, C# script batch management |
+| **Design Patterns** | 1 | Generate production-ready design pattern implementations |
 | **UI (UGUI) Tools** | 6 | UI templates, layouts, RectTransform, overlap detection |
 | **Prefab Management** | 1 | Prefab workflow (create, instantiate, apply/revert) |
 | **Advanced Features** | 7 | Settings, pipeline, input system, tilemap, navmesh, constants |
 | **Utility Tools** | 1 | Compilation waiting |
 
-**Total: 28 Tools**
+**Total: 29 Tools**
 
 ---
 
@@ -416,6 +455,9 @@ The tools are organized into 9 categories:
 ### Asset & Script Management
 - `unity_asset_crud` - Asset file operations
 - `unity_script_batch_manage` - Batch script operations with compilation
+
+### Design Patterns
+- `unity_designPattern_generate` - Generate design pattern implementations (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
 
 ### Advanced Features
 - `unity_prefab_crud` - Prefab workflow operations

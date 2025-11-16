@@ -34,7 +34,7 @@ prerequisites:
 
 # Skill capabilities
 capabilities:
-  tools: 31+
+  tools: 29
   categories:
     - scene_management        # Create, load, save, delete scenes
     - gameobject_operations   # Create, move, rename, delete GameObjects
@@ -42,6 +42,7 @@ capabilities:
     - ui_creation            # Create UI elements with templates
     - asset_management       # Asset file operations
     - script_management      # C# script batch operations with compilation
+    - design_patterns        # Generate design pattern implementations (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
     - prefab_workflow        # Prefab creation and management
     - tilemap_design         # 2D tilemap operations
     - navmesh_operations     # NavMesh baking and agents
@@ -68,6 +69,8 @@ examples:
     description: "Build a game level with terrain and enemies"
   - path: examples/04-prefab-workflow.md
     description: "Create and manage prefabs"
+  - path: examples/05-design-patterns.md
+    description: "Generate design patterns (Singleton, ObjectPool, StateMachine, etc.)"
 
 # Documentation structure
 documentation:
