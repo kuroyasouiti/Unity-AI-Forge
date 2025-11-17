@@ -1,5 +1,5 @@
 ---
-name: SkillForUnity
+name: skillforunity
 description: Comprehensive Unity Editor integration through Model Context Protocol
 license: MIT
 ---

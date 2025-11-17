@@ -40,12 +40,23 @@ class UnityContextPayload(TypedDict, total=False):
     updatedAt: int
 
 
+class ClientInfo(TypedDict, total=False):
+    clientName: str  # "Claude Desktop", "Claude Code", "Unknown"
+    clientVersion: NotRequired[str]
+    serverName: str  # "SkillForUnity"
+    serverVersion: str
+    pythonVersion: str
+    platform: str
+    toolCount: NotRequired[int]
+
+
 class BridgeHelloMessage(TypedDict, total=False):
     type: Literal["hello"]
     sessionId: str
     token: NotRequired[str]
     unityVersion: NotRequired[str]
     projectName: NotRequired[str]
+    clientInfo: NotRequired[ClientInfo]
 
 
 class BridgeHeartbeatMessage(TypedDict):
@@ -94,4 +105,9 @@ class ServerPingMessage(TypedDict):
     timestamp: int
 
 
-ServerMessage = ServerCommandMessage | ServerPingMessage
+class ServerInfoMessage(TypedDict):
+    type: Literal["server:info"]
+    clientInfo: ClientInfo
+
+
+ServerMessage = ServerCommandMessage | ServerPingMessage | ServerInfoMessage

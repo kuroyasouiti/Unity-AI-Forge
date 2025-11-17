@@ -1,6 +1,6 @@
 {
   "name": "com.skillforunity.mcpbridge",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "SkillForUnity MCP Bridge",
   "description": "Model Context Protocol (MCP) server that enables AI assistants to interact with Unity Editor in real-time via WebSocket bridge",
   "unity": "2022.3",

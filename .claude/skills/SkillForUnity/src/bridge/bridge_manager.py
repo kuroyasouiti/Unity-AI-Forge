@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import platform
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -20,11 +22,14 @@ from bridge.messages import (
     BridgeHelloMessage,
     BridgeNotificationMessage,
     BridgeRestartedMessage,
+    ClientInfo,
+    ServerInfoMessage,
     ServerMessage,
     UnityContextPayload,
 )
 from config.env import env
 from logger import logger
+from utils.client_detector import get_client_info
 
 
 @dataclass
@@ -246,6 +251,10 @@ class BridgeManager:
             message.get("unityVersion"),
             message.get("projectName"),
         )
+
+        # Send client info to Unity
+        await self._send_client_info()
+
         self._emit("connected")
 
     def _handle_heartbeat(self, message: BridgeHeartbeatMessage) -> None:
@@ -342,6 +351,31 @@ class BridgeManager:
                 callback(*args)
             except Exception:  # pragma: no cover - defensive
                 logger.exception("Bridge event handler failed for %s", event)
+
+    async def _send_client_info(self) -> None:
+        """Send client information to Unity bridge."""
+        socket = self._socket
+        if not _is_socket_open(socket):
+            return
+
+        client_info: ClientInfo = get_client_info()  # type: ignore
+        message: ServerInfoMessage = {
+            "type": "server:info",
+            "clientInfo": client_info,
+        }
+
+        try:
+            await self._send_json(socket, message)
+            logger.info(
+                "Sent client info to Unity: %s (server=%s v%s, python=%s, platform=%s)",
+                client_info.get("clientName"),
+                client_info.get("serverName"),
+                client_info.get("serverVersion"),
+                client_info.get("pythonVersion"),
+                client_info.get("platform"),
+            )
+        except Exception as exc:
+            logger.warning("Failed to send client info: %s", exc)
 
     async def _handle_disconnect(self, socket: ClientConnection) -> None:
         if self._socket is not socket:

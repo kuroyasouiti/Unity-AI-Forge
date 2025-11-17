@@ -24,6 +24,18 @@ namespace MCP.Editor
     }
 
     /// <summary>
+    /// Information about the connected MCP client (Claude Desktop, Claude Code, etc.)
+    /// </summary>
+    internal sealed class ClientInfo
+    {
+        public string ClientName { get; set; } = "Unknown";
+        public string ServerName { get; set; } = string.Empty;
+        public string ServerVersion { get; set; } = string.Empty;
+        public string PythonVersion { get; set; } = string.Empty;
+        public string Platform { get; set; } = string.Empty;
+    }
+
+    /// <summary>
     /// Main WebSocket bridge service that connects Unity Editor to MCP clients.
     /// Handles client connections, message routing, context updates, and heartbeat monitoring.
     /// Features automatic reconnection after disconnections and compilation/assembly reloads.
@@ -59,14 +71,18 @@ namespace MCP.Editor
         private static McpConnectionState _state = McpConnectionState.Disconnected;
         private static bool _isCompilingOrReloading = false;
         private static bool _shouldSendRestartedSignal = false;
+        private static ClientInfo _clientInfo = null;
 
         public static event Action<McpConnectionState> StateChanged;
+        public static event Action<ClientInfo> ClientInfoReceived;
 
         public static McpConnectionState State => _state;
 
         public static bool IsConnected => _socket != null && _socket.State == WebSocketState.Open;
 
         public static string SessionId => _sessionId;
+
+        public static ClientInfo ConnectedClientInfo => _clientInfo;
 
         static McpBridgeService()
         {
@@ -146,6 +162,7 @@ namespace MCP.Editor
 
             CloseSocket();
 
+            _clientInfo = null;
             _state = McpConnectionState.Disconnected;
             StateChanged?.Invoke(_state);
         }
@@ -891,6 +908,17 @@ namespace MCP.Editor
                 _lastHeartbeatReceived = DateTime.UtcNow;
 
                 var payload = MiniJson.Deserialize(json);
+
+                // Handle server:info message
+                if (payload is Dictionary<string, object> dict &&
+                    dict.TryGetValue("type", out var typeObj) &&
+                    typeObj as string == "server:info")
+                {
+                    HandleServerInfoMessage(dict);
+                    continue;
+                }
+
+                // Handle command messages
                 if (McpIncomingCommand.TryParse(payload, out var command))
                 {
                     lock (MainThreadActions)
@@ -899,6 +927,30 @@ namespace MCP.Editor
                     }
                 }
             }
+        }
+
+        private static void HandleServerInfoMessage(Dictionary<string, object> message)
+        {
+            if (!message.TryGetValue("clientInfo", out var clientInfoObj) ||
+                clientInfoObj is not Dictionary<string, object> clientInfoDict)
+            {
+                return;
+            }
+
+            _clientInfo = new ClientInfo
+            {
+                ClientName = clientInfoDict.TryGetValue("clientName", out var cn) ? cn as string ?? "Unknown" : "Unknown",
+                ServerName = clientInfoDict.TryGetValue("serverName", out var sn) ? sn as string ?? "" : "",
+                ServerVersion = clientInfoDict.TryGetValue("serverVersion", out var sv) ? sv as string ?? "" : "",
+                PythonVersion = clientInfoDict.TryGetValue("pythonVersion", out var pv) ? pv as string ?? "" : "",
+                Platform = clientInfoDict.TryGetValue("platform", out var pl) ? pl as string ?? "" : "",
+            };
+
+            Debug.Log($"MCP Bridge: Received client info - {_clientInfo.ClientName} " +
+                      $"(server={_clientInfo.ServerName} v{_clientInfo.ServerVersion}, " +
+                      $"python={_clientInfo.PythonVersion}, platform={_clientInfo.Platform})");
+
+            ClientInfoReceived?.Invoke(_clientInfo);
         }
 
         private static void ExecuteCommand(McpIncomingCommand command)

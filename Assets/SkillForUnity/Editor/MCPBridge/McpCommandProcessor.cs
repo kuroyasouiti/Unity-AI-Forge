@@ -7442,7 +7442,7 @@ namespace MCP.Editor
         {
             var patternType = GetString(payload, "patternType");
             var className = GetString(payload, "className");
-            var namespaceName = GetString(payload, "namespace", null);
+            var namespaceName = GetString(payload, "namespace");
             var scriptPath = GetString(payload, "scriptPath");
             var options = payload.ContainsKey("options") && payload["options"] is Dictionary<string, object> opts
                 ? opts

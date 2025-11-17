@@ -46,17 +46,24 @@ namespace MCP.Editor
         private void OnEnable()
         {
             McpBridgeService.StateChanged += OnStateChanged;
+            McpBridgeService.ClientInfoReceived += OnClientInfoReceived;
             UpdateStatus(McpBridgeService.State);
         }
 
         private void OnDisable()
         {
             McpBridgeService.StateChanged -= OnStateChanged;
+            McpBridgeService.ClientInfoReceived -= OnClientInfoReceived;
         }
 
         private void OnStateChanged(McpConnectionState state)
         {
             UpdateStatus(state);
+            Repaint();
+        }
+
+        private void OnClientInfoReceived(ClientInfo clientInfo)
+        {
             Repaint();
         }
 
@@ -202,13 +209,24 @@ namespace MCP.Editor
             EditorGUILayout.HelpBox(_statusMessage, MessageType.Info);
 
             EditorGUILayout.LabelField("Diagnostics", EditorStyles.boldLabel);
-            using (var scroll = new EditorGUILayout.ScrollViewScope(_diagnosticsScroll, GUILayout.Height(140f)))
+            using (var scroll = new EditorGUILayout.ScrollViewScope(_diagnosticsScroll, GUILayout.Height(180f)))
             {
                 _diagnosticsScroll = scroll.scrollPosition;
                 EditorGUILayout.LabelField($"State     : {McpBridgeService.State}");
                 EditorGUILayout.LabelField($"Session ID: {PreviewSessionId()}");
                 EditorGUILayout.LabelField($"Bridge URL: {settings.BridgeWebSocketUrl}");
                 EditorGUILayout.LabelField($"Endpoint  : {settings.McpServerUrl}");
+
+                var clientInfo = McpBridgeService.ConnectedClientInfo;
+                if (clientInfo != null)
+                {
+                    EditorGUILayout.Space(4f);
+                    EditorGUILayout.LabelField("Connected Client:", EditorStyles.boldLabel);
+                    EditorGUILayout.LabelField($"  Client  : {clientInfo.ClientName}");
+                    EditorGUILayout.LabelField($"  Server  : {clientInfo.ServerName} v{clientInfo.ServerVersion}");
+                    EditorGUILayout.LabelField($"  Python  : {clientInfo.PythonVersion}");
+                    EditorGUILayout.LabelField($"  Platform: {clientInfo.Platform}");
+                }
             }
         }
 
