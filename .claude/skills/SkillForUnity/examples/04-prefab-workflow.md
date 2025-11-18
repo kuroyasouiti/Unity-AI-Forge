@@ -137,26 +137,6 @@ for i, pos in enumerate(positions):
     })
 ```
 
-**Note**: The above could also be done more efficiently with `unity_batch_execute`:
-
-```python
-# Alternative: Use batch execute for better performance
-operations = []
-
-for i in range(5):
-    operations.extend([
-        {
-            "tool": "prefabManage",
-            "payload": {
-                "operation": "instantiate",
-                "prefabPath": "Assets/Prefabs/Enemy.prefab",
-                "parentPath": "Enemies"
-            }
-        }
-    ])
-
-unity_batch_execute({"operations": operations})
-```
 
 ## Step 4: Modify Prefab Instances
 
@@ -422,11 +402,13 @@ unity_gameobject_crud({
     "maxResults": 100
 })
 
-# Use batch operations for instantiation
-unity_batch_execute({
-    "operations": [/* multiple instantiate operations */],
-    "stopOnError": False
-})
+# Instantiate multiple prefabs
+for i in range(5):
+    unity_prefab_crud({
+        "operation": "instantiate",
+        "prefabPath": "Assets/Prefabs/Enemy.prefab",
+        "parentPath": "Enemies"
+    })
 ```
 
 ## Common Issues

@@ -58,8 +58,8 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "load", "save", "delete", "duplicate", "listBuildSettings", "addToBuildSettings", "removeFromBuildSettings", "reorderBuildSettings", "setBuildSettingsEnabled"],
-                    "description": "Operation to perform. Scene operations: create, load, save, delete, duplicate. Build settings operations: listBuildSettings (get all scenes in build), addToBuildSettings (add scene to build), removeFromBuildSettings (remove scene from build), reorderBuildSettings (change scene order), setBuildSettingsEnabled (enable/disable scene in build).",
+                    "enum": ["create", "load", "save", "delete", "duplicate", "inspect", "listBuildSettings", "addToBuildSettings", "removeFromBuildSettings", "reorderBuildSettings", "setBuildSettingsEnabled"],
+                    "description": "Operation to perform. Scene operations: create, load, save, delete, duplicate, inspect. Build settings operations: listBuildSettings (get all scenes in build), addToBuildSettings (add scene to build), removeFromBuildSettings (remove scene from build), reorderBuildSettings (change scene order), setBuildSettingsEnabled (enable/disable scene in build).",
                 },
                 "scenePath": {
                     "type": "string",
@@ -76,6 +76,18 @@ def register_tools(server: Server) -> None:
                 "includeOpenScenes": {
                     "type": "boolean",
                     "description": "For save: save all open scenes instead of just the active one."
+                },
+                "includeHierarchy": {
+                    "type": "boolean",
+                    "description": "For inspect: Include scene hierarchy (one level only). Default is true. Returns root GameObjects with their direct child names.",
+                },
+                "includeComponents": {
+                    "type": "boolean",
+                    "description": "For inspect: Include component types for each GameObject. Default is false.",
+                },
+                "filter": {
+                    "type": "string",
+                    "description": "For inspect: Filter GameObjects by name pattern (supports wildcards * and ?).",
                 },
                 "enabled": {
                     "type": "boolean",
@@ -494,46 +506,6 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
-    batch_execute_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operations": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "tool": {
-                                "type": "string",
-                                "description": "Tool name to execute (e.g., 'assetManage', 'gameObjectManage', 'componentManage'). Use the internal tool name without 'unity_' prefix.",
-                            },
-                            "payload": {
-                                "type": "object",
-                                "additionalProperties": True,
-                                "description": "Tool-specific payload/arguments.",
-                            },
-                        },
-                        "required": ["tool", "payload"],
-                    },
-                    "description": "Array of tool operations to execute in sequence. Each operation specifies a tool name and its payload.",
-                },
-                "stopOnError": {
-                    "type": "boolean",
-                    "description": "If true, stops batch execution on first error. Default is false (continues on errors).",
-                },
-                "awaitCompilation": {
-                    "type": "boolean",
-                    "description": "If true, automatically detects script changes and waits for compilation to complete. Default is true.",
-                },
-                "timeoutSeconds": {
-                    "type": "integer",
-                    "description": "Maximum seconds to wait for compilation to complete when awaitCompilation is true. Default is 60.",
-                },
-            },
-        },
-        ["operations"],
-    )
-
     console_log_schema = _schema_with_required(
         {
             "type": "object",
@@ -615,7 +587,7 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "hierarchy": {
                     "type": "object",
-                    "description": "Hierarchical structure definition. Each key is the GameObject name, and the value is an object with 'components' (list of component types), 'properties' (dict of property changes), and 'children' (nested hierarchy).",
+                    "description": "Hierarchical structure definition using nested dictionaries. Each key is a GameObject name, and its value is a dictionary containing child GameObjects (or an empty dict {} for leaf nodes). Example: {'Player': {'Camera': {}, 'Weapon': {'Blade': {}, 'Handle': {}}}, 'Enemy': {}}",
                 },
                 "parentPath": {
                     "type": "string",
@@ -713,31 +685,6 @@ def register_tools(server: Server) -> None:
             },
         },
         ["template"],
-    )
-
-    context_inspect_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "includeHierarchy": {
-                    "type": "boolean",
-                    "description": "Include full scene hierarchy. Default is true.",
-                },
-                "includeComponents": {
-                    "type": "boolean",
-                    "description": "Include component types for each GameObject. Default is false.",
-                },
-                "maxDepth": {
-                    "type": "integer",
-                    "description": "Maximum hierarchy depth to inspect. Default is unlimited.",
-                },
-                "filter": {
-                    "type": "string",
-                    "description": "Filter GameObjects by name pattern (supports wildcards * and ?).",
-                },
-            },
-        },
-        [],
     )
 
     ugui_template_create_schema = _schema_with_required(
@@ -1213,7 +1160,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_scene_crud",
-            description="Create, load, save, delete, or duplicate Unity scenes. Also manages build settings: list scenes in build, add/remove scenes from build, reorder scenes, and enable/disable scenes in build settings.",
+            description="Manage Unity scenes and inspect scene context. Scene operations: create, load, save, delete, duplicate. Inspect operation: get comprehensive scene overview including hierarchy (one level only), GameObjects, and components with optional filtering. Build settings: list scenes in build, add/remove scenes from build, reorder scenes, and enable/disable scenes.",
             inputSchema=scene_manage_schema,
         ),
         types.Tool(
@@ -1248,7 +1195,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_hierarchy_builder",
-            description="Build complex GameObject hierarchies declaratively in one command! Define nested structures with components and properties using a simple JSON format. Perfect for creating multi-level UI layouts, scene structures, or prefab hierarchies without multiple separate commands.",
+            description="Build complex GameObject hierarchies from simple nested name structures in one command! Creates empty GameObjects organized in a tree structure. Perfect for quickly setting up scene organization, folder structures, or placeholder hierarchies. Use nested dictionaries where keys are GameObject names and values are child dictionaries.",
             inputSchema=hierarchy_builder_schema,
         ),
         types.Tool(
@@ -1260,11 +1207,6 @@ def register_tools(server: Server) -> None:
             name="unity_gameobject_createFromTemplate",
             description="Create common GameObjects from templates with one command! Supports primitives (Cube, Sphere, Plane, etc.), lights (Directional, Point, Spot), Camera, Empty, Player, Enemy, Particle System, and Audio Source. Each template includes appropriate components and sensible defaults.",
             inputSchema=gameobject_template_schema,
-        ),
-        types.Tool(
-            name="unity_context_inspect",
-            description="Get a comprehensive overview of the current scene structure! Returns scene hierarchy, active GameObjects, components, and other context information. Optionally filter by pattern and control detail level. Helps Claude understand the current state before making changes.",
-            inputSchema=context_inspect_schema,
         ),
         types.Tool(
             name="unity_ugui_createFromTemplate",
@@ -1305,11 +1247,6 @@ def register_tools(server: Server) -> None:
             name="unity_constant_convert",
             description="Convert between Unity constants and numeric values. Supports enum types (e.g., KeyCode.Space ↔ 32), Unity built-in colors (e.g., 'red' ↔ RGBA), and layer names/indices. Also provides listing operations for available values.",
             inputSchema=constant_convert_schema,
-        ),
-        types.Tool(
-            name="unity_batch_execute",
-            description="Execute multiple Unity tool operations in a single batch. Supports any combination of tools (assetManage, gameObjectManage, componentManage, etc.). Automatically detects script changes and waits for compilation to complete. Perfect for complex multi-step operations like creating multiple GameObjects, setting up scenes, or managing assets. Each operation specifies a tool name and its payload. Operations are executed sequentially, and results are returned for each operation.",
-            inputSchema=batch_execute_schema,
         ),
         types.Tool(
             name="unity_console_log",
@@ -1440,9 +1377,6 @@ def register_tools(server: Server) -> None:
         if name == "unity_gameobject_createFromTemplate":
             return await _call_bridge_tool("gameObjectCreateFromTemplate", args)
 
-        if name == "unity_context_inspect":
-            return await _call_bridge_tool("contextInspect", args)
-
         if name == "unity_ugui_createFromTemplate":
             return await _call_bridge_tool("uguiCreateFromTemplate", args)
 
@@ -1466,69 +1400,6 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_constant_convert":
             return await _call_bridge_tool("constantConvert", args)
-
-        if name == "unity_batch_execute":
-            # Batch execute multiple tool operations
-            await_compilation = args.get("awaitCompilation", True)
-            timeout_seconds = args.get("timeoutSeconds", 60)
-
-            logger.info("Executing batch operations...")
-
-            # Execute the batch operations
-            batch_result = await bridge_manager.send_command("batchExecute", args)
-
-            # If awaitCompilation is enabled and compilation was triggered, wait for it
-            if await_compilation and batch_result.get("compilationTriggered", False):
-                try:
-                    logger.info(
-                        "Compilation was triggered, waiting for completion (timeout=%ss)...",
-                        timeout_seconds,
-                    )
-                    compilation_result = await bridge_manager.await_compilation(timeout_seconds)
-
-                    # Combine batch result with compilation result
-                    response_payload = {
-                        "batch": batch_result,
-                        "compilation": compilation_result,
-                    }
-
-                    logger.info(
-                        "Batch completed: success=%s, compilation_success=%s",
-                        batch_result.get("success"),
-                        compilation_result.get("success"),
-                    )
-
-                    return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-
-                except TimeoutError:
-                    logger.warning(
-                        "Compilation did not finish within %s seconds", timeout_seconds
-                    )
-                    response_payload = {
-                        "batch": batch_result,
-                        "compilation": {
-                            "success": False,
-                            "completed": False,
-                            "timedOut": True,
-                            "message": f"Compilation did not finish within {timeout_seconds} seconds.",
-                        },
-                    }
-                    return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-
-                except Exception as exc:
-                    logger.error("Error while waiting for compilation: %s", exc)
-                    response_payload = {
-                        "batch": batch_result,
-                        "compilation": {
-                            "success": False,
-                            "completed": False,
-                            "error": str(exc),
-                        },
-                    }
-                    return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-            else:
-                # No compilation needed or awaitCompilation disabled
-                return [types.TextContent(type="text", text=as_pretty_json(batch_result))]
 
         if name == "unity_console_log":
             log_type = args.get("logType", "all")

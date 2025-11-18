@@ -272,56 +272,44 @@ unity_script_batch_manage({
 ```
 
 **階層ビルダー (`unity.hierarchy.builder`)** - NEW!
-- JSONで宣言的に複雑なネスト構造を構築
-- 1つの定義でコンポーネント、プロパティ、子を指定
-- 完全修飾コンポーネント型名をサポート
-- 適切な親子関係での再帰的階層作成
+- シンプルなネスト辞書から階層構造を構築
+- 空のGameObjectをツリー構造で組織化
+- シーン組織化、フォルダ構造、プレースホルダーに最適
+- 階層作成後に必要に応じてコンポーネントを追加
 
 **例 - ゲームマネージャー階層の構築:**
-```json
-{
-  "tool": "hierarchyBuilder",
-  "payload": {
+```python
+unity_hierarchy_builder({
     "hierarchy": {
-      "GameManager": {
-        "components": ["MyNamespace.GameManager"],
-        "children": {
-          "UI": {
-            "children": {
-              "ScoreText": {"components": ["UnityEngine.UI.Text"]},
-              "HealthBar": {"components": ["UnityEngine.UI.Slider"]}
+        "GameManager": {
+            "UI": {
+                "ScoreText": {},
+                "HealthBar": {}
+            },
+            "Audio": {
+                "MusicSource": {},
+                "SFXSource": {}
             }
-          },
-          "Audio": {
-            "children": {
-              "MusicSource": {"components": ["UnityEngine.AudioSource"]},
-              "SFXSource": {"components": ["UnityEngine.AudioSource"]}
-            }
-          }
         }
-      }
     }
-  }
-}
+})
+# 空のGameObjectを作成後、必要に応じてコンポーネントを追加
 ```
 
-**コンテキストインスペクター (`unity.context.inspect`)** - NEW!
+**シーンインスペクター (`unity_scene_crud` with `operation="inspect"`)** - UPDATED!
 - 包括的なシーンの概要を取得（階層、GameObjects、コンポーネント）
 - ワイルドカードパターンでフィルタリング（*と?）
-- 詳細レベルの制御（includeComponents、includeHierarchy、maxDepth）
+- 階層は1層のみ返す（パフォーマンス最適化）
 - オブジェクト数を返す（カメラ、ライト、キャンバス）
 
 **例 - シーンの検査:**
-```json
-{
-  "tool": "contextInspect",
-  "payload": {
-    "includeHierarchy": true,
-    "includeComponents": true,
-    "maxDepth": 3,
+```python
+unity_scene_crud({
+    "operation": "inspect",
+    "includeHierarchy": True,
+    "includeComponents": True,
     "filter": "Player*"
-  }
-}
+})
 ```
 
 ---
@@ -435,7 +423,6 @@ unity_script_batch_manage({
 | ツール | 説明 | 主な操作 |
 |------|------|---------|
 | `unity.project.compile` | コンパイル要求 | アセット更新とコンパイル実行・結果待機 |
-| `unity.batch.execute` | **バッチ操作** | 1リクエストで複数ツールを実行 |
 
 **Project Compile (`unity.project.compile`)**
 - `refreshAssetDatabase` で AssetDatabase.Refresh() を実行してエディタに最新状態を通知
@@ -443,23 +430,6 @@ unity_script_batch_manage({
 - 既定でコンパイル完了を待機（`awaitCompletion` は `true`）し、エラーを即座に把握
 - 複数のスクリプト変更は可能な限りまとめてから実行し、再コンパイル回数を最小化
 - スクリプトを生成・編集した直後に呼び出して、コンパイルエラーが残っていないか確認するのが推奨
-
-**バッチ実行 (`unity.batch.execute`)** - 高性能
-- 複数の操作を順次実行
-- 任意のツールを組み合わせ（tilemap, navmesh, gameObjectなど）
-- stopOnErrorフラグによるエラー処理
-- 個別操作結果の追跡
-- 複雑なシーンセットアップに最適
-
-**バッチ実行機能:**
-- **順次処理**: 操作は順番に実行
-- **エラー制御**: 最初のエラーで継続または停止
-- **結果追跡**: 各操作の成功/失敗を取得
-- **ツール混在**: 1つのバッチで任意のUnityツールを組み合わせ
-- **性能**: ネットワークオーバーヘッドの削減
-
-**バッチでサポート:**
-全てのツールがバッチ操作で使用可能: sceneManage, gameObjectManage, componentManage, assetManage, tilemapManage, navmeshManage, uguiManage, tagLayerManage, prefabManage, projectSettingsManage, renderPipelineManage, inputSystemManage
 
 ---
 
@@ -712,7 +682,6 @@ SkillForUnity/
 - ✅ レンダーパイプライン管理（Built-in/URP/HDRP）
 
 ### 開発者ツール
-- ✅ **バッチ操作実行** - 複数の操作を組み合わせ
 - ✅ コンパイル要求と結果通知
 - ✅ シーン状態によるコンテキスト対応アシスタンス
 - ✅ 構造化されたエラー処理とレポート
@@ -728,8 +697,7 @@ SkillForUnity/
 | **UI** | 3ツール | UGUI統合 + 専用ツール |
 | **システム** | 3ツール | タグ/レイヤー, Prefab, 設定, レンダーパイプライン |
 | **スクリプト管理** | 1ツール | バッチスクリプト作成・更新・削除 |
-| **ユーティリティ** | 1ツール | バッチ実行 |
-| **合計** | **19ツール** | **80+操作** |
+| **合計** | **18ツール** | **80+操作** |
 
 ---
 

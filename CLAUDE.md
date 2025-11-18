@@ -29,13 +29,13 @@ unity_ugui_createFromTemplate({"template": "Button", "text": "Click Me!"})
 # Create GameObjects
 unity_gameobject_createFromTemplate({"template": "Cube", "position": {"x": 0, "y": 1, "z": 0}})
 
-# Build complex hierarchies
-unity_hierarchy_builder({"hierarchy": {...}})
+# Build hierarchy structures (creates empty GameObjects)
+unity_hierarchy_builder({"hierarchy": {"Player": {"Camera": {}, "Weapon": {}}}})
 
-# Check current scene (fast)
-unity_context_inspect({"includeHierarchy": True, "includeComponents": False})
+# Check current scene (returns one level of hierarchy)
+unity_scene_crud({"operation": "inspect", "includeHierarchy": True, "includeComponents": False})
 
-# Inspect GameObject
+# Inspect GameObject (for deeper exploration)
 unity_gameobject_crud({"operation": "inspect", "gameObjectPath": "Player"})
 
 # Inspect component (fast - specific properties only)
@@ -61,7 +61,7 @@ unity_component_crud({
 ### Important Guidelines
 
 1. **Always use templates when available** - Much faster than manual creation
-2. **Check context before making changes** - Use `unity_context_inspect()`
+2. **Check context before making changes** - Use `unity_scene_crud` with `operation="inspect"`
 3. **Use hierarchy builder for complex structures** - Create entire trees in one command
 4. **Always batch script operations** - Use `unity_script_batch_manage()` with scripts array for all script operations
 5. **Optimize inspect operations** - Use `includeProperties=false` for existence checks, `propertyFilter` for specific properties
@@ -849,24 +849,17 @@ Use the hierarchy builder for complex nested structures:
 unity_hierarchy_builder({
     "hierarchy": {
         "Player": {
-            "components": ["Rigidbody", "CapsuleCollider"],
-            "properties": {
-                "position": {"x": 0, "y": 1, "z": 0}
-            },
-            "children": {
-                "Camera": {
-                    "components": ["Camera"],
-                    "properties": {
-                        "position": {"x": 0, "y": 0.5, "z": -3}
-                    }
-                },
-                "Weapon": {
-                    "components": ["BoxCollider"]
-                }
-            }
+            "Camera": {},
+            "Weapon": {}
+        },
+        "Environment": {
+            "Terrain": {},
+            "Props": {}
         }
     }
 })
+# Creates empty GameObjects in the nested structure
+# Add components after creating the hierarchy structure
 ```
 
 ## Best Practices for Claude
@@ -876,11 +869,11 @@ unity_hierarchy_builder({
 Before making changes, inspect the scene to understand current state:
 
 ```python
-# Get overview of current scene
-unity_context_inspect({
+# Get overview of current scene (returns one level of hierarchy)
+unity_scene_crud({
+    "operation": "inspect",
     "includeHierarchy": True,
-    "includeComponents": False,
-    "maxDepth": 2
+    "includeComponents": False
 })
 ```
 
@@ -899,31 +892,26 @@ unity_component_crud({"operation": "add", "gameObjectPath": "Button", "component
 unity_ugui_createFromTemplate({"template": "Button", "text": "Click Me!"})
 ```
 
-### 3. Use Hierarchy Builder for Complex Structures
+### 3. Use Hierarchy Builder for Organization Structure
 
-When creating multi-level hierarchies, use hierarchy builder instead of individual commands:
+When creating multi-level hierarchies for organization, use hierarchy builder to create the structure first:
 
 ```python
-# One command creates entire UI layout
+# One command creates entire hierarchy structure
 unity_hierarchy_builder({
     "hierarchy": {
         "MainMenu": {
-            "components": ["UnityEngine.UI.Image"],
-            "children": {
-                "Title": {"components": ["UnityEngine.UI.Text"]},
-                "ButtonContainer": {
-                    "components": ["UnityEngine.UI.VerticalLayoutGroup"],
-                    "children": {
-                        "PlayButton": {"components": ["UnityEngine.UI.Button", "UnityEngine.UI.Image"]},
-                        "SettingsButton": {"components": ["UnityEngine.UI.Button", "UnityEngine.UI.Image"]},
-                        "QuitButton": {"components": ["UnityEngine.UI.Button", "UnityEngine.UI.Image"]}
-                    }
-                }
+            "Title": {},
+            "ButtonContainer": {
+                "PlayButton": {},
+                "SettingsButton": {},
+                "QuitButton": {}
             }
         }
     },
     "parentPath": "Canvas"
 })
+# Creates empty GameObjects, then add components as needed
 ```
 
 ### 4. Always Use Script Batch Management
@@ -969,31 +957,25 @@ unity_script_batch_manage({
 # Step 1: Setup UI scene
 unity_scene_quickSetup({"setupType": "UI"})
 
-# Step 2: Create menu structure
+# Step 2: Create menu structure (empty GameObjects for organization)
 unity_hierarchy_builder({
     "hierarchy": {
         "MenuPanel": {
-            "components": ["UnityEngine.UI.Image"],
-            "properties": {
-                "Image": {"color": {"r": 0, "g": 0, "b": 0, "a": 0.8}}
-            },
-            "children": {
-                "Title": {
-                    "components": ["UnityEngine.UI.Text"],
-                    "properties": {
-                        "Text": {"text": "Main Menu", "fontSize": 48, "alignment": "MiddleCenter"}
-                    }
-                },
-                "ButtonList": {
-                    "components": ["UnityEngine.UI.VerticalLayoutGroup"]
-                }
-            }
+            "Title": {},
+            "ButtonList": {}
         }
     },
     "parentPath": "Canvas"
 })
 
-# Step 3: Add buttons to ButtonList
+# Step 3: Add UI components using templates
+unity_ugui_createFromTemplate({
+    "template": "Panel",
+    "name": "MenuPanel",
+    "parentPath": "Canvas"
+})
+
+# Step 4: Add buttons
 for button_text in ["Start Game", "Options", "Quit"]:
     unity_ugui_createFromTemplate({
         "template": "Button",
@@ -1025,35 +1007,37 @@ unity_gameobject_createFromTemplate({
     "scale": {"x": 10, "y": 1, "z": 10}
 })
 
-# Create obstacles using batch execute
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Obstacle1", "position": {"x": 3, "y": 0.5, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Obstacle2", "position": {"x": -3, "y": 0.5, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Obstacle3", "position": {"x": 0, "y": 0.5, "z": 3}}}
-    ]
+# Create obstacles
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Obstacle1",
+    "position": {"x": 3, "y": 0.5, "z": 0}
+})
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Obstacle2",
+    "position": {"x": -3, "y": 0.5, "z": 0}
+})
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Obstacle3",
+    "position": {"x": 0, "y": 0.5, "z": 3}
 })
 ```
 
 ### Use Case 3: Create an Inventory UI
 
 ```python
-# Create inventory panel with grid layout
-unity_hierarchy_builder({
-    "hierarchy": {
-        "InventoryPanel": {
-            "components": ["UnityEngine.UI.Image", "UnityEngine.UI.GridLayoutGroup"],
-            "properties": {
-                "position": {"x": 0, "y": 0, "z": 0}
-            }
-        }
-    },
+# Create inventory panel using UI template
+unity_ugui_createFromTemplate({
+    "template": "Panel",
+    "name": "InventoryPanel",
     "parentPath": "Canvas"
 })
 
 # Configure grid layout
 unity_ugui_layoutManage({
-    "operation": "update",
+    "operation": "add",
     "gameObjectPath": "Canvas/InventoryPanel",
     "layoutType": "GridLayoutGroup",
     "cellSizeX": 80,
@@ -1134,31 +1118,34 @@ unity_ugui_createFromTemplate({
 
 #### 4. Hierarchy Builder (`unity_hierarchy_builder`)
 
-Build complex nested GameObject structures declaratively.
+Build complex nested GameObject structures from simple name hierarchies.
+
+**Creates empty GameObjects** organized in a tree structure. Perfect for setting up scene organization, folder structures, or placeholder hierarchies.
 
 **Example:**
 ```python
 unity_hierarchy_builder({
     "hierarchy": {
         "GameManager": {
-            "components": ["MyNamespace.GameManager"],
-            "children": {
-                "UI": {
-                    "children": {
-                        "ScoreText": {"components": ["UnityEngine.UI.Text"]},
-                        "HealthBar": {"components": ["UnityEngine.UI.Slider"]}
-                    }
-                },
-                "Audio": {
-                    "children": {
-                        "MusicSource": {"components": ["AudioSource"]},
-                        "SFXSource": {"components": ["AudioSource"]}
-                    }
-                }
+            "UI": {
+                "ScoreText": {},
+                "HealthBar": {}
+            },
+            "Audio": {
+                "MusicSource": {},
+                "SFXSource": {}
+            }
+        },
+        "Environment": {
+            "Terrain": {},
+            "Props": {
+                "Trees": {},
+                "Rocks": {}
             }
         }
     }
 })
+# Creates empty GameObjects with the nested structure above
 ```
 
 #### 5. Layout Management (`unity_ugui_layoutManage`)
@@ -1183,19 +1170,127 @@ unity_ugui_layoutManage({
 })
 ```
 
-#### 6. Context Inspector (`unity_context_inspect`)
+#### 6. Scene Inspector (`unity_scene_crud` with `operation="inspect"`)
 
-Get comprehensive scene information.
+Get comprehensive scene information including hierarchy, statistics, and context.
+
+**Important:** Hierarchy inspection returns **one level only** to optimize performance. For deeper exploration, query specific GameObjects by path.
 
 **Example:**
 ```python
-unity_context_inspect({
+# Returns root GameObjects with their direct child names
+unity_scene_crud({
+    "operation": "inspect",
     "includeHierarchy": True,
     "includeComponents": True,
-    "maxDepth": 3,
     "filter": "Player*"  # Optional: filter by pattern
 })
+# Result includes:
+# - sceneName, scenePath
+# - hierarchy: list of root GameObjects with childCount and childNames
+# - totalGameObjects, cameraCount, lightCount, canvasCount
+
+# To explore deeper, use GameObject inspect with specific path
+unity_gameobject_crud({
+    "operation": "inspect",
+    "gameObjectPath": "Player/Weapon"  # Query specific child
+})
 ```
+
+### Scene Management (`unity_scene_crud`)
+
+The scene management tool provides operations for working with Unity scene files and inspecting scene content.
+
+**Operations:**
+
+1. **create** - Create a new scene
+   ```python
+   unity_scene_crud({
+       "operation": "create",
+       "scenePath": "Assets/Scenes/NewLevel.unity",
+       "additive": False  # Single mode (default) or additive
+   })
+   ```
+
+2. **load** - Load an existing scene
+   ```python
+   unity_scene_crud({
+       "operation": "load",
+       "scenePath": "Assets/Scenes/MainMenu.unity",
+       "additive": False
+   })
+   ```
+
+3. **save** - Save current scene(s)
+   ```python
+   unity_scene_crud({
+       "operation": "save",
+       "scenePath": "Assets/Scenes/Level1.unity",  # Optional: specific scene
+       "includeOpenScenes": False  # Save all open scenes if true
+   })
+   ```
+
+4. **delete** - Delete a scene file
+   ```python
+   unity_scene_crud({
+       "operation": "delete",
+       "scenePath": "Assets/Scenes/OldLevel.unity"
+   })
+   ```
+
+5. **duplicate** - Duplicate a scene
+   ```python
+   unity_scene_crud({
+       "operation": "duplicate",
+       "scenePath": "Assets/Scenes/Level1.unity",
+       "newSceneName": "Level1_Copy"
+   })
+   ```
+
+6. **inspect** - Inspect current scene context (see Section 6 above for details)
+
+7. **listBuildSettings** - List all scenes in build settings
+   ```python
+   unity_scene_crud({
+       "operation": "listBuildSettings"
+   })
+   ```
+
+8. **addToBuildSettings** - Add scene to build settings
+   ```python
+   unity_scene_crud({
+       "operation": "addToBuildSettings",
+       "scenePath": "Assets/Scenes/Level2.unity",
+       "enabled": True,
+       "index": 1  # Optional: position in build
+   })
+   ```
+
+9. **removeFromBuildSettings** - Remove scene from build settings
+   ```python
+   unity_scene_crud({
+       "operation": "removeFromBuildSettings",
+       "scenePath": "Assets/Scenes/OldLevel.unity"
+   })
+   ```
+
+10. **reorderBuildSettings** - Reorder scenes in build settings
+    ```python
+    unity_scene_crud({
+        "operation": "reorderBuildSettings",
+        "fromIndex": 2,
+        "toIndex": 0
+    })
+    ```
+
+11. **setBuildSettingsEnabled** - Enable/disable scene in build
+    ```python
+    unity_scene_crud({
+        "operation": "setBuildSettingsEnabled",
+        "scenePath": "Assets/Scenes/TestLevel.unity",
+        "enabled": False
+    })
+    ```
 
 ### Asset Management (`unity_asset_crud`)
 
@@ -2344,17 +2439,17 @@ The prefab management tool provides comprehensive operations for working with Un
 **Problem:** Cannot find the specified GameObject by path.
 
 **Solutions:**
-1. Use `unity_context_inspect()` to see current hierarchy
+1. Use `unity_scene_crud` with `operation="inspect"` to see current hierarchy
 2. Check the path is correct (case-sensitive)
 3. Verify the GameObject exists in the active scene
 4. Use hierarchy path format: `"Parent/Child/Target"`
 
 **Example:**
 ```python
-# Check what exists first
-unity_context_inspect({"includeHierarchy": True, "maxDepth": 2})
+# Check what exists first (returns one level)
+unity_scene_crud({"operation": "inspect", "includeHierarchy": True})
 
-# Then use correct path
+# To explore deeper, inspect specific GameObject by path
 unity_gameobject_crud({"operation": "inspect", "gameObjectPath": "Canvas/Panel/Button"})
 ```
 
@@ -2440,16 +2535,16 @@ unity_context_inspect({"includeHierarchy": True})
 unity_component_crud({"operation": "update", "gameObjectPath": "Player", ...})
 ```
 
-#### ❌ Mistake 3: Creating hierarchy manually instead of using hierarchy builder
+#### ❌ Mistake 3: Creating hierarchy structure manually instead of using hierarchy builder
 
 **Wrong:**
 ```python
 unity_gameobject_crud({"operation": "create", "name": "Player"})
-unity_component_crud({"operation": "add", "gameObjectPath": "Player", "componentType": "Rigidbody"})
 unity_gameobject_crud({"operation": "create", "name": "Camera", "parentPath": "Player"})
-unity_component_crud({"operation": "add", "gameObjectPath": "Player/Camera", "componentType": "Camera"})
 unity_gameobject_crud({"operation": "create", "name": "Weapon", "parentPath": "Player"})
-# ... many more steps
+unity_gameobject_crud({"operation": "create", "name": "Blade", "parentPath": "Player/Weapon"})
+unity_gameobject_crud({"operation": "create", "name": "Handle", "parentPath": "Player/Weapon"})
+# ... many separate commands
 ```
 
 **Right:**
@@ -2457,14 +2552,15 @@ unity_gameobject_crud({"operation": "create", "name": "Weapon", "parentPath": "P
 unity_hierarchy_builder({
     "hierarchy": {
         "Player": {
-            "components": ["Rigidbody"],
-            "children": {
-                "Camera": {"components": ["Camera"]},
-                "Weapon": {"components": ["BoxCollider"]}
+            "Camera": {},
+            "Weapon": {
+                "Blade": {},
+                "Handle": {}
             }
         }
     }
 })
+# Creates the entire structure in one command, then add components as needed
 ```
 
 #### ❌ Mistake 4: Forgetting to set up scene first
@@ -2484,26 +2580,21 @@ unity_scene_quickSetup({"setupType": "UI"})
 unity_ugui_createFromTemplate({"template": "Button"})
 ```
 
-#### ❌ Mistake 5: Not using batch execute for related operations
+#### ❌ Mistake 5: Not checking scene context before making changes
 
 **Wrong:**
 ```python
-unity_gameobject_createFromTemplate({"template": "Cube", "name": "Wall1", "position": {"x": 5, "y": 0, "z": 0}})
-unity_gameobject_createFromTemplate({"template": "Cube", "name": "Wall2", "position": {"x": -5, "y": 0, "z": 0}})
-unity_gameobject_createFromTemplate({"template": "Cube", "name": "Wall3", "position": {"x": 0, "y": 0, "z": 5}})
-unity_gameobject_createFromTemplate({"template": "Cube", "name": "Wall4", "position": {"x": 0, "y": 0, "z": -5}})
+# Directly try to create something without checking current state
+unity_gameobject_crud({"operation": "create", "name": "Player"})
 ```
 
 **Right:**
 ```python
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall1", "position": {"x": 5, "y": 0, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall2", "position": {"x": -5, "y": 0, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall3", "position": {"x": 0, "y": 0, "z": 5}}},
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": "Wall4", "position": {"x": 0, "y": 0, "z": -5}}}
-    ]
-})
+# Check scene first
+unity_scene_crud({"operation": "inspect", "includeHierarchy": True})
+
+# Then make informed changes based on what exists
+unity_gameobject_crud({"operation": "create", "name": "Player"})
 ```
 
 #### ❌ Mistake 6: Using asset management tool for C# scripts
@@ -2569,7 +2660,8 @@ unity_asset_crud({
 2. **Batch operations** - Reduce round trips to Unity
 3. **Use hierarchy builder** - Create entire trees in one command
 4. **Check context once** - Don't repeatedly inspect the same thing
-5. **Filter context queries** - Use `maxDepth` and `filter` parameters
+5. **Filter context queries** - Use `filter` parameter to narrow results
+6. **Query layer by layer** - Hierarchy returns one level; query specific paths for deeper exploration
 
 #### GameObject/Component Inspection Performance
 

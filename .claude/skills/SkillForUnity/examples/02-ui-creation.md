@@ -168,45 +168,34 @@ unity_ugui_createFromTemplate({
 Make button text more readable:
 
 ```python
-unity_batch_execute({
-    "operations": [
-        {
-            "tool": "componentManage",
-            "payload": {
-                "operation": "update",
-                "gameObjectPath": "Canvas/MenuPanel/ButtonContainer/PlayButton/Text",
-                "componentType": "UnityEngine.UI.Text",
-                "propertyChanges": {
-                    "fontSize": 24,
-                    "alignment": "MiddleCenter"
-                }
-            }
-        },
-        {
-            "tool": "componentManage",
-            "payload": {
-                "operation": "update",
-                "gameObjectPath": "Canvas/MenuPanel/ButtonContainer/SettingsButton/Text",
-                "componentType": "UnityEngine.UI.Text",
-                "propertyChanges": {
-                    "fontSize": 24,
-                    "alignment": "MiddleCenter"
-                }
-            }
-        },
-        {
-            "tool": "componentManage",
-            "payload": {
-                "operation": "update",
-                "gameObjectPath": "Canvas/MenuPanel/ButtonContainer/QuitButton/Text",
-                "componentType": "UnityEngine.UI.Text",
-                "propertyChanges": {
-                    "fontSize": 24,
-                    "alignment": "MiddleCenter"
-                }
-            }
-        }
-    ]
+unity_component_crud({
+    "operation": "update",
+    "gameObjectPath": "Canvas/MenuPanel/ButtonContainer/PlayButton/Text",
+    "componentType": "UnityEngine.UI.Text",
+    "propertyChanges": {
+        "fontSize": 24,
+        "alignment": "MiddleCenter"
+    }
+})
+
+unity_component_crud({
+    "operation": "update",
+    "gameObjectPath": "Canvas/MenuPanel/ButtonContainer/SettingsButton/Text",
+    "componentType": "UnityEngine.UI.Text",
+    "propertyChanges": {
+        "fontSize": 24,
+        "alignment": "MiddleCenter"
+    }
+})
+
+unity_component_crud({
+    "operation": "update",
+    "gameObjectPath": "Canvas/MenuPanel/ButtonContainer/QuitButton/Text",
+    "componentType": "UnityEngine.UI.Text",
+    "propertyChanges": {
+        "fontSize": 24,
+        "alignment": "MiddleCenter"
+    }
 })
 ```
 

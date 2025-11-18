@@ -237,50 +237,37 @@ unity_gameobject_crud({
     "name": "Collectibles"
 })
 
-# Use batch execute to create multiple collectibles at once
-unity_batch_execute({
-    "operations": [
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Sphere",
-                "name": "Coin1",
-                "parentPath": "Collectibles",
-                "position": {"x": 2, "y": 0.5, "z": 0},
-                "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
-            }
-        },
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Sphere",
-                "name": "Coin2",
-                "parentPath": "Collectibles",
-                "position": {"x": -2, "y": 0.5, "z": 2},
-                "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
-            }
-        },
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Sphere",
-                "name": "Coin3",
-                "parentPath": "Collectibles",
-                "position": {"x": 0, "y": 0.5, "z": -3},
-                "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
-            }
-        },
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Sphere",
-                "name": "Coin4",
-                "parentPath": "Collectibles",
-                "position": {"x": 3, "y": 0.5, "z": 3},
-                "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
-            }
-        }
-    ]
+# Create multiple collectibles
+unity_gameobject_createFromTemplate({
+    "template": "Sphere",
+    "name": "Coin1",
+    "parentPath": "Collectibles",
+    "position": {"x": 2, "y": 0.5, "z": 0},
+    "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Sphere",
+    "name": "Coin2",
+    "parentPath": "Collectibles",
+    "position": {"x": -2, "y": 0.5, "z": 2},
+    "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Sphere",
+    "name": "Coin3",
+    "parentPath": "Collectibles",
+    "position": {"x": 0, "y": 0.5, "z": -3},
+    "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Sphere",
+    "name": "Coin4",
+    "parentPath": "Collectibles",
+    "position": {"x": 3, "y": 0.5, "z": 3},
+    "scale": {"x": 0.3, "y": 0.3, "z": 0.3}
 })
 
 # Add trigger colliders to all coins
@@ -385,7 +372,7 @@ When creating large levels:
 
 - Use `includeProperties=false` when inspecting to speed up queries
 - Use `maxResults` parameter to limit batch operations
-- Create multiple objects with `unity_batch_execute` for efficiency
+- Use component batch operations (`addMultiple`, `updateMultiple`) for efficiency
 - Use hierarchy builder for complex nested structures
 
 ## Common Issues

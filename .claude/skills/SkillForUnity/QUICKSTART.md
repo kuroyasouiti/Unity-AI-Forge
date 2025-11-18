@@ -178,9 +178,10 @@ unity_component_crud({
 
 **Scene Inspection:**
 ```python
-unity_context_inspect({
+unity_scene_crud({
+    "operation": "inspect",
     "includeHierarchy": True,
-    "maxDepth": 2
+    "includeComponents": False
 })
 ```
 
@@ -237,7 +238,7 @@ unity_context_inspect({
 **Problem:** "GameObject not found" error
 
 **Solution:**
-1. Use `unity_context_inspect()` to see what exists
+1. Use `unity_scene_crud({"operation": "inspect"})` to see what exists
 2. Check GameObject path is correct (case-sensitive)
 3. Verify GameObject is in the active scene
 

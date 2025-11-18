@@ -384,13 +384,13 @@ unity_gameobject_createFromTemplate({
     "scale": {"x": 10, "y": 1, "z": 10}
 })
 
-# 4. Batch create obstacles
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectCreateFromTemplate", "payload": {"template": "Cube", "name": f"Obstacle{i}", "position": {"x": i*2, "y": 0.5, "z": 0}}}
-        for i in range(5)
-    ]
-})
+# 4. Create obstacles
+for i in range(5):
+    unity_gameobject_createFromTemplate({
+        "template": "Cube",
+        "name": f"Obstacle{i}",
+        "position": {"x": i*2, "y": 0.5, "z": 0}
+    })
 ```
 
 ## Troubleshooting
@@ -412,13 +412,13 @@ unity_batch_execute({
 
 ## Complete Tool Reference
 
-**📚 For detailed documentation of all 29 tools, see [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)**
+**📚 For detailed documentation of all 28 tools, see [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)**
 
 The tools are organized into 10 categories:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| **Core Tools** | 5 | Connection, context, hierarchy builder, batch operations, logging |
+| **Core Tools** | 4 | Connection, context, hierarchy builder, logging |
 | **Scene Management** | 2 | Scene CRUD, quick setup templates |
 | **GameObject Operations** | 3 | GameObject CRUD, templates, tag/layer management |
 | **Component Management** | 1 | Component CRUD with batch operations |
@@ -429,7 +429,7 @@ The tools are organized into 10 categories:
 | **Advanced Features** | 7 | Settings, pipeline, input system, tilemap, navmesh, constants |
 | **Utility Tools** | 1 | Compilation waiting |
 
-**Total: 29 Tools**
+**Total: 28 Tools**
 
 ---
 
@@ -466,7 +466,6 @@ The tools are organized into 10 categories:
 - `unity_inputSystem_manage` - Input System management
 - `unity_projectSettings_crud` - Project settings management
 - `unity_renderPipeline_manage` - Render pipeline configuration
-- `unity_batch_execute` - Execute multiple operations
 
 ### Utility
 - `unity_ping` - Test connection and get Unity version

@@ -70,33 +70,22 @@ The Player template includes:
 Create a few cube obstacles:
 
 ```python
-unity_batch_execute({
-    "operations": [
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Cube",
-                "name": "Obstacle1",
-                "position": {"x": 3, "y": 0.5, "z": 0}
-            }
-        },
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Cube",
-                "name": "Obstacle2",
-                "position": {"x": -3, "y": 0.5, "z": 0}
-            }
-        },
-        {
-            "tool": "gameObjectCreateFromTemplate",
-            "payload": {
-                "template": "Cube",
-                "name": "Obstacle3",
-                "position": {"x": 0, "y": 0.5, "z": 3}
-            }
-        }
-    ]
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Obstacle1",
+    "position": {"x": 3, "y": 0.5, "z": 0}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Obstacle2",
+    "position": {"x": -3, "y": 0.5, "z": 0}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Obstacle3",
+    "position": {"x": 0, "y": 0.5, "z": 3}
 })
 ```
 

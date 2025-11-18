@@ -155,14 +155,14 @@ namespace MCP.Editor
                 })
                 .ToList();
 
-            var children = new List<object>();
+            // Only collect direct child names, not their full hierarchy
+            var childNames = new List<string>();
             for (var i = 0; i < go.transform.childCount; i++)
             {
                 var child = go.transform.GetChild(i);
-                var node = BuildHierarchyNode(child.gameObject, depth + 1);
-                if (node != null)
+                if (child != null && child.gameObject != null)
                 {
-                    children.Add(node);
+                    childNames.Add(child.gameObject.name);
                 }
             }
 
@@ -172,7 +172,8 @@ namespace MCP.Editor
                 ["name"] = go.name,
                 ["type"] = ResolveHierarchyType(go),
                 ["components"] = components,
-                ["children"] = children,
+                ["childCount"] = go.transform.childCount,
+                ["childNames"] = childNames,
             };
         }
 

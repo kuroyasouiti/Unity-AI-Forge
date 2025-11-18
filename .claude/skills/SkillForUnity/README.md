@@ -16,7 +16,6 @@ Skill for Unity enables AI assistants (Claude, Cursor, etc.) to interact with Un
 - **30+ Unity Tools** - Complete control over Unity Editor
 - **Real-time Bridge** - WebSocket-based bidirectional communication
 - **Template System** - Quickly create GameObjects and UI with templates
-- **Batch Operations** - Perform multiple operations efficiently
 - **Automatic Compilation** - Detects and waits for script compilation
 - **Comprehensive Documentation** - Extensive guides and examples
 
@@ -121,15 +120,16 @@ unity_gameobject_createFromTemplate({
 })
 
 # Add some obstacles
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectCreateFromTemplate",
-         "payload": {"template": "Cube", "name": "Wall1",
-                    "position": {"x": 5, "y": 0.5, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate",
-         "payload": {"template": "Cube", "name": "Wall2",
-                    "position": {"x": -5, "y": 0.5, "z": 0}}}
-    ]
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Wall1",
+    "position": {"x": 5, "y": 0.5, "z": 0}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Wall2",
+    "position": {"x": -5, "y": 0.5, "z": 0}
 })
 ```
 
@@ -147,7 +147,6 @@ See [examples/01-basic-scene-setup.md](examples/01-basic-scene-setup.md) for ful
 | **UI** | `ugui.createFromTemplate`, `ugui.layoutManage` | UI creation and layout |
 | **Asset** | `asset.crud` | Asset file operations |
 | **Prefab** | `prefab.crud` | Prefab workflow |
-| **Batch** | `batch.execute` | Execute multiple operations |
 
 ### Advanced Features
 

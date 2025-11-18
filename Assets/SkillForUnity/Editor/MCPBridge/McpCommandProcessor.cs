@@ -47,13 +47,11 @@ namespace MCP.Editor
                 "hierarchyBuilder" => HandleHierarchyBuilder(command.Payload),
                 "sceneQuickSetup" => HandleSceneQuickSetup(command.Payload),
                 "gameObjectCreateFromTemplate" => HandleGameObjectCreateFromTemplate(command.Payload),
-                "contextInspect" => HandleContextInspect(command.Payload),
                 "tagLayerManage" => HandleTagLayerManage(command.Payload),
                 "prefabManage" => HandlePrefabManage(command.Payload),
                 "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
                 "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
                 "constantConvert" => HandleConstantConvert(command.Payload),
-                "batchExecute" => HandleBatchExecute(command.Payload),
                 "designPatternGenerate" => HandleDesignPatternGenerate(command.Payload),
                 "scriptBatchManage" => HandleScriptBatchManage(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
@@ -90,7 +88,7 @@ namespace MCP.Editor
 
             // Check if compilation is in progress and wait if necessary (except for read-only operations)
             Dictionary<string, object> compilationWaitInfo = null;
-            if (operation != "listBuildSettings")
+            if (operation != "listBuildSettings" && operation != "inspect")
             {
                 compilationWaitInfo = EnsureNoCompilationInProgress("sceneManage", maxWaitSeconds: 30f);
             }
@@ -112,6 +110,9 @@ namespace MCP.Editor
                     break;
                 case "duplicate":
                     result = DuplicateScene(payload);
+                    break;
+                case "inspect":
+                    result = InspectScene(payload);
                     break;
                 case "listBuildSettings":
                     result = ListBuildSettings(payload);
@@ -261,6 +262,12 @@ namespace MCP.Editor
                 ["source"] = scenePath,
                 ["destination"] = destination,
             };
+        }
+
+        private static object InspectScene(Dictionary<string, object> payload)
+        {
+            // Delegate to existing HandleContextInspect logic
+            return HandleContextInspect(payload);
         }
 
         private static object ListBuildSettings(Dictionary<string, object> payload)
@@ -3864,10 +3871,10 @@ namespace MCP.Editor
         }
 
         /// <summary>
-        /// Builds GameObject hierarchies declaratively from a nested structure definition.
-        /// Allows creating complex multi-level hierarchies with components in a single command.
+        /// Builds GameObject hierarchies from simple nested name structures.
+        /// Creates empty GameObjects organized in a tree structure defined by nested dictionaries.
         /// </summary>
-        /// <param name="payload">Hierarchy definition including nested GameObjects, components, and properties.</param>
+        /// <param name="payload">Hierarchy definition using nested dictionaries where keys are GameObject names.</param>
         /// <returns>Result dictionary with created GameObject paths.</returns>
         private static object HandleHierarchyBuilder(Dictionary<string, object> payload)
         {
@@ -3924,107 +3931,19 @@ namespace MCP.Editor
                 go.transform.SetParent(parent.transform, false);
             }
 
-            // Add components
-            if (spec.ContainsKey("components"))
+            // Build children recursively - all keys in spec are treated as child GameObject names
+            if (spec != null && spec.Count > 0)
             {
-                var components = spec["components"] as List<object>;
-                if (components != null)
+                foreach (var childKvp in spec)
                 {
-                    foreach (var comp in components)
+                    var childName = childKvp.Key;
+                    var childSpec = childKvp.Value as Dictionary<string, object>;
+                    // If value is not a dictionary, treat it as an empty child (no sub-children)
+                    if (childSpec == null)
                     {
-                        var componentType = comp as string;
-                        if (!string.IsNullOrEmpty(componentType))
-                        {
-                            var type = ResolveType(componentType);
-                            if (type != null)
-                            {
-                                go.AddComponent(type);
-                            }
-                        }
+                        childSpec = new Dictionary<string, object>();
                     }
-                }
-            }
-
-            // Set properties
-            if (spec.ContainsKey("properties"))
-            {
-                var properties = spec["properties"] as Dictionary<string, object>;
-                if (properties != null)
-                {
-                    // Apply transform properties
-                    if (properties.ContainsKey("position"))
-                    {
-                        var posDict = properties["position"] as Dictionary<string, object>;
-                        if (posDict != null)
-                        {
-                            go.transform.localPosition = new Vector3(
-                                GetFloat(posDict, "x") ?? 0,
-                                GetFloat(posDict, "y") ?? 0,
-                                GetFloat(posDict, "z") ?? 0
-                            );
-                        }
-                    }
-
-                    if (properties.ContainsKey("rotation"))
-                    {
-                        var rotDict = properties["rotation"] as Dictionary<string, object>;
-                        if (rotDict != null)
-                        {
-                            go.transform.localEulerAngles = new Vector3(
-                                GetFloat(rotDict, "x") ?? 0,
-                                GetFloat(rotDict, "y") ?? 0,
-                                GetFloat(rotDict, "z") ?? 0
-                            );
-                        }
-                    }
-
-                    if (properties.ContainsKey("scale"))
-                    {
-                        var scaleDict = properties["scale"] as Dictionary<string, object>;
-                        if (scaleDict != null)
-                        {
-                            go.transform.localScale = new Vector3(
-                                GetFloat(scaleDict, "x") ?? 1,
-                                GetFloat(scaleDict, "y") ?? 1,
-                                GetFloat(scaleDict, "z") ?? 1
-                            );
-                        }
-                    }
-
-                    // Apply component properties
-                    foreach (var component in go.GetComponents<Component>())
-                    {
-                        var componentTypeName = component.GetType().Name;
-                        if (properties.ContainsKey(componentTypeName))
-                        {
-                            var compProps = properties[componentTypeName] as Dictionary<string, object>;
-                            if (compProps != null)
-                            {
-                                foreach (var propKvp in compProps)
-                                {
-                                    ApplyProperty(component, propKvp.Key, propKvp.Value);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Build children recursively
-            if (spec.ContainsKey("children"))
-            {
-                var children = spec["children"] as Dictionary<string, object>;
-                if (children != null)
-                {
-                    foreach (var childKvp in children)
-                    {
-                        var childName = childKvp.Key;
-                        var childSpec = childKvp.Value as Dictionary<string, object>;
-                        if (childSpec != null)
-                        {
-                            BuildGameObjectFromSpec(childName, childSpec, go);
-                        }
-                    }
+                    BuildGameObjectFromSpec(childName, childSpec, go);
                 }
             }
 
@@ -4416,7 +4335,6 @@ namespace MCP.Editor
             {
                 var includeHierarchy = GetBool(payload, "includeHierarchy", true);
                 var includeComponents = GetBool(payload, "includeComponents", false);
-                var maxDepth = GetInt(payload, "maxDepth", -1);
                 var filter = GetString(payload, "filter");
 
                 Debug.Log($"[contextInspect] Inspecting scene context");
@@ -4442,7 +4360,7 @@ namespace MCP.Editor
                             }
                         }
 
-                        hierarchy.Add(BuildHierarchyInfo(root, 0, maxDepth, includeComponents, filter));
+                        hierarchy.Add(BuildHierarchyInfo(root, includeComponents, filter));
                     }
 
                     result["hierarchy"] = hierarchy;
@@ -4471,7 +4389,7 @@ namespace MCP.Editor
             }
         }
 
-        private static Dictionary<string, object> BuildHierarchyInfo(GameObject go, int currentDepth, int maxDepth, bool includeComponents, string filter)
+        private static Dictionary<string, object> BuildHierarchyInfo(GameObject go, bool includeComponents, string filter)
         {
             var info = new Dictionary<string, object>
             {
@@ -4494,30 +4412,27 @@ namespace MCP.Editor
                 info["components"] = components;
             }
 
-            // Include children if within depth limit
-            if (maxDepth < 0 || currentDepth < maxDepth)
+            // Always include direct child names (one level only)
+            if (go.transform.childCount > 0)
             {
-                if (go.transform.childCount > 0)
+                var childNames = new List<string>();
+                for (int i = 0; i < go.transform.childCount; i++)
                 {
-                    var children = new List<object>();
-                    for (int i = 0; i < go.transform.childCount; i++)
-                    {
-                        var child = go.transform.GetChild(i).gameObject;
+                    var child = go.transform.GetChild(i).gameObject;
 
-                        if (!string.IsNullOrEmpty(filter))
+                    if (!string.IsNullOrEmpty(filter))
+                    {
+                        if (!McpWildcardUtility.IsMatch(child.name, filter, false))
                         {
-                            if (!McpWildcardUtility.IsMatch(child.name, filter, false))
-                            {
-                                continue;
-                            }
+                            continue;
                         }
+                    }
 
-                        children.Add(BuildHierarchyInfo(child, currentDepth + 1, maxDepth, includeComponents, filter));
-                    }
-                    if (children.Count > 0)
-                    {
-                        info["children"] = children;
-                    }
+                    childNames.Add(child.name);
+                }
+                if (childNames.Count > 0)
+                {
+                    info["childNames"] = childNames;
                 }
             }
 
@@ -7472,162 +7387,6 @@ namespace MCP.Editor
                 ["count"] = layers.Count,
                 ["success"] = true
             };
-        }
-
-        #endregion
-
-        #region Batch Execute
-
-        /// <summary>
-        /// Handles batch execution of multiple tool operations.
-        /// Automatically detects script changes and triggers compilation.
-        /// </summary>
-        /// <param name="payload">
-        /// Required keys:
-        /// - operations: List of operations, each with:
-        ///   - tool: Tool name (e.g., "assetManage", "gameObjectManage")
-        ///   - payload: Tool-specific payload
-        /// Optional keys:
-        /// - stopOnError: If true, stops batch on first error (default: false)
-        /// - awaitCompilation: If true, triggers compilation after script changes (default: true)
-        /// </param>
-        private static object HandleBatchExecute(Dictionary<string, object> payload)
-        {
-            // Check if compilation is in progress and wait if necessary
-            var compilationWaitInfo = EnsureNoCompilationInProgress("batchExecute", maxWaitSeconds: 30f);
-
-            var operationsList = GetList(payload, "operations");
-            if (operationsList == null || operationsList.Count == 0)
-            {
-                throw new InvalidOperationException("operations array is required and must not be empty");
-            }
-
-            var stopOnError = GetBool(payload, "stopOnError", false);
-            var results = new List<Dictionary<string, object>>();
-            var hasErrors = false;
-            var hasScriptChanges = false;
-
-            foreach (var opObj in operationsList)
-            {
-                if (!(opObj is Dictionary<string, object> opPayload))
-                {
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["success"] = false,
-                        ["error"] = "Invalid operation entry: must be a dictionary"
-                    });
-                    hasErrors = true;
-                    if (stopOnError) break;
-                    continue;
-                }
-
-                try
-                {
-                    var toolName = GetString(opPayload, "tool");
-                    var toolPayload = opPayload.TryGetValue("payload", out var payloadObj) && payloadObj is Dictionary<string, object> dict
-                        ? dict
-                        : new Dictionary<string, object>();
-
-                    if (string.IsNullOrEmpty(toolName))
-                    {
-                        throw new InvalidOperationException("tool name is required for each operation");
-                    }
-
-                    // Create a command for this operation
-                    var command = new McpIncomingCommand("batch_" + Guid.NewGuid().ToString(), toolName, toolPayload);
-
-                    // Execute the tool
-                    var result = Execute(command);
-
-                    // Check if this was a script-related operation
-                    if (IsScriptRelatedTool(toolName, toolPayload))
-                    {
-                        hasScriptChanges = true;
-                    }
-
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["success"] = true,
-                        ["tool"] = toolName,
-                        ["result"] = result
-                    });
-                }
-                catch (Exception ex)
-                {
-                    results.Add(new Dictionary<string, object>
-                    {
-                        ["success"] = false,
-                        ["tool"] = opPayload.TryGetValue("tool", out var t) ? t : "unknown",
-                        ["error"] = ex.Message
-                    });
-                    hasErrors = true;
-                    if (stopOnError) break;
-                }
-            }
-
-            // If script changes were detected, refresh and check if compilation starts
-            var compilationTriggered = false;
-            if (hasScriptChanges)
-            {
-                var wasCompiling = EditorApplication.isCompiling;
-                AssetDatabase.Refresh();
-                // Detect if compilation actually started
-                compilationTriggered = DetectCompilationStart(wasCompiling, maxWaitSeconds: 1.5f);
-            }
-
-            var resultDict = new Dictionary<string, object>
-            {
-                ["success"] = !hasErrors,
-                ["processedCount"] = results.Count,
-                ["totalCount"] = operationsList.Count,
-                ["results"] = results,
-                ["compilationTriggered"] = compilationTriggered,
-                ["message"] = hasErrors
-                    ? $"Batch completed with errors. Processed {results.Count}/{operationsList.Count} operations."
-                    : $"Batch completed successfully. Processed {results.Count} operations." +
-                      (compilationTriggered ? " Compilation triggered." : "")
-            };
-
-            // Add compilation wait info if we waited
-            if (compilationWaitInfo != null)
-            {
-                resultDict["compilationWait"] = compilationWaitInfo;
-            }
-
-            return resultDict;
-        }
-
-        /// <summary>
-        /// Determines if a tool operation involves script changes that require compilation.
-        /// </summary>
-        private static bool IsScriptRelatedTool(string toolName, Dictionary<string, object> toolPayload)
-        {
-            // Note: assetManage no longer supports create/update operations (file operations must be done via Claude Code)
-            // Only delete operations on .cs files trigger compilation
-            if (toolName == "assetManage")
-            {
-                var operation = GetString(toolPayload, "operation");
-                if (operation == "delete")
-                {
-                    var assetPath = GetString(toolPayload, "assetPath");
-                    if (!string.IsNullOrEmpty(assetPath) && assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-
-                // Check for multiple delete operations with .cs patterns
-                if (operation == "deleteMultiple")
-                {
-                    var pattern = GetString(toolPayload, "pattern");
-                    if (!string.IsNullOrEmpty(pattern) && pattern.Contains(".cs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
         }
 
         #endregion

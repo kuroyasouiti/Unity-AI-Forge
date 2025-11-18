@@ -1,5 +1,5 @@
 name: SkillForUnity
-version: 1.0.3
+version: 1.0.4
 description: "Comprehensive Unity Editor integration through Model Context Protocol"
 author: "SkillForUnity Team"
 license: MIT
@@ -34,7 +34,7 @@ prerequisites:
 
 # Skill capabilities
 capabilities:
-  tools: 29
+  tools: 28
   categories:
     - scene_management        # Create, load, save, delete scenes
     - gameobject_operations   # Create, move, rename, delete GameObjects
@@ -47,7 +47,6 @@ capabilities:
     - tilemap_design         # 2D tilemap operations
     - navmesh_operations     # NavMesh baking and agents
     - input_system           # New Input System management
-    - batch_operations       # Batch execute multiple operations
 
 # MCP configuration
 mcp:

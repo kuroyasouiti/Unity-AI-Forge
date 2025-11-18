@@ -137,7 +137,6 @@ AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity 
 - **Asset Management** - Asset file operations
 - **Script Management** - Batch C# script creation and compilation
 - **Prefab Workflow** - Create and manage prefabs
-- **Batch Operations** - Execute multiple commands efficiently
 
 ### Advanced Features
 
@@ -207,15 +206,16 @@ unity_gameobject_createFromTemplate({
 })
 
 # Add obstacles
-unity_batch_execute({
-    "operations": [
-        {"tool": "gameObjectCreateFromTemplate",
-         "payload": {"template": "Cube", "name": "Wall1",
-                    "position": {"x": 5, "y": 0.5, "z": 0}}},
-        {"tool": "gameObjectCreateFromTemplate",
-         "payload": {"template": "Cube", "name": "Wall2",
-                    "position": {"x": -5, "y": 0.5, "z": 0}}}
-    ]
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Wall1",
+    "position": {"x": 5, "y": 0.5, "z": 0}
+})
+
+unity_gameobject_createFromTemplate({
+    "template": "Cube",
+    "name": "Wall2",
+    "position": {"x": -5, "y": 0.5, "z": 0}
 })
 ```
 
