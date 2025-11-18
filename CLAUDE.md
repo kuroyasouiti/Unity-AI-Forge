@@ -1170,7 +1170,130 @@ unity_ugui_layoutManage({
 })
 ```
 
-#### 6. Scene Inspector (`unity_scene_crud` with `operation="inspect"`)
+#### 6. Template Customization (`unity_template_manage`)
+
+Transform existing GameObjects into custom templates by adding components and child objects, then optionally save them as reusable prefabs!
+
+**Operations:**
+- **`customize`** - Add multiple components and child GameObjects to an existing object in one command
+- **`convertToPrefab`** - Convert the customized GameObject to a prefab asset for reuse
+
+**Benefits:**
+- 🚀 Customize existing objects without creating from scratch
+- 🔧 Add multiple components with properties in one operation
+- 👶 Create child hierarchies with their own components
+- 💾 Save as prefabs for reuse across scenes
+- ⚡ Perfect for building complex GameObjects from simple starting points
+
+**Example 1: Customize GameObject with Components and Children**
+```python
+# Start with a simple Cube
+unity_gameobject_createFromTemplate({"template": "Cube", "name": "Player"})
+
+# Customize it with multiple components and child objects
+unity_template_manage({
+    "operation": "customize",
+    "gameObjectPath": "Player",
+    "components": [
+        {
+            "type": "UnityEngine.Rigidbody",
+            "properties": {
+                "mass": 2.0,
+                "useGravity": True
+            }
+        },
+        {
+            "type": "UnityEngine.CapsuleCollider",
+            "properties": {
+                "radius": 0.5,
+                "height": 2.0
+            }
+        }
+    ],
+    "children": [
+        {
+            "name": "Camera",
+            "components": [
+                {
+                    "type": "UnityEngine.Camera",
+                    "properties": {
+                        "fieldOfView": 60
+                    }
+                }
+            ],
+            "position": {"x": 0, "y": 1, "z": -3}
+        },
+        {
+            "name": "Weapon",
+            "position": {"x": 0.5, "y": 0, "z": 0.5},
+            "components": [
+                {
+                    "type": "UnityEngine.BoxCollider",
+                    "properties": {
+                        "isTrigger": True
+                    }
+                }
+            ]
+        }
+    ]
+})
+```
+
+**Example 2: Convert to Prefab**
+```python
+# After customizing, save as prefab for reuse
+unity_template_manage({
+    "operation": "convertToPrefab",
+    "gameObjectPath": "Player",
+    "prefabPath": "Assets/Prefabs/CustomPlayer.prefab",
+    "overwrite": False
+})
+```
+
+**Example 3: Customize UI Element**
+```python
+# Create a button, then customize it
+unity_ugui_createFromTemplate({"template": "Button", "name": "CustomButton"})
+
+unity_template_manage({
+    "operation": "customize",
+    "gameObjectPath": "Canvas/CustomButton",
+    "components": [
+        {
+            "type": "UnityEngine.UI.Shadow",
+            "properties": {
+                "effectDistance": {"x": 2, "y": -2}
+            }
+        }
+    ],
+    "children": [
+        {
+            "name": "Icon",
+            "isUI": True,
+            "components": [
+                {
+                    "type": "UnityEngine.UI.Image"
+                }
+            ],
+            "position": {"x": -50, "y": 0, "z": 0}
+        }
+    ]
+})
+```
+
+**Common Use Cases:**
+- 🎮 **Game Characters**: Start with primitive, add physics, colliders, and child objects for weapons/cameras
+- 🎨 **Custom UI Elements**: Enhance basic UI components with shadows, outlines, and icon children
+- 🏗️ **Prefab Creation**: Build complex structures once, save as prefab, reuse everywhere
+- 🔄 **Iterative Design**: Quickly experiment with different component combinations
+
+**Important Notes:**
+- Component types must be fully qualified (e.g., `UnityEngine.Rigidbody`)
+- For UI children, set `isUI: True` to create RectTransform instead of Transform
+- Use `allowDuplicates: True` to add a component even if it already exists
+- Prefab paths must start with `Assets/` and end with `.prefab`
+
+#### 7. Scene Inspector (`unity_scene_crud` with `operation="inspect"`)
 
 Get comprehensive scene information including hierarchy, statistics, and context.
 

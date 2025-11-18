@@ -1089,6 +1089,114 @@ def register_tools(server: Server) -> None:
         [],
     )
 
+    template_manage_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["customize", "convertToPrefab"],
+                    "description": "Operation to perform. 'customize': Add components and child objects to an existing GameObject. 'convertToPrefab': Convert a GameObject to a prefab asset.",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Path to the GameObject in the hierarchy (e.g., 'Player', 'Canvas/Panel'). Required for all operations.",
+                },
+                "components": {
+                    "type": "array",
+                    "description": "For 'customize' operation: Array of components to add to the GameObject.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "Fully-qualified component type name (e.g., 'UnityEngine.Rigidbody', 'UnityEngine.UI.Button').",
+                            },
+                            "properties": {
+                                "type": "object",
+                                "description": "Optional properties to set on the component after adding it.",
+                            },
+                            "allowDuplicates": {
+                                "type": "boolean",
+                                "description": "If true, allows adding the component even if it already exists. Default: false.",
+                            },
+                        },
+                    },
+                },
+                "children": {
+                    "type": "array",
+                    "description": "For 'customize' operation: Array of child GameObjects to create under the target GameObject.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Name of the child GameObject to create.",
+                            },
+                            "isUI": {
+                                "type": "boolean",
+                                "description": "If true, creates the child with RectTransform (for UI). Default: false.",
+                            },
+                            "components": {
+                                "type": "array",
+                                "description": "Components to add to the child GameObject.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "description": "Fully-qualified component type name.",
+                                        },
+                                        "properties": {
+                                            "type": "object",
+                                            "description": "Properties to set on the component.",
+                                        },
+                                    },
+                                },
+                            },
+                            "position": {
+                                "type": "object",
+                                "description": "Local position of the child (Vector3 with x, y, z keys).",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                            },
+                            "rotation": {
+                                "type": "object",
+                                "description": "Local euler rotation of the child (Vector3 with x, y, z keys).",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                            },
+                            "scale": {
+                                "type": "object",
+                                "description": "Local scale of the child (Vector3 with x, y, z keys). Default: (1, 1, 1).",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                            },
+                        },
+                    },
+                },
+                "prefabPath": {
+                    "type": "string",
+                    "description": "For 'convertToPrefab' operation: Path where to save the prefab (must start with 'Assets/' and end with '.prefab'). Directory will be created if it doesn't exist.",
+                },
+                "overwrite": {
+                    "type": "boolean",
+                    "description": "For 'convertToPrefab' operation: If true, overwrites existing prefab at the path. Default: false.",
+                },
+            },
+        },
+        ["operation", "gameObjectPath"],
+    )
+
     design_pattern_generate_schema = _schema_with_required(
         {
             "type": "object",
@@ -1267,6 +1375,11 @@ def register_tools(server: Server) -> None:
             name="unity_designPattern_generate",
             description="Generate C# code for common Unity design patterns! Instantly create production-ready implementations of: Singleton (single instance management with optional persistence), ObjectPool (efficient object reuse), StateMachine (state management with transitions), Observer (event system), Command (action abstraction with undo/redo), Factory (object creation pattern), and ServiceLocator (global service access). Each pattern comes with complete, commented code ready to use. Perfect for quickly implementing best practices in your Unity project!",
             inputSchema=design_pattern_generate_schema,
+        ),
+        types.Tool(
+            name="unity_template_manage",
+            description="Customize existing GameObjects by adding components and child objects, then optionally convert them to reusable prefabs! This tool lets you transform any existing GameObject into a custom template by: (1) Adding multiple components with properties in one operation, (2) Creating child GameObjects with their own components and transforms, (3) Converting the customized GameObject to a prefab for reuse. Perfect for building complex GameObject structures from simple starting points and saving them as prefabs for later use.",
+            inputSchema=template_manage_schema,
         ),
     ]
 
@@ -1529,6 +1642,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_designPattern_generate":
             return await _call_bridge_tool("designPatternGenerate", args)
+
+        if name == "unity_template_manage":
+            return await _call_bridge_tool("templateManage", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
 

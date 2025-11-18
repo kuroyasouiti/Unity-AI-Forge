@@ -54,6 +54,7 @@ namespace MCP.Editor
                 "constantConvert" => HandleConstantConvert(command.Payload),
                 "designPatternGenerate" => HandleDesignPatternGenerate(command.Payload),
                 "scriptBatchManage" => HandleScriptBatchManage(command.Payload),
+                "templateManage" => HandleTemplateManage(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -7786,6 +7787,308 @@ namespace MCP.Editor
                 ["size"] = fileInfo.Length,
                 ["lastModified"] = fileInfo.LastWriteTime.ToString("o")
             };
+        }
+
+        #endregion
+
+        #region Template Management
+
+        /// <summary>
+        /// Handles template management operations for customizing existing GameObjects.
+        /// Supports operations: customize (add components/children to existing object), convertToPrefab (save as prefab).
+        /// </summary>
+        /// <param name="payload">Operation parameters including 'operation' type.</param>
+        /// <returns>Result dictionary with operation-specific data.</returns>
+        private static object HandleTemplateManage(Dictionary<string, object> payload)
+        {
+            var operation = GetString(payload, "operation");
+            if (string.IsNullOrEmpty(operation))
+            {
+                throw new InvalidOperationException("operation is required");
+            }
+
+            // Check if compilation is in progress and wait if necessary
+            var compilationWaitInfo = EnsureNoCompilationInProgress("templateManage", maxWaitSeconds: 30f);
+
+            object result;
+            switch (operation)
+            {
+                case "customize":
+                    result = CustomizeGameObject(payload);
+                    break;
+                case "convertToPrefab":
+                    result = ConvertGameObjectToPrefab(payload);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown operation: {operation}");
+            }
+
+            // Add compilation wait info if present
+            if (compilationWaitInfo != null && result is Dictionary<string, object> resultDict)
+            {
+                resultDict["compilationWaitInfo"] = compilationWaitInfo;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Customizes an existing GameObject by adding components and child objects.
+        /// </summary>
+        private static object CustomizeGameObject(Dictionary<string, object> payload)
+        {
+            try
+            {
+                var gameObjectPath = GetString(payload, "gameObjectPath");
+                if (string.IsNullOrEmpty(gameObjectPath))
+                {
+                    throw new InvalidOperationException("gameObjectPath is required");
+                }
+
+                var targetObject = ResolveGameObject(gameObjectPath);
+                if (targetObject == null)
+                {
+                    throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+                }
+
+                Debug.Log($"[templateManage:customize] Customizing GameObject: {gameObjectPath}");
+
+                var addedComponents = new List<string>();
+                var addedChildren = new List<string>();
+
+                // Add components if specified
+                if (payload.TryGetValue("components", out var componentsObj) && componentsObj is List<object> componentsList)
+                {
+                    foreach (var compObj in componentsList)
+                    {
+                        if (compObj is Dictionary<string, object> compDict)
+                        {
+                            var componentType = GetString(compDict, "type");
+                            if (string.IsNullOrEmpty(componentType))
+                            {
+                                Debug.LogWarning("[templateManage:customize] Component type is required, skipping");
+                                continue;
+                            }
+
+                            // Try to find the component type
+                            var type = FindType(componentType);
+                            if (type == null)
+                            {
+                                Debug.LogWarning($"[templateManage:customize] Component type not found: {componentType}, skipping");
+                                continue;
+                            }
+
+                            // Check if component already exists (unless allowDuplicates is true)
+                            var allowDuplicates = GetBool(compDict, "allowDuplicates", false);
+                            if (!allowDuplicates && targetObject.GetComponent(type) != null)
+                            {
+                                Debug.LogWarning($"[templateManage:customize] Component {componentType} already exists on {gameObjectPath}, skipping");
+                                continue;
+                            }
+
+                            // Add the component
+                            var component = targetObject.AddComponent(type);
+                            addedComponents.Add(componentType);
+
+                            // Apply properties if specified
+                            if (compDict.TryGetValue("properties", out var propsObj) && propsObj is Dictionary<string, object> properties)
+                            {
+                                ApplyComponentProperties(component, properties);
+                            }
+
+                            Debug.Log($"[templateManage:customize] Added component: {componentType}");
+                        }
+                    }
+                }
+
+                // Add child objects if specified
+                if (payload.TryGetValue("children", out var childrenObj) && childrenObj is List<object> childrenList)
+                {
+                    foreach (var childObj in childrenList)
+                    {
+                        if (childObj is Dictionary<string, object> childDict)
+                        {
+                            var childName = GetString(childDict, "name");
+                            if (string.IsNullOrEmpty(childName))
+                            {
+                                Debug.LogWarning("[templateManage:customize] Child name is required, skipping");
+                                continue;
+                            }
+
+                            // Determine if this is a UI object
+                            var isUI = GetBool(childDict, "isUI", false);
+
+                            // Create child GameObject
+                            GameObject childGo;
+                            if (isUI)
+                            {
+                                childGo = new GameObject(childName, typeof(RectTransform));
+                            }
+                            else
+                            {
+                                childGo = new GameObject(childName);
+                            }
+
+                            childGo.transform.SetParent(targetObject.transform, false);
+
+                            // Add components to child if specified
+                            if (childDict.TryGetValue("components", out var childComponentsObj) && childComponentsObj is List<object> childComponentsList)
+                            {
+                                foreach (var compObj in childComponentsList)
+                                {
+                                    if (compObj is Dictionary<string, object> compDict)
+                                    {
+                                        var componentType = GetString(compDict, "type");
+                                        if (!string.IsNullOrEmpty(componentType))
+                                        {
+                                            var type = FindType(componentType);
+                                            if (type != null)
+                                            {
+                                                var component = childGo.AddComponent(type);
+
+                                                // Apply properties if specified
+                                                if (compDict.TryGetValue("properties", out var propsObj) && propsObj is Dictionary<string, object> properties)
+                                                {
+                                                    ApplyComponentProperties(component, properties);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Apply transform properties
+                            if (childDict.TryGetValue("position", out var posObj) && posObj is Dictionary<string, object> posDict)
+                            {
+                                childGo.transform.localPosition = new Vector3(
+                                    GetFloat(posDict, "x") ?? 0,
+                                    GetFloat(posDict, "y") ?? 0,
+                                    GetFloat(posDict, "z") ?? 0
+                                );
+                            }
+
+                            if (childDict.TryGetValue("rotation", out var rotObj) && rotObj is Dictionary<string, object> rotDict)
+                            {
+                                childGo.transform.localEulerAngles = new Vector3(
+                                    GetFloat(rotDict, "x") ?? 0,
+                                    GetFloat(rotDict, "y") ?? 0,
+                                    GetFloat(rotDict, "z") ?? 0
+                                );
+                            }
+
+                            if (childDict.TryGetValue("scale", out var scaleObj) && scaleObj is Dictionary<string, object> scaleDict)
+                            {
+                                childGo.transform.localScale = new Vector3(
+                                    GetFloat(scaleDict, "x") ?? 1,
+                                    GetFloat(scaleDict, "y") ?? 1,
+                                    GetFloat(scaleDict, "z") ?? 1
+                                );
+                            }
+
+                            addedChildren.Add(childName);
+                            Debug.Log($"[templateManage:customize] Added child: {childName}");
+
+                            // Register undo
+                            Undo.RegisterCreatedObjectUndo(childGo, $"Create child {childName}");
+                        }
+                    }
+                }
+
+                // Register undo for component additions
+                if (addedComponents.Count > 0)
+                {
+                    Undo.RegisterCompleteObjectUndo(targetObject, "Customize GameObject");
+                }
+
+                return new Dictionary<string, object>
+                {
+                    ["success"] = true,
+                    ["gameObjectPath"] = gameObjectPath,
+                    ["addedComponents"] = addedComponents,
+                    ["addedChildren"] = addedChildren,
+                    ["message"] = $"Customized {gameObjectPath}: added {addedComponents.Count} components and {addedChildren.Count} children"
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[templateManage:customize] Error: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Converts a GameObject to a prefab and saves it at the specified path.
+        /// </summary>
+        private static object ConvertGameObjectToPrefab(Dictionary<string, object> payload)
+        {
+            try
+            {
+                var gameObjectPath = GetString(payload, "gameObjectPath");
+                if (string.IsNullOrEmpty(gameObjectPath))
+                {
+                    throw new InvalidOperationException("gameObjectPath is required");
+                }
+
+                var prefabPath = GetString(payload, "prefabPath");
+                if (string.IsNullOrEmpty(prefabPath))
+                {
+                    throw new InvalidOperationException("prefabPath is required");
+                }
+
+                if (!prefabPath.StartsWith("Assets/"))
+                {
+                    throw new InvalidOperationException("prefabPath must start with 'Assets/'");
+                }
+
+                if (!prefabPath.EndsWith(".prefab"))
+                {
+                    prefabPath += ".prefab";
+                }
+
+                var targetObject = ResolveGameObject(gameObjectPath);
+                if (targetObject == null)
+                {
+                    throw new InvalidOperationException($"GameObject not found: {gameObjectPath}");
+                }
+
+                Debug.Log($"[templateManage:convertToPrefab] Converting {gameObjectPath} to prefab: {prefabPath}");
+
+                // Ensure directory exists
+                var directory = Path.GetDirectoryName(prefabPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                // Check if prefab already exists
+                var overwrite = GetBool(payload, "overwrite", false);
+                if (File.Exists(prefabPath) && !overwrite)
+                {
+                    throw new InvalidOperationException($"Prefab already exists at {prefabPath}. Set 'overwrite' to true to replace it.");
+                }
+
+                // Create the prefab
+                var prefab = PrefabUtility.SaveAsPrefabAsset(targetObject, prefabPath);
+                if (prefab == null)
+                {
+                    throw new InvalidOperationException($"Failed to create prefab at {prefabPath}");
+                }
+
+                AssetDatabase.Refresh();
+
+                return new Dictionary<string, object>
+                {
+                    ["success"] = true,
+                    ["gameObjectPath"] = gameObjectPath,
+                    ["prefabPath"] = prefabPath,
+                    ["message"] = $"Successfully converted {gameObjectPath} to prefab at {prefabPath}"
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[templateManage:convertToPrefab] Error: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
         }
 
         #endregion
