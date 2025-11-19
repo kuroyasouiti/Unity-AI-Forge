@@ -14,6 +14,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
+using UnityEngine.UI;
 
 namespace MCP.Editor
 {
@@ -55,6 +56,7 @@ namespace MCP.Editor
                 "designPatternGenerate" => HandleDesignPatternGenerate(command.Payload),
                 "scriptBatchManage" => HandleScriptBatchManage(command.Payload),
                 "templateManage" => HandleTemplateManage(command.Payload),
+                "menuHierarchyCreate" => HandleMenuHierarchyCreate(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
             };
         }
@@ -1467,6 +1469,8 @@ namespace MCP.Editor
 
             var result = operation switch
             {
+                "create" => CreateTextAsset(payload),
+                "update" => UpdateTextAsset(payload),
                 "updateImporter" => UpdateAssetImporter(payload),
                 "delete" => DeleteAsset(payload),
                 "rename" => RenameAsset(payload),
@@ -1485,6 +1489,73 @@ namespace MCP.Editor
             }
 
             return result;
+        }
+
+        private static object CreateTextAsset(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
+            var content = EnsureValue(GetString(payload, "content"), "content");
+
+            // Reject C# scripts - they must use unity_script_batch_manage
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot create C# scripts using unity_asset_crud. Use unity_script_batch_manage instead for proper compilation handling!");
+            }
+
+            // Ensure parent directory exists
+            EnsureDirectoryExists(path);
+
+            // Check if file already exists
+            if (File.Exists(path))
+            {
+                throw new InvalidOperationException($"Asset already exists: {path}. Use 'update' operation to modify existing assets.");
+            }
+
+            // Write content to file
+            File.WriteAllText(path, content, System.Text.Encoding.UTF8);
+
+            // Import the asset
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            AssetDatabase.Refresh();
+
+            return new Dictionary<string, object>
+            {
+                ["created"] = path,
+                ["guid"] = AssetDatabase.AssetPathToGUID(path),
+                ["size"] = new FileInfo(path).Length,
+            };
+        }
+
+        private static object UpdateTextAsset(Dictionary<string, object> payload)
+        {
+            var path = ResolveAssetPathFromPayload(payload);
+            var content = EnsureValue(GetString(payload, "content"), "content");
+
+            // Reject C# scripts - they must use unity_script_batch_manage
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot update C# scripts using unity_asset_crud. Use unity_script_batch_manage instead for proper compilation handling!");
+            }
+
+            // Check if file exists
+            if (!File.Exists(path))
+            {
+                throw new InvalidOperationException($"Asset not found: {path}. Use 'create' operation for new assets.");
+            }
+
+            // Write content to file
+            File.WriteAllText(path, content, System.Text.Encoding.UTF8);
+
+            // Reimport the asset
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            AssetDatabase.Refresh();
+
+            return new Dictionary<string, object>
+            {
+                ["updated"] = path,
+                ["guid"] = AssetDatabase.AssetPathToGUID(path),
+                ["size"] = new FileInfo(path).Length,
+            };
         }
 
         private static object UpdateAssetImporter(Dictionary<string, object> payload)
@@ -7871,8 +7942,12 @@ namespace MCP.Editor
                             }
 
                             // Try to find the component type
-                            var type = FindType(componentType);
-                            if (type == null)
+                            Type type = null;
+                            try
+                            {
+                                type = ResolveType(componentType);
+                            }
+                            catch (InvalidOperationException)
                             {
                                 Debug.LogWarning($"[templateManage:customize] Component type not found: {componentType}, skipping");
                                 continue;
@@ -7893,7 +7968,10 @@ namespace MCP.Editor
                             // Apply properties if specified
                             if (compDict.TryGetValue("properties", out var propsObj) && propsObj is Dictionary<string, object> properties)
                             {
-                                ApplyComponentProperties(component, properties);
+                                foreach (var kvp in properties)
+                                {
+                                    ApplyProperty(component, kvp.Key, kvp.Value);
+                                }
                             }
 
                             Debug.Log($"[templateManage:customize] Added component: {componentType}");
@@ -7941,16 +8019,23 @@ namespace MCP.Editor
                                         var componentType = GetString(compDict, "type");
                                         if (!string.IsNullOrEmpty(componentType))
                                         {
-                                            var type = FindType(componentType);
-                                            if (type != null)
+                                            try
                                             {
+                                                var type = ResolveType(componentType);
                                                 var component = childGo.AddComponent(type);
 
                                                 // Apply properties if specified
                                                 if (compDict.TryGetValue("properties", out var propsObj) && propsObj is Dictionary<string, object> properties)
                                                 {
-                                                    ApplyComponentProperties(component, properties);
+                                                    foreach (var kvp in properties)
+                                                    {
+                                                        ApplyProperty(component, kvp.Key, kvp.Value);
+                                                    }
                                                 }
+                                            }
+                                            catch (InvalidOperationException ex)
+                                            {
+                                                Debug.LogWarning($"[templateManage:customize] Component type not found: {componentType}, error: {ex.Message}");
                                             }
                                         }
                                     }
@@ -8089,6 +8174,461 @@ namespace MCP.Editor
                 Debug.LogError($"[templateManage:convertToPrefab] Error: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
+        }
+
+        #endregion
+
+        #region Menu Hierarchy Management
+
+        /// <summary>
+        /// Creates a hierarchical menu system with nested submenus and optional State pattern navigation.
+        /// </summary>
+        private static object HandleMenuHierarchyCreate(Dictionary<string, object> payload)
+        {
+            try
+            {
+                var menuName = EnsureValue(GetString(payload, "menuName"), "menuName");
+
+                if (!payload.ContainsKey("menuStructure") || !(payload["menuStructure"] is Dictionary<string, object>))
+                {
+                    throw new InvalidOperationException("menuStructure is required and must be a dictionary");
+                }
+                var menuStructure = (Dictionary<string, object>)payload["menuStructure"];
+                var generateStateMachine = GetBool(payload, "generateStateMachine", defaultValue: true);
+                var stateMachineScriptPath = GetString(payload, "stateMachineScriptPath");
+                var navigationMode = GetString(payload, "navigationMode") ?? "both";
+                var buttonWidth = GetFloat(payload, "buttonWidth", defaultValue: 200f);
+                var buttonHeight = GetFloat(payload, "buttonHeight", defaultValue: 50f);
+                var spacing = GetFloat(payload, "spacing", defaultValue: 10f);
+                var enableBackNavigation = GetBool(payload, "enableBackNavigation", defaultValue: true);
+
+                // Validate navigation mode
+                if (navigationMode != "keyboard" && navigationMode != "gamepad" && navigationMode != "both")
+                {
+                    navigationMode = "both";
+                }
+
+                // Ensure Canvas exists
+                var canvas = GameObject.FindFirstObjectByType<Canvas>();
+                if (canvas == null)
+                {
+                    throw new InvalidOperationException("No Canvas found in the scene. Create a Canvas first using unity_scene_quickSetup with setupType='UI' or unity_ugui_createFromTemplate.");
+                }
+
+                // Create root menu container
+                var rootMenu = new GameObject(menuName);
+                rootMenu.transform.SetParent(canvas.transform, false);
+
+                var rootRect = rootMenu.AddComponent<RectTransform>();
+                rootRect.anchorMin = Vector2.zero;
+                rootRect.anchorMax = Vector2.one;
+                rootRect.sizeDelta = Vector2.zero;
+                rootRect.anchoredPosition = Vector2.zero;
+
+                // Add CanvasGroup for showing/hiding menu
+                var canvasGroup = rootMenu.AddComponent<CanvasGroup>();
+
+                var createdMenus = new List<string>();
+                var menuStates = new List<string>();
+
+                // Build menu hierarchy recursively
+                BuildMenuLevel(rootMenu, menuStructure, buttonWidth, buttonHeight, spacing, enableBackNavigation, createdMenus, menuStates, null);
+
+                // Generate State Machine script if requested
+                string generatedScriptPath = null;
+                if (generateStateMachine && !string.IsNullOrEmpty(stateMachineScriptPath))
+                {
+                    generatedScriptPath = GenerateMenuStateMachineScript(stateMachineScriptPath, menuStates, navigationMode);
+                }
+
+                return new Dictionary<string, object>
+                {
+                    ["success"] = true,
+                    ["menuName"] = menuName,
+                    ["menuPath"] = $"{canvas.name}/{menuName}",
+                    ["createdMenus"] = createdMenus,
+                    ["menuStateCount"] = menuStates.Count,
+                    ["stateMachineGenerated"] = generateStateMachine && !string.IsNullOrEmpty(generatedScriptPath),
+                    ["stateMachineScriptPath"] = generatedScriptPath,
+                    ["message"] = $"Successfully created hierarchical menu '{menuName}' with {createdMenus.Count} menu panels"
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[menuHierarchyCreate] Error: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Recursively builds menu levels with buttons and submenus.
+        /// </summary>
+        private static void BuildMenuLevel(
+            GameObject parentMenuObject,
+            Dictionary<string, object> menuItems,
+            float buttonWidth,
+            float buttonHeight,
+            float spacing,
+            bool enableBackNavigation,
+            List<string> createdMenus,
+            List<string> menuStates,
+            string parentMenuName)
+        {
+            // Add vertical layout group to parent menu
+            var layoutGroup = parentMenuObject.GetComponent<VerticalLayoutGroup>();
+            if (layoutGroup == null)
+            {
+                layoutGroup = parentMenuObject.AddComponent<VerticalLayoutGroup>();
+            }
+            layoutGroup.childControlWidth = true;
+            layoutGroup.childControlHeight = false;
+            layoutGroup.childForceExpandWidth = true;
+            layoutGroup.childForceExpandHeight = false;
+            layoutGroup.spacing = spacing;
+            layoutGroup.padding = new RectOffset(20, 20, 20, 20);
+            layoutGroup.childAlignment = TextAnchor.UpperCenter;
+
+            // Add Content Size Fitter
+            var sizeFitter = parentMenuObject.GetComponent<ContentSizeFitter>();
+            if (sizeFitter == null)
+            {
+                sizeFitter = parentMenuObject.AddComponent<ContentSizeFitter>();
+            }
+            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            createdMenus.Add(parentMenuObject.name);
+            menuStates.Add(parentMenuObject.name + "State");
+
+            // Add back button if this is a submenu
+            if (!string.IsNullOrEmpty(parentMenuName) && enableBackNavigation)
+            {
+                CreateMenuButton(parentMenuObject, "Back", buttonWidth, buttonHeight);
+            }
+
+            // Iterate through menu items
+            foreach (var item in menuItems)
+            {
+                var itemName = item.Key;
+                var itemValue = item.Value;
+
+                // Check if this item has submenus
+                Dictionary<string, object> submenus = null;
+                string buttonText = itemName;
+
+                if (itemValue is string strValue)
+                {
+                    // Simple button with text
+                    buttonText = strValue;
+                }
+                else if (itemValue is Dictionary<string, object> dict)
+                {
+                    // Complex item with text and submenus
+                    if (dict.ContainsKey("text"))
+                    {
+                        buttonText = GetString(dict, "text") ?? itemName;
+                    }
+                    if (dict.ContainsKey("submenus") && dict["submenus"] is Dictionary<string, object> submenuDict)
+                    {
+                        submenus = submenuDict;
+                    }
+                }
+                else if (itemValue is List<object> list)
+                {
+                    // List of submenu items - convert to dictionary
+                    submenus = new Dictionary<string, object>();
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var listItem = list[i];
+                        if (listItem is string strItem)
+                        {
+                            submenus[$"Option{i + 1}"] = strItem;
+                        }
+                        else if (listItem is Dictionary<string, object> dictItem)
+                        {
+                            var itemKey = GetString(dictItem, "name") ?? $"Option{i + 1}";
+                            submenus[itemKey] = dictItem;
+                        }
+                    }
+                }
+
+                // Create button for this item
+                CreateMenuButton(parentMenuObject, buttonText, buttonWidth, buttonHeight);
+
+                // If there are submenus, create a submenu panel
+                if (submenus != null && submenus.Count > 0)
+                {
+                    var submenuPanel = new GameObject(itemName + "Menu");
+                    submenuPanel.transform.SetParent(parentMenuObject.transform.parent, false);
+
+                    var submenuRect = submenuPanel.AddComponent<RectTransform>();
+                    submenuRect.anchorMin = Vector2.zero;
+                    submenuRect.anchorMax = Vector2.one;
+                    submenuRect.sizeDelta = Vector2.zero;
+                    submenuRect.anchoredPosition = Vector2.zero;
+
+                    // Add CanvasGroup for showing/hiding
+                    var submenuCanvasGroup = submenuPanel.AddComponent<CanvasGroup>();
+                    submenuCanvasGroup.alpha = 0;
+                    submenuCanvasGroup.interactable = false;
+                    submenuCanvasGroup.blocksRaycasts = false;
+
+                    // Recursively build submenu
+                    BuildMenuLevel(submenuPanel, submenus, buttonWidth, buttonHeight, spacing, enableBackNavigation, createdMenus, menuStates, parentMenuObject.name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates a UI button for a menu item.
+        /// </summary>
+        private static GameObject CreateMenuButton(GameObject parent, string text, float width, float height)
+        {
+            var buttonObj = new GameObject(text + "Button");
+            buttonObj.transform.SetParent(parent.transform, false);
+
+            var buttonRect = buttonObj.AddComponent<RectTransform>();
+            buttonRect.sizeDelta = new Vector2(width, height);
+
+            var buttonImage = buttonObj.AddComponent<UnityEngine.UI.Image>();
+            buttonImage.color = new Color(1f, 1f, 1f, 1f);
+
+            var button = buttonObj.AddComponent<UnityEngine.UI.Button>();
+
+            // Create text child
+            var textObj = new GameObject("Text");
+            textObj.transform.SetParent(buttonObj.transform, false);
+
+            var textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+            textRect.anchoredPosition = Vector2.zero;
+
+            var textComponent = textObj.AddComponent<UnityEngine.UI.Text>();
+            textComponent.text = text;
+            textComponent.alignment = TextAnchor.MiddleCenter;
+            textComponent.color = Color.black;
+            textComponent.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            textComponent.fontSize = 14;
+
+            return buttonObj;
+        }
+
+        /// <summary>
+        /// Generates a MenuStateMachine script using the State pattern.
+        /// </summary>
+        private static string GenerateMenuStateMachineScript(string scriptPath, List<string> menuStates, string navigationMode)
+        {
+            if (string.IsNullOrEmpty(scriptPath) || !scriptPath.StartsWith("Assets/") || !scriptPath.EndsWith(".cs"))
+            {
+                throw new InvalidOperationException("Invalid script path. Must start with 'Assets/' and end with '.cs'");
+            }
+
+            // Generate namespace from folder structure
+            var directory = Path.GetDirectoryName(scriptPath).Replace("\\", "/");
+            var namespaceName = directory.Replace("Assets/", "").Replace("/", ".");
+            var className = Path.GetFileNameWithoutExtension(scriptPath);
+
+            var keyboardControls = navigationMode == "keyboard" || navigationMode == "both";
+            var gamepadControls = navigationMode == "gamepad" || navigationMode == "both";
+
+            var scriptContent = $@"using UnityEngine;
+using UnityEngine.UI;
+using System.Collections.Generic;
+
+{(string.IsNullOrEmpty(namespaceName) ? "" : $"namespace {namespaceName}\n{{")}
+
+    /// <summary>
+    /// Menu navigation system using the State pattern.
+    /// Manages menu transitions and input handling.
+    /// </summary>
+    public class {className} : MonoBehaviour
+    {{
+        [Header(""Menu References"")]
+        [SerializeField] private List<CanvasGroup> menuPanels = new List<CanvasGroup>();
+
+        [Header(""Navigation Settings"")]
+        [SerializeField] private float transitionDuration = 0.3f;
+
+        private IMenuState currentState;
+        private Dictionary<string, CanvasGroup> menuDict = new Dictionary<string, CanvasGroup>();
+        private int selectedButtonIndex = 0;
+        private List<Button> currentButtons = new List<Button>();
+
+        private void Start()
+        {{
+            // Initialize menu dictionary
+            foreach (var panel in menuPanels)
+            {{
+                menuDict[panel.gameObject.name] = panel;
+                HideMenu(panel);
+            }}
+
+            // Start with first menu
+            if (menuPanels.Count > 0)
+            {{
+                ChangeState(menuPanels[0].gameObject.name);
+            }}
+        }}
+
+        private void Update()
+        {{
+            currentState?.Update();
+            HandleInput();
+        }}
+
+        private void HandleInput()
+        {{
+            if (currentButtons.Count == 0) return;
+
+            int previousIndex = selectedButtonIndex;
+
+            {(keyboardControls ? @"// Keyboard navigation
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+            {
+                selectedButtonIndex = (selectedButtonIndex - 1 + currentButtons.Count) % currentButtons.Count;
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+            {
+                selectedButtonIndex = (selectedButtonIndex + 1) % currentButtons.Count;
+            }
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+            {
+                currentButtons[selectedButtonIndex].onClick.Invoke();
+            }" : "")}
+
+            {(gamepadControls ? @"// Gamepad navigation
+            if (Input.GetKeyDown(KeyCode.Joystick1Button0) || Input.GetButtonDown(""Submit""))
+            {
+                currentButtons[selectedButtonIndex].onClick.Invoke();
+            }
+
+            float verticalInput = Input.GetAxis(""Vertical"");
+            if (verticalInput > 0.5f)
+            {
+                selectedButtonIndex = (selectedButtonIndex - 1 + currentButtons.Count) % currentButtons.Count;
+            }
+            else if (verticalInput < -0.5f)
+            {
+                selectedButtonIndex = (selectedButtonIndex + 1) % currentButtons.Count;
+            }" : "")}
+
+            // Update visual feedback
+            if (previousIndex != selectedButtonIndex)
+            {{
+                UpdateButtonHighlight();
+            }}
+        }}
+
+        private void UpdateButtonHighlight()
+        {{
+            for (int i = 0; i < currentButtons.Count; i++)
+            {{
+                var colors = currentButtons[i].colors;
+                if (i == selectedButtonIndex)
+                {{
+                    currentButtons[i].Select();
+                }}
+            }}
+        }}
+
+        public void ChangeState(string menuName)
+        {{
+            if (!menuDict.ContainsKey(menuName))
+            {{
+                Debug.LogWarning($""Menu '{{menuName}}' not found!"");
+                return;
+            }}
+
+            currentState?.Exit();
+
+            // Hide all menus
+            foreach (var panel in menuPanels)
+            {{
+                HideMenu(panel);
+            }}
+
+            // Show target menu
+            ShowMenu(menuDict[menuName]);
+
+            // Update current buttons
+            currentButtons.Clear();
+            currentButtons.AddRange(menuDict[menuName].GetComponentsInChildren<Button>());
+            selectedButtonIndex = 0;
+            UpdateButtonHighlight();
+
+            // Set new state
+            currentState = new MenuState(menuName, this);
+            currentState.Enter();
+        }}
+
+        private void ShowMenu(CanvasGroup panel)
+        {{
+            panel.alpha = 1;
+            panel.interactable = true;
+            panel.blocksRaycasts = true;
+        }}
+
+        private void HideMenu(CanvasGroup panel)
+        {{
+            panel.alpha = 0;
+            panel.interactable = false;
+            panel.blocksRaycasts = false;
+        }}
+
+        // Menu state interface
+        private interface IMenuState
+        {{
+            void Enter();
+            void Update();
+            void Exit();
+        }}
+
+        // Concrete menu state
+        private class MenuState : IMenuState
+        {{
+            private string menuName;
+            private {className} manager;
+
+            public MenuState(string menuName, {className} manager)
+            {{
+                this.menuName = menuName;
+                this.manager = manager;
+            }}
+
+            public void Enter()
+            {{
+                Debug.Log($""Entered {{menuName}}"");
+            }}
+
+            public void Update()
+            {{
+                // State-specific update logic can go here
+            }}
+
+            public void Exit()
+            {{
+                Debug.Log($""Exited {{menuName}}"");
+            }}
+        }}
+    }}
+{(string.IsNullOrEmpty(namespaceName) ? "" : "}")}
+";
+
+            // Ensure directory exists
+            var directoryPath = Path.GetDirectoryName(scriptPath);
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            // Write script file
+            File.WriteAllText(scriptPath, scriptContent);
+            AssetDatabase.Refresh();
+
+            Debug.Log($"[menuHierarchyCreate] Generated MenuStateMachine script at: {scriptPath}");
+
+            return scriptPath;
         }
 
         #endregion

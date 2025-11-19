@@ -1,6 +1,6 @@
 # SkillForUnity - Unity向けModel Context Protocolサーバー
 
-SkillForUnityは、AIアシスタントがUnity Editorとリアルタイムで対話できる包括的なModel Context Protocol (MCP) サーバーです。シーン管理、GameObject操作、コンポーネント編集、アセット操作、2D Tilemapデザイン、NavMeshナビゲーション、UIレイアウト、Prefab、入力システムなど、広範なツールを提供します。
+SkillForUnityは、AIアシスタントがUnity Editorとリアルタイムで対話できる包括的なModel Context Protocol (MCP) サーバーです。シーン管理、GameObject操作、コンポーネント編集、アセット操作、UIレイアウト、デザインパターン生成、階層メニュー作成、Prefab、スクリプト管理など、広範なツールを提供します。
 
 ## アーキテクチャ
 
@@ -161,12 +161,15 @@ unity_script_batch_manage({
 - コンポーネント状態とプロパティの検査
 
 **アセット管理 (`unity.asset.crud`)**
-- テキストベースアセットの作成（C#スクリプト、JSON、設定）
-- 既存アセットコンテンツの更新
-- アセットのリネーム、複製、削除
-- アセットメタデータとコンテンツの検査
+- **create**: テキストベースアセットの作成（JSON、XML、設定ファイルなど）
+- **update**: 既存アセットコンテンツの更新
+- **rename**: アセットのリネーム
+- **duplicate**: アセットの複製
+- **delete**: アセットの削除
+- **inspect**: アセットメタデータとコンテンツの検査
+- **findMultiple/deleteMultiple/inspectMultiple**: ワイルドカードパターンで複数アセットを操作
 - AssetDatabaseの自動更新
-> **ヒント:** C#スクリプトを生成・編集するときは可能な限り変更をまとめてから `unity.project.compile` を一度実行し、AssetDatabase を更新して Unity のコンパイル結果にエラーが無いか確認してください。
+> **重要:** C#スクリプト（.csファイル）の作成・更新には `unity_script_batch_manage` を使用してください。このツールは.csファイルを拒否します。
 
 ---
 ### 高レベルツール（迅速な開発に推奨）
@@ -178,7 +181,7 @@ unity_script_batch_manage({
 | `unity.ugui.createFromTemplate` | **UI要素テンプレート** | Button、Text、Image、Panel、ScrollView、InputField、Slider、Toggle、Dropdownを作成 |
 | `unity.ugui.layoutManage` | **レイアウトコンポーネント管理** | レイアウトグループの追加/更新/削除（Horizontal/Vertical/Grid/ContentSizeFitter等） |
 | `unity.hierarchy.builder` | **宣言的階層作成** | 1つのコマンドで複雑なネストされたGameObject構造を構築 |
-| `unity.context.inspect` | **シーンコンテキスト検査** | シーン階層と状態の包括的な概要を取得 |
+| `unity.menu.hierarchyCreate` | **階層メニュー作成** | State Patternを使用したネストされたサブメニューシステムを作成 |
 
 **シーンクイックセットアップ (`unity.scene.quickSetup`)** - NEW!
 - **3D**: Main CameraとDirectional Lightを作成（既存オブジェクトをチェックして重複を回避）
@@ -311,6 +314,133 @@ unity_scene_crud({
     "filter": "Player*"
 })
 ```
+
+**階層メニュー作成 (`unity_menu_hierarchyCreate`)** - NEW!
+- ネストされたサブメニューを持つ完全な階層メニューシステムを作成
+- State Design Patternを使用したメニューナビゲーション制御
+- キーボード、ゲームパッド、または両方の入力サポート
+- CanvasGroupを使用した自動的な表示/非表示管理
+- VerticalLayoutGroupによる自動的なレイアウト調整
+- オプションの「戻る」ボタンによる簡単なナビゲーション
+
+**主な機能:**
+1. **宣言的なメニュー定義** - シンプルなJSON構造からメニュー階層全体を作成
+2. **State Pattern統合** - メニュー状態を管理するC#スクリプトを自動生成
+3. **柔軟な入力処理** - キーボード（矢印キー、Enter、Escape）またはゲームパッド（D-Pad、A、B）
+4. **自動レイアウト** - VerticalLayoutGroupとContentSizeFitterによる一貫したレイアウト
+5. **ビジュアル階層** - 明確な親子関係を持つ整理されたメニュー構造
+6. **カスタマイズ可能** - ボタンサイズ、スペーシング、ナビゲーションモードの設定可能
+
+**例 - シンプルなメインメニュー:**
+```python
+unity_menu_hierarchyCreate({
+    "menuName": "MainMenu",
+    "menuStructure": {
+        "Start Game": "StartGame",
+        "Settings": {
+            "Video": {
+                "Resolution": "SetResolution",
+                "Quality": "SetQuality",
+                "Fullscreen": "ToggleFullscreen"
+            },
+            "Audio": {
+                "Master Volume": "SetMasterVolume",
+                "Music Volume": "SetMusicVolume",
+                "SFX Volume": "SetSFXVolume"
+            },
+            "Controls": "ConfigureControls"
+        },
+        "Quit": "QuitGame"
+    },
+    "generateStateMachine": True,
+    "stateMachineScriptPath": "Assets/Scripts/MenuStateMachine.cs",
+    "navigationMode": "both",
+    "buttonWidth": 200,
+    "buttonHeight": 50,
+    "spacing": 10,
+    "enableBackNavigation": True
+})
+```
+
+**生成されるUI構造:**
+```
+Canvas/
+└── MainMenu (親パネル - CanvasGroup付き)
+    ├── MainMenuPanel (ボタンコンテナ - VerticalLayoutGroup付き)
+    │   ├── StartGameButton
+    │   ├── SettingsButton
+    │   └── QuitButton
+    ├── SettingsPanel (サブメニュー - CanvasGroup付き)
+    │   ├── VideoButton
+    │   ├── AudioButton
+    │   ├── ControlsButton
+    │   └── BackButton
+    ├── VideoPanel (サブメニュー)
+    │   ├── ResolutionButton
+    │   ├── QualityButton
+    │   ├── FullscreenButton
+    │   └── BackButton
+    └── AudioPanel (サブメニュー)
+        ├── MasterVolumeButton
+        ├── MusicVolumeButton
+        ├── SFXVolumeButton
+        └── BackButton
+```
+
+**生成されるMenuStateMachineスクリプトの機能:**
+- **IMenuState** - Enter()、Update()、Exit()メソッドを持つState Pattern インターフェース
+- **MenuState** - 各メニューパネル用の具体的なState実装
+- **Input処理** - 設定されたナビゲーションモードに基づく入力ハンドリング
+- **State遷移** - メニュー間のスムーズな切り替え
+- **CanvasGroup管理** - アクティブなメニューパネルの自動表示/非表示
+
+**使用方法:**
+```csharp
+// MenuStateMachineコンポーネントを使用
+var menuStateMachine = FindFirstObjectByType<MenuStateMachine>();
+
+// メインメニューに切り替え
+menuStateMachine.ChangeState("MainMenuPanel");
+
+// サブメニューに切り替え
+menuStateMachine.ChangeState("SettingsPanel");
+```
+
+**ベストプラクティス:**
+1. **Canvas配下に作成** - UIシーンのセットアップ後に使用（`unity_scene_quickSetup` の `setupType: "UI"`）
+2. **明確な命名** - メニュー項目には説明的な名前を使用
+3. **バックナビゲーションを有効化** - 深い階層には `enableBackNavigation: true` を設定
+4. **入力モードを選択** - ターゲットプラットフォームに応じて `navigationMode` を設定
+5. **生成スクリプトをカスタマイズ** - 生成されたスクリプトを編集してボタンのコールバックを実装
+
+**一般的な使用例:**
+1. **ゲームメインメニュー** - Start Game、Settings、Credits、Quit
+2. **設定メニュー** - Video、Audio、Controls、Gameplay のネストされたオプション
+3. **一時停止メニュー** - Resume、Options、Return to Main Menu
+4. **インベントリシステム** - カテゴリー化されたアイテムと詳細パネル
+5. **レベル選択** - ワールドとレベルの階層選択
+
+**戻り値:**
+```python
+{
+    "success": True,
+    "menuName": "MainMenu",
+    "createdPanels": ["MainMenuPanel", "SettingsPanel", "VideoPanel", "AudioPanel", "ControlsPanel"],
+    "scriptPath": "Assets/Scripts/MenuStateMachine.cs",
+    "navigationMode": "both"
+}
+```
+
+**重要な注意事項:**
+- UIシーンが既にセットアップされている必要があります（Canvas + EventSystemが存在）
+- メニュー構造は3つの形式をサポート：
+  - 文字列値 - リーフメニュー項目（`"Start Game": "StartGame"`）
+  - 辞書 - サブメニュー（`"Settings": {...}`）
+  - 配列 - 同じサブメニューに複数のアクション（`"Options": ["option1", "option2"]`）
+- 生成されたスクリプトには、ボタンクリック時に呼び出されるコールバックメソッドのスタブが含まれています
+- すべてのパネルにはCanvasGroupコンポーネントが追加され、アクティブでないメニューは自動的に非表示になります
+- ボタンにはデフォルトのUIコンポーネント（Image、Text）が含まれ、すぐに使用可能です
+- `generateStateMachine: false` を設定すると、スクリプト生成なしでUI階層のみを作成できます
 
 ---
 
@@ -601,6 +731,49 @@ unity_scene_crud({
 }
 ```
 
+### 例4: 階層メニューシステムの作成
+
+```python
+# ステップ1: UIシーンをセットアップ
+unity_scene_quickSetup({"setupType": "UI"})
+
+# ステップ2: 階層メニューを作成
+unity_menu_hierarchyCreate({
+    "menuName": "GameMenu",
+    "menuStructure": {
+        "プレイ": "StartGame",
+        "設定": {
+            "映像": {
+                "解像度": "SetResolution",
+                "品質": "SetQuality",
+                "フルスクリーン": "ToggleFullscreen"
+            },
+            "音声": {
+                "マスター音量": "SetMasterVolume",
+                "BGM音量": "SetMusicVolume",
+                "効果音音量": "SetSFXVolume"
+            },
+            "操作設定": "ConfigureControls"
+        },
+        "クレジット": "ShowCredits",
+        "終了": "QuitGame"
+    },
+    "generateStateMachine": True,
+    "stateMachineScriptPath": "Assets/Scripts/UI/GameMenuStateMachine.cs",
+    "navigationMode": "both",
+    "buttonWidth": 250,
+    "buttonHeight": 60,
+    "spacing": 15,
+    "enableBackNavigation": True
+})
+
+# 生成されたメニューシステムは以下を含みます:
+# - Canvas/GameMenu に完全なメニュー階層
+# - Assets/Scripts/UI/GameMenuStateMachine.cs にState Patternスクリプト
+# - キーボードとゲームパッドの両方をサポート
+# - すべてのサブメニューに戻るボタン
+```
+
 ---
 
 ## 開発
@@ -640,9 +813,8 @@ SkillForUnity/
 
 詳細なガイドは以下を参照:
 - [CLAUDE.md](CLAUDE.md) - 完全な開発ドキュメント
-- [Tilemapツールリファレンス](SkillForUnity/docs/TOOLS_REFERENCE.md#24-unity_tilemap_manage) - TileMapツールリファレンス
-- [NavMeshツールリファレンス](SkillForUnity/docs/TOOLS_REFERENCE.md#25-unity_navmesh_manage) - NavMeshツールリファレンス
 - [TOOL_SELECTION_GUIDE.md](SkillForUnity/docs/TOOL_SELECTION_GUIDE.md) - バッチ操作やワークフローのまとめ
+- `.claude/skills/SkillForUnity/docs/` - API リファレンスと詳細ガイド
 
 ---
 
@@ -661,7 +833,7 @@ SkillForUnity/
 - ✅ **UI要素テンプレート** - 1コマンドで完全なUIコンポーネント
 - ✅ **レイアウト管理** - レイアウトグループとフィッターの簡単な設定
 - ✅ **階層ビルダー** - 宣言的なネスト構造作成
-- ✅ **コンテキストインスペクター** - 包括的なシーン状態検査
+- ✅ **階層メニューシステム** - State Patternを使用したネストされたメニューを自動生成
 - ✅ **重複防止** - シーン設定時の既存オブジェクトの自動検出
 
 ### スクリプト管理
@@ -693,11 +865,11 @@ SkillForUnity/
 | カテゴリ | ツール数 | 操作 |
 |---------|---------|------|
 | **コア** | 5ツール | ping, シーン, GameObject, コンポーネント, アセット |
-| **高レベル** | 6ツール | シーンクイックセットアップ, GameObjectテンプレート, UIテンプレート, レイアウトマネージャー, 階層ビルダー, コンテキストインスペクター |
+| **高レベル** | 7ツール | シーンクイックセットアップ, GameObjectテンプレート, UIテンプレート, レイアウトマネージャー, 階層ビルダー, 階層メニュー作成, デザインパターン生成 |
 | **UI** | 3ツール | UGUI統合 + 専用ツール |
 | **システム** | 3ツール | タグ/レイヤー, Prefab, 設定, レンダーパイプライン |
 | **スクリプト管理** | 1ツール | バッチスクリプト作成・更新・削除 |
-| **合計** | **18ツール** | **80+操作** |
+| **合計** | **19ツール** | **85+操作** |
 
 ---
 
@@ -740,7 +912,7 @@ SkillForUnity/
 
 1. **バッチ操作を使用**: 複数の操作を組み合わせて性能向上
 2. **コンテキスト更新を制限**: 大きなシーンではコンテキスト更新間隔を増やす
-3. **Tilemapバッチ操作**: 複数の`setTile`呼び出しの代わりに`fillArea`を使用
+3. **スクリプトバッチ管理**: 複数のスクリプト変更は `unity_script_batch_manage` でまとめて実行
 4. **アセット参照をキャッシュ**: アセットを一度読み込み、複数の操作で再利用
 5. **エラー時停止**: 依存する操作には`stopOnError: true`を設定
 
@@ -749,8 +921,8 @@ SkillForUnity/
 ## ドキュメント
 
 - **メインドキュメント**: [CLAUDE.md](CLAUDE.md)
-- **TileMapガイド**: [Tilemapツールリファレンス](SkillForUnity/docs/TOOLS_REFERENCE.md#24-unity_tilemap_manage)
-- **NavMeshガイド**: [NavMeshツールリファレンス](SkillForUnity/docs/TOOLS_REFERENCE.md#25-unity_navmesh_manage)
+- **クイックスタート**: [SkillForUnity/QUICKSTART.md](.claude/skills/SkillForUnity/QUICKSTART.md)
+- **API リファレンス**: [SkillForUnity/docs/](.claude/skills/SkillForUnity/docs/)
 - **バッチ処理例**: [TOOL_SELECTION_GUIDE.md](SkillForUnity/docs/TOOL_SELECTION_GUIDE.md)
 - **このファイル**: 完全なツールリファレンスとクイックスタート
 

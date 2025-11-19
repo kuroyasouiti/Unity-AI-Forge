@@ -137,24 +137,34 @@ See [examples/01-basic-scene-setup.md](examples/01-basic-scene-setup.md) for ful
 
 ## 🛠️ Available Tools
 
-### Core Operations
+### High-Level Tools (Recommended)
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| **Scene** | `scene.crud` | Create, load, save, delete scenes |
-| **GameObject** | `gameobject.crud`, `gameobject.createFromTemplate` | Hierarchy management |
-| **Component** | `component.crud` | Add, update, remove components |
-| **UI** | `ugui.createFromTemplate`, `ugui.layoutManage` | UI creation and layout |
-| **Asset** | `asset.crud` | Asset file operations |
-| **Prefab** | `prefab.crud` | Prefab workflow |
+| **Quick Setup** | `scene_quickSetup` | Instant scene setup (3D, 2D, UI, VR) |
+| **Templates** | `gameobject_createFromTemplate`, `ugui_createFromTemplate` | Create from templates |
+| **Hierarchy** | `hierarchy_builder` | Build complex nested structures |
+| **Layouts** | `ugui_layoutManage` | UI layout management |
+| **Patterns** | `designPattern_generate` | Generate design pattern code |
+| **Templates** | `template_manage` | Customize GameObjects and create prefabs |
+
+### Low-Level Tools (Core)
+
+| Category | Tools | Description |
+|----------|-------|-------------|
+| **Scene** | `scene_crud` | Create, load, save, delete, inspect scenes |
+| **GameObject** | `gameobject_crud` | Full hierarchy CRUD operations |
+| **Component** | `component_crud` | Add, update, remove components with batch support |
+| **Asset** | `asset_crud` | Asset operations and importer settings |
+| **Prefab** | `prefab_crud` | Complete prefab workflow |
+| **Script** | `script_batch_manage` | Batch C# script operations with compilation |
 
 ### Advanced Features
 
-- **Tilemap Design** - 2D tilemap operations
-- **NavMesh** - Navigation mesh baking and agents
-- **Input System** - New Input System management
-- **Project Settings** - Configure Unity project settings
-- **Render Pipeline** - Manage render pipeline settings
+- **Project Settings** - Read/write Unity project settings (player, quality, time, physics, audio, editor)
+- **Render Pipeline** - Manage render pipeline settings (Built-in, URP, HDRP)
+- **Tags & Layers** - Manage tags and layers
+- **Constants** - Convert Unity constants and values
 
 ## 🏗️ Architecture
 

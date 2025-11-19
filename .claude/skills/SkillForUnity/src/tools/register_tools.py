@@ -219,16 +219,20 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["updateImporter", "delete", "rename", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
-                    "description": "Operation to perform. 'updateImporter' modifies asset importer settings only (file content changes must be done via Claude Code's file tools). Use 'inspect' to read asset details including importer settings. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' to perform operations on multiple assets matching a wildcard or regex pattern. NOTE: This tool does NOT create or modify file contents - use Claude Code's Write/Edit tools for file operations.",
+                    "enum": ["create", "update", "updateImporter", "delete", "rename", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
+                    "description": "Operation to perform. 'create' creates a new text asset file (JSON, XML, config, etc.). 'update' updates existing text asset content. 'updateImporter' modifies asset importer settings only. Use 'inspect' to read asset details. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' for bulk operations. IMPORTANT: For C# scripts (.cs files), ALWAYS use unity_script_batch_manage instead!",
                 },
                 "assetPath": {
                     "type": "string",
-                    "description": "Path under Assets/ for the target asset. Not required for multiple operations (use 'pattern' instead).",
+                    "description": "Path under Assets/ for the target asset (e.g., 'Assets/Config/settings.json'). Required for create, update, rename, duplicate, inspect, and updateImporter operations.",
                 },
                 "assetGuid": {
                     "type": "string",
                     "description": "Optional GUID string to uniquely identify the asset (e.g., 'abc123def456789'). If provided, this takes priority over assetPath. Use this for precise asset identification.",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Text content for the asset file. Required for 'create' and 'update' operations. Use this for JSON, XML, TXT, and other text-based files. DO NOT use for C# scripts - use unity_script_batch_manage instead!",
                 },
                 "destinationPath": {
                     "type": "string",
@@ -241,7 +245,7 @@ def register_tools(server: Server) -> None:
                 },
                 "pattern": {
                     "type": "string",
-                    "description": "Wildcard pattern (e.g. 'Assets/Scripts/*.cs', 'Assets/Prefabs/Enemy*') or regex pattern for multiple operations. Supports * (any characters) and ? (single character).",
+                    "description": "Wildcard pattern (e.g. 'Assets/Data/*.json', 'Assets/Config/settings*') or regex pattern for multiple operations. Supports * (any characters) and ? (single character).",
                 },
                 "useRegex": {
                     "type": "boolean",
@@ -1089,6 +1093,53 @@ def register_tools(server: Server) -> None:
         [],
     )
 
+    menu_hierarchy_create_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "menuName": {
+                    "type": "string",
+                    "description": "Name of the root menu (e.g., 'MainMenu'). Will be created as a child of Canvas.",
+                },
+                "menuStructure": {
+                    "type": "object",
+                    "description": "Hierarchical menu structure. Each key is a menu item name, each value can be: a string (button text), an array of submenu items, or an object with 'text' and 'submenus' properties.",
+                    "additionalProperties": True,
+                },
+                "generateStateMachine": {
+                    "type": "boolean",
+                    "description": "If true, generates a MenuStateMachine script with State pattern for navigation control. Default: true.",
+                },
+                "stateMachineScriptPath": {
+                    "type": "string",
+                    "description": "Path for the generated MenuStateMachine script (e.g., 'Assets/Scripts/MenuStateMachine.cs'). Required if generateStateMachine is true.",
+                },
+                "navigationMode": {
+                    "type": "string",
+                    "enum": ["keyboard", "gamepad", "both"],
+                    "description": "Input mode for menu navigation. 'keyboard': arrow keys + Enter, 'gamepad': D-pad + A button, 'both': supports both. Default: 'both'.",
+                },
+                "buttonWidth": {
+                    "type": "number",
+                    "description": "Width of menu buttons in pixels. Default: 200.",
+                },
+                "buttonHeight": {
+                    "type": "number",
+                    "description": "Height of menu buttons in pixels. Default: 50.",
+                },
+                "spacing": {
+                    "type": "number",
+                    "description": "Vertical spacing between menu items in pixels. Default: 10.",
+                },
+                "enableBackNavigation": {
+                    "type": "boolean",
+                    "description": "If true, adds 'Back' buttons to submenus for returning to parent menu. Default: true.",
+                },
+            },
+        },
+        ["menuName", "menuStructure"],
+    )
+
     template_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -1283,7 +1334,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Manage Unity asset importer settings, and perform asset operations (rename, duplicate, delete, inspect). This tool does NOT create or modify file contents - use Claude Code's Write/Edit tools for file operations. Use 'updateImporter' to change asset import settings (texture type, model import options, etc.). Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple' operations. IMPORTANT: For C# scripts, use unity_script_batch_manage instead.",
+            description="Manage Unity text assets and asset operations. Use 'create' to create new text files (JSON, XML, config files, etc.). Use 'update' to modify existing text file content. Use 'delete', 'rename', 'duplicate', 'inspect' for asset operations. Use 'updateImporter' to change asset import settings. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple'. IMPORTANT: For C# scripts (.cs files), ALWAYS use unity_script_batch_manage instead - this tool will reject .cs files!",
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
@@ -1380,6 +1431,11 @@ def register_tools(server: Server) -> None:
             name="unity_template_manage",
             description="Customize existing GameObjects by adding components and child objects, then optionally convert them to reusable prefabs! This tool lets you transform any existing GameObject into a custom template by: (1) Adding multiple components with properties in one operation, (2) Creating child GameObjects with their own components and transforms, (3) Converting the customized GameObject to a prefab for reuse. Perfect for building complex GameObject structures from simple starting points and saving them as prefabs for later use.",
             inputSchema=template_manage_schema,
+        ),
+        types.Tool(
+            name="unity_menu_hierarchyCreate",
+            description="Create hierarchical menu systems with nested submenus and automatic State pattern navigation! Generates complete menu UI with vertical layout groups for each menu level, supports keyboard/gamepad navigation, and optionally creates a MenuStateMachine script for managing menu states and transitions. Perfect for creating main menus, pause menus, settings menus with nested options. Features: (1) Declarative menu structure definition, (2) Automatic button creation and layout, (3) State pattern for clean menu navigation code, (4) Input handling for keyboard and gamepad, (5) Parent-child menu transitions with back navigation.",
+            inputSchema=menu_hierarchy_create_schema,
         ),
     ]
 
@@ -1645,6 +1701,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_template_manage":
             return await _call_bridge_tool("templateManage", args)
+
+        if name == "unity_menu_hierarchyCreate":
+            return await _call_bridge_tool("menuHierarchyCreate", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
 

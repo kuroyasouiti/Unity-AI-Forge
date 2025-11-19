@@ -203,7 +203,7 @@ unity_scene_crud({
 
 ✅ **DO:**
 - Use templates when available (`createFromTemplate`)
-- Check context before making changes (`context_inspect`)
+- Check scene context before making changes (`unity_scene_crud` with `operation="inspect"`)
 - Use batch operations for multiple similar tasks
 - Specify full component type names (e.g., `UnityEngine.Rigidbody`)
 

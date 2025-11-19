@@ -32,10 +32,10 @@ unity_gameobject_createFromTemplate({"template": "Cube", "position": {"x": 0, "y
 # Build hierarchy structures (creates empty GameObjects)
 unity_hierarchy_builder({"hierarchy": {"Player": {"Camera": {}, "Weapon": {}}}})
 
-# Check current scene (returns one level of hierarchy)
+# Inspect current scene (returns one level of hierarchy)
 unity_scene_crud({"operation": "inspect", "includeHierarchy": True, "includeComponents": False})
 
-# Inspect GameObject (for deeper exploration)
+# Inspect specific GameObject (for deeper exploration)
 unity_gameobject_crud({"operation": "inspect", "gameObjectPath": "Player"})
 
 # Inspect component (fast - specific properties only)
@@ -1058,9 +1058,16 @@ for i in range(20):
 
 ## Available Tools
 
-### New High-Level Tools (Recommended)
+### Tool Classification
 
-These tools make common Unity tasks much easier:
+SkillForUnity provides two categories of tools:
+
+- **High-Level Tools (Recommended)**: Template-based and convenience tools for quick Unity workflows
+- **Low-Level Tools (Core)**: Fundamental CRUD operations for precise control
+
+### High-Level Tools (Recommended)
+
+These tools make common Unity tasks much easier with templates and automation:
 
 #### 1. Scene Quick Setup (`unity_scene_quickSetup`)
 
@@ -1320,7 +1327,74 @@ unity_gameobject_crud({
 })
 ```
 
-### Scene Management (`unity_scene_crud`)
+#### 8. Design Pattern Generation (`unity_designPattern_generate`)
+
+Generate production-ready C# implementations of common Unity design patterns. Instantly create complete, commented, and ready-to-use pattern implementations in seconds!
+
+**Available Patterns:**
+- **Singleton** - Single instance management with optional persistence
+- **ObjectPool** - Efficient object reuse pattern
+- **StateMachine** - State management with transitions
+- **Observer** - Event system for decoupled communication
+- **Command** - Action abstraction with undo/redo support
+- **Factory** - Object creation pattern with prefab management
+- **ServiceLocator** - Global service access pattern
+
+**Quick Example:**
+```python
+unity_designPattern_generate({
+    "patternType": "singleton",
+    "className": "GameManager",
+    "scriptPath": "Assets/Scripts/GameManager.cs",
+    "options": {"persistent": True, "monoBehaviour": True}
+})
+```
+
+See the detailed Design Pattern Generation section below for complete examples and all pattern options.
+
+#### 9. Hierarchical Menu Creation (`unity_menu_hierarchyCreate`)
+
+Create complete hierarchical menu systems with nested submenus and automatic State pattern navigation. Perfect for main menus, pause menus, and settings menus with multiple levels.
+
+**Quick Example:**
+```python
+unity_menu_hierarchyCreate({
+    "menuName": "MainMenu",
+    "menuStructure": {
+        "Play": "Start Game",
+        "Settings": {
+            "text": "Game Settings",
+            "submenus": {
+                "Graphics": "Graphics Options",
+                "Audio": "Audio Settings",
+                "Controls": "Control Mapping"
+            }
+        },
+        "Quit": "Exit Game"
+    },
+    "generateStateMachine": True,
+    "stateMachineScriptPath": "Assets/Scripts/MenuManager.cs",
+    "navigationMode": "both"
+})
+```
+
+See the detailed Hierarchical Menu Creation section below for complete documentation.
+
+#### 10. Additional High-Level Tools
+
+- **`unity_ugui_manage`** - Unified UGUI management for RectTransform operations (anchors, positions, etc.)
+- **`unity_ugui_rectAdjust`** - Adjust RectTransform size based on reference resolution
+- **`unity_ugui_anchorManage`** - Manage RectTransform anchors with presets
+- **`unity_ugui_detectOverlaps`** - Detect overlapping UI elements for debugging
+- **`unity_renderPipeline_manage`** - Manage render pipeline settings (URP/HDRP)
+
+---
+
+### Low-Level Tools (Core)
+
+These tools provide fundamental CRUD operations for precise control over Unity objects:
+
+#### 1. Scene Management (`unity_scene_crud`)
 
 The scene management tool provides operations for working with Unity scene files and inspecting scene content.
 
@@ -1415,51 +1489,67 @@ The scene management tool provides operations for working with Unity scene files
     })
     ```
 
-### Asset Management (`unity_asset_crud`)
+#### 2. Asset Management (`unity_asset_crud`)
 
-The asset management tool provides operations for working with Unity asset files.
+Manage Unity text assets (JSON, XML, config files) and perform asset operations.
 
-**IMPORTANT:** DO NOT use this tool for creating or updating C# scripts. Use `unity_script_batch_manage` instead, which handles compilation properly.
+**IMPORTANT:**
+- Use `create` and `update` operations for text-based assets (JSON, XML, TXT, config files)
+- For C# scripts (.cs files), ALWAYS use `unity_script_batch_manage` instead (handles compilation properly)
+- This tool will reject .cs files to prevent compilation issues
 
 **Operations:**
 
-1. **create** - Create a new asset file
+1. **create** - Create a new text asset file
    ```python
    unity_asset_crud({
        "operation": "create",
-       "assetPath": "Assets/Data/Config.asset",
-       "content": "..."
+       "assetPath": "Assets/Config/settings.json",
+       "content": '{\n  "volume": 0.8,\n  "quality": "High"\n}'
    })
    ```
 
-2. **update** - Update an existing asset file
+2. **update** - Update existing text asset content
    ```python
    unity_asset_crud({
        "operation": "update",
-       "assetPath": "Assets/Data/Config.asset",
-       "content": "..."
+       "assetPath": "Assets/Config/settings.json",
+       "content": '{\n  "volume": 1.0,\n  "quality": "Ultra"\n}'
    })
    ```
 
-3. **rename** - Rename an asset
+3. **updateImporter** - Update asset importer settings
+   ```python
+   unity_asset_crud({
+       "operation": "updateImporter",
+       "assetPath": "Assets/Textures/Sprite.png",
+       "propertyChanges": {
+           "textureType": "Sprite",
+           "filterMode": "Bilinear",
+           "isReadable": True
+       }
+   })
+   ```
+
+4. **rename** - Rename an asset
    ```python
    unity_asset_crud({
        "operation": "rename",
        "assetPath": "Assets/Textures/OldName.png",
-       "newName": "NewName.png"
+       "destinationPath": "Assets/Textures/NewName.png"
    })
    ```
 
-4. **duplicate** - Duplicate an asset
+5. **duplicate** - Duplicate an asset
    ```python
    unity_asset_crud({
        "operation": "duplicate",
        "assetPath": "Assets/Materials/Material.mat",
-       "newPath": "Assets/Materials/Material_Copy.mat"
+       "destinationPath": "Assets/Materials/Material_Copy.mat"
    })
    ```
 
-5. **delete** - Delete an asset
+6. **delete** - Delete an asset
    ```python
    unity_asset_crud({
        "operation": "delete",
@@ -1467,15 +1557,16 @@ The asset management tool provides operations for working with Unity asset files
    })
    ```
 
-6. **inspect** - Get information about an asset
+7. **inspect** - Get asset information and importer settings
    ```python
    unity_asset_crud({
        "operation": "inspect",
-       "assetPath": "Assets/Textures/Sprite.png"
+       "assetPath": "Assets/Textures/Sprite.png",
+       "includeProperties": True  # Include importer settings
    })
    ```
 
-7. **findMultiple** - Find multiple assets using wildcard patterns
+8. **findMultiple** - Find multiple assets using wildcard patterns
    ```python
    unity_asset_crud({
        "operation": "findMultiple",
@@ -1483,7 +1574,7 @@ The asset management tool provides operations for working with Unity asset files
    })
    ```
 
-8. **deleteMultiple** - Delete multiple assets using wildcard patterns
+9. **deleteMultiple** - Delete multiple assets using wildcard patterns
    ```python
    unity_asset_crud({
        "operation": "deleteMultiple",
@@ -1491,21 +1582,24 @@ The asset management tool provides operations for working with Unity asset files
    })
    ```
 
-9. **inspectMultiple** - Inspect multiple assets using wildcard patterns
+10. **inspectMultiple** - Inspect multiple assets using wildcard patterns
    ```python
    unity_asset_crud({
        "operation": "inspectMultiple",
-       "pattern": "Assets/Materials/*.mat"
+       "pattern": "Assets/Materials/*.mat",
+       "includeProperties": False  # Skip importer settings for performance
    })
    ```
 
 **Important Notes:**
-- This tool is for general asset files (textures, materials, prefabs, etc.)
-- For C# scripts, ALWAYS use `unity_script_batch_manage` instead
+- Use `create` and `update` operations for text-based assets (JSON, XML, TXT, config files)
+- For C# scripts (.cs files), ALWAYS use `unity_script_batch_manage` instead - this tool will reject .cs files
 - All asset paths must start with "Assets/"
 - Wildcard patterns support glob syntax (*, ?, etc.)
+- `create` will fail if the file already exists - use `update` for existing files
+- `update` will fail if the file doesn't exist - use `create` for new files
 
-### GameObject Management (`unity_gameobject_crud`)
+#### 3. GameObject Management (`unity_gameobject_crud`)
 
 Comprehensive tool for managing GameObjects in the scene hierarchy.
 
@@ -1626,7 +1720,7 @@ unity_gameobject_crud({
 })
 ```
 
-### Component Management (`unity_component_crud`)
+#### 4. Component Management (`unity_component_crud`)
 
 Comprehensive tool for managing components on GameObjects.
 
@@ -1863,9 +1957,17 @@ if result["errorCount"] > 0:
        print(f"Failed on {error['gameObject']}: {error['error']}")
    ```
 
-### Project Settings Management (`unity.projectSettings.crud`)
+#### 5. Prefab Management (`unity_prefab_crud`)
 
-The project settings management tool provides comprehensive operations for reading and writing Unity Project Settings across multiple categories.
+Manage Unity prefabs: create from GameObjects, update existing prefabs, instantiate in scenes, apply/revert overrides.
+
+**Operations:** create, update, inspect, instantiate, unpack, applyOverrides, revertOverrides
+
+See the detailed Prefab Management section below for complete documentation.
+
+#### 6. Project Settings Management (`unity_projectSettings_crud`)
+
+Read and write Unity Project Settings across multiple categories (player, quality, time, physics, audio, editor).
 
 **Operations:**
 
@@ -1939,55 +2041,7 @@ The project settings management tool provides comprehensive operations for readi
 - Complex values like Vector3 (gravity) are represented as dictionaries with x, y, z keys
 - Enum values are returned as strings and can be set using string names
 
-### Render Pipeline Management (`unity.renderPipeline.manage`)
-
-The render pipeline management tool provides operations for inspecting and configuring Unity's render pipeline (Built-in, URP, HDRP, or custom).
-
-**Operations:**
-
-1. **inspect** - Check current render pipeline
-   ```json
-   {
-     "operation": "inspect"
-   }
-   ```
-   Returns pipeline type (Built-in/URP/HDRP/Custom), asset name, and path.
-
-2. **setAsset** - Change the render pipeline asset
-   ```json
-   {
-     "operation": "setAsset",
-     "assetPath": "Assets/Settings/UniversalRP-HighQuality.asset"
-   }
-   ```
-   Empty assetPath clears the pipeline and returns to Built-in renderer.
-
-3. **getSettings** - Read render pipeline settings
-   ```json
-   {
-     "operation": "getSettings"
-   }
-   ```
-   Returns all public properties of the current pipeline asset.
-
-4. **updateSettings** - Modify render pipeline settings
-   ```json
-   {
-     "operation": "updateSettings",
-     "settings": {
-       "shadowDistance": 150,
-       "cascadeCount": 4
-     }
-   }
-   ```
-
-**Implementation Notes:**
-- Uses UnityEngine.Rendering.GraphicsSettings API
-- Settings are pipeline-specific (URP and HDRP have different properties)
-- Uses reflection to access pipeline-specific settings
-- All changes are saved to the asset automatically
-
-### Script Management (`unity_script_batch_manage`)
+#### 7. Script Management (`unity_script_batch_manage`)
 
 The script management tool provides comprehensive operations for creating, updating, and managing C# scripts in Unity with automatic compilation handling.
 
@@ -2118,6 +2172,107 @@ unity_script_batch_manage({
 - The tool waits for compilation to complete before returning
 - If compilation fails, the response includes compilation errors
 - NEVER use `unity_asset_crud` for C# scripts - it bypasses compilation handling
+
+#### 8. Tag and Layer Management (`unity_tagLayer_manage`)
+
+Manage tags and layers in Unity projects.
+
+**GameObject Operations:**
+- `setTag` / `getTag` - Set/get tag on GameObject
+- `setLayer` / `getLayer` - Set/get layer on GameObject
+- `setLayerRecursive` - Set layer on GameObject and all children
+
+**Project Operations:**
+- `listTags` / `addTag` / `removeTag` - Manage project tags
+- `listLayers` / `addLayer` / `removeLayer` - Manage project layers
+
+**Example:**
+```python
+# Set tag on GameObject
+unity_tagLayer_manage({
+    "operation": "setTag",
+    "gameObjectPath": "Player",
+    "tag": "Player"
+})
+
+# Set layer recursively
+unity_tagLayer_manage({
+    "operation": "setLayerRecursive",
+    "gameObjectPath": "Environment",
+    "layer": "Terrain"
+})
+
+# List all tags
+unity_tagLayer_manage({"operation": "listTags"})
+```
+
+#### 9. Constant Conversion (`unity_constant_convert`)
+
+Convert between Unity constants and numeric values (enums, colors, layers).
+
+**Operations:**
+- `enumToValue` / `valueToEnum` - Convert enum names ↔ numeric values
+- `colorToRGBA` / `rgbaToColor` - Convert Unity color names ↔ RGBA values
+- `layerToIndex` / `indexToLayer` - Convert layer names ↔ indices
+- `listEnums` / `listColors` / `listLayers` - List available values
+
+**Example:**
+```python
+# Convert enum to value
+unity_constant_convert({
+    "operation": "enumToValue",
+    "enumType": "UnityEngine.KeyCode",
+    "enumValue": "Space"
+})
+# Returns: 32
+
+# Convert color name to RGBA
+unity_constant_convert({
+    "operation": "colorToRGBA",
+    "colorName": "red"
+})
+# Returns: {"r": 1, "g": 0, "b": 0, "a": 1}
+```
+
+---
+
+### Utility Tools
+
+#### Console Log (`unity_console_log`)
+
+Retrieve Unity Editor console log messages for debugging.
+
+**Example:**
+```python
+unity_console_log({
+    "logType": "error",  # all/normal/warning/error
+    "limit": 800
+})
+```
+
+#### Await Compilation (`unity_await_compilation`)
+
+Wait for Unity compilation to complete (does NOT trigger compilation, only waits).
+
+**Example:**
+```python
+unity_await_compilation({"timeoutSeconds": 60})
+```
+
+#### Ping (`unity_ping`)
+
+Verify bridge connectivity and get Unity Editor version.
+
+**Example:**
+```python
+unity_ping({})
+```
+
+---
+
+### Detailed Tool Documentation
+
+The following sections provide complete documentation for select tools:
 
 ### Design Pattern Generation (`unity_designPattern_generate`)
 
@@ -2444,9 +2599,279 @@ unity_script_batch_manage({
 - Automatic compilation is triggered after generation
 - Edit generated code to customize for your specific needs
 
-### Prefab Management (`unity.prefab.crud`)
+### Hierarchical Menu Creation (`unity_menu_hierarchyCreate`)
 
-The prefab management tool provides comprehensive operations for working with Unity prefabs:
+Create complete hierarchical menu systems with nested submenus and automatic State pattern navigation. This tool generates the entire UI hierarchy along with a MenuStateMachine script for clean menu navigation.
+
+**Features:**
+- **Declarative menu structure** - Define entire menu hierarchy with simple dictionaries
+- **Automatic UI generation** - Creates all panels, buttons, and layout groups
+- **State pattern navigation** - Generates MenuStateMachine script with clean state transitions
+- **Input handling** - Built-in support for keyboard and gamepad navigation
+- **Parent-child transitions** - Automatic back buttons for submenu navigation
+- **CanvasGroup management** - Smooth show/hide transitions between menus
+
+**Parameters:**
+
+| Parameter | Type | Description | Required | Default |
+|-----------|------|-------------|----------|---------|
+| `menuName` | string | Name of the root menu container | **Yes** | - |
+| `menuStructure` | object | Hierarchical menu structure definition | **Yes** | - |
+| `generateStateMachine` | boolean | Generate MenuStateMachine script | No | `true` |
+| `stateMachineScriptPath` | string | Path for generated script (e.g., `Assets/Scripts/MenuManager.cs`) | If `generateStateMachine=true` | - |
+| `navigationMode` | string | Input mode: `"keyboard"`, `"gamepad"`, or `"both"` | No | `"both"` |
+| `buttonWidth` | number | Button width in pixels | No | `200` |
+| `buttonHeight` | number | Button height in pixels | No | `50` |
+| `spacing` | number | Vertical spacing between buttons in pixels | No | `10` |
+| `enableBackNavigation` | boolean | Add "Back" buttons to submenus | No | `true` |
+
+**Menu Structure Definition:**
+
+The `menuStructure` parameter accepts three formats for defining menu items:
+
+1. **Simple button** - String value represents button text:
+   ```python
+   "ButtonName": "Display Text"
+   ```
+
+2. **Button with submenus** - Object with `text` and `submenus`:
+   ```python
+   "ParentMenu": {
+       "text": "Parent Menu Text",
+       "submenus": {
+           "SubMenu1": "Submenu 1 Text",
+           "SubMenu2": "Submenu 2 Text"
+       }
+   }
+   ```
+
+3. **List-based submenus** - Array of submenu items:
+   ```python
+   "Settings": ["Graphics", "Audio", "Controls"]
+   ```
+
+**Example 1: Simple Main Menu**
+
+```python
+unity_menu_hierarchyCreate({
+    "menuName": "MainMenu",
+    "menuStructure": {
+        "Play": "Start New Game",
+        "Continue": "Continue Game",
+        "Options": "Game Options",
+        "Quit": "Exit Game"
+    },
+    "generateStateMachine": True,
+    "stateMachineScriptPath": "Assets/Scripts/MainMenuManager.cs",
+    "buttonWidth": 250,
+    "buttonHeight": 60,
+    "spacing": 15
+})
+```
+
+**Generated UI Structure:**
+```
+Canvas/
+  └─ MainMenu (CanvasGroup, VerticalLayoutGroup)
+      ├─ PlayButton
+      ├─ ContinueButton
+      ├─ OptionsButton
+      └─ QuitButton
+```
+
+**Example 2: Multi-Level Settings Menu**
+
+```python
+unity_menu_hierarchyCreate({
+    "menuName": "SettingsMenu",
+    "menuStructure": {
+        "Graphics": {
+            "text": "Graphics Settings",
+            "submenus": {
+                "Quality": "Quality Level",
+                "Resolution": "Screen Resolution",
+                "Fullscreen": "Toggle Fullscreen",
+                "VSync": "Vertical Sync",
+                "Advanced": {
+                    "text": "Advanced Graphics",
+                    "submenus": {
+                        "Shadows": "Shadow Quality",
+                        "AntiAliasing": "Anti-Aliasing",
+                        "TextureQuality": "Texture Quality"
+                    }
+                }
+            }
+        },
+        "Audio": {
+            "text": "Audio Settings",
+            "submenus": {
+                "Master": "Master Volume",
+                "Music": "Music Volume",
+                "SFX": "Sound Effects",
+                "Voice": "Voice Volume"
+            }
+        },
+        "Gameplay": {
+            "text": "Gameplay Settings",
+            "submenus": {
+                "Difficulty": "Game Difficulty",
+                "Subtitles": "Toggle Subtitles",
+                "AutoSave": "Auto-Save",
+                "HUD": "HUD Opacity"
+            }
+        }
+    },
+    "generateStateMachine": True,
+    "stateMachineScriptPath": "Assets/Scripts/SettingsMenuManager.cs",
+    "navigationMode": "both",
+    "enableBackNavigation": True
+})
+```
+
+**Generated UI Structure:**
+```
+Canvas/
+  ├─ SettingsMenu (CanvasGroup, VerticalLayoutGroup)
+  │   ├─ GraphicsButton
+  │   ├─ AudioButton
+  │   └─ GameplayButton
+  │
+  ├─ GraphicsMenu (CanvasGroup, VerticalLayoutGroup)
+  │   ├─ BackButton
+  │   ├─ QualityButton
+  │   ├─ ResolutionButton
+  │   ├─ FullscreenButton
+  │   ├─ VSyncButton
+  │   └─ AdvancedButton
+  │
+  ├─ AdvancedMenu (CanvasGroup, VerticalLayoutGroup)
+  │   ├─ BackButton
+  │   ├─ ShadowsButton
+  │   ├─ AntiAliasingButton
+  │   └─ TextureQualityButton
+  │
+  ├─ AudioMenu (CanvasGroup, VerticalLayoutGroup)
+  │   ├─ BackButton
+  │   ├─ MasterButton
+  │   ├─ MusicButton
+  │   ├─ SFXButton
+  │   └─ VoiceButton
+  │
+  └─ GameplayMenu (CanvasGroup, VerticalLayoutGroup)
+      ├─ BackButton
+      ├─ DifficultyButton
+      ├─ SubtitlesButton
+      ├─ AutoSaveButton
+      └─ HUDButton
+```
+
+**Generated MenuStateMachine Script Features:**
+
+The automatically generated MenuStateMachine script includes:
+
+1. **State Pattern Implementation:**
+   - `IMenuState` interface with `Enter()`, `Update()`, and `Exit()` methods
+   - `MenuState` concrete implementation for each menu
+   - Clean state transitions with lifecycle management
+
+2. **Input Handling:**
+   - **Keyboard Navigation:**
+     - Arrow keys / WASD for menu item selection
+     - Enter / Space for confirmation
+   - **Gamepad Navigation:**
+     - D-pad / Left stick for menu item selection
+     - A button / Submit for confirmation
+   - **Visual Feedback:**
+     - Automatic button highlighting
+     - Focus management
+
+3. **Menu Management:**
+   - `ChangeState(menuName)` - Switch between menus
+   - `ShowMenu(panel)` / `HideMenu(panel)` - CanvasGroup control
+   - Automatic button collection for current menu
+   - Selected button index tracking
+
+**Example Generated Code Structure:**
+
+```csharp
+public class MenuManager : MonoBehaviour
+{
+    [SerializeField] private List<CanvasGroup> menuPanels;
+
+    private IMenuState currentState;
+    private Dictionary<string, CanvasGroup> menuDict;
+    private int selectedButtonIndex;
+    private List<Button> currentButtons;
+
+    public void ChangeState(string menuName)
+    {
+        // Hide all menus
+        // Show target menu
+        // Update button list
+        // Create new state
+    }
+
+    private interface IMenuState
+    {
+        void Enter();
+        void Update();
+        void Exit();
+    }
+}
+```
+
+**Using the Generated System:**
+
+1. **Attach the MenuStateMachine script** to a GameObject in your scene
+2. **Assign menu panels** in the Inspector (drag all CanvasGroup objects)
+3. **Wire up button events** in the Inspector or via code:
+   ```csharp
+   // In button onClick event
+   menuManager.ChangeState("SettingsMenu");
+   ```
+
+**Best Practices:**
+
+1. **Keep menu depth reasonable** - 2-3 levels max for best UX
+2. **Consistent button sizes** - Use same dimensions across menus
+3. **Clear naming** - Use descriptive menu and button names
+4. **Test navigation** - Verify keyboard and gamepad work correctly
+5. **Customize the generated script** - Add transitions, animations, sound effects
+
+**Common Use Cases:**
+
+- **Main Menu** - Play, Continue, Settings, Quit
+- **Pause Menu** - Resume, Settings, Main Menu
+- **Settings Menu** - Graphics, Audio, Controls with nested options
+- **Level Select** - World selection with level submenus
+- **Shop/Inventory** - Categories with item submenus
+
+**Return Value:**
+
+```python
+{
+    "success": True,
+    "menuName": "SettingsMenu",
+    "menuPath": "Canvas/SettingsMenu",
+    "createdMenus": ["SettingsMenu", "GraphicsMenu", "AudioMenu", "GameplayMenu", "AdvancedMenu"],
+    "menuStateCount": 5,
+    "stateMachineGenerated": True,
+    "stateMachineScriptPath": "Assets/Scripts/SettingsMenuManager.cs",
+    "message": "Successfully created hierarchical menu 'SettingsMenu' with 5 menu panels"
+}
+```
+
+**Important Notes:**
+- Requires an existing Canvas in the scene (use `unity_scene_quickSetup({"setupType": "UI"})` first)
+- All menu panels are created as children of the Canvas
+- Generated MenuStateMachine script uses State pattern for clean code
+- Supports unlimited menu depth (though 2-3 levels recommended)
+- All menus use VerticalLayoutGroup for automatic button positioning
+- CanvasGroup components enable smooth show/hide transitions
+
+### Prefab Management (`unity_prefab_crud`)
+
+Comprehensive operations for working with Unity prefabs:
 
 **Operations:**
 
@@ -2652,7 +3077,7 @@ unity_component_crud({"operation": "update", "gameObjectPath": "Player", ...})
 **Right:**
 ```python
 # Check what exists first
-unity_context_inspect({"includeHierarchy": True})
+unity_scene_crud({"operation": "inspect", "includeHierarchy": True})
 
 # Then make informed changes
 unity_component_crud({"operation": "update", "gameObjectPath": "Player", ...})

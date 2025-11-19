@@ -1,5 +1,5 @@
 name: SkillForUnity
-version: 1.0.4
+version: 1.0.5
 description: "Comprehensive Unity Editor integration through Model Context Protocol"
 author: "SkillForUnity Team"
 license: MIT
@@ -34,19 +34,20 @@ prerequisites:
 
 # Skill capabilities
 capabilities:
-  tools: 28
+  tools: 30+
   categories:
-    - scene_management        # Create, load, save, delete scenes
-    - gameobject_operations   # Create, move, rename, delete GameObjects
-    - component_editing       # Add, update, remove components
-    - ui_creation            # Create UI elements with templates
-    - asset_management       # Asset file operations
-    - script_management      # C# script batch operations with compilation
+    - scene_management        # Create, load, save, delete, inspect scenes
+    - gameobject_operations   # Create, move, rename, delete GameObjects with batch support
+    - component_editing       # Add, update, remove components with batch support
+    - ui_creation            # Create UI elements with templates and layouts
+    - asset_management       # Asset operations and importer settings
+    - script_management      # C# script batch operations with automatic compilation
     - design_patterns        # Generate design pattern implementations (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
-    - prefab_workflow        # Prefab creation and management
-    - tilemap_design         # 2D tilemap operations
-    - navmesh_operations     # NavMesh baking and agents
-    - input_system           # New Input System management
+    - prefab_workflow        # Prefab creation, instantiation, and override management
+    - project_settings       # Configure Unity project settings
+    - render_pipeline        # Manage render pipeline settings
+    - tags_layers           # Manage tags and layers
+    - constants             # Convert Unity constants and values
 
 # MCP configuration
 mcp:

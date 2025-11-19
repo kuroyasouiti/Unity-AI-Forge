@@ -127,22 +127,30 @@ AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity 
 
 ## ✨ Features
 
-### Core Capabilities
+### High-Level Tools (Recommended)
 
-- **20+ Unity Tools** - Complete control over Unity Editor
-- **Scene Management** - Create, load, save, delete scenes
-- **GameObject Operations** - Full hierarchy manipulation
-- **Component Editing** - Add, update, remove components
-- **UI Creation** - Templates for buttons, panels, text, etc.
-- **Asset Management** - Asset file operations
-- **Script Management** - Batch C# script creation and compilation
-- **Prefab Workflow** - Create and manage prefabs
+- **Quick Scene Setup** - Instant 3D/2D/UI/VR scene configuration
+- **GameObject Templates** - Create primitives, lights, player, enemy with one command
+- **UI Templates** - Complete UI elements (Button, Panel, ScrollView, etc.)
+- **Hierarchy Builder** - Build complex nested structures declaratively
+- **Design Patterns** - Generate Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator
+- **Layout Management** - Configure UI layouts (Vertical, Horizontal, Grid)
+
+### Core Tools (Low-Level)
+
+- **Scene Management** - Create, load, save, delete, inspect scenes
+- **GameObject CRUD** - Full hierarchy manipulation with batch operations
+- **Component CRUD** - Add, update, remove components with batch support
+- **Asset Operations** - Rename, duplicate, delete, inspect, update importer settings
+- **Script Batch Management** - Create/update/delete multiple C# scripts with automatic compilation
+- **Prefab Workflow** - Create, instantiate, update, apply/revert overrides
 
 ### Advanced Features
 
-- **Project Settings** - Configure Unity settings
-- **Render Pipeline** - Manage render pipeline settings
-- **Tags & Layers** - Manage tags and layers
+- **Project Settings** - Configure player, quality, time, physics, audio, editor settings
+- **Render Pipeline** - Manage Built-in/URP/HDRP pipeline settings
+- **Tags & Layers** - Manage project tags and layers
+- **Constants** - Convert between Unity constants and numeric values
 - **Automatic Compilation** - Detects and waits for Unity compilation
 
 ## 📝 Script Management

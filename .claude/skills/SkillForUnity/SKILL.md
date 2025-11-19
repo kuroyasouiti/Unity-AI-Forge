@@ -42,18 +42,16 @@ Before using these tools, ensure:
 - **Anchor presets**: Position UI elements correctly on Canvas
 
 ### 📦 Asset & Script Management
-- **Asset CRUD**: Create, update, rename, duplicate, delete, and inspect assets
-- **Script batch management**: Create/update multiple C# scripts with automatic compilation
+- **Asset operations**: Rename, duplicate, delete, inspect assets and update importer settings
+- **Script batch management**: Create/update/delete multiple C# scripts with automatic compilation
 - **Prefab workflow**: Create, instantiate, update, apply/revert prefab overrides
 - **Design patterns**: Generate production-ready implementations of common design patterns (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
 
 ### 🎯 Advanced Features
-- **Tilemap operations**: Create and modify 2D tilemaps
-- **NavMesh**: Bake navigation meshes and configure NavMesh agents
-- **Input System**: Create and manage Input Action assets
-- **Project settings**: Read/write Unity project settings
-- **Render pipeline**: Inspect and configure render pipeline settings
-- **Build settings**: Manage build configurations and player settings
+- **Project settings**: Read/write Unity project settings (player, quality, time, physics, audio, editor)
+- **Render pipeline**: Inspect and configure render pipeline settings (Built-in, URP, HDRP)
+- **Tags & Layers**: Manage project tags and layers, set on GameObjects
+- **Constants**: Convert between Unity constants and numeric values (enums, colors, layers)
 
 ## Quick Start Commands
 
@@ -159,18 +157,19 @@ unity_component_crud({
 
 ### Scene Inspection
 ```python
-# Get scene overview (fast)
-unity_context_inspect({
+# Get scene overview (returns one level of hierarchy for performance)
+unity_scene_crud({
+    "operation": "inspect",
     "includeHierarchy": True,
-    "includeComponents": False,  # Skip properties for speed
-    "maxDepth": 2
+    "includeComponents": False,  # Skip components for speed
+    "filter": "Player*"  # Optional: filter by pattern
 })
 
-# Detailed GameObject inspection
+# For deeper exploration, inspect specific GameObject
 unity_gameobject_crud({
     "operation": "inspect",
-    "gameObjectPath": "Player",
-    "includeProperties": False  # Use false for fast checks
+    "gameObjectPath": "Player/Weapon",
+    "includeComponents": True
 })
 ```
 
@@ -461,14 +460,22 @@ The tools are organized into 10 categories:
 
 ### Advanced Features
 - `unity_prefab_crud` - Prefab workflow operations
-- `unity_tilemap_crud` - 2D tilemap operations
-- `unity_navmesh_manage` - NavMesh baking and configuration
-- `unity_inputSystem_manage` - Input System management
-- `unity_projectSettings_crud` - Project settings management
-- `unity_renderPipeline_manage` - Render pipeline configuration
+- `unity_projectSettings_crud` - Project settings management (player, quality, time, physics, audio, editor)
+- `unity_renderPipeline_manage` - Render pipeline configuration (Built-in, URP, HDRP)
+- `unity_tagLayer_manage` - Tag and layer management
+- `unity_constant_convert` - Convert between Unity constants and values (enums, colors, layers)
+- `unity_template_manage` - Customize GameObjects and convert to prefabs
+
+### UGUI Tools
+- `unity_ugui_manage` - Unified UGUI management (RectTransform operations)
+- `unity_ugui_rectAdjust` - Adjust RectTransform size
+- `unity_ugui_anchorManage` - Manage RectTransform anchors
+- `unity_ugui_detectOverlaps` - Detect overlapping UI elements
 
 ### Utility
 - `unity_ping` - Test connection and get Unity version
+- `unity_console_log` - Retrieve Unity Editor console log messages
+- `unity_await_compilation` - Wait for Unity compilation to complete
 
 ## Tips for Success
 
