@@ -43,7 +43,7 @@ Before using these tools, ensure:
 
 ### 📦 Asset & Script Management
 - **Asset operations**: Rename, duplicate, delete, inspect assets and update importer settings
-- **Script batch management**: Create/update/delete multiple C# scripts with automatic compilation
+- **Script template generation**: Generate MonoBehaviour and ScriptableObject templates with proper Unity structure
 - **Prefab workflow**: Create, instantiate, update, apply/revert prefab overrides
 - **Design patterns**: Generate production-ready implementations of common design patterns (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
 
@@ -173,23 +173,28 @@ unity_gameobject_crud({
 })
 ```
 
-### Script Management
+### Script Template Generation
 ```python
-# ALWAYS use batch management for scripts
-unity_script_batch_manage({
-    "scripts": [
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Player.cs",
-            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    void Start()\n    {\n    }\n}"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Enemy.cs",
-            "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour\n{\n    void Start()\n    {\n    }\n}"
-        }
-    ],
-    "timeoutSeconds": 30
+# Generate MonoBehaviour template
+unity_script_template_generate({
+    "templateType": "MonoBehaviour",
+    "className": "PlayerController",
+    "scriptPath": "Assets/Scripts/PlayerController.cs",
+    "namespace": "MyGame.Player"
+})
+
+# Generate ScriptableObject template
+unity_script_template_generate({
+    "templateType": "ScriptableObject",
+    "className": "GameConfig",
+    "scriptPath": "Assets/ScriptableObjects/GameConfig.cs"
+})
+
+# Modify generated template using asset_crud
+unity_asset_crud({
+    "operation": "update",
+    "assetPath": "Assets/Scripts/PlayerController.cs",
+    "content": "using UnityEngine;\n\nnamespace MyGame.Player\n{\n    public class PlayerController : MonoBehaviour\n    {\n        public float speed = 5f;\n        \n        void Update()\n        {\n            // Movement code\n        }\n    }\n}"
 })
 ```
 
@@ -248,9 +253,9 @@ unity_designPattern_generate({
    unity_hierarchy_builder({"hierarchy": {...}})  # Not multiple individual creates
    ```
 
-4. **Batch script operations** - Always use script batch manager
+4. **Use script templates** - Generate standard Unity script structures quickly
    ```python
-   unity_script_batch_manage({"scripts": [...]})  # Single compilation for all scripts
+   unity_script_template_generate({"templateType": "MonoBehaviour", "className": "Player", "scriptPath": "Assets/Scripts/Player.cs"})
    ```
 
 5. **Optimize inspections** - Use `includeProperties=false` and `propertyFilter`
@@ -452,8 +457,8 @@ The tools are organized into 10 categories:
 - `unity_ugui_layoutManage` - Manage layout components
 
 ### Asset & Script Management
-- `unity_asset_crud` - Asset file operations
-- `unity_script_batch_manage` - Batch script operations with compilation
+- `unity_asset_crud` - Asset file operations (including C# scripts)
+- `unity_script_template_generate` - Generate MonoBehaviour/ScriptableObject templates
 
 ### Design Patterns
 - `unity_designPattern_generate` - Generate design pattern implementations (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)

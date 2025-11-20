@@ -1,5 +1,5 @@
 name: SkillForUnity
-version: 1.0.5
+version: 1.1.0
 description: "Comprehensive Unity Editor integration through Model Context Protocol"
 author: "SkillForUnity Team"
 license: MIT
@@ -41,7 +41,7 @@ capabilities:
     - component_editing       # Add, update, remove components with batch support
     - ui_creation            # Create UI elements with templates and layouts
     - asset_management       # Asset operations and importer settings
-    - script_management      # C# script batch operations with automatic compilation
+    - script_management      # C# script template generation and asset operations
     - design_patterns        # Generate design pattern implementations (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
     - prefab_workflow        # Prefab creation, instantiation, and override management
     - project_settings       # Configure Unity project settings

@@ -54,7 +54,7 @@ namespace MCP.Editor
                 "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
                 "constantConvert" => HandleConstantConvert(command.Payload),
                 "designPatternGenerate" => HandleDesignPatternGenerate(command.Payload),
-                "scriptBatchManage" => HandleScriptBatchManage(command.Payload),
+                "scriptTemplateGenerate" => HandleScriptTemplateGenerate(command.Payload),
                 "templateManage" => HandleTemplateManage(command.Payload),
                 "menuHierarchyCreate" => HandleMenuHierarchyCreate(command.Payload),
                 _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
@@ -1496,12 +1496,6 @@ namespace MCP.Editor
             var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
             var content = EnsureValue(GetString(payload, "content"), "content");
 
-            // Reject C# scripts - they must use unity_script_batch_manage
-            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("Cannot create C# scripts using unity_asset_crud. Use unity_script_batch_manage instead for proper compilation handling!");
-            }
-
             // Ensure parent directory exists
             EnsureDirectoryExists(path);
 
@@ -1530,12 +1524,6 @@ namespace MCP.Editor
         {
             var path = ResolveAssetPathFromPayload(payload);
             var content = EnsureValue(GetString(payload, "content"), "content");
-
-            // Reject C# scripts - they must use unity_script_batch_manage
-            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("Cannot update C# scripts using unity_asset_crud. Use unity_script_batch_manage instead for proper compilation handling!");
-            }
 
             // Check if file exists
             if (!File.Exists(path))
@@ -7545,118 +7533,164 @@ namespace MCP.Editor
         }
 
         /// <summary>
-        /// Handles batch script operations (create, update, delete, inspect).
-        /// Monitors compilation status and returns whether compilation was triggered.
+        /// Handles script template generation for MonoBehaviour and ScriptableObject.
         /// </summary>
-        /// <param name="payload">Operation parameters including scripts array and timeout settings.</param>
-        /// <returns>Result dictionary with operation results and compilation status.</returns>
-        private static object HandleScriptBatchManage(Dictionary<string, object> payload)
+        /// <param name="payload">Operation parameters including template type, class name, script path, and optional namespace.</param>
+        /// <returns>Result dictionary with generated code and file path.</returns>
+        private static object HandleScriptTemplateGenerate(Dictionary<string, object> payload)
         {
-            // Check if compilation is in progress and wait if necessary
-            var compilationWaitInfo = EnsureNoCompilationInProgress("scriptBatchManage", maxWaitSeconds: 30f);
+            var templateType = GetString(payload, "templateType");
+            var className = GetString(payload, "className");
+            var scriptPath = GetString(payload, "scriptPath");
+            var namespaceName = GetString(payload, "namespace");
 
-            var scripts = GetList(payload, "scripts");
-            var stopOnError = GetBool(payload, "stopOnError", false);
-            var timeoutSeconds = GetInt(payload, "timeoutSeconds", 30);
-
-            var results = new List<Dictionary<string, object>>();
-            var errors = new List<Dictionary<string, object>>();
-            var totalCount = scripts.Count;
-            var successCount = 0;
-            var errorCount = 0;
-
-            // Record state before operations
-            var wasCompiling = EditorApplication.isCompiling;
-
-            // Execute all script operations
-            foreach (var scriptObj in scripts)
+            if (string.IsNullOrEmpty(templateType))
             {
-                if (!(scriptObj is Dictionary<string, object> scriptPayload))
-                {
-                    errors.Add(new Dictionary<string, object>
-                    {
-                        ["error"] = "Invalid script object format",
-                        ["scriptPath"] = "unknown"
-                    });
-                    errorCount++;
-                    continue;
-                }
-
-                var operation = GetString(scriptPayload, "operation");
-                var scriptPath = GetString(scriptPayload, "scriptPath");
-
-                try
-                {
-                    Dictionary<string, object> operationResult = null;
-
-                    switch (operation.ToLowerInvariant())
-                    {
-                        case "create":
-                            operationResult = CreateScript(scriptPayload);
-                            break;
-                        case "update":
-                            operationResult = UpdateScript(scriptPayload);
-                            break;
-                        case "delete":
-                            operationResult = DeleteScript(scriptPayload);
-                            break;
-                        case "inspect":
-                            operationResult = InspectScript(scriptPayload);
-                            break;
-                        default:
-                            throw new InvalidOperationException($"Unsupported operation: {operation}");
-                    }
-
-                    operationResult["scriptPath"] = scriptPath;
-                    operationResult["operation"] = operation;
-                    results.Add(operationResult);
-                    successCount++;
-                }
-                catch (Exception ex)
-                {
-                    var errorInfo = new Dictionary<string, object>
-                    {
-                        ["scriptPath"] = scriptPath,
-                        ["operation"] = operation,
-                        ["error"] = ex.Message
-                    };
-                    errors.Add(errorInfo);
-                    errorCount++;
-
-                    if (stopOnError)
-                    {
-                        break;
-                    }
-                }
+                throw new InvalidOperationException("templateType is required");
             }
 
-            // Refresh asset database after all operations
-            if (successCount > 0)
+            if (string.IsNullOrEmpty(className))
             {
-                AssetDatabase.Refresh();
+                throw new InvalidOperationException("className is required");
             }
 
-            // Wait briefly to detect if compilation started
-            var compilationTriggered = DetectCompilationStart(wasCompiling, maxWaitSeconds: 1.5f);
-
-            var resultDict = new Dictionary<string, object>
+            if (string.IsNullOrEmpty(scriptPath))
             {
-                ["totalCount"] = totalCount,
-                ["successCount"] = successCount,
-                ["errorCount"] = errorCount,
-                ["results"] = results,
-                ["errors"] = errors,
-                ["compilationTriggered"] = compilationTriggered
+                throw new InvalidOperationException("scriptPath is required");
+            }
+
+            // Validate script path
+            if (!scriptPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("scriptPath must start with 'Assets/'");
+            }
+
+            if (!scriptPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("scriptPath must end with '.cs'");
+            }
+
+            // Generate template code
+            string code;
+            if (templateType == "MonoBehaviour")
+            {
+                code = GenerateMonoBehaviourTemplate(className, namespaceName);
+            }
+            else if (templateType == "ScriptableObject")
+            {
+                code = GenerateScriptableObjectTemplate(className, namespaceName);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unknown templateType: {templateType}. Supported types: MonoBehaviour, ScriptableObject");
+            }
+
+            // Create directory if it doesn't exist
+            string directory = Path.GetDirectoryName(scriptPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            // Write the file
+            File.WriteAllText(scriptPath, code);
+
+            // Refresh AssetDatabase
+            AssetDatabase.Refresh();
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["scriptPath"] = scriptPath,
+                ["templateType"] = templateType,
+                ["className"] = className,
+                ["code"] = code,
+                ["message"] = $"Successfully generated {templateType} template for class {className}"
             };
+        }
 
-            // Add compilation wait info if we waited
-            if (compilationWaitInfo != null)
+        /// <summary>
+        /// Generates a MonoBehaviour template with standard Unity lifecycle methods.
+        /// </summary>
+        private static string GenerateMonoBehaviourTemplate(string className, string namespaceName)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine("using UnityEngine;");
+            sb.AppendLine();
+
+            if (!string.IsNullOrEmpty(namespaceName))
             {
-                resultDict["compilationWait"] = compilationWaitInfo;
+                sb.AppendLine($"namespace {namespaceName}");
+                sb.AppendLine("{");
             }
 
-            return resultDict;
+            string indent = string.IsNullOrEmpty(namespaceName) ? "" : "    ";
+
+            sb.AppendLine($"{indent}public class {className} : MonoBehaviour");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    void Awake()");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        ");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}    void Start()");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        ");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}    void Update()");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        ");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}    void OnDestroy()");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        ");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine($"{indent}}}");
+
+            if (!string.IsNullOrEmpty(namespaceName))
+            {
+                sb.AppendLine("}");
+            }
+
+            return sb.ToString();
         }
+
+        /// <summary>
+        /// Generates a ScriptableObject template with CreateAssetMenu attribute.
+        /// </summary>
+        private static string GenerateScriptableObjectTemplate(string className, string namespaceName)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine("using UnityEngine;");
+            sb.AppendLine();
+
+            if (!string.IsNullOrEmpty(namespaceName))
+            {
+                sb.AppendLine($"namespace {namespaceName}");
+                sb.AppendLine("{");
+            }
+
+            string indent = string.IsNullOrEmpty(namespaceName) ? "" : "    ";
+
+            sb.AppendLine($"{indent}[CreateAssetMenu(fileName = \"{className}\", menuName = \"ScriptableObjects/{className}\")]");
+            sb.AppendLine($"{indent}public class {className} : ScriptableObject");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    // Add your fields here");
+            sb.AppendLine($"{indent}    ");
+            sb.AppendLine($"{indent}}}");
+
+            if (!string.IsNullOrEmpty(namespaceName))
+            {
+                sb.AppendLine("}");
+            }
+
+            return sb.ToString();
+        }
+
 
         /// <summary>
         /// Detects if compilation has started after script operations.
@@ -7754,109 +7788,6 @@ namespace MCP.Editor
                 ["message"] = completed
                     ? $"Waited {elapsedSeconds:F1}s for ongoing compilation to complete"
                     : $"Compilation did not complete within {maxWaitSeconds}s"
-            };
-        }
-
-        /// <summary>
-        /// Creates a new C# script file.
-        /// </summary>
-        private static Dictionary<string, object> CreateScript(Dictionary<string, object> payload)
-        {
-            var scriptPath = GetString(payload, "scriptPath");
-            var content = GetString(payload, "content");
-
-            if (!scriptPath.EndsWith(".cs"))
-            {
-                throw new InvalidOperationException("Script path must end with .cs extension");
-            }
-
-            if (!scriptPath.StartsWith("Assets/"))
-            {
-                throw new InvalidOperationException("Script path must start with 'Assets/'");
-            }
-
-            // Ensure directory exists
-            var directory = Path.GetDirectoryName(scriptPath);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            // Create the script file
-            File.WriteAllText(scriptPath, content);
-
-            return new Dictionary<string, object>
-            {
-                ["status"] = "created",
-                ["path"] = scriptPath
-            };
-        }
-
-        /// <summary>
-        /// Updates an existing C# script file.
-        /// </summary>
-        private static Dictionary<string, object> UpdateScript(Dictionary<string, object> payload)
-        {
-            var scriptPath = GetString(payload, "scriptPath");
-            var content = GetString(payload, "content");
-
-            if (!File.Exists(scriptPath))
-            {
-                throw new InvalidOperationException($"Script file not found: {scriptPath}");
-            }
-
-            File.WriteAllText(scriptPath, content);
-
-            return new Dictionary<string, object>
-            {
-                ["status"] = "updated",
-                ["path"] = scriptPath
-            };
-        }
-
-        /// <summary>
-        /// Deletes a C# script file.
-        /// </summary>
-        private static Dictionary<string, object> DeleteScript(Dictionary<string, object> payload)
-        {
-            var scriptPath = GetString(payload, "scriptPath");
-
-            if (!File.Exists(scriptPath))
-            {
-                throw new InvalidOperationException($"Script file not found: {scriptPath}");
-            }
-
-            AssetDatabase.DeleteAsset(scriptPath);
-
-            return new Dictionary<string, object>
-            {
-                ["status"] = "deleted",
-                ["path"] = scriptPath
-            };
-        }
-
-        /// <summary>
-        /// Inspects a C# script file.
-        /// </summary>
-        private static Dictionary<string, object> InspectScript(Dictionary<string, object> payload)
-        {
-            var scriptPath = GetString(payload, "scriptPath");
-
-            if (!File.Exists(scriptPath))
-            {
-                throw new InvalidOperationException($"Script file not found: {scriptPath}");
-            }
-
-            var content = File.ReadAllText(scriptPath);
-            var fileInfo = new FileInfo(scriptPath);
-
-            return new Dictionary<string, object>
-            {
-                ["status"] = "inspected",
-                ["path"] = scriptPath,
-                ["content"] = content,
-                ["size"] = fileInfo.Length,
-                ["lastModified"] = fileInfo.LastWriteTime.ToString("o")
             };
         }
 

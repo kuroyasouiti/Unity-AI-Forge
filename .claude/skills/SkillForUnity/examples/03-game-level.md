@@ -141,20 +141,14 @@ public class PlayerMovement : MonoBehaviour
 }
 """
 
-# Create the script using batch manager (ALWAYS use this for scripts!)
-unity_script_batch_manage({
-    "scripts": [
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/PlayerMovement.cs",
-            "content": player_script
-        }
-    ],
-    "timeoutSeconds": 30
+# Create the script using asset_crud
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Scripts/PlayerMovement.cs",
+    "content": player_script
 })
 
-# Wait a moment for script to compile, then add to player
-# (The script batch manager already waits for compilation)
+# Wait for Unity to compile the script before adding it as a component
 unity_component_crud({
     "operation": "add",
     "gameObjectPath": "Player",
@@ -381,7 +375,7 @@ When creating large levels:
 **Solution**: Ensure Ground has a collider and Player has Rigidbody
 
 **Issue**: Scripts not compiling
-**Solution**: Always use `unity_script_batch_manage` for script operations, not `unity_asset_crud`
+**Solution**: Use `unity_asset_crud` for creating/updating C# scripts. Unity will automatically detect and compile changes.
 
 **Issue**: Enemy objects not visible
 **Solution**: Add MeshRenderer and MeshFilter components with appropriate mesh references

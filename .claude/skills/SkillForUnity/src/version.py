@@ -1,2 +1,2 @@
 SERVER_NAME = "SkillForUnity"
-SERVER_VERSION = "1.0.0"
+SERVER_VERSION = "1.1.0"

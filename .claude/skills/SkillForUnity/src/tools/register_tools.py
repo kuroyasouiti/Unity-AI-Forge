@@ -220,11 +220,11 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "update", "updateImporter", "delete", "rename", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
-                    "description": "Operation to perform. 'create' creates a new text asset file (JSON, XML, config, etc.). 'update' updates existing text asset content. 'updateImporter' modifies asset importer settings only. Use 'inspect' to read asset details. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' for bulk operations. IMPORTANT: For C# scripts (.cs files), ALWAYS use unity_script_batch_manage instead!",
+                    "description": "Operation to perform. 'create' creates a new asset file (C# scripts, JSON, XML, config, etc.). 'update' updates existing asset content. 'updateImporter' modifies asset importer settings only. Use 'inspect' to read asset details. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' for bulk operations.",
                 },
                 "assetPath": {
                     "type": "string",
-                    "description": "Path under Assets/ for the target asset (e.g., 'Assets/Config/settings.json'). Required for create, update, rename, duplicate, inspect, and updateImporter operations.",
+                    "description": "Path under Assets/ for the target asset (e.g., 'Assets/Scripts/Player.cs', 'Assets/Config/settings.json'). Required for create, update, rename, duplicate, inspect, and updateImporter operations.",
                 },
                 "assetGuid": {
                     "type": "string",
@@ -232,7 +232,7 @@ def register_tools(server: Server) -> None:
                 },
                 "content": {
                     "type": "string",
-                    "description": "Text content for the asset file. Required for 'create' and 'update' operations. Use this for JSON, XML, TXT, and other text-based files. DO NOT use for C# scripts - use unity_script_batch_manage instead!",
+                    "description": "Text content for the asset file. Required for 'create' and 'update' operations. Use this for C# scripts, JSON, XML, TXT, and other text-based files.",
                 },
                 "destinationPath": {
                     "type": "string",
@@ -539,50 +539,6 @@ def register_tools(server: Server) -> None:
             },
         },
         [],
-    )
-
-    script_batch_manage_schema = _schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "scripts": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "operation": {
-                                "type": "string",
-                                "enum": ["create", "update", "delete", "inspect"],
-                                "description": "Operation to perform on the script file.",
-                            },
-                            "scriptPath": {
-                                "type": "string",
-                                "description": "Path to the C# script file (e.g., 'Assets/Scripts/Player.cs'). Must end with .cs extension.",
-                            },
-                            "content": {
-                                "type": "string",
-                                "description": "Script content for create/update operations. Should be valid C# code.",
-                            },
-                            "namespace": {
-                                "type": "string",
-                                "description": "Optional namespace for the script. If not specified, uses the default namespace or none.",
-                            },
-                        },
-                        "required": ["operation", "scriptPath"],
-                    },
-                    "description": "Array of script operations to perform. Each operation specifies what to do with a script file. All operations are executed atomically, then a single compilation is triggered.",
-                },
-                "stopOnError": {
-                    "type": "boolean",
-                    "description": "If true, stops execution on first error. If false (default), continues processing remaining scripts and returns both successes and errors.",
-                },
-                "timeoutSeconds": {
-                    "type": "integer",
-                    "description": "Maximum time to wait for compilation to complete in seconds. Default is 30. Increase for large projects with many scripts.",
-                },
-            },
-        },
-        ["scripts"],
     )
 
     hierarchy_builder_schema = _schema_with_required(
@@ -1311,6 +1267,32 @@ def register_tools(server: Server) -> None:
         ["patternType", "className", "scriptPath"],
     )
 
+    script_template_generate_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "templateType": {
+                    "type": "string",
+                    "enum": ["MonoBehaviour", "ScriptableObject"],
+                    "description": "Type of Unity script template to generate. 'MonoBehaviour' creates a standard Unity component script. 'ScriptableObject' creates a data container asset class.",
+                },
+                "className": {
+                    "type": "string",
+                    "description": "Name of the class to generate (e.g., 'PlayerController', 'GameConfig'). Must be a valid C# identifier.",
+                },
+                "scriptPath": {
+                    "type": "string",
+                    "description": "Full path to the C# script file to create (must start with 'Assets/' and end with '.cs'). Example: 'Assets/Scripts/PlayerController.cs'",
+                },
+                "namespace": {
+                    "type": "string",
+                    "description": "Optional C# namespace for the generated class (e.g., 'MyGame.Controllers'). If not specified, no namespace will be used.",
+                },
+            },
+        },
+        ["templateType", "className", "scriptPath"],
+    )
+
     tool_definitions = [
         types.Tool(
             name="unity_ping",
@@ -1334,7 +1316,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Manage Unity text assets and asset operations. Use 'create' to create new text files (JSON, XML, config files, etc.). Use 'update' to modify existing text file content. Use 'delete', 'rename', 'duplicate', 'inspect' for asset operations. Use 'updateImporter' to change asset import settings. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple'. IMPORTANT: For C# scripts (.cs files), ALWAYS use unity_script_batch_manage instead - this tool will reject .cs files!",
+            description="Manage Unity assets and asset operations. Use 'create' to create new files (C# scripts, JSON, XML, config files, etc.). Use 'update' to modify existing file content. Use 'delete', 'rename', 'duplicate', 'inspect' for asset operations. Use 'updateImporter' to change asset import settings. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple'. This tool handles all file creation and editing in Unity projects.",
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
@@ -1418,14 +1400,14 @@ def register_tools(server: Server) -> None:
             inputSchema=await_compilation_schema,
         ),
         types.Tool(
-            name="unity_script_batch_manage",
-            description="CRITICAL: ALWAYS use this tool for ALL C# script operations! Batch manage C# scripts with automatic compilation handling. Supports create, update, delete, and inspect operations. This is the ONLY correct way to manage scripts - using unity_asset_crud for scripts will cause compilation issues! Benefits: (1) 10-20x faster for multiple scripts by doing single compilation, (2) Atomic operations - all succeed or fail together, (3) Automatic compilation detection and waiting, (4) Proper error reporting with per-script results. IMPORTANT: Always use 'scripts' array even for single script operations. DO NOT use unity_asset_crud for .cs files!",
-            inputSchema=script_batch_manage_schema,
-        ),
-        types.Tool(
             name="unity_designPattern_generate",
             description="Generate C# code for common Unity design patterns! Instantly create production-ready implementations of: Singleton (single instance management with optional persistence), ObjectPool (efficient object reuse), StateMachine (state management with transitions), Observer (event system), Command (action abstraction with undo/redo), Factory (object creation pattern), and ServiceLocator (global service access). Each pattern comes with complete, commented code ready to use. Perfect for quickly implementing best practices in your Unity project!",
             inputSchema=design_pattern_generate_schema,
+        ),
+        types.Tool(
+            name="unity_script_template_generate",
+            description="Generate Unity script templates for MonoBehaviour or ScriptableObject. Quickly create starter scripts with standard Unity lifecycle methods. MonoBehaviour template includes Awake, Start, Update, and OnDestroy methods. ScriptableObject template creates a data container class with CreateAssetMenu attribute for easy creation in Unity Editor. Supports optional namespace wrapping.",
+            inputSchema=script_template_generate_schema,
         ),
         types.Tool(
             name="unity_template_manage",
@@ -1630,74 +1612,11 @@ def register_tools(server: Server) -> None:
                 }
                 return [types.TextContent(type="text", text=as_pretty_json(error_payload))]
 
-        if name == "unity_script_batch_manage":
-            _ensure_bridge_connected()
-
-            # Extract timeout with increased default for script operations
-            timeout_seconds = args.get("timeoutSeconds", 30)
-
-            try:
-                logger.info("Executing script batch operations (timeout=%ss)...", timeout_seconds)
-
-                # Execute the batch script operations
-                batch_result = await bridge_manager.send_command("scriptBatchManage", args, timeout_ms=(timeout_seconds + 20) * 1000)
-
-                # Check if compilation was triggered
-                if batch_result.get("compilationTriggered", False):
-                    logger.info("Script operations triggered compilation, waiting for completion...")
-
-                    try:
-                        compilation_result = await bridge_manager.await_compilation(timeout_seconds)
-
-                        # Combine batch result with compilation result
-                        response_payload = {
-                            "batch": batch_result,
-                            "compilation": compilation_result,
-                        }
-
-                        logger.info(
-                            "Script batch completed: success=%s, compilation_success=%s",
-                            batch_result.get("success"),
-                            compilation_result.get("success"),
-                        )
-
-                        return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-
-                    except TimeoutError:
-                        logger.warning("Compilation did not finish within %s seconds", timeout_seconds)
-                        response_payload = {
-                            "batch": batch_result,
-                            "compilation": {
-                                "success": False,
-                                "completed": False,
-                                "timedOut": True,
-                                "message": f"Compilation did not finish within {timeout_seconds} seconds.",
-                            },
-                        }
-                        return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-
-                    except Exception as exc:
-                        logger.error("Error while waiting for compilation: %s", exc)
-                        response_payload = {
-                            "batch": batch_result,
-                            "compilation": {
-                                "success": False,
-                                "completed": False,
-                                "error": str(exc),
-                            },
-                        }
-                        return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-                else:
-                    # No compilation needed (e.g., only inspect operations)
-                    logger.info("Script batch completed without triggering compilation")
-                    return [types.TextContent(type="text", text=as_pretty_json(batch_result))]
-
-            except Exception as exc:
-                logger.error("Script batch operation failed: %s", exc)
-                raise RuntimeError(f"Script batch operation failed: {exc}") from exc
-
         if name == "unity_designPattern_generate":
             return await _call_bridge_tool("designPatternGenerate", args)
+
+        if name == "unity_script_template_generate":
+            return await _call_bridge_tool("scriptTemplateGenerate", args)
 
         if name == "unity_template_manage":
             return await _call_bridge_tool("templateManage", args)

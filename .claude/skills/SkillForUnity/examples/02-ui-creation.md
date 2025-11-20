@@ -250,11 +250,11 @@ In Unity, you can manually add click events:
 Create a script to handle button clicks:
 
 ```python
-unity_script_batch_manage({
-    "scripts": [{
-        "operation": "create",
-        "scriptPath": "Assets/Scripts/MenuManager.cs",
-        "content": '''using UnityEngine;
+# Create MenuManager script using asset_crud
+unity_asset_crud({
+    "operation": "create",
+    "assetPath": "Assets/Scripts/MenuManager.cs",
+    "content": '''using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MenuManager : MonoBehaviour
@@ -275,8 +275,6 @@ public class MenuManager : MonoBehaviour
     }
 }
 '''
-    }],
-    "timeoutSeconds": 30
 })
 ```
 

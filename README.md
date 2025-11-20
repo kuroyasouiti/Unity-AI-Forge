@@ -142,7 +142,7 @@ AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity 
 - **GameObject CRUD** - Full hierarchy manipulation with batch operations
 - **Component CRUD** - Add, update, remove components with batch support
 - **Asset Operations** - Rename, duplicate, delete, inspect, update importer settings
-- **Script Batch Management** - Create/update/delete multiple C# scripts with automatic compilation
+- **Script Template Generation** - Generate MonoBehaviour and ScriptableObject templates with proper structure
 - **Prefab Workflow** - Create, instantiate, update, apply/revert overrides
 
 ### Advanced Features
@@ -153,45 +153,47 @@ AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity 
 - **Constants** - Convert between Unity constants and numeric values
 - **Automatic Compilation** - Detects and waits for Unity compilation
 
-## 📝 Script Management
+## 📝 Script Template Generation
 
-SkillForUnity provides a powerful **batch script management** system for creating and managing C# scripts efficiently.
+SkillForUnity provides a **script template generation** system for quickly creating MonoBehaviour and ScriptableObject scripts with proper Unity structure.
 
 ### Key Features
 
-- **Batch Operations** - Create, update, or delete multiple scripts in one atomic operation
-- **Automatic Compilation** - Single consolidated compilation after all operations
-- **10-20x Faster** - Compared to individual script operations
-- **Error Handling** - Per-script error reporting with `stopOnError` control
-- **Namespace Support** - Automatic namespace generation from folder structure
+- **MonoBehaviour Templates** - Includes standard lifecycle methods (Awake, Start, Update, OnDestroy)
+- **ScriptableObject Templates** - Data container classes with CreateAssetMenu attribute
+- **Namespace Support** - Optional C# namespace wrapping
+- **Fast Development** - Quickly scaffold scripts with proper structure
 
-### Example: Create Multiple Scripts
+### Example: Generate MonoBehaviour Script
 
 ```python
-unity_script_batch_manage({
-    "scripts": [
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Player.cs",
-            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    void Start()\n    {\n        Debug.Log(\"Player initialized\");\n    }\n}"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Enemy.cs",
-            "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour\n{\n    public float health = 100f;\n}"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/GameManager.cs",
-            "content": "using UnityEngine;\n\npublic class GameManager : MonoBehaviour\n{\n    public static GameManager Instance { get; private set; }\n}"
-        }
-    ],
-    "stopOnError": False,
-    "timeoutSeconds": 30
+unity_script_template_generate({
+    "templateType": "MonoBehaviour",
+    "className": "PlayerController",
+    "scriptPath": "Assets/Scripts/PlayerController.cs",
+    "namespace": "MyGame.Player"
 })
 ```
 
-**Important**: Always use `unity_script_batch_manage()` for script operations - even for single scripts. This ensures proper compilation handling.
+### Example: Generate ScriptableObject Script
+
+```python
+unity_script_template_generate({
+    "templateType": "ScriptableObject",
+    "className": "GameConfig",
+    "scriptPath": "Assets/ScriptableObjects/GameConfig.cs"
+})
+```
+
+After generating the template, use `unity_asset_crud` with `update` operation to modify the script content:
+
+```python
+unity_asset_crud({
+    "operation": "update",
+    "assetPath": "Assets/Scripts/PlayerController.cs",
+    "content": "using UnityEngine;\n\nnamespace MyGame.Player\n{\n    public class PlayerController : MonoBehaviour\n    {\n        public float speed = 5f;\n        \n        void Update()\n        {\n            // Movement code\n        }\n    }\n}"
+})
+```
 
 ## 🎮 Example: Create a 3D Game Scene
 

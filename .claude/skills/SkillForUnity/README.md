@@ -157,7 +157,7 @@ See [examples/01-basic-scene-setup.md](examples/01-basic-scene-setup.md) for ful
 | **Component** | `component_crud` | Add, update, remove components with batch support |
 | **Asset** | `asset_crud` | Asset operations and importer settings |
 | **Prefab** | `prefab_crud` | Complete prefab workflow |
-| **Script** | `script_batch_manage` | Batch C# script operations with compilation |
+| **Script** | `script_template_generate` | Generate MonoBehaviour/ScriptableObject templates |
 
 ### Advanced Features
 

@@ -63,7 +63,7 @@ unity_component_crud({
 1. **Always use templates when available** - Much faster than manual creation
 2. **Check context before making changes** - Use `unity_scene_crud` with `operation="inspect"`
 3. **Use hierarchy builder for complex structures** - Create entire trees in one command
-4. **Always batch script operations** - Use `unity_script_batch_manage()` with scripts array for all script operations
+4. **Use script templates for quick generation** - Use `unity_script_template_generate()` for MonoBehaviour/ScriptableObject scaffolding
 5. **Optimize inspect operations** - Use `includeProperties=false` for existence checks, `propertyFilter` for specific properties
 6. **Limit batch operations** - Use `maxResults` parameter to prevent timeouts (default: 1000)
 7. **Handle errors gracefully** - Use `stopOnError=false` in batch operations to continue on failures
@@ -914,40 +914,44 @@ unity_hierarchy_builder({
 # Creates empty GameObjects, then add components as needed
 ```
 
-### 4. Always Use Script Batch Management
+### 4. Use Script Templates for Quick Generation
 
-**CRITICAL**: Script operations are now BATCH-ONLY. Always use `unity_script_batch_manage` with the `scripts` array, even for single scripts:
+For creating new Unity scripts, use `unity_script_template_generate` to quickly bootstrap MonoBehaviour and ScriptableObject classes:
 
-✅ **Single script operation:**
+✅ **MonoBehaviour component:**
 ```python
-unity_script_batch_manage({
-    "scripts": [
-        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...}
-    ],
-    "timeoutSeconds": 30
+unity_script_template_generate({
+    "templateType": "MonoBehaviour",
+    "className": "PlayerController",
+    "scriptPath": "Assets/Scripts/PlayerController.cs",
+    "namespace": "MyGame.Player"
 })
 ```
 
-✅ **Multiple script operations (recommended):**
+✅ **ScriptableObject data container:**
 ```python
-unity_script_batch_manage({
-    "scripts": [
-        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", ...},
-        {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", ...},
-        {"operation": "create", "scriptPath": "Assets/Scripts/Weapon.cs", ...}
-    ],
-    "stopOnError": False,
-    "timeoutSeconds": 30
+unity_script_template_generate({
+    "templateType": "ScriptableObject",
+    "className": "GameConfig",
+    "scriptPath": "Assets/ScriptableObjects/GameConfig.cs"
 })
-# All scripts created atomically, then single compilation (10-20x faster!)
 ```
 
-**Benefits of batch-only script management:**
-- Consistent API - always use `scripts` array
-- 10-20x faster for multiple scripts
-- Atomic operations - all succeed or fail together (if stopOnError=true)
-- Single consolidated compilation
-- Better error reporting with per-script results
+After generating the template, use `unity_asset_crud` with `operation="update"` to modify the script content:
+
+```python
+unity_asset_crud({
+    "operation": "update",
+    "assetPath": "Assets/Scripts/PlayerController.cs",
+    "content": "using UnityEngine;\n\nnamespace MyGame.Player\n{\n    public class PlayerController : MonoBehaviour\n    {\n        public float speed = 5f;\n        \n        void Update()\n        {\n            // Movement code\n        }\n    }\n}"
+})
+```
+
+**Benefits:**
+- Quick scaffolding with proper Unity structure
+- Standard lifecycle methods included
+- CreateAssetMenu attribute for ScriptableObjects
+- Modify with asset_crud as needed
 
 ## Common Use Cases
 
@@ -1491,12 +1495,12 @@ The scene management tool provides operations for working with Unity scene files
 
 #### 2. Asset Management (`unity_asset_crud`)
 
-Manage Unity text assets (JSON, XML, config files) and perform asset operations.
+Manage Unity assets including C# scripts, JSON, XML, config files, and other text-based files.
 
 **IMPORTANT:**
-- Use `create` and `update` operations for text-based assets (JSON, XML, TXT, config files)
-- For C# scripts (.cs files), ALWAYS use `unity_script_batch_manage` instead (handles compilation properly)
-- This tool will reject .cs files to prevent compilation issues
+- Use `create` and `update` operations for text-based assets (C# scripts, JSON, XML, TXT, config files)
+- For new MonoBehaviour/ScriptableObject scripts, consider using `unity_script_template_generate` first for proper scaffolding
+- This tool handles C# scripts and triggers Unity's automatic compilation
 
 **Operations:**
 
@@ -1592,8 +1596,8 @@ Manage Unity text assets (JSON, XML, config files) and perform asset operations.
    ```
 
 **Important Notes:**
-- Use `create` and `update` operations for text-based assets (JSON, XML, TXT, config files)
-- For C# scripts (.cs files), ALWAYS use `unity_script_batch_manage` instead - this tool will reject .cs files
+- Supports all text-based assets including C# scripts, JSON, XML, TXT, and config files
+- For new MonoBehaviour/ScriptableObject scripts, use `unity_script_template_generate` for proper scaffolding
 - All asset paths must start with "Assets/"
 - Wildcard patterns support glob syntax (*, ?, etc.)
 - `create` will fail if the file already exists - use `update` for existing files
@@ -2041,137 +2045,88 @@ Read and write Unity Project Settings across multiple categories (player, qualit
 - Complex values like Vector3 (gravity) are represented as dictionaries with x, y, z keys
 - Enum values are returned as strings and can be set using string names
 
-#### 7. Script Management (`unity_script_batch_manage`)
+#### 7. Script Template Generation (`unity_script_template_generate`)
 
-The script management tool provides comprehensive operations for creating, updating, and managing C# scripts in Unity with automatic compilation handling.
+Generate Unity script templates for MonoBehaviour or ScriptableObject. Quickly create starter scripts with standard Unity lifecycle methods.
 
-**CRITICAL: This is the ONLY tool for script operations. DO NOT use `unity_asset_crud` for C# scripts.**
+**Parameters:**
 
-**Operations:**
+- `templateType`: "MonoBehaviour" or "ScriptableObject" (required)
+- `className`: Name of the class to generate (required)
+- `scriptPath`: Full path to the C# script file to create (required, must start with "Assets/" and end with ".cs")
+- `namespace`: Optional C# namespace for the generated class
 
-All operations use the batch format with a `scripts` array, even for single scripts:
+**Template Types:**
 
-```python
-unity_script_batch_manage({
-    "scripts": [
-        {
-            "operation": "create",  # or "update", "delete"
-            "scriptPath": "Assets/Scripts/Player.cs",
-            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    // Your code here\n}"
-        }
-    ],
-    "stopOnError": False,  # Continue processing on errors (default: False)
-    "timeoutSeconds": 30   # Compilation timeout (default: 30)
-})
-```
-
-**Available Operations:**
-
-1. **create** - Create a new C# script
+1. **MonoBehaviour** - Standard Unity component script with lifecycle methods:
    ```python
-   unity_script_batch_manage({
-       "scripts": [
-           {
-               "operation": "create",
-               "scriptPath": "Assets/Scripts/PlayerController.cs",
-               "content": "using UnityEngine;\n\npublic class PlayerController : MonoBehaviour\n{\n    void Start()\n    {\n        Debug.Log(\"Player initialized\");\n    }\n}"
-           }
-       ]
+   unity_script_template_generate({
+       "templateType": "MonoBehaviour",
+       "className": "PlayerController",
+       "scriptPath": "Assets/Scripts/PlayerController.cs",
+       "namespace": "MyGame.Player"
    })
    ```
 
-2. **update** - Update an existing C# script
-   ```python
-   unity_script_batch_manage({
-       "scripts": [
+   Generates:
+   ```csharp
+   using UnityEngine;
+
+   namespace MyGame.Player
+   {
+       public class PlayerController : MonoBehaviour
+       {
+           void Awake()
            {
-               "operation": "update",
-               "scriptPath": "Assets/Scripts/PlayerController.cs",
-               "content": "using UnityEngine;\n\npublic class PlayerController : MonoBehaviour\n{\n    public float speed = 5f;\n    \n    void Update()\n    {\n        // Movement code\n    }\n}"
+
            }
-       ]
+
+           void Start()
+           {
+
+           }
+
+           void Update()
+           {
+
+           }
+
+           void OnDestroy()
+           {
+
+           }
+       }
+   }
+   ```
+
+2. **ScriptableObject** - Data container asset class with CreateAssetMenu attribute:
+   ```python
+   unity_script_template_generate({
+       "templateType": "ScriptableObject",
+       "className": "GameConfig",
+       "scriptPath": "Assets/ScriptableObjects/GameConfig.cs"
    })
    ```
 
-3. **delete** - Delete a C# script
-   ```python
-   unity_script_batch_manage({
-       "scripts": [
-           {
-               "operation": "delete",
-               "scriptPath": "Assets/Scripts/OldScript.cs"
-           }
-       ]
-   })
+   Generates:
+   ```csharp
+   using UnityEngine;
+
+   [CreateAssetMenu(fileName = "GameConfig", menuName = "ScriptableObjects/GameConfig")]
+   public class GameConfig : ScriptableObject
+   {
+       // Add your fields here
+
+   }
    ```
 
-**Batch Operations (Recommended):**
+**Common Use Cases:**
 
-Creating/updating multiple scripts in one call triggers only a single compilation:
+- Quickly create new component scripts with proper structure
+- Generate data container classes for configuration and assets
+- Bootstrap new script files with Unity's standard patterns
 
-```python
-unity_script_batch_manage({
-    "scripts": [
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Player.cs",
-            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour { }"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Enemy.cs",
-            "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour { }"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/GameManager.cs",
-            "content": "using UnityEngine;\n\npublic class GameManager : MonoBehaviour { }"
-        }
-    ],
-    "stopOnError": False,
-    "timeoutSeconds": 45
-})
-```
-
-**Key Features:**
-
-- **Automatic Compilation**: Handles Unity's script compilation automatically
-- **Batch Processing**: Process multiple scripts with single compilation (10-20x faster)
-- **Error Handling**: `stopOnError=false` continues processing all scripts even if one fails
-- **Compilation Timeout**: Configurable timeout for compilation process
-- **Atomic Operations**: When `stopOnError=true`, all scripts succeed or all fail together
-
-**Performance Benefits:**
-
-| Approach | Scripts | Compilations | Time |
-|----------|---------|--------------|------|
-| Individual operations | 10 scripts | 10 compilations | ~60-120s |
-| Batch operation | 10 scripts | 1 compilation | ~5-10s |
-
-**Return Value:**
-
-```python
-{
-    "totalCount": 3,
-    "successCount": 3,
-    "errorCount": 0,
-    "results": [
-        {"scriptPath": "Assets/Scripts/Player.cs", "status": "success"},
-        {"scriptPath": "Assets/Scripts/Enemy.cs", "status": "success"},
-        {"scriptPath": "Assets/Scripts/GameManager.cs", "status": "success"}
-    ],
-    "errors": [],
-    "compilationSucceeded": True
-}
-```
-
-**Important Notes:**
-- All script paths must start with "Assets/"
-- Scripts must have `.cs` extension
-- Compilation happens automatically after all file operations
-- The tool waits for compilation to complete before returning
-- If compilation fails, the response includes compilation errors
-- NEVER use `unity_asset_crud` for C# scripts - it bypasses compilation handling
+**Note:** After generation, use `unity_asset_crud` with `operation="update"` to modify the generated scripts as needed.
 
 #### 8. Tag and Layer Management (`unity_tagLayer_manage`)
 
@@ -3145,34 +3100,34 @@ unity_scene_crud({"operation": "inspect", "includeHierarchy": True})
 unity_gameobject_crud({"operation": "create", "name": "Player"})
 ```
 
-#### ❌ Mistake 6: Using asset management tool for C# scripts
+#### ❌ Mistake 6: Not using templates for script scaffolding
 
-**Wrong:**
+**Less efficient:**
 ```python
-# Using asset tool to create scripts - will cause compilation issues!
+# Creating scripts from scratch - more work, no structure
 unity_asset_crud({
     "operation": "create",
     "assetPath": "Assets/Scripts/Player.cs",
-    "content": "using UnityEngine; public class Player : MonoBehaviour { }"
-})
-unity_asset_crud({
-    "operation": "create",
-    "assetPath": "Assets/Scripts/Enemy.cs",
-    "content": "using UnityEngine; public class Enemy : MonoBehaviour { }"
+    "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    void Start() { }\n    void Update() { }\n}"
 })
 ```
 
-**Right:**
+**Better:**
 ```python
-# Always use script batch manager for C# scripts
-unity_script_batch_manage({
-    "scripts": [
-        {"operation": "create", "scriptPath": "Assets/Scripts/Player.cs", "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n}"},
-        {"operation": "create", "scriptPath": "Assets/Scripts/Enemy.cs", "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour\n{\n}"}
-    ],
-    "timeoutSeconds": 30
+# Use templates for proper scaffolding with all lifecycle methods
+unity_script_template_generate({
+    "templateType": "MonoBehaviour",
+    "className": "Player",
+    "scriptPath": "Assets/Scripts/Player.cs",
+    "namespace": "MyGame"
 })
-# Handles compilation automatically and properly!
+
+# Then modify the generated template as needed
+unity_asset_crud({
+    "operation": "update",
+    "assetPath": "Assets/Scripts/Player.cs",
+    "content": "using UnityEngine;\n\nnamespace MyGame\n{\n    public class Player : MonoBehaviour\n    {\n        public float speed = 5f;\n        \n        void Update()\n        {\n            // Movement code\n        }\n    }\n}"
+})
 ```
 
 #### ❌ Mistake 7: Editing Unity .meta files

@@ -87,45 +87,47 @@ Unity MCP接続をテストしてください
 
 AIが`unity_ping()`を呼び出し、Unityバージョン情報を表示するはずです。
 
-## 📝 スクリプト管理
+## 📝 スクリプトテンプレート生成
 
-SkillForUnityは、C#スクリプトを効率的に作成・管理するための強力な**バッチスクリプト管理**システムを提供します。
+SkillForUnityは、MonoBehaviourとScriptableObjectの**スクリプトテンプレート生成**機能を提供します。
 
 ### 主な機能
 
-- **バッチ操作** - 複数のスクリプトを1つのアトミック操作で作成、更新、削除
-- **自動コンパイル** - 全操作後に単一の統合コンパイル
-- **10-20倍高速** - 個別スクリプト操作と比較
-- **エラー処理** - `stopOnError`制御によるスクリプト毎のエラーレポート
-- **名前空間サポート** - フォルダ構造からの自動名前空間生成
+- **MonoBehaviourテンプレート** - 標準ライフサイクルメソッド（Awake、Start、Update、OnDestroy）を含む
+- **ScriptableObjectテンプレート** - CreateAssetMenu属性付きのデータコンテナクラス
+- **名前空間サポート** - オプションでC#名前空間を追加
+- **迅速な開発** - 適切な構造でスクリプトを素早く作成
 
-### 例: 複数スクリプトの作成
+### 例: MonoBehaviourスクリプトの生成
 
 ```python
-unity_script_batch_manage({
-    "scripts": [
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Player.cs",
-            "content": "using UnityEngine;\n\npublic class Player : MonoBehaviour\n{\n    void Start()\n    {\n        Debug.Log(\"Player initialized\");\n    }\n}"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/Enemy.cs",
-            "content": "using UnityEngine;\n\npublic class Enemy : MonoBehaviour\n{\n    public float health = 100f;\n}"
-        },
-        {
-            "operation": "create",
-            "scriptPath": "Assets/Scripts/GameManager.cs",
-            "content": "using UnityEngine;\n\npublic class GameManager : MonoBehaviour\n{\n    public static GameManager Instance { get; private set; }\n}"
-        }
-    ],
-    "stopOnError": False,
-    "timeoutSeconds": 30
+unity_script_template_generate({
+    "templateType": "MonoBehaviour",
+    "className": "PlayerController",
+    "scriptPath": "Assets/Scripts/PlayerController.cs",
+    "namespace": "MyGame.Player"
 })
 ```
 
-**重要**: スクリプト操作には必ず`unity_script_batch_manage()`を使用してください。単一スクリプトの場合でも同様です。これにより、適切なコンパイル処理が保証されます。
+### 例: ScriptableObjectスクリプトの生成
+
+```python
+unity_script_template_generate({
+    "templateType": "ScriptableObject",
+    "className": "GameConfig",
+    "scriptPath": "Assets/ScriptableObjects/GameConfig.cs"
+})
+```
+
+テンプレート生成後、`unity_asset_crud`の`update`操作でスクリプト内容を変更できます。
+
+```python
+unity_asset_crud({
+    "operation": "update",
+    "assetPath": "Assets/Scripts/PlayerController.cs",
+    "content": "using UnityEngine;\n\nnamespace MyGame.Player\n{\n    public class PlayerController : MonoBehaviour\n    {\n        public float speed = 5f;\n        \n        void Update()\n        {\n            // 移動コード\n        }\n    }\n}"
+})
+```
 
 ## 利用可能なツール
 
@@ -169,7 +171,7 @@ unity_script_batch_manage({
 - **inspect**: アセットメタデータとコンテンツの検査
 - **findMultiple/deleteMultiple/inspectMultiple**: ワイルドカードパターンで複数アセットを操作
 - AssetDatabaseの自動更新
-> **重要:** C#スクリプト（.csファイル）の作成・更新には `unity_script_batch_manage` を使用してください。このツールは.csファイルを拒否します。
+> **重要:** C#スクリプト（.csファイル）もサポートしています。新しいMonoBehaviour/ScriptableObjectスクリプトには、`unity_script_template_generate`でテンプレートを生成してから`unity_asset_crud`で編集することをお勧めします。
 
 ---
 ### 高レベルツール（迅速な開発に推奨）
@@ -868,7 +870,7 @@ SkillForUnity/
 | **高レベル** | 7ツール | シーンクイックセットアップ, GameObjectテンプレート, UIテンプレート, レイアウトマネージャー, 階層ビルダー, 階層メニュー作成, デザインパターン生成 |
 | **UI** | 3ツール | UGUI統合 + 専用ツール |
 | **システム** | 3ツール | タグ/レイヤー, Prefab, 設定, レンダーパイプライン |
-| **スクリプト管理** | 1ツール | バッチスクリプト作成・更新・削除 |
+| **スクリプト** | 1ツール | スクリプトテンプレート生成（MonoBehaviour/ScriptableObject） |
 | **合計** | **19ツール** | **85+操作** |
 
 ---
@@ -900,10 +902,10 @@ SkillForUnity/
 
 ブリッジはUnityがスクリプトを再コンパイルした後、自動的に接続状態を保存して再接続します。手動での介入は不要です。
 
-### スクリプト管理の問題
+### スクリプト作成のベストプラクティス
 
-- スクリプト操作には常に`unity_script_batch_manage()`を使用
-- 単一スクリプトの場合でもバッチ管理を使用してコンパイルを適切に処理
+- 新しいスクリプトには`unity_script_template_generate()`でテンプレートを生成
+- 生成後は`unity_asset_crud`で内容を変更
 - コンパイルエラーはUnity Consoleで確認
 
 ---
@@ -912,7 +914,7 @@ SkillForUnity/
 
 1. **バッチ操作を使用**: 複数の操作を組み合わせて性能向上
 2. **コンテキスト更新を制限**: 大きなシーンではコンテキスト更新間隔を増やす
-3. **スクリプトバッチ管理**: 複数のスクリプト変更は `unity_script_batch_manage` でまとめて実行
+3. **スクリプトテンプレート**: 新規スクリプトには`unity_script_template_generate`でテンプレートを生成
 4. **アセット参照をキャッシュ**: アセットを一度読み込み、複数の操作で再利用
 5. **エラー時停止**: 依存する操作には`stopOnError: true`を設定
 
