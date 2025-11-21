@@ -1,21 +1,24 @@
 name: SkillForUnity
-version: 1.3.0
+version: 1.4.0
 description: "Comprehensive Unity Editor integration through Model Context Protocol"
 author: "SkillForUnity Team"
 license: MIT
 
 # Skill entrypoint (using uv for dependency management)
-# Format: command to run the MCP server in stdio mode
-entrypoint: "uv run python src/main.py --transport stdio"
+# Format: command to run the MCP server in WebSocket mode
+entrypoint: "uv run python src/main.py --transport websocket"
 
 # Runtime environment
 runtime:
-  type: "stdio"
+  type: "websocket"
   python: ">=3.10"
   platform:
     - windows
     - linux
     - macos
+  websocket:
+    host: "127.0.0.1"
+    port: 6007
 
 # Python dependencies (managed by uv)
 dependencies:
@@ -52,8 +55,12 @@ capabilities:
 
 # MCP configuration
 mcp:
-  transport: stdio
+  transport: websocket
   default_timeout_ms: 30000
+  server:
+    host: 127.0.0.1
+    port: 6007
+    path: /mcp
   bridge:
     host: localhost
     port: 7070

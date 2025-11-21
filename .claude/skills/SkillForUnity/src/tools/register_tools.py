@@ -116,8 +116,8 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "delete", "move", "rename", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
-                    "description": "Operation to perform. Use 'inspect' to read GameObject details including all attached components. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' to perform operations on multiple GameObjects matching a wildcard or regex pattern.",
+                    "enum": ["create", "delete", "move", "rename", "update", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
+                    "description": "Operation to perform. Use 'inspect' to read GameObject details including all attached components. Use 'update' to change GameObject properties (tag, layer, active state, static flag). Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' to perform operations on multiple GameObjects matching a wildcard or regex pattern.",
                 },
                 "gameObjectPath": {
                     "type": "string",
@@ -134,6 +134,25 @@ def register_tools(server: Server) -> None:
                 "name": {
                     "type": "string",
                     "description": "Name for the new or renamed GameObject.",
+                },
+                "tag": {
+                    "type": "string",
+                    "description": "For update operation: tag to assign to the GameObject (e.g. 'Player', 'Enemy', 'Untagged').",
+                },
+                "layer": {
+                    "oneOf": [
+                        {"type": "integer"},
+                        {"type": "string"},
+                    ],
+                    "description": "For update operation: layer to assign to the GameObject. Can be either layer name (string, e.g. 'Default', 'UI') or layer index (integer 0-31).",
+                },
+                "active": {
+                    "type": "boolean",
+                    "description": "For update operation: activate (true) or deactivate (false) the GameObject.",
+                },
+                "static": {
+                    "type": "boolean",
+                    "description": "For update operation: mark GameObject as static (true) or non-static (false). Static objects are optimized for rendering but cannot move at runtime.",
                 },
                 "pattern": {
                     "type": "string",

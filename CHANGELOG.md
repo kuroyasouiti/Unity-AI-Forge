@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-01-21
+
+### Added
+- **GameObject Update Operation**: New `update` operation for `unity_gameobject_crud`
+  - Update GameObject tags: `{"operation": "update", "gameObjectPath": "Player", "tag": "Player"}`
+  - Update GameObject layers by name or index: `{"layer": "UI"}` or `{"layer": 5}`
+  - Toggle active state: `{"active": true}` or `{"active": false}`
+  - Set static flag: `{"static": true}` or `{"static": false}`
+  - Update multiple properties at once for efficient batch updates
+
+### Fixed
+- **JSON Number Type Handling**: Enhanced layer index handling to support JSON numeric types
+  - Supports `int`, `long`, and `double` types from JSON deserialization
+  - Resolves issues with MiniJson.cs returning numeric values as `double`
+  - Ensures layer-by-index updates work correctly across all MCP clients
+
+### Documentation
+- Updated CLAUDE.md with comprehensive `update` operation examples
+- Added usage examples for tag, layer, active, and static property updates
+
+---
+
 ## [1.3.0] - 2025-01-21
 
 ### Changed
@@ -97,6 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prefab workflow support
 - Project settings management
 
+[1.4.0]: https://github.com/kuroyasouiti/SkillForUnity/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/kuroyasouiti/SkillForUnity/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/kuroyasouiti/SkillForUnity/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/kuroyasouiti/SkillForUnity/compare/v1.0.0...v1.1.0

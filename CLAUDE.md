@@ -1584,7 +1584,48 @@ Comprehensive tool for managing GameObjects in the scene hierarchy.
    })
    ```
 
-5. **duplicate** - Duplicate a GameObject
+5. **update** - Update GameObject properties (tag, layer, active, static)
+   ```python
+   # Update tag
+   unity_gameobject_crud({
+       "operation": "update",
+       "gameObjectPath": "Player",
+       "tag": "Player"
+   })
+
+   # Update layer (by name or index)
+   unity_gameobject_crud({
+       "operation": "update",
+       "gameObjectPath": "Player",
+       "layer": "UI"  # or layer: 5
+   })
+
+   # Update active state
+   unity_gameobject_crud({
+       "operation": "update",
+       "gameObjectPath": "Player",
+       "active": False
+   })
+
+   # Update static flag
+   unity_gameobject_crud({
+       "operation": "update",
+       "gameObjectPath": "Environment",
+       "static": True
+   })
+
+   # Update multiple properties at once
+   unity_gameobject_crud({
+       "operation": "update",
+       "gameObjectPath": "Player",
+       "tag": "Player",
+       "layer": 0,
+       "active": True,
+       "static": False
+   })
+   ```
+
+6. **duplicate** - Duplicate a GameObject
    ```python
    unity_gameobject_crud({
        "operation": "duplicate",
@@ -1594,7 +1635,7 @@ Comprehensive tool for managing GameObjects in the scene hierarchy.
    })
    ```
 
-6. **inspect** - Inspect a GameObject
+7. **inspect** - Inspect a GameObject
    ```python
    unity_gameobject_crud({
        "operation": "inspect",
@@ -1605,7 +1646,7 @@ Comprehensive tool for managing GameObjects in the scene hierarchy.
    # This operation returns component TYPE NAMES only, not their properties
    ```
 
-7. **findMultiple** - Find GameObjects by wildcard/regex pattern
+8. **findMultiple** - Find GameObjects by wildcard/regex pattern
    ```python
    unity_gameobject_crud({
        "operation": "findMultiple",
@@ -1621,7 +1662,7 @@ Comprehensive tool for managing GameObjects in the scene hierarchy.
    })
    ```
 
-8. **deleteMultiple** - Delete multiple GameObjects
+9. **deleteMultiple** - Delete multiple GameObjects
    ```python
    unity_gameobject_crud({
        "operation": "deleteMultiple",
@@ -1630,7 +1671,7 @@ Comprehensive tool for managing GameObjects in the scene hierarchy.
    })
    ```
 
-9. **inspectMultiple** - Inspect multiple GameObjects
+10. **inspectMultiple** - Inspect multiple GameObjects
    ```python
    unity_gameobject_crud({
        "operation": "inspectMultiple",

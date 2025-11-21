@@ -517,6 +517,7 @@ namespace MCP.Editor
                 "delete" => DeleteGameObject(payload),
                 "move" => MoveGameObject(payload),
                 "rename" => RenameGameObject(payload),
+                "update" => UpdateGameObject(payload),
                 "duplicate" => DuplicateGameObject(payload),
                 "inspect" => InspectGameObject(payload),
                 "findMultiple" => FindMultipleGameObjects(payload),
@@ -621,6 +622,79 @@ namespace MCP.Editor
             {
                 ["path"] = GetHierarchyPath(target),
                 ["name"] = target.name,
+            };
+        }
+
+        private static object UpdateGameObject(Dictionary<string, object> payload)
+        {
+            var path = EnsureValue(GetString(payload, "gameObjectPath"), "gameObjectPath");
+            var target = ResolveGameObject(path);
+
+            // Update tag if provided
+            if (payload.TryGetValue("tag", out var tagObj) && tagObj != null)
+            {
+                var tag = tagObj.ToString();
+                if (!string.IsNullOrEmpty(tag))
+                {
+                    target.tag = tag;
+                }
+            }
+
+            // Update layer if provided (accepts both layer name and layer index)
+            if (payload.TryGetValue("layer", out var layerObj) && layerObj != null)
+            {
+                if (layerObj is int layerIndex)
+                {
+                    target.layer = layerIndex;
+                }
+                else if (layerObj is long layerIndexLong)
+                {
+                    target.layer = (int)layerIndexLong;
+                }
+                else if (layerObj is double layerIndexDouble)
+                {
+                    target.layer = (int)layerIndexDouble;
+                }
+                else if (layerObj is string layerName && !string.IsNullOrEmpty(layerName))
+                {
+                    var layer = LayerMask.NameToLayer(layerName);
+                    if (layer == -1)
+                    {
+                        throw new InvalidOperationException($"Layer not found: {layerName}");
+                    }
+                    target.layer = layer;
+                }
+            }
+
+            // Update active state if provided
+            if (payload.TryGetValue("active", out var activeObj) && activeObj != null)
+            {
+                if (activeObj is bool active)
+                {
+                    target.SetActive(active);
+                }
+            }
+
+            // Update static flag if provided
+            if (payload.TryGetValue("static", out var staticObj) && staticObj != null)
+            {
+                if (staticObj is bool isStatic)
+                {
+                    target.isStatic = isStatic;
+                }
+            }
+
+            // Return updated GameObject info
+            return new Dictionary<string, object>
+            {
+                ["path"] = GetHierarchyPath(target),
+                ["name"] = target.name,
+                ["tag"] = target.tag,
+                ["layer"] = target.layer,
+                ["layerName"] = LayerMask.LayerToName(target.layer),
+                ["active"] = target.activeSelf,
+                ["activeInHierarchy"] = target.activeInHierarchy,
+                ["static"] = target.isStatic,
             };
         }
 
