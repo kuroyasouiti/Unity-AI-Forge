@@ -1427,60 +1427,7 @@ def register_tools(server: Server) -> None:
             return await _call_bridge_tool("gameObjectManage", args)
 
         if name == "unity_component_crud":
-            _ensure_bridge_connected()
-
-            # Execute component management operation
-            result = await bridge_manager.send_command("componentManage", args)
-
-            # Check if compilation was triggered (only for non-inspect operations)
-            operation = args.get("operation", "")
-            if operation not in ("inspect", "inspectMultiple") and result.get("compilationTriggered", False):
-                try:
-                    timeout_seconds = 30  # Default timeout for component operations
-                    logger.info("Component operation triggered compilation, waiting for completion (timeout=%ss)...", timeout_seconds)
-
-                    compilation_result = await bridge_manager.await_compilation(timeout_seconds)
-
-                    # Combine component result with compilation result
-                    response_payload = {
-                        "component": result,
-                        "compilation": compilation_result,
-                    }
-
-                    logger.info(
-                        "Component operation completed: compilation_success=%s",
-                        compilation_result.get("success"),
-                    )
-
-                    return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-
-                except TimeoutError:
-                    logger.warning("Compilation did not finish within %s seconds", timeout_seconds)
-                    response_payload = {
-                        "component": result,
-                        "compilation": {
-                            "success": False,
-                            "completed": False,
-                            "timedOut": True,
-                            "message": f"Compilation did not finish within {timeout_seconds} seconds.",
-                        },
-                    }
-                    return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-
-                except Exception as exc:
-                    logger.error("Error while waiting for compilation: %s", exc)
-                    response_payload = {
-                        "component": result,
-                        "compilation": {
-                            "success": False,
-                            "completed": False,
-                            "error": str(exc),
-                        },
-                    }
-                    return [types.TextContent(type="text", text=as_pretty_json(response_payload))]
-            else:
-                # No compilation needed or inspect operation
-                return [types.TextContent(type="text", text=as_pretty_json(result))]
+            return await _call_bridge_tool("componentManage", args)
 
         if name == "unity_asset_crud":
             return await _call_bridge_tool("assetManage", args)
