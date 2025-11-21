@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "skillforunity": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        ".claude/skills/SkillForUnity",
+        "src/main.py",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "MCP_SERVER_TRANSPORT": "stdio",
+        "MCP_LOG_LEVEL": "info"
+      }
+    }
+  }
+}

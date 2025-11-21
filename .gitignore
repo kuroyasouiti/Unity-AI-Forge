@@ -93,6 +93,7 @@ ExportedObj/
 
 # Skill development (tracked in repository)
 # .claude/skills/SkillForUnity is now part of the repository
+.claude/skills/SkillForUnity/.venv/
 
 # ================================================================
 # OS-specific
@@ -100,4 +101,3 @@ ExportedObj/
 .DS_Store
 Thumbs.db
 docs/
-.claude/skills/SkillForUnity/.venv/
