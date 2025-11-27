@@ -44,6 +44,9 @@ namespace MCP.Editor.Base
                 // Phase 6bで実装済みのハンドラーを登録
                 RegisterPhase6BHandlers();
                 
+                // Phase 7で実装済みのハンドラーを登録
+                RegisterPhase7Handlers();
+                
                 // 統計情報をログ出力
                 var stats = CommandHandlerFactory.GetStatistics();
                 Debug.Log($"[CommandHandlerInitializer] Initialized {stats["totalHandlers"]} command handlers");
@@ -120,12 +123,32 @@ namespace MCP.Editor.Base
         }
         
         /// <summary>
-        /// 残りのハンドラーを登録します（Phase 7以降で実装予定）。
+        /// Phase 7で実装されたハンドラーを登録します（Settings & Utilities関連）。
+        /// </summary>
+        private static void RegisterPhase7Handlers()
+        {
+            // Tag/Layer Management Handler
+            CommandHandlerFactory.Register("tagLayerManage", new Handlers.Settings.TagLayerManageHandler());
+            
+            // Project Settings Handler
+            CommandHandlerFactory.Register("projectSettingsManage", new Handlers.Settings.ProjectSettingsManageHandler());
+            
+            // Render Pipeline Handler
+            CommandHandlerFactory.Register("renderPipelineManage", new Handlers.Settings.RenderPipelineManageHandler());
+            
+            // Constant Convert Handler
+            CommandHandlerFactory.Register("constantConvert", new Handlers.Settings.ConstantConvertHandler());
+            
+            // Compilation Await Handler
+            CommandHandlerFactory.Register("compilationAwait", new CompilationAwaitHandler());
+        }
+        
+        /// <summary>
+        /// 残りのハンドラーを登録します（Phase 8以降で実装予定）。
         /// </summary>
         private static void RegisterRemainingHandlers()
         {
-            // TODO: Phase 7以降で実装
-            // CommandHandlerFactory.Register("projectSettingsManage", new SettingsCommandHandler());
+            // TODO: Phase 8以降で実装
         }
     }
 }
