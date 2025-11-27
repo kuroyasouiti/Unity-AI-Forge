@@ -190,7 +190,7 @@ unity_scene_crud({
 **ScriptableObject Management:**
 ```python
 # Create a ScriptableObject
-unity_scriptableobject_crud({
+unity_scriptableObject_crud({
     "operation": "create",
     "typeName": "MyGame.GameConfig",
     "assetPath": "Assets/Data/Config.asset",
@@ -201,14 +201,14 @@ unity_scriptableobject_crud({
 })
 
 # Inspect existing ScriptableObject
-unity_scriptableobject_crud({
+unity_scriptableObject_crud({
     "operation": "inspect",
     "assetPath": "Assets/Data/Config.asset",
     "includeProperties": True
 })
 
 # Update properties
-unity_scriptableobject_crud({
+unity_scriptableObject_crud({
     "operation": "update",
     "assetPath": "Assets/Data/Config.asset",
     "properties": {
@@ -217,7 +217,7 @@ unity_scriptableobject_crud({
 })
 
 # Find all ScriptableObjects of a type
-unity_scriptableobject_crud({
+unity_scriptableObject_crud({
     "operation": "findByType",
     "typeName": "MyGame.GameConfig",
     "includeProperties": True

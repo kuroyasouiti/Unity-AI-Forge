@@ -274,6 +274,10 @@ def register_tools(server: Server) -> None:
                     "type": "boolean",
                     "description": "For inspect/inspectMultiple operations: if true, includes detailed asset importer properties in results. Default is false.",
                 },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "For multiple operations (findMultiple, deleteMultiple, inspectMultiple): maximum number of assets to process. Default: 1000. Use this to prevent timeouts when working with large numbers of assets.",
+                },
             },
         },
         ["operation"],
@@ -1370,12 +1374,12 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_ugui_rectAdjust",
-            description="Adjust a RectTransform using uGUI layout utilities.",
+            description="[DEPRECATED] Use unity_ugui_manage with operation='rectAdjust' instead. This tool will be removed in a future version. Adjust a RectTransform using uGUI layout utilities.",
             inputSchema=ugui_rect_adjust_schema,
         ),
         types.Tool(
             name="unity_ugui_anchorManage",
-            description="Manage RectTransform anchors: set custom values, apply presets (top-left, center, stretch, etc.), or convert between anchor-based and absolute positioning.",
+            description="[DEPRECATED] Use unity_ugui_manage with operation='setAnchor' or 'setAnchorPreset' instead. This tool will be removed in a future version. Manage RectTransform anchors: set custom values, apply presets (top-left, center, stretch, etc.), or convert between anchor-based and absolute positioning.",
             inputSchema=ugui_anchor_manage_schema,
         ),
         types.Tool(
@@ -1459,7 +1463,7 @@ def register_tools(server: Server) -> None:
             inputSchema=menu_hierarchy_create_schema,
         ),
         types.Tool(
-            name="unity_scriptableobject_crud",
+            name="unity_scriptableObject_crud",
             description="Manage Unity ScriptableObject assets. Create new ScriptableObject instances with initial property values, inspect existing assets with optional property filtering, update property values, delete assets, duplicate assets to create copies, list all ScriptableObjects in a folder with optional type filtering, and find ScriptableObjects by type including derived types. Supports both asset path and GUID-based identification for precise asset management.",
             inputSchema=scriptable_object_manage_schema,
         ),
@@ -1502,9 +1506,19 @@ def register_tools(server: Server) -> None:
             return await _call_bridge_tool("assetManage", args)
 
         if name == "unity_ugui_rectAdjust":
+            logger.warning(
+                "[DEPRECATED] unity_ugui_rectAdjust is deprecated. "
+                "Use unity_ugui_manage with operation='rectAdjust' instead. "
+                "This tool will be removed in a future version."
+            )
             return await _call_bridge_tool("uguiRectAdjust", args)
 
         if name == "unity_ugui_anchorManage":
+            logger.warning(
+                "[DEPRECATED] unity_ugui_anchorManage is deprecated. "
+                "Use unity_ugui_manage with operation='setAnchor' or 'setAnchorPreset' instead. "
+                "This tool will be removed in a future version."
+            )
             return await _call_bridge_tool("uguiAnchorManage", args)
 
         if name == "unity_ugui_manage":
@@ -1619,7 +1633,7 @@ def register_tools(server: Server) -> None:
         if name == "unity_menu_hierarchyCreate":
             return await _call_bridge_tool("menuHierarchyCreate", args)
 
-        if name == "unity_scriptableobject_crud":
+        if name == "unity_scriptableObject_crud":
             return await _call_bridge_tool("scriptableObjectManage", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
