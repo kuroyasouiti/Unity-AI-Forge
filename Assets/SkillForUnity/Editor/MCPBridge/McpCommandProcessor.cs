@@ -124,70 +124,15 @@ namespace MCP.Editor
         // HandleUguiCreateFromTemplate, HandleUguiLayoutManage, HandleUguiDetectOverlaps,
         // and all related UI helper methods (DetectRectOverlap, etc.).
 
-        private static object HandleSceneQuickSetup(Dictionary<string, object> payload)
-
-
         // NOTE: Template operations have been moved to Template/McpCommandProcessor.Template.cs
         // This includes: HandleSceneQuickSetup, HandleGameObjectCreateFromTemplate, HandleDesignPatternGenerate,
         // HandleScriptTemplateGenerate, HandleTemplateManage, HandleMenuHierarchyCreate, and all related template methods.
 
-        /// <summary>
-        /// Inspects the current scene context including hierarchy, GameObjects, and components.
-        /// Provides a comprehensive overview for Claude to understand the current state.
-        /// </summary>
-        /// <param name="payload">Options for what to include in the inspection.</param>
-        /// <returns>Result dictionary with scene context information.</returns>
-        private static object HandleContextInspect(Dictionary<string, object> payload)
-
         // NOTE: Context inspection and compilation management utilities have been moved to Utilities/McpCommandProcessor.Utilities.cs
-
-        /// <summary>
-        /// Handles tag and layer management operations.
-        /// Supports setting/getting tags and layers on GameObjects,
-        /// and adding/removing tags and layers from the project.
-        /// </summary>
-        /// <param name="payload">Operation parameters including 'operation' type.</param>
-        /// <returns>Result dictionary with operation-specific data.</returns>
 
         // NOTE: Settings management operations have been moved to Settings/McpCommandProcessor.Settings.cs
         // This includes: HandleTagLayerManage, HandleProjectSettingsManage, HandleRenderPipelineManage,
         // HandleConstantConvert, and all related settings management methods.
-
-        private static object HandleDesignPatternGenerate(Dictionary<string, object> payload)
-
-        /// <summary>
-        /// Detects if compilation has started after script operations.
-        /// Waits for a short period and checks if EditorApplication.isCompiling becomes true.
-        /// </summary>
-        /// <param name="wasCompilingBefore">Whether compilation was already running before operations.</param>
-        /// <param name="maxWaitSeconds">Maximum time to wait for compilation to start.</param>
-        /// <returns>True if compilation started, false otherwise.</returns>
-        private static bool DetectCompilationStart(bool wasCompilingBefore, float maxWaitSeconds = 1.5f)
-        /// <summary>
-        /// Waits for ongoing compilation to complete.
-        /// Returns immediately if not compiling.
-        /// </summary>
-        /// <param name="maxWaitSeconds">Maximum time to wait for compilation to complete.</param>
-        /// <returns>True if compilation completed successfully, false if timeout or still compiling.</returns>
-        private static bool WaitForCompilationComplete(float maxWaitSeconds = 30f)
-        /// <summary>
-        /// Ensures no compilation is in progress before executing a tool operation.
-        /// If compilation is in progress, waits for it to complete.
-        /// </summary>
-        /// <param name="toolName">Name of the tool being executed (for logging).</param>
-        /// <param name="maxWaitSeconds">Maximum time to wait for compilation to complete.</param>
-        /// <returns>Dictionary with status information if waiting occurred, null if no wait was needed.</returns>
-        private static Dictionary<string, object> EnsureNoCompilationInProgress(string toolName, float maxWaitSeconds = 30f)
-        #region Template Management
-
-        /// <summary>
-        /// Handles template management operations for customizing existing GameObjects.
-        /// Supports operations: customize (add components/children to existing object), convertToPrefab (save as prefab).
-        /// </summary>
-        /// <param name="payload">Operation parameters including 'operation' type.</param>
-        /// <returns>Result dictionary with operation-specific data.</returns>
-        private static object HandleTemplateManage(Dictionary<string, object> payload)
-        #endregion
     }
 }
 
