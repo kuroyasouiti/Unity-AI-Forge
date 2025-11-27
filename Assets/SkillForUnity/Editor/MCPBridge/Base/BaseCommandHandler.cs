@@ -296,6 +296,40 @@ namespace MCP.Editor.Base
         }
         
         /// <summary>
+        /// ペイロードから浮動小数点値を取得します。
+        /// </summary>
+        protected float GetFloat(Dictionary<string, object> payload, string key, float defaultValue = 0f)
+        {
+            if (payload == null || !payload.ContainsKey(key))
+            {
+                return defaultValue;
+            }
+            
+            var value = payload[key];
+            if (value is float floatValue)
+            {
+                return floatValue;
+            }
+            
+            if (value is double doubleValue)
+            {
+                return (float)doubleValue;
+            }
+            
+            if (value is int intValue)
+            {
+                return (float)intValue;
+            }
+            
+            if (float.TryParse(value?.ToString(), out var parsedValue))
+            {
+                return parsedValue;
+            }
+            
+            return defaultValue;
+        }
+        
+        /// <summary>
         /// 成功レスポンスを作成します。
         /// </summary>
         protected Dictionary<string, object> CreateSuccessResponse(params (string key, object value)[] additionalData)
