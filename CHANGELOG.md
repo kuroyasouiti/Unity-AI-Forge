@@ -8,12 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **Code Refactoring**: Started phase refactoring of McpCommandProcessor.cs (9,265 lines)
-  - Phase 1: Extracted helper methods to `Core/McpCommandProcessor.Helpers.cs` (1,144 lines)
+- **Code Refactoring**: Phased refactoring of McpCommandProcessor.cs for improved maintainability
+  - **Phase 1** (2024-11-25): Extracted helper methods to `Core/McpCommandProcessor.Helpers.cs` (1,144 lines)
+  - **Phase 2** (2024-11-27): Extracted scene management to `Scene/McpCommandProcessor.Scene.cs` (413 lines)
   - Converted `McpCommandProcessor` to partial class for modular organization
-  - Reduced main file size by 12% (9,265 → 8,129 lines)
-  - Created directory structure for future phases (Scene, GameObject, Component, Asset, UI, etc.)
+  - Reduced main file size by 17% (9,265 → 7,720 lines)
+  - Created directory structure for future phases (GameObject, Component, Asset, UI, etc.)
   - Added comprehensive refactoring plan: `docs/REFACTORING_PLAN.md`
+  
+  **Phase 2 Details**:
+  - Scene operations: Create, Load, Save, Delete, Duplicate, Inspect
+  - Build settings management: List, Add, Remove, Reorder, Enable/Disable
+  - All scene-related logic now isolated in dedicated file
+  - Easier testing and maintenance of scene operations
 
 ---
 

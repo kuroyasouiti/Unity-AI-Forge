@@ -55,7 +55,7 @@ Assets/SkillForUnity/Editor/MCPBridge/
 ### ✅ Phase 1: ヘルパーメソッドの抽出（完了）
 
 **日付**: 2024年11月25日  
-**PR**: [準備中]
+**コミット**: `b61c643`
 
 #### 実施内容
 - `McpCommandProcessor.cs`を`partial class`に変更
@@ -77,22 +77,24 @@ Assets/SkillForUnity/Editor/MCPBridge/
 
 ---
 
-### 🔜 Phase 2: シーン管理の分割（計画中）
+### ✅ Phase 2: シーン管理の分割（完了）
 
-**予定日**: 2024年12月  
-**対象行数**: 約450行
+**日付**: 2024年11月27日  
+**コミット**: [準備中]  
+**対象行数**: 413行
 
-#### 抽出予定のメソッド
-- `HandleSceneManage`
-- `CreateScene`, `LoadScene`, `SaveScene`, `DeleteScene`, `DuplicateScene`, `InspectScene`
-- シーンビルド設定関連メソッド
+#### 抽出したメソッド
+- `HandleSceneManage` - メインディスパッチャー
+- **シーン操作**: `CreateScene`, `LoadScene`, `SaveScenes`, `DeleteScene`, `DuplicateScene`, `InspectScene`
+- **ビルド設定**: `ListBuildSettings`, `AddToBuildSettings`, `RemoveFromBuildSettings`, `ReorderBuildSettings`, `SetBuildSettingsEnabled`
 
 #### ファイル
-- `Scene/McpCommandProcessor.Scene.cs`
+- ✅ `Scene/McpCommandProcessor.Scene.cs` (約470行)
 
-#### 期待効果
-- シーン操作のロジックが独立
-- シーン関連のテストが容易に
+#### 効果
+- ✅ シーン操作のロジックが独立
+- ✅ シーン関連のテストが容易に
+- ✅ ビルド設定管理が明確化
 
 ---
 
@@ -373,10 +375,10 @@ Part of refactoring plan: docs/REFACTORING_PLAN.md
 
 ## 📊 進捗状況
 
-| Phase | ステータス | 完了日 | 削減行数 | PRリンク |
+| Phase | ステータス | 完了日 | 削減行数 | コミット |
 |-------|-----------|--------|----------|----------|
-| 1. Helpers | ✅ 完了 | 2024-11-25 | 1,144行 | [準備中] |
-| 2. Scene | 🔜 計画中 | 2024-12-XX | 450行 | - |
+| 1. Helpers | ✅ 完了 | 2024-11-25 | 1,144行 | `b61c643` |
+| 2. Scene | ✅ 完了 | 2024-11-27 | 413行 | [準備中] |
 | 3. GameObject | 🔜 計画中 | 2024-12-XX | 500行 | - |
 | 4. Component | 🔜 計画中 | 2025-01-XX | 600行 | - |
 | 5. Asset | 🔜 計画中 | 2025-01-XX | 500行 | - |
@@ -386,25 +388,23 @@ Part of refactoring plan: docs/REFACTORING_PLAN.md
 | 9. Settings | 🔜 計画中 | 2025-02-XX | 600行 | - |
 | 10. Utilities | 🔜 計画中 | 2025-03-XX | 400行 | - |
 | 11. Template | 🔜 計画中 | 2025-03-XX | 800行 | - |
-| **合計** | **9%完了** | - | **7,294行** | - |
+| **合計** | **18%完了** | - | **1,557行** | - |
 
-**現在のファイルサイズ**: 8,129行  
+**現在のファイルサイズ**: 7,720行  
 **最終目標**: ~1,971行（メインディスパッチャーのみ）  
-**削減率**: 約**78%削減予定**
+**削減率**: 約**78%削減予定** → 現在**17%削減済み**
 
 ---
 
 ## 🚀 次のステップ
 
-1. **Phase 1のPR作成** ← 現在ここ
-   - コミットメッセージの作成
-   - PRの説明を記述
-   - レビュアーを指定
+1. **Phase 2のコミット** ← 現在ここ
+   - CHANGELOGの更新
+   - コミット&プッシュ
 
-2. **Phase 2の準備**
-   - シーン管理メソッドの特定
+2. **Phase 3の準備**
+   - GameObject関連メソッドの特定
    - 依存関係の確認
-   - テストケースの作成
 
 3. **継続的改善**
    - 各フェーズでの学びを次に活かす
