@@ -18,15 +18,13 @@ namespace MCP.Editor
         private bool _commandRunning;
         private Action<CommandResult> _pendingCommandContinuation;
         private bool _showBridgeSection = true;
-        private bool _showServerSection = true;
         private bool _showLogSection = false;
-        private bool _showQuickRegister = true;
         private bool _showServerManagerSection = true;
-        private bool _showAIToolsSection = true;
+        private bool _showCliRegistrationSection = true;
         
         // Server Manager State
         private ServerStatus _serverStatus;
-        private Dictionary<AITool, bool> _registrationStatus;
+        private Dictionary<string, bool> _cliAvailability;
         private bool _serverManagerInitialized;
 
         private readonly struct CliRegistration
@@ -113,15 +111,6 @@ namespace MCP.Editor
 
                 GUILayout.Space(4f);
 
-                _showServerSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showServerSection, "Server Management (Legacy)");
-                if (_showServerSection)
-                {
-                    DrawServerManagement(settings);
-                }
-                EditorGUILayout.EndFoldoutHeaderGroup();
-
-                GUILayout.Space(4f);
-
                 _showServerManagerSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showServerManagerSection, "MCP Server Manager");
                 if (_showServerManagerSection)
                 {
@@ -131,19 +120,10 @@ namespace MCP.Editor
 
                 GUILayout.Space(4f);
 
-                _showAIToolsSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showAIToolsSection, "AI Tool Registration");
-                if (_showAIToolsSection)
+                _showCliRegistrationSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showCliRegistrationSection, "AI Tool CLI Registration");
+                if (_showCliRegistrationSection)
                 {
-                    DrawAIToolsSection();
-                }
-                EditorGUILayout.EndFoldoutHeaderGroup();
-
-                GUILayout.Space(4f);
-
-                _showQuickRegister = EditorGUILayout.BeginFoldoutHeaderGroup(_showQuickRegister, "Client Registration (Legacy)");
-                if (_showQuickRegister)
-                {
-                    DrawQuickRegistration(settings);
+                    DrawCliRegistrationSection();
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
 
@@ -263,151 +243,6 @@ namespace MCP.Editor
             }
         }
 
-        private void DrawServerManagement(McpBridgeSettings settings)
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUI.BeginChangeCheck();
-                var path = EditorGUILayout.TextField("Install Destination", settings.ServerInstallPath);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    settings.ServerInstallPath = path;
-                }
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button("Local (.claude/skills)", GUILayout.Width(150f)))
-                    {
-                        var localPath = ServerInstallerUtility.GetLocalSkillsPath();
-                        if (!string.IsNullOrEmpty(localPath))
-                        {
-                            settings.ServerInstallPath = localPath;
-                        }
-                    }
-
-                    if (GUILayout.Button("Global (~/.claude/skills)", GUILayout.Width(150f)))
-                    {
-                        var globalPath = ServerInstallerUtility.GetGlobalSkillsPath();
-                        if (!string.IsNullOrEmpty(globalPath))
-                        {
-                            settings.ServerInstallPath = globalPath;
-                        }
-                    }
-                }
-
-                EditorGUILayout.SelectableLabel(settings.ServerInstallPath, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-
-                // Check skill package status
-                if (string.IsNullOrEmpty(ServerInstallerUtility.SkillZipPath))
-                {
-                    EditorGUILayout.HelpBox("Skill package (SkillForUnity.zip) not found. Build the skill package first.", MessageType.Warning);
-                }
-                else
-                {
-                    var zipInfo = new FileInfo(ServerInstallerUtility.SkillZipPath);
-                    EditorGUILayout.HelpBox($"Found: {zipInfo.Name} ({zipInfo.Length / 1024} KB)", MessageType.Info);
-                }
-
-                // Check if already installed
-                if (File.Exists(settings.ServerInstallPath))
-                {
-                    var installedInfo = new FileInfo(settings.ServerInstallPath);
-                    EditorGUILayout.HelpBox($"Already installed: {installedInfo.LastWriteTime}", MessageType.Info);
-                }
-            }
-
-            GUI.enabled = !_commandRunning;
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (GUILayout.Button("Install Skill Package"))
-                {
-                    InstallSkillPackage(settings);
-                }
-
-                if (GUILayout.Button("Uninstall"))
-                {
-                    UninstallServer(settings);
-                }
-            }
-
-            if (GUILayout.Button("Show Skill Package Info"))
-            {
-                AppendLog(ServerInstallerUtility.GetSkillZipInfo());
-            }
-
-            GUI.enabled = true;
-        }
-
-        private void DrawQuickRegistration(McpBridgeSettings settings)
-        {
-            EditorGUILayout.HelpBox("Skill packages are automatically detected by Claude Code when placed in .claude/skills/ or ~/.claude/skills/", MessageType.Info);
-
-            if (string.IsNullOrEmpty(ServerInstallerUtility.SkillZipPath))
-            {
-                EditorGUILayout.HelpBox("Skill package not found. Build the skill package first.", MessageType.Warning);
-                return;
-            }
-
-            if (!Directory.Exists(settings.ServerInstallPath))
-            {
-                EditorGUILayout.HelpBox("Skill package not installed yet. Click 'Install Skill Package' button above.", MessageType.Warning);
-                return;
-            }
-
-            EditorGUILayout.HelpBox("Skill package installed! Restart Claude Code to use the SkillForUnity skill.", MessageType.Info);
-
-            // Manual copy commands for reference
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Manual Installation Commands:", EditorStyles.boldLabel);
-
-            var skillZipPath = ServerInstallerUtility.SkillZipPath;
-            if (string.IsNullOrEmpty(skillZipPath))
-            {
-                GUI.enabled = true;
-                return;
-            }
-
-            // Show manual copy commands
-            var localPath = ServerInstallerUtility.GetLocalSkillsPath();
-            var globalPath = ServerInstallerUtility.GetGlobalSkillsPath();
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("Windows (PowerShell):", EditorStyles.boldLabel);
-
-                if (!string.IsNullOrEmpty(localPath))
-                {
-                    var localCmd = $"Expand-Archive -Path \"{skillZipPath}\" -DestinationPath \"{localPath}\" -Force";
-                    EditorGUILayout.SelectableLabel(localCmd, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-                }
-
-                if (!string.IsNullOrEmpty(globalPath))
-                {
-                    var globalCmd = $"Expand-Archive -Path \"{skillZipPath}\" -DestinationPath \"{globalPath}\" -Force";
-                    EditorGUILayout.SelectableLabel(globalCmd, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-                }
-            }
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("macOS / Linux:", EditorStyles.boldLabel);
-
-                if (!string.IsNullOrEmpty(localPath))
-                {
-                    var localCmd = $"unzip -o \"{skillZipPath}\" -d \"{localPath}\"";
-                    EditorGUILayout.SelectableLabel(localCmd, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-                }
-
-                if (!string.IsNullOrEmpty(globalPath))
-                {
-                    var globalCmd = $"unzip -o \"{skillZipPath}\" -d \"{globalPath}\"";
-                    EditorGUILayout.SelectableLabel(globalCmd, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-                }
-            }
-
-            GUI.enabled = true;
-        }
 
         private void DrawCliRow(CliRegistration entry)
         {
@@ -444,98 +279,6 @@ namespace MCP.Editor
             }
         }
 
-        private void InstallSkillPackage(McpBridgeSettings settings)
-        {
-            if (_commandRunning)
-            {
-                AppendLog("Another command is currently running. Please wait...");
-                return;
-            }
-
-            var destinationPath = settings.ServerInstallPath;
-            if (string.IsNullOrWhiteSpace(destinationPath))
-            {
-                AppendLog("Install destination is empty. Please select a destination path.");
-                return;
-            }
-
-            // Check if already installed
-            if (Directory.Exists(destinationPath))
-            {
-                var overwrite = EditorUtility.DisplayDialog(
-                    "Overwrite Existing Package",
-                    $"A skill package already exists at:\n{destinationPath}\n\nDo you want to overwrite it?",
-                    "Overwrite",
-                    "Cancel"
-                );
-
-                if (!overwrite)
-                {
-                    AppendLog("Installation cancelled.");
-                    return;
-                }
-            }
-
-            AppendLog($"Installing skill package to: {destinationPath}");
-            var success = ServerInstallerUtility.InstallSkillPackage(destinationPath, out var message);
-            AppendLog(message);
-
-            if (success)
-            {
-                Debug.Log(message);
-                AppendLog("\nInstallation complete!");
-                AppendLog("To use the skill in Claude Code:");
-                AppendLog("1. Restart Claude Code if it's running");
-                AppendLog("2. The SkillForUnity skill will be automatically available");
-            }
-            else
-            {
-                Debug.LogWarning(message);
-            }
-        }
-
-        private void UninstallServer(McpBridgeSettings settings)
-        {
-            if (_commandRunning)
-            {
-                AppendLog("Another command is currently running. Please wait...");
-                return;
-            }
-
-            var path = settings.ServerInstallPath;
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                AppendLog("Install path is empty. Nothing to uninstall.");
-                return;
-            }
-
-            if (!File.Exists(path) && !Directory.Exists(path))
-            {
-                AppendLog($"Install path not found: {path}");
-                return;
-            }
-
-            var title = "Uninstall Skill Package";
-            var prompt = $"This will delete the skill package at:\n{path}\n\nContinue?";
-
-            if (!EditorUtility.DisplayDialog(title, prompt, "Uninstall", "Cancel"))
-            {
-                return;
-            }
-
-            var success = ServerInstallerUtility.TryUninstall(path, out var uninstallMessage, force: true);
-            AppendLog(uninstallMessage);
-
-            if (success)
-            {
-                Debug.Log(uninstallMessage);
-                AppendLog("\nUninstallation complete!");
-            }
-            else
-            {
-                Debug.LogWarning(uninstallMessage);
-            }
-        }
 
         private void RunServerCommand(string command, string description, string workingDirectory)
         {
@@ -739,7 +482,16 @@ namespace MCP.Editor
             try
             {
                 _serverStatus = McpServerManager.GetStatus();
-                _registrationStatus = McpToolRegistry.GetRegistrationStatus();
+                
+                // Check CLI availability
+                _cliAvailability = new Dictionary<string, bool>
+                {
+                    { "cursor", McpCliRegistry.IsCliAvailable("cursor") },
+                    { "claude-code", McpCliRegistry.IsCliAvailable("claude-code") },
+                    { "cline", McpCliRegistry.IsCliAvailable("cline") },
+                    { "windsurf", McpCliRegistry.IsCliAvailable("windsurf") }
+                };
+                
                 _serverManagerInitialized = true;
             }
             catch (Exception ex)
@@ -855,7 +607,7 @@ namespace MCP.Editor
             }
         }
         
-        private void DrawAIToolsSection()
+        private void DrawCliRegistrationSection()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
@@ -865,85 +617,118 @@ namespace MCP.Editor
                     return;
                 }
                 
-                EditorGUILayout.LabelField("AI Tool Registration", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Register the MCP server with AI tools for seamless integration", MessageType.Info);
+                EditorGUILayout.LabelField("AI Tool CLI Registration", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(
+                    "Register the MCP server using command-line tools.\n" +
+                    "Make sure the respective CLI tools are installed and available in PATH.",
+                    MessageType.Info
+                );
                 
                 GUILayout.Space(5f);
                 
-                // Individual tool registration
-                foreach (AITool tool in Enum.GetValues(typeof(AITool)))
-                {
-                    DrawAIToolRow(tool);
-                }
+                var serverPath = _serverStatus.InstallPath;
+                
+                // Cursor
+                DrawCliToolRow("Cursor", "cursor", serverPath, 
+                    () => McpCliRegistry.RegisterToCursor(serverPath),
+                    () => McpCliRegistry.UnregisterFromCursor());
+                
+                // Claude Code
+                DrawCliToolRow("Claude Code", "claude-code", serverPath,
+                    () => McpCliRegistry.RegisterToClaudeCode(serverPath),
+                    () => McpCliRegistry.UnregisterFromClaudeCode());
+                
+                // Cline
+                DrawCliToolRow("Cline", "cline", serverPath,
+                    () => McpCliRegistry.RegisterToCline(serverPath),
+                    () => McpCliRegistry.UnregisterFromCline());
+                
+                // Windsurf
+                DrawCliToolRow("Windsurf", "windsurf", serverPath,
+                    () => McpCliRegistry.RegisterToWindsurf(serverPath),
+                    () => McpCliRegistry.UnregisterFromWindsurf());
                 
                 GUILayout.Space(5f);
                 
-                // Bulk actions
-                using (new EditorGUILayout.HorizontalScope())
+                // Refresh button
+                if (GUILayout.Button("Refresh CLI Availability", GUILayout.Height(25)))
                 {
-                    if (GUILayout.Button("Register All", GUILayout.Height(25)))
-                    {
-                        ExecuteServerManagerAction(() =>
-                        {
-                            McpToolRegistry.RegisterAll();
-                            RefreshServerManagerStatus();
-                            AppendLog("Registered to all available tools");
-                        });
-                    }
-                    
-                    if (GUILayout.Button("Unregister All", GUILayout.Height(25)))
-                    {
-                        if (EditorUtility.DisplayDialog("Confirm Unregister All",
-                            "Are you sure you want to unregister from all AI tools?",
-                            "Yes", "No"))
-                        {
-                            ExecuteServerManagerAction(() =>
-                            {
-                                McpToolRegistry.UnregisterAll();
-                                RefreshServerManagerStatus();
-                                AppendLog("Unregistered from all tools");
-                            });
-                        }
-                    }
+                    RefreshServerManagerStatus();
+                    AppendLog("CLI availability refreshed");
                 }
             }
         }
         
-        private void DrawAIToolRow(AITool tool)
+        private void DrawCliToolRow(string displayName, string cliCommand, string serverPath, 
+            Func<McpCliRegistry.CliResult> registerFunc, Func<McpCliRegistry.CliResult> unregisterFunc)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                var isRegistered = _registrationStatus != null && _registrationStatus.ContainsKey(tool) && _registrationStatus[tool];
-                var statusIcon = isRegistered ? "✅" : "❌";
+                var isAvailable = _cliAvailability != null && _cliAvailability.ContainsKey(cliCommand) && _cliAvailability[cliCommand];
+                var statusIcon = isAvailable ? "✅" : "❌";
                 
-                EditorGUILayout.LabelField($"{statusIcon} {McpConfigManager.GetToolDisplayName(tool)}", GUILayout.Width(200));
+                EditorGUILayout.LabelField($"{statusIcon} {displayName}", GUILayout.Width(200));
+                
+                if (!isAvailable)
+                {
+                    EditorGUILayout.LabelField("(CLI not found)", EditorStyles.miniLabel, GUILayout.Width(100));
+                }
                 
                 GUILayout.FlexibleSpace();
                 
-                if (isRegistered)
+                GUI.enabled = isAvailable && !_commandRunning;
+                
+                if (GUILayout.Button("Register", GUILayout.Width(100)))
                 {
-                    if (GUILayout.Button("Unregister", GUILayout.Width(100)))
+                    ExecuteCliAction(displayName, "Register", registerFunc);
+                }
+                
+                if (GUILayout.Button("Unregister", GUILayout.Width(100)))
+                {
+                    ExecuteCliAction(displayName, "Unregister", unregisterFunc);
+                }
+                
+                GUI.enabled = true;
+            }
+        }
+        
+        private void ExecuteCliAction(string toolName, string action, Func<McpCliRegistry.CliResult> cliFunc)
+        {
+            try
+            {
+                _commandRunning = true;
+                AppendLog($"[{toolName}] Executing {action}...");
+                
+                var result = cliFunc();
+                
+                if (result.Success)
+                {
+                    AppendLog($"[{toolName}] {action} successful!");
+                    if (!string.IsNullOrEmpty(result.Output))
                     {
-                        ExecuteServerManagerAction(() =>
-                        {
-                            McpToolRegistry.Unregister(tool);
-                            RefreshServerManagerStatus();
-                            AppendLog($"Unregistered from {tool}");
-                        });
+                        AppendLog(result.Output);
                     }
                 }
                 else
                 {
-                    if (GUILayout.Button("Register", GUILayout.Width(100)))
+                    AppendLog($"[{toolName}] {action} failed (exit code: {result.ExitCode})");
+                    if (!string.IsNullOrEmpty(result.Error))
                     {
-                        ExecuteServerManagerAction(() =>
-                        {
-                            McpToolRegistry.Register(tool);
-                            RefreshServerManagerStatus();
-                            AppendLog($"Registered to {tool}");
-                        });
+                        AppendLog($"Error: {result.Error}");
                     }
+                    EditorUtility.DisplayDialog($"{toolName} {action} Failed", 
+                        $"Failed to {action.ToLower()} {toolName}.\n\n{result.Error}", "OK");
                 }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[{toolName}] Error: {ex.Message}");
+                EditorUtility.DisplayDialog("Error", ex.Message, "OK");
+            }
+            finally
+            {
+                _commandRunning = false;
+                Repaint();
             }
         }
         
@@ -966,8 +751,7 @@ namespace MCP.Editor
             // Filter Server Manager logs
             if (message.Contains("[McpServerManager]") || 
                 message.Contains("[McpServerInstaller]") ||
-                message.Contains("[McpConfigManager]") ||
-                message.Contains("[McpToolRegistry]"))
+                message.Contains("[McpCliRegistry]"))
             {
                 // Extract clean message
                 var cleanMessage = message;

@@ -14,6 +14,7 @@ namespace MCP.Editor.ServerManager
     {
         /// <summary>
         /// サーバーファイルをソースから宛先にコピー
+        /// Assets/SkillForUnity/MCPServerから直接コピー
         /// </summary>
         public static void CopyServerFiles(string sourcePath, string destPath)
         {
@@ -28,11 +29,15 @@ namespace MCP.Editor.ServerManager
                     throw new DirectoryNotFoundException($"Source directory not found: {sourcePath}");
                 }
                 
-                // 宛先ディレクトリを作成
-                if (!Directory.Exists(destPath))
+                // 宛先ディレクトリが既に存在する場合は削除
+                if (Directory.Exists(destPath))
                 {
-                    Directory.CreateDirectory(destPath);
+                    Debug.Log($"[McpServerInstaller] Removing existing installation...");
+                    Directory.Delete(destPath, true);
                 }
+                
+                // 宛先ディレクトリを作成
+                Directory.CreateDirectory(destPath);
                 
                 // ファイルとディレクトリをコピー
                 CopyDirectory(sourcePath, destPath);
