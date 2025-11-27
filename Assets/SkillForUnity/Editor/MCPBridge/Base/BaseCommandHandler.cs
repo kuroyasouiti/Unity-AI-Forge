@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Interfaces;
+using UnityEngine;
 
 namespace MCP.Editor.Base
 {
@@ -11,6 +12,60 @@ namespace MCP.Editor.Base
     /// </summary>
     public abstract class BaseCommandHandler : ICommandHandler
     {
+        #region Protected Fields
+        
+        /// <summary>
+        /// ペイロードバリデーター。
+        /// </summary>
+        protected IPayloadValidator Validator { get; private set; }
+        
+        /// <summary>
+        /// GameObjectリゾルバー。
+        /// </summary>
+        protected IGameObjectResolver GameObjectResolver { get; private set; }
+        
+        /// <summary>
+        /// Assetリゾルバー。
+        /// </summary>
+        protected IAssetResolver AssetResolver { get; private set; }
+        
+        /// <summary>
+        /// Typeリゾルバー。
+        /// </summary>
+        protected ITypeResolver TypeResolver { get; private set; }
+        
+        #endregion
+        
+        #region Constructor
+        
+        /// <summary>
+        /// デフォルトのリゾルバーを使用してコマンドハンドラーを初期化します。
+        /// </summary>
+        protected BaseCommandHandler()
+        {
+            Validator = new StandardPayloadValidator();
+            GameObjectResolver = new GameObjectResolver();
+            AssetResolver = new AssetResolver();
+            TypeResolver = new TypeResolver();
+        }
+        
+        /// <summary>
+        /// カスタムリゾルバーを使用してコマンドハンドラーを初期化します。
+        /// </summary>
+        protected BaseCommandHandler(
+            IPayloadValidator validator,
+            IGameObjectResolver gameObjectResolver,
+            IAssetResolver assetResolver,
+            ITypeResolver typeResolver)
+        {
+            Validator = validator ?? new StandardPayloadValidator();
+            GameObjectResolver = gameObjectResolver ?? new GameObjectResolver();
+            AssetResolver = assetResolver ?? new AssetResolver();
+            TypeResolver = typeResolver ?? new TypeResolver();
+        }
+        
+        #endregion
+        
         #region ICommandHandler Implementation
         
         /// <inheritdoc/>
@@ -97,6 +152,28 @@ namespace MCP.Editor.Base
             if (!payload.ContainsKey("operation"))
             {
                 throw new InvalidOperationException("'operation' parameter is required");
+            }
+            
+            // バリデーターが設定されている場合は使用
+            if (Validator != null)
+            {
+                var operation = GetOperation(payload);
+                var validationResult = Validator.Validate(payload, operation);
+                
+                if (!validationResult.IsValid)
+                {
+                    var errors = string.Join("; ", validationResult.Errors);
+                    throw new InvalidOperationException($"Payload validation failed: {errors}");
+                }
+                
+                // 正規化されたペイロードに置き換え
+                if (validationResult.NormalizedPayload != null)
+                {
+                    foreach (var kvp in validationResult.NormalizedPayload)
+                    {
+                        payload[kvp.Key] = kvp.Value;
+                    }
+                }
             }
         }
         
@@ -234,6 +311,165 @@ namespace MCP.Editor.Base
             }
             
             return response;
+        }
+        
+        #endregion
+        
+        #region Resource Resolution Helper Methods
+        
+        /// <summary>
+        /// GameObjectを階層パスから解決します。
+        /// </summary>
+        protected GameObject ResolveGameObject(string path)
+        {
+            if (GameObjectResolver == null)
+            {
+                throw new InvalidOperationException("GameObjectResolver is not initialized");
+            }
+            return GameObjectResolver.Resolve(path);
+        }
+        
+        /// <summary>
+        /// GameObjectを階層パスから解決します（失敗時はnull）。
+        /// </summary>
+        protected GameObject TryResolveGameObject(string path)
+        {
+            if (GameObjectResolver == null || string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+            return GameObjectResolver.TryResolve(path);
+        }
+        
+        /// <summary>
+        /// パターンマッチでGameObjectを検索します。
+        /// </summary>
+        protected IEnumerable<GameObject> FindGameObjectsByPattern(string pattern, bool useRegex = false, int maxResults = 1000)
+        {
+            if (GameObjectResolver == null)
+            {
+                return Enumerable.Empty<GameObject>();
+            }
+            return GameObjectResolver.FindByPattern(pattern, useRegex, maxResults);
+        }
+        
+        /// <summary>
+        /// Assetをパスまたは GUID から解決します。
+        /// </summary>
+        protected UnityEngine.Object ResolveAsset(string identifier)
+        {
+            if (AssetResolver == null)
+            {
+                throw new InvalidOperationException("AssetResolver is not initialized");
+            }
+            return AssetResolver.Resolve(identifier);
+        }
+        
+        /// <summary>
+        /// Assetをパスまたは GUID から解決します（失敗時はnull）。
+        /// </summary>
+        protected UnityEngine.Object TryResolveAsset(string identifier)
+        {
+            if (AssetResolver == null || string.IsNullOrEmpty(identifier))
+            {
+                return null;
+            }
+            return AssetResolver.TryResolve(identifier);
+        }
+        
+        /// <summary>
+        /// アセットパスを検証します。
+        /// </summary>
+        protected bool ValidateAssetPath(string path)
+        {
+            if (AssetResolver == null)
+            {
+                return false;
+            }
+            return AssetResolver.ValidatePath(path);
+        }
+        
+        /// <summary>
+        /// 型名から Type を解決します。
+        /// </summary>
+        protected Type ResolveType(string typeName)
+        {
+            if (TypeResolver == null)
+            {
+                throw new InvalidOperationException("TypeResolver is not initialized");
+            }
+            return TypeResolver.Resolve(typeName);
+        }
+        
+        /// <summary>
+        /// 型名から Type を解決します（失敗時はnull）。
+        /// </summary>
+        protected Type TryResolveType(string typeName)
+        {
+            if (TypeResolver == null || string.IsNullOrEmpty(typeName))
+            {
+                return null;
+            }
+            return TypeResolver.TryResolve(typeName);
+        }
+        
+        /// <summary>
+        /// 指定された基底型を継承する全ての型を検索します。
+        /// </summary>
+        protected IEnumerable<Type> FindDerivedTypes(Type baseType)
+        {
+            if (TypeResolver == null || baseType == null)
+            {
+                return Enumerable.Empty<Type>();
+            }
+            return TypeResolver.FindDerivedTypes(baseType);
+        }
+        
+        /// <summary>
+        /// ペイロードからGameObjectを解決します。
+        /// gameObjectPath または gameObjectGlobalObjectId を使用します。
+        /// </summary>
+        protected GameObject ResolveGameObjectFromPayload(Dictionary<string, object> payload)
+        {
+            // GlobalObjectId が指定されている場合（優先）
+            var globalId = GetString(payload, "gameObjectGlobalObjectId");
+            if (!string.IsNullOrEmpty(globalId))
+            {
+                // TODO: GlobalObjectId からの解決を実装
+                Debug.LogWarning("GlobalObjectId resolution is not yet implemented");
+            }
+            
+            // 階層パスから解決
+            var path = GetString(payload, "gameObjectPath");
+            if (!string.IsNullOrEmpty(path))
+            {
+                return ResolveGameObject(path);
+            }
+            
+            throw new InvalidOperationException("Either 'gameObjectPath' or 'gameObjectGlobalObjectId' is required");
+        }
+        
+        /// <summary>
+        /// ペイロードからAssetを解決します。
+        /// assetPath または assetGuid を使用します。
+        /// </summary>
+        protected UnityEngine.Object ResolveAssetFromPayload(Dictionary<string, object> payload)
+        {
+            // GUID が指定されている場合（優先）
+            var guid = GetString(payload, "assetGuid");
+            if (!string.IsNullOrEmpty(guid))
+            {
+                return ResolveAsset(guid);
+            }
+            
+            // パスから解決
+            var path = GetString(payload, "assetPath");
+            if (!string.IsNullOrEmpty(path))
+            {
+                return ResolveAsset(path);
+            }
+            
+            throw new InvalidOperationException("Either 'assetPath' or 'assetGuid' is required");
         }
         
         #endregion
