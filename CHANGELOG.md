@@ -11,16 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code Refactoring**: Phased refactoring of McpCommandProcessor.cs for improved maintainability
   - **Phase 1** (2024-11-25): Extracted helper methods to `Core/McpCommandProcessor.Helpers.cs` (1,144 lines)
   - **Phase 2** (2024-11-27): Extracted scene management to `Scene/McpCommandProcessor.Scene.cs` (413 lines)
+  - **Phase 3** (2024-11-27): Extracted GameObject operations to `GameObject/McpCommandProcessor.GameObject.cs` (401 lines)
   - Converted `McpCommandProcessor` to partial class for modular organization
-  - Reduced main file size by 17% (9,265 → 7,720 lines)
-  - Created directory structure for future phases (GameObject, Component, Asset, UI, etc.)
+  - Reduced main file size by 22% (9,265 → 7,210 lines)
+  - Created directory structure for future phases (Component, Asset, UI, etc.)
   - Added comprehensive refactoring plan: `docs/REFACTORING_PLAN.md`
   
-  **Phase 2 Details**:
-  - Scene operations: Create, Load, Save, Delete, Duplicate, Inspect
-  - Build settings management: List, Add, Remove, Reorder, Enable/Disable
-  - All scene-related logic now isolated in dedicated file
-  - Easier testing and maintenance of scene operations
+  **Phase 3 Details**:
+  - GameObject operations: Create, Delete, Move, Rename, Update, Duplicate, Inspect
+  - Batch operations: FindMultiple, DeleteMultiple, InspectMultiple
+  - All GameObject-related logic now isolated in dedicated file
+  - Improved code organization following Single Responsibility Principle
 
 ---
 
