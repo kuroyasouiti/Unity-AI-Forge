@@ -298,10 +298,10 @@ namespace MCP.Editor.Handlers
                 if (paddingDict != null)
                 {
                     layoutGroup.padding = new RectOffset(
-                        GetInt(paddingDict, "left").GetValueOrDefault(layoutGroup.padding.left),
-                        GetInt(paddingDict, "right").GetValueOrDefault(layoutGroup.padding.right),
-                        GetInt(paddingDict, "top").GetValueOrDefault(layoutGroup.padding.top),
-                        GetInt(paddingDict, "bottom").GetValueOrDefault(layoutGroup.padding.bottom)
+                        GetInt(paddingDict, "left", layoutGroup.padding.left),
+                        GetInt(paddingDict, "right", layoutGroup.padding.right),
+                        GetInt(paddingDict, "top", layoutGroup.padding.top),
+                        GetInt(paddingDict, "bottom", layoutGroup.padding.bottom)
                     );
                 }
             }
@@ -340,10 +340,10 @@ namespace MCP.Editor.Handlers
                 if (paddingDict != null)
                 {
                     grid.padding = new RectOffset(
-                        GetInt(paddingDict, "left").GetValueOrDefault(grid.padding.left),
-                        GetInt(paddingDict, "right").GetValueOrDefault(grid.padding.right),
-                        GetInt(paddingDict, "top").GetValueOrDefault(grid.padding.top),
-                        GetInt(paddingDict, "bottom").GetValueOrDefault(grid.padding.bottom)
+                        GetInt(paddingDict, "left", grid.padding.left),
+                        GetInt(paddingDict, "right", grid.padding.right),
+                        GetInt(paddingDict, "top", grid.padding.top),
+                        GetInt(paddingDict, "bottom", grid.padding.bottom)
                     );
                 }
             }

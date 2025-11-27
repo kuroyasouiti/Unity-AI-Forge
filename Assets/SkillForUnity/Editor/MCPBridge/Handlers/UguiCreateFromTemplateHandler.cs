@@ -405,7 +405,7 @@ namespace MCP.Editor.Handlers
             labelGo.transform.SetParent(go.transform, false);
             var label = labelGo.AddComponent<Text>();
             label.text = GetString(payload, "text") ?? "Option A";
-            label.fontSize = GetInt(payload, "fontSize") ?? 14;
+            label.fontSize = GetInt(payload, "fontSize", 14);
             label.color = Color.black;
             var labelRect = labelGo.GetComponent<RectTransform>();
             labelRect.anchorMin = Vector2.zero;
@@ -418,7 +418,7 @@ namespace MCP.Editor.Handlers
             arrowGo.transform.SetParent(go.transform, false);
             var arrow = arrowGo.AddComponent<Text>();
             arrow.text = "▼";
-            arrow.fontSize = GetInt(payload, "fontSize") ?? 14;
+            arrow.fontSize = GetInt(payload, "fontSize", 14);
             arrow.color = Color.black;
             arrow.alignment = TextAnchor.MiddleCenter;
             var arrowRect = arrowGo.GetComponent<RectTransform>();
