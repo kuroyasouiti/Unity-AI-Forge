@@ -182,7 +182,8 @@ unity_component_crud({
 unity_scene_crud({
     "operation": "inspect",
     "includeHierarchy": True,
-    "includeComponents": False
+    "includeComponents": True,
+    "filter": "Player*"
 })
 ```
 

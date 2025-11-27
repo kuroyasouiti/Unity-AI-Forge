@@ -1365,7 +1365,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Manage Unity assets and asset operations. Use 'create' to create new files (C# scripts, JSON, XML, config files, etc.). Use 'update' to modify existing file content. Use 'delete', 'rename', 'duplicate', 'inspect' for asset operations. Use 'updateImporter' to change asset import settings. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple'. This tool handles all file creation and editing in Unity projects.",
+            description="Manage Unity assets and asset operations. Use 'create' to create new files (JSON, XML, config files, etc.). Use 'update' to modify existing file content. NOTE: C# script files (.cs) cannot be created/updated - use unity_designPattern_generate, unity_script_template_generate, or code editor tools instead. Use 'delete', 'rename', 'duplicate', 'inspect' for asset operations. Use 'updateImporter' to change asset import settings. Supports wildcard/regex patterns with 'findMultiple', 'deleteMultiple', and 'inspectMultiple'.",
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
@@ -1435,7 +1435,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_await_compilation",
-            description="Wait for Unity compilation to complete without triggering it. Use this when Unity is already compiling (e.g., after script changes detected by file watcher) and you want to wait for the compilation to finish. Returns compilation result with success status, error count, error messages, and console logs from the compilation period. Does NOT start compilation - only waits for ongoing compilation to finish.",
+            description="Wait for Unity compilation to complete. Use AFTER making code changes (via unity_designPattern_generate, unity_script_template_generate, or code editor tools) when you need to ensure compilation finishes before proceeding. Returns compilation status, error count, error messages, and console logs. Typical wait time: 5-30 seconds depending on project size. NOTE: This does NOT start compilation - it only waits for ongoing compilation triggered by Unity's file watcher.",
             inputSchema=await_compilation_schema,
         ),
         types.Tool(
