@@ -4590,40 +4590,6 @@ namespace MCP.Editor
             };
         }
 
-        /// <summary>
-        /// Gets a float value from payload, handling both direct float and nested dictionary cases.
-        /// </summary>
-        private static float? GetFloat(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return null;
-            }
-
-            if (value is double d)
-            {
-                return (float)d;
-            }
-            if (value is float f)
-            {
-                return f;
-            }
-            if (value is int i)
-            {
-                return i;
-            }
-            if (value is long l)
-            {
-                return (float)l;
-            }
-            if (value is string s && float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-            {
-                return parsed;
-            }
-
-            return null;
-        }
-
         private static object HandlePrefabManage(Dictionary<string, object> payload)
         {
             var operation = EnsureValue(GetString(payload, "operation"), "operation");
@@ -6131,81 +6097,6 @@ namespace MCP.Editor
                 ["message"] = "Render pipeline settings updated",
                 ["updatedProperties"] = updatedProperties,
             };
-        }
-
-        private static int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            if (value is int intValue)
-            {
-                return intValue;
-            }
-
-            if (value is long longValue)
-            {
-                return (int)longValue;
-            }
-
-            if (value is double doubleValue)
-            {
-                return (int)doubleValue;
-            }
-
-            if (value is string strValue && int.TryParse(strValue, out var parsed))
-            {
-                return parsed;
-            }
-
-            return defaultValue;
-        }
-
-        private static float GetFloat(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            if (value is float floatValue)
-            {
-                return floatValue;
-            }
-
-            if (value is double doubleValue)
-            {
-                return (float)doubleValue;
-            }
-
-            if (value is int intValue)
-            {
-                return (float)intValue;
-            }
-
-            if (value is long longValue)
-            {
-                return (float)longValue;
-            }
-
-            if (value is string strValue && float.TryParse(strValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-            {
-                return parsed;
-            }
-
-            return defaultValue;
-        }
-
-        private static List<object> GetList(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return null;
-            }
-
-            return value as List<object>;
         }
 
         #region Project Compile
