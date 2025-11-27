@@ -528,6 +528,55 @@ namespace MCP.Editor
                 
                 GUILayout.Space(5f);
                 
+                // Install Path Settings
+                var settings = McpBridgeSettings.Instance;
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    EditorGUILayout.LabelField("Install Path Settings", EditorStyles.boldLabel);
+                    
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField("Install To:", GUILayout.Width(80));
+                        
+                        EditorGUI.BeginChangeCheck();
+                        var newPath = EditorGUILayout.TextField(settings.ServerInstallPath);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            settings.ServerInstallPath = newPath;
+                            RefreshServerManagerStatus();
+                        }
+                    }
+                    
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        if (GUILayout.Button("Default", GUILayout.Width(70)))
+                        {
+                            settings.UseDefaultServerInstallPath();
+                            RefreshServerManagerStatus();
+                            AppendLog($"Reset to default path: {settings.ServerInstallPath}");
+                        }
+                        
+                        if (GUILayout.Button("Browse...", GUILayout.Width(70)))
+                        {
+                            var selected = EditorUtility.OpenFolderPanel("Select Install Directory", 
+                                Path.GetDirectoryName(settings.ServerInstallPath) ?? "", "");
+                            if (!string.IsNullOrEmpty(selected))
+                            {
+                                settings.ServerInstallPath = Path.Combine(selected, "SkillForUnity");
+                                RefreshServerManagerStatus();
+                                AppendLog($"Install path changed to: {settings.ServerInstallPath}");
+                            }
+                        }
+                        
+                        GUILayout.FlexibleSpace();
+                        
+                        EditorGUILayout.LabelField($"Default: {settings.DefaultServerInstallPath}", 
+                            EditorStyles.miniLabel);
+                    }
+                }
+                
+                GUILayout.Space(5f);
+                
                 // Server Operations
                 using (new EditorGUILayout.HorizontalScope())
                 {

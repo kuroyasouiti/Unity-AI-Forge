@@ -18,11 +18,44 @@ namespace MCP.Editor.ServerManager
         
         /// <summary>
         /// ユーザーホームディレクトリのインストール先パス
+        /// McpBridgeSettingsで設定可能
         /// </summary>
         public static string UserInstallPath
         {
             get
             {
+                // Try to get from settings (if available)
+                try
+                {
+                    // Use reflection to get McpBridgeSettings without direct reference
+                    var settingsType = System.Type.GetType("MCP.Editor.McpBridgeSettings, Assembly-CSharp-Editor");
+                    if (settingsType != null)
+                    {
+                        var instanceProp = settingsType.GetProperty("Instance", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                        if (instanceProp != null)
+                        {
+                            var settings = instanceProp.GetValue(null);
+                            if (settings != null)
+                            {
+                                var pathProp = settingsType.GetProperty("ServerInstallPath");
+                                if (pathProp != null)
+                                {
+                                    var path = pathProp.GetValue(settings) as string;
+                                    if (!string.IsNullOrEmpty(path))
+                                    {
+                                        return path;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback to default if settings not available
+                }
+                
+                // Default path
                 var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 return Path.Combine(userProfile, ".claude", "skills", "SkillForUnity");
             }

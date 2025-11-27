@@ -86,22 +86,9 @@ namespace MCP.Editor
         {
             get
             {
-                // Default to local .claude/skills path
-                var localPath = ServerInstallerUtility.GetLocalSkillsPath();
-                if (!string.IsNullOrEmpty(localPath))
-                {
-                    return localPath;
-                }
-
-                // Fallback to global ~/.claude/skills path
-                var globalPath = ServerInstallerUtility.GetGlobalSkillsPath();
-                if (!string.IsNullOrEmpty(globalPath))
-                {
-                    return globalPath;
-                }
-
-                // Final fallback (should not happen)
-                return Path.Combine(Application.dataPath, "..", ".claude", "skills", "SkillForUnity");
+                // Use McpServerManager's default path
+                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return Path.Combine(userProfile, ".claude", "skills", "SkillForUnity");
             }
         }
 
