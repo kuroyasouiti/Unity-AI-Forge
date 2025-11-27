@@ -665,80 +665,116 @@ namespace MCP.Editor
                     
                     GUI.enabled = true;
                 }
-                
-                GUILayout.Space(5f);
-                
-                // Show config file paths
-                if (EditorGUILayout.BeginFoldoutHeaderGroup(false, "Config File Paths"))
-                {
-                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                    {
-                        foreach (AITool tool in Enum.GetValues(typeof(AITool)))
-                        {
-                            var path = McpConfigManager.GetConfigPath(tool);
-                            EditorGUILayout.LabelField(McpConfigManager.GetToolDisplayName(tool), EditorStyles.boldLabel);
-                            EditorGUILayout.SelectableLabel(path, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-                            GUILayout.Space(3f);
-                        }
-                    }
-                }
-                EditorGUILayout.EndFoldoutHeaderGroup();
             }
         }
         
         private void DrawToolRegistrationRow(AITool tool)
         {
-            using (new EditorGUILayout.HorizontalScope())
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                var isRegistered = _registrationStatus != null && _registrationStatus.ContainsKey(tool) && _registrationStatus[tool];
-                var configExists = _configFileStatus != null && _configFileStatus.ContainsKey(tool) && _configFileStatus[tool];
-                
-                // Status icons
-                var registrationIcon = isRegistered ? "✅" : "⭕";
-                var configIcon = configExists ? "📄" : "❌";
-                
-                var displayName = McpConfigManager.GetToolDisplayName(tool);
-                EditorGUILayout.LabelField($"{registrationIcon} {displayName}", GUILayout.Width(180));
-                
-                if (!configExists)
+                using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField($"{configIcon} Config not found", EditorStyles.miniLabel, GUILayout.Width(120));
+                    var isRegistered = _registrationStatus != null && _registrationStatus.ContainsKey(tool) && _registrationStatus[tool];
+                    var configExists = _configFileStatus != null && _configFileStatus.ContainsKey(tool) && _configFileStatus[tool];
+                    
+                    // Status icons
+                    var registrationIcon = isRegistered ? "✅" : "⭕";
+                    var configIcon = configExists ? "📄" : "❌";
+                    
+                    var displayName = McpConfigManager.GetToolDisplayName(tool);
+                    EditorGUILayout.LabelField($"{registrationIcon} {displayName}", EditorStyles.boldLabel, GUILayout.Width(150));
+                    
+                    if (!configExists)
+                    {
+                        EditorGUILayout.LabelField($"{configIcon} Config not found", EditorStyles.miniLabel, GUILayout.Width(120));
+                    }
+                    else if (isRegistered)
+                    {
+                        EditorGUILayout.LabelField($"{configIcon} Registered", EditorStyles.miniLabel, GUILayout.Width(120));
+                    }
+                    else
+                    {
+                        EditorGUILayout.LabelField($"{configIcon} Not registered", EditorStyles.miniLabel, GUILayout.Width(120));
+                    }
+                    
+                    GUILayout.FlexibleSpace();
+                    
+                    GUI.enabled = !_commandRunning;
+                    
+                    if (isRegistered)
+                    {
+                        if (GUILayout.Button("Unregister", GUILayout.Width(90)))
+                        {
+                            ExecuteToolAction(tool, "Unregister", () => McpToolRegistry.Unregister(tool));
+                        }
+                    }
+                    else
+                    {
+                        if (GUILayout.Button("Register", GUILayout.Width(90)))
+                        {
+                            ExecuteToolAction(tool, "Register", () => McpToolRegistry.Register(tool));
+                        }
+                    }
+                    
+                    // Backup button
+                    if (configExists && GUILayout.Button("📦", GUILayout.Width(30)))
+                    {
+                        ExecuteToolAction(tool, "Backup", () => McpConfigManager.BackupConfig(tool));
+                    }
+                    
+                    // Open config file button
+                    if (GUILayout.Button("📂", GUILayout.Width(30)))
+                    {
+                        OpenConfigFile(tool);
+                    }
+                    
+                    GUI.enabled = true;
                 }
-                else if (isRegistered)
+                
+                // Show config file path
+                var configPath = McpConfigManager.GetConfigPath(tool);
+                using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField($"{configIcon} Registered", EditorStyles.miniLabel, GUILayout.Width(120));
+                    EditorGUILayout.LabelField("Path:", GUILayout.Width(35));
+                    EditorGUILayout.SelectableLabel(configPath, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+                }
+                
+                GUILayout.Space(2f);
+            }
+        }
+        
+        private void OpenConfigFile(AITool tool)
+        {
+            try
+            {
+                var path = McpConfigManager.GetConfigPath(tool);
+                var directory = Path.GetDirectoryName(path);
+                
+                if (File.Exists(path))
+                {
+                    // ファイルが存在する場合は開く
+                    System.Diagnostics.Process.Start(path);
+                    AppendLog($"Opened config file: {path}");
+                }
+                else if (Directory.Exists(directory))
+                {
+                    // ファイルはないがディレクトリがある場合はディレクトリを開く
+                    System.Diagnostics.Process.Start(directory);
+                    AppendLog($"Opened config directory: {directory}");
                 }
                 else
                 {
-                    EditorGUILayout.LabelField($"{configIcon} Not registered", EditorStyles.miniLabel, GUILayout.Width(120));
+                    // どちらもない場合
+                    AppendLog($"Config file not found: {path}");
+                    EditorUtility.DisplayDialog("Config Not Found", 
+                        $"Configuration file not found:\n{path}\n\nPlease ensure {McpConfigManager.GetToolDisplayName(tool)} is installed and has been run at least once.", 
+                        "OK");
                 }
-                
-                GUILayout.FlexibleSpace();
-                
-                GUI.enabled = !_commandRunning;
-                
-                if (isRegistered)
-                {
-                    if (GUILayout.Button("Unregister", GUILayout.Width(100)))
-                    {
-                        ExecuteToolAction(tool, "Unregister", () => McpToolRegistry.Unregister(tool));
-                    }
-                }
-                else
-                {
-                    if (GUILayout.Button("Register", GUILayout.Width(100)))
-                    {
-                        ExecuteToolAction(tool, "Register", () => McpToolRegistry.Register(tool));
-                    }
-                }
-                
-                // Backup button
-                if (configExists && GUILayout.Button("📦", GUILayout.Width(30)))
-                {
-                    ExecuteToolAction(tool, "Backup", () => McpConfigManager.BackupConfig(tool));
-                }
-                
-                GUI.enabled = true;
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Failed to open config: {ex.Message}");
+                EditorUtility.DisplayDialog("Error", $"Failed to open config file:\n{ex.Message}", "OK");
             }
         }
         

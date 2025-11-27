@@ -34,8 +34,8 @@ namespace MCP.Editor.ServerManager
             
             return tool switch
             {
-                AITool.Cursor => Path.Combine(appData, "Cursor", "User", "globalStorage", 
-                    "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json"),
+                // Cursorは複数の可能性があるため、FindCursorConfigPath()で検索
+                AITool.Cursor => FindCursorConfigPath(appData),
                     
                 AITool.ClaudeDesktop => Path.Combine(appData, "Claude", "claude_desktop_config.json"),
                 
@@ -47,6 +47,53 @@ namespace MCP.Editor.ServerManager
                     
                 _ => throw new ArgumentException($"Unknown AI tool: {tool}")
             };
+        }
+        
+        /// <summary>
+        /// Cursorの設定ファイルパスを検索
+        /// 複数の可能性を試す
+        /// </summary>
+        private static string FindCursorConfigPath(string appData)
+        {
+            // 可能性1: Cursor独自のMCP設定
+            var path1 = Path.Combine(appData, "Cursor", "User", "globalStorage", "cursor", "mcp.json");
+            if (File.Exists(path1)) return path1;
+            
+            // 可能性2: CursorのグローバルMCP設定
+            var path2 = Path.Combine(appData, "Cursor", "User", "globalStorage", "cursor-mcp", "settings.json");
+            if (File.Exists(path2)) return path2;
+            
+            // 可能性3: Cline統合（Roo Cline）
+            var path3 = Path.Combine(appData, "Cursor", "User", "globalStorage", 
+                "rooveterinaryinc.roo-cline", "settings", "cline_mcp_settings.json");
+            if (File.Exists(path3)) return path3;
+            
+            // 可能性4: Cline統合（saoudrizwan）
+            var path4 = Path.Combine(appData, "Cursor", "User", "globalStorage", 
+                "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json");
+            if (File.Exists(path4)) return path4;
+            
+            // 可能性5: Cursorのsettings.json（メイン設定ファイル）
+            var path5 = Path.Combine(appData, "Cursor", "User", "settings.json");
+            if (File.Exists(path5))
+            {
+                // settings.jsonがあれば、それを使用（mcpServersセクションがあるかチェック）
+                try
+                {
+                    var content = File.ReadAllText(path5);
+                    if (content.Contains("mcpServers"))
+                    {
+                        return path5;
+                    }
+                }
+                catch
+                {
+                    // エラーは無視して次へ
+                }
+            }
+            
+            // デフォルト: Roo Clineのパスを返す（最も一般的）
+            return path3;
         }
         
         /// <summary>
@@ -67,6 +114,8 @@ namespace MCP.Editor.ServerManager
             {
                 var path = GetConfigPath(tool);
                 
+                Debug.Log($"[McpConfigManager] Loading config for {tool} from: {path}");
+                
                 if (!File.Exists(path))
                 {
                     Debug.Log($"[McpConfigManager] Config file not found for {tool}, creating new one.");
@@ -74,7 +123,11 @@ namespace MCP.Editor.ServerManager
                 }
                 
                 var json = File.ReadAllText(path);
-                return JObject.Parse(json);
+                var config = JObject.Parse(json);
+                
+                Debug.Log($"[McpConfigManager] Config loaded successfully for {tool}");
+                
+                return config;
             }
             catch (Exception ex)
             {
