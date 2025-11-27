@@ -239,11 +239,11 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "update", "updateImporter", "delete", "rename", "duplicate", "inspect", "findMultiple", "deleteMultiple", "inspectMultiple"],
-                    "description": "Operation to perform. 'create' creates a new asset file (C# scripts, JSON, XML, config, etc.). 'update' updates existing asset content. 'updateImporter' modifies asset importer settings only. Use 'inspect' to read asset details. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' for bulk operations.",
+                    "description": "Operation to perform. 'create' creates a new asset file (JSON, XML, TXT, config, etc.). 'update' updates existing asset content. NOTE: C# script files (.cs) cannot be created/updated - use code editor tools or designPatternGenerate/scriptTemplateGenerate instead. 'updateImporter' modifies asset importer settings only. Use 'inspect' to read asset details. Use 'findMultiple', 'deleteMultiple', or 'inspectMultiple' with 'pattern' for bulk operations.",
                 },
                 "assetPath": {
                     "type": "string",
-                    "description": "Path under Assets/ for the target asset (e.g., 'Assets/Scripts/Player.cs', 'Assets/Config/settings.json'). Required for create, update, rename, duplicate, inspect, and updateImporter operations.",
+                    "description": "Path under Assets/ for the target asset (e.g., 'Assets/Config/settings.json', 'Assets/Data/items.xml'). Required for create, update, rename, duplicate, inspect, and updateImporter operations.",
                 },
                 "assetGuid": {
                     "type": "string",
@@ -251,7 +251,7 @@ def register_tools(server: Server) -> None:
                 },
                 "content": {
                     "type": "string",
-                    "description": "Text content for the asset file. Required for 'create' and 'update' operations. Use this for C# scripts, JSON, XML, TXT, and other text-based files.",
+                    "description": "Text content for the asset file. Required for 'create' and 'update' operations. Use this for JSON, XML, TXT, and other text-based files. C# scripts (.cs) are NOT supported - use code editor tools instead.",
                 },
                 "destinationPath": {
                     "type": "string",

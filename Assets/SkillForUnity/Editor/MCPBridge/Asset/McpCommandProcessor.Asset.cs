@@ -12,8 +12,9 @@ namespace MCP.Editor
         #region Asset Management
 
         /// <summary>
-        /// Handles asset management operations (updateImporter, delete, rename, duplicate, inspect).
-        /// Note: This does NOT handle file content creation/modification - use Claude Code's file tools for that.
+        /// Handles asset management operations (create, update, updateImporter, delete, rename, duplicate, inspect).
+        /// Note: C# script files (.cs) cannot be created/updated through this tool - use code editor tools instead.
+        /// Supports JSON, XML, TXT, and other text-based asset files.
         /// </summary>
         /// <param name="payload">Operation parameters including 'operation' and asset-specific settings.</param>
         /// <returns>Result dictionary with asset information.</returns>
@@ -57,6 +58,12 @@ namespace MCP.Editor
             var path = EnsureValue(GetString(payload, "assetPath"), "assetPath");
             var content = EnsureValue(GetString(payload, "content"), "content");
 
+            // Reject C# script files - these should be created using code editor tools
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot create .cs files using assetManage. Use designPatternGenerate, scriptTemplateGenerate, or code editor's file creation tools instead.");
+            }
+
             // Ensure parent directory exists
             EnsureDirectoryExists(path);
 
@@ -85,6 +92,12 @@ namespace MCP.Editor
         {
             var path = ResolveAssetPathFromPayload(payload);
             var content = EnsureValue(GetString(payload, "content"), "content");
+
+            // Reject C# script files - these should be edited using code editor tools
+            if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Cannot update .cs files using assetManage. Use code editor's file editing tools (search_replace, write, etc.) instead.");
+            }
 
             // Check if file exists
             if (!File.Exists(path))

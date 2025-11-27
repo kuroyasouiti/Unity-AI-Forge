@@ -722,43 +722,44 @@ Creates, updates, deletes, duplicates, renames, or inspects asset files in the U
 
 Creates a new asset file with specified content.
 
+**IMPORTANT**: C# script files (.cs) cannot be created using this tool. Use the following instead:
+- `designPatternGenerate` for design pattern implementations
+- `scriptTemplateGenerate` for MonoBehaviour/ScriptableObject templates
+- Code editor tools (write, search_replace) for custom scripts
+
 **Payload**:
 ```json
 {
   "operation": "create",
-  "assetPath": "Assets/Scripts/PlayerController.cs",
-  "contents": "using UnityEngine;\n\npublic class PlayerController : MonoBehaviour\n{\n    void Start() { }\n}",
-  "overwrite": false,
-  "metadata": {
-    "author": "UnityMCP",
-    "version": "1.0"
-  }
+  "assetPath": "Assets/Config/settings.json",
+  "content": "{\"volume\": 1.0, \"difficulty\": \"normal\"}",
 }
 ```
 
 **Parameters**:
 - `operation` (string, required): `"create"`
 - `assetPath` (string, required): Full asset path including filename
-- `contents` (string, required): File contents
-- `overwrite` (boolean, optional): If `true`, overwrites existing file. Default: `false`
-- `metadata` (object, optional): Custom metadata (not currently persisted)
+- `content` (string, required): File contents
+- `assetGuid` (string, optional): Asset GUID for precise identification
 
 **Returns**:
 ```json
 {
-  "path": "Assets/Scripts/PlayerController.cs",
-  "created": true
+  "created": "Assets/Config/settings.json",
+  "guid": "abc123...",
+  "size": 42
 }
 ```
 
 **Supported File Types**:
-- Scripts: `.cs`, `.js`, `.shader`
-- Data: `.json`, `.xml`, `.txt`, `.md`
-- Configuration: `.asset`, `.prefab` (as text)
+- Data: `.json`, `.xml`, `.txt`, `.md`, `.yaml`, `.csv`
+- Configuration: `.ini`, `.cfg`, `.conf`
+- Shaders: `.shader`, `.cginc`, `.hlsl`
+- Other text files (NOT .cs files)
 
 **Example**:
 ```
-Create a new C# script at Assets/Scripts/EnemyAI.cs with basic MonoBehaviour structure
+Create a new JSON config file at Assets/Config/GameSettings.json with default settings
 ```
 
 ---
@@ -767,25 +768,29 @@ Create a new C# script at Assets/Scripts/EnemyAI.cs with basic MonoBehaviour str
 
 Modifies the contents of an existing asset file.
 
+**IMPORTANT**: C# script files (.cs) cannot be updated using this tool. Use code editor tools (search_replace, write) instead for proper syntax highlighting and IDE integration.
+
 **Payload**:
 ```json
 {
   "operation": "update",
   "assetPath": "Assets/Config/settings.json",
-  "contents": "{\"volume\": 0.8, \"difficulty\": \"hard\"}"
+  "content": "{\"volume\": 0.8, \"difficulty\": \"hard\"}"
 }
 ```
 
 **Parameters**:
 - `operation` (string, required): `"update"`
 - `assetPath` (string, required): Path to existing asset
-- `contents` (string, required): New file contents
+- `assetGuid` (string, optional): Asset GUID (alternative to assetPath)
+- `content` (string, required): New file contents
 
 **Returns**:
 ```json
 {
-  "path": "Assets/Config/settings.json",
-  "updated": true
+  "updated": "Assets/Config/settings.json",
+  "guid": "abc123...",
+  "size": 45
 }
 ```
 
