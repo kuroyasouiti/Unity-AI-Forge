@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using MCP.Editor.Base;
@@ -11,19 +12,26 @@ namespace MCP.Editor.Handlers
     /// Handles vector to sprite conversion operations for rapid prototyping.
     /// Supports SVG import, primitive shape generation, and vector graphics conversion.
     /// </summary>
-    public class VectorSpriteConvertHandler : ICommandHandler
+    public class VectorSpriteConvertHandler : BaseCommandHandler
     {
-        public string CommandName => "vectorSpriteConvert";
-
-        public Dictionary<string, object> Execute(Dictionary<string, object> payload)
+        #region ICommandHandler Implementation
+        
+        public override string Category => "sprite";
+        
+        public override IEnumerable<string> SupportedOperations => new[]
         {
-            if (!payload.TryGetValue("operation", out var operationObj))
-            {
-                throw new ArgumentException("Missing required parameter: operation");
-            }
-
-            string operation = operationObj.ToString();
-
+            "primitiveToSprite",
+            "svgToSprite",
+            "textureToSprite",
+            "createColorSprite"
+        };
+        
+        #endregion
+        
+        #region BaseCommandHandler Overrides
+        
+        protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
+        {
             switch (operation)
             {
                 case "primitiveToSprite":
@@ -38,6 +46,10 @@ namespace MCP.Editor.Handlers
                     throw new ArgumentException($"Unknown operation: {operation}");
             }
         }
+        
+        #endregion
+        
+        #region Operation Methods
 
         /// <summary>
         /// Creates a sprite from primitive shapes (circle, square, triangle, polygon).
@@ -492,6 +504,8 @@ namespace MCP.Editor.Handlers
             return true;
         }
 
+        #endregion
+        
         #endregion
     }
 }
