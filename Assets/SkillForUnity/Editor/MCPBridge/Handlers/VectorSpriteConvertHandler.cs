@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using MCP.Editor.Base;
 
-namespace SkillForUnity.MCPBridge.Handlers
+namespace MCP.Editor.Handlers
 {
     /// <summary>
     /// Handles vector to sprite conversion operations for rapid prototyping.
