@@ -34,10 +34,97 @@ namespace MCP.Editor.Handlers
         
         #region BaseCommandHandler Overrides
         
+        protected override void ValidatePayload(Dictionary<string, object> payload)
+        {
+            // Template tools don't require 'operation' parameter
+            // They are invoked by tool name directly
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload), "Payload cannot be null");
+            }
+        }
+        
         protected override bool RequiresCompilationWait(string operation)
         {
             // All template operations modify the project
             return true;
+        }
+        
+        public override object Execute(Dictionary<string, object> payload)
+        {
+            try
+            {
+                // 1. Validate payload
+                ValidatePayload(payload);
+                
+                // 2. Template tools use the tool name itself as the operation
+                // Determine which operation based on SupportedOperations or explicit parameter
+                string operation = null;
+                
+                // Check for explicit operation parameter (e.g., from templateManage)
+                if (payload.ContainsKey("operation") && payload["operation"] != null)
+                {
+                    var explicitOp = payload["operation"].ToString();
+                    // If operation is a sub-operation of templateManage (customize, convertToPrefab),
+                    // route to templateManage handler
+                    if (explicitOp == "customize" || explicitOp == "convertToPrefab")
+                    {
+                        operation = "templateManage";
+                    }
+                    else
+                    {
+                        operation = explicitOp;
+                    }
+                }
+                else
+                {
+                    // Determine operation from context
+                    // Priority: template > patternType > templateType > setupType > menuStructure
+                    if (payload.ContainsKey("template"))
+                    {
+                        operation = "gameObjectCreateFromTemplate";
+                    }
+                    else if (payload.ContainsKey("patternType"))
+                    {
+                        operation = "designPatternGenerate";
+                    }
+                    else if (payload.ContainsKey("templateType"))
+                    {
+                        operation = "scriptTemplateGenerate";
+                    }
+                    else if (payload.ContainsKey("setupType"))
+                    {
+                        operation = "sceneQuickSetup";
+                    }
+                    else if (payload.ContainsKey("menuStructure"))
+                    {
+                        operation = "menuHierarchyCreate";
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            "Cannot determine operation. Expected one of: template, patternType, templateType, setupType, menuStructure, or operation parameter");
+                    }
+                }
+                
+                // 3. Verify operation is supported
+                if (!SupportedOperations.Contains(operation))
+                {
+                    throw new InvalidOperationException(
+                        $"Operation '{operation}' is not supported by {Category} handler. " +
+                        $"Supported operations: {string.Join(", ", SupportedOperations)}"
+                    );
+                }
+                
+                // 4. Execute operation
+                var result = ExecuteOperation(operation, payload);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResponse(ex);
+            }
         }
         
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)

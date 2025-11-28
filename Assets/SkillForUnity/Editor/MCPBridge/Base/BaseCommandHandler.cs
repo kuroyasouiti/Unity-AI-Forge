@@ -78,7 +78,7 @@ namespace MCP.Editor.Base
         public virtual string Version => "1.0.0";
         
         /// <inheritdoc/>
-        public object Execute(Dictionary<string, object> payload)
+        public virtual object Execute(Dictionary<string, object> payload)
         {
             try
             {
