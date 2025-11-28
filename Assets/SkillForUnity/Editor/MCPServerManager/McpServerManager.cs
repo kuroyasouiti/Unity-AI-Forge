@@ -14,7 +14,7 @@ namespace MCP.Editor.ServerManager
         public const string ServerName = "skill-for-unity";
         
         // バージョン
-        public const string Version = "1.6.0";
+        public const string Version = "1.7.1";
         
         /// <summary>
         /// ユーザーホームディレクトリのインストール先パス

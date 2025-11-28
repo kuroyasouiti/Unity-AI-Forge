@@ -44,7 +44,6 @@ namespace MCP.Editor
             public string UnregisterArgs { get; }
         }
 
-        [MenuItem("Tools/MCP Assistant")]
         [MenuItem("Skill for Unity/MCP Assistant")]
         public static void ShowWindow()
         {
