@@ -485,8 +485,8 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["enumToValue", "valueToEnum", "colorToRGBA", "rgbaToColor", "layerToIndex", "indexToLayer", "listEnums", "listColors", "listLayers"],
-                    "description": "Operation to perform. 'enumToValue' converts enum name to numeric value, 'valueToEnum' converts numeric value to enum name, 'colorToRGBA' converts Unity color name to RGBA values, 'rgbaToColor' converts RGBA values to nearest color name, 'layerToIndex' converts layer name to index, 'indexToLayer' converts layer index to name, 'listEnums' lists all enum values, 'listColors' lists all Unity built-in colors, 'listLayers' lists all layers.",
+                    "enum": ["enumToValue", "valueToEnum", "colorToRGBA", "rgbaToColor", "layerToIndex", "indexToLayer", "listEnums", "listCommonEnums", "listColors", "listLayers"],
+                    "description": "Operation to perform. 'enumToValue' converts enum name to numeric value, 'valueToEnum' converts numeric value to enum name, 'colorToRGBA' converts Unity color name to RGBA values, 'rgbaToColor' converts RGBA values to nearest color name, 'layerToIndex' converts layer name to index, 'indexToLayer' converts layer index to name, 'listEnums' lists all values for a specific enum type, 'listCommonEnums' lists commonly used Unity enum types by category, 'listColors' lists all Unity built-in colors, 'listLayers' lists all layers.",
                 },
                 "enumType": {
                     "type": "string",

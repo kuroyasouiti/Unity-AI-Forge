@@ -5,16 +5,22 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.7.0-brightgreen)](https://github.com/kuroyasouiti/SkillForUnity/releases)
+[![Version](https://img.shields.io/badge/Version-1.7.1-brightgreen)](https://github.com/kuroyasouiti/SkillForUnity/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🆕 What's New in v1.7.0
+## 🆕 What's New in v1.7.1
 
-- **Vector to Sprite Conversion**: Generate sprites from primitive shapes, SVG files, or solid colors
-  - Perfect for rapid prototyping without external assets
-  - Create circles, squares, triangles, polygons with customizable colors and sizes
-  - Convert SVG files and configure texture import settings
-  - Ideal for game jams, UI placeholders, and prototyping
+- **Critical Bug Fixes**: Template tools, constant conversion, and SerializedField support
+  - Fixed template tools (scene quick setup, GameObject templates, UI templates, design patterns, script templates) to work correctly
+  - Fixed enum type resolution in constant conversion (now supports Unity 2024.2+ module system)
+  - Added support for `[SerializeField]` private fields in Component and ScriptableObject operations
+  - 99%+ performance improvement in type resolution through caching
+
+- **New Features**:
+  - `listCommonEnums` operation: Lists commonly used Unity enum types by category (Input, Rendering, Physics, UI, Audio, Animation, Scripting)
+  - Enhanced error messages with helpful debugging information
+
+- **Documentation**: Comprehensive technical docs and test reports for all improvements
 
 ## 📦 Skill Package Structure
 

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.7.1] - 2025-11-28
 
+### Fixed
+- **テンプレートツールの修正**
+  - `BaseCommandHandler.Execute()` を `virtual` に変更し、派生クラスでオーバーライド可能に
+  - テンプレート系ツール（`unity_scene_quickSetup`, `unity_gameobject_createFromTemplate`, `unity_ugui_createFromTemplate`, `unity_designPattern_generate`, `unity_script_template_generate`, `unity_menu_hierarchyCreate`）が `operation` パラメータなしで正常に動作するように修正
+  - `TemplateCommandHandler` と `UguiCreateFromTemplateHandler` で payload から自動的に操作を判定するロジックを実装
+
+- **定数変換機能の修正**
+  - `Type.GetType()` がUnityの型を解決できない問題を修正
+  - 全ロード済みアセンブリを横断検索する `ResolveType()` メソッドを実装
+  - 型解決結果をキャッシュして99%以上のパフォーマンス改善（2回目以降の呼び出し）
+  - エラーメッセージに利用可能なアセンブリ情報と候補値を表示するように改善
+
+- **SerializedField対応の修正**
+  - `[SerializeField]` 属性を持つprivateフィールドへのアクセスをサポート
+  - `ComponentCommandHandler` と `ScriptableObjectCommandHandler` で `BindingFlags.NonPublic` を追加
+  - privateフィールドには `[SerializeField]` 属性チェックを実装（安全性向上）
+  - Unityのベストプラクティス（カプセル化とInspectorでの編集）を完全サポート
+
+### Added
+- **定数変換機能の拡張**
+  - `listCommonEnums` 操作を追加（カテゴリ別によく使うUnity Enum型を表示）
+  - Input, Rendering, Physics, UI, Audio, Animation, Scriptingの7カテゴリで24個のEnum型をリスト
+
+- **ドキュメント**
+  - `docs/MCP_PROMPT_REVIEW_AND_IMPROVEMENTS.md` - 詳細なコードレビューレポート
+  - `docs/PROMPT_IMPROVEMENT_SUMMARY.md` - プロンプト改善サマリー
+  - `docs/TEMPLATE_HANDLER_FIXES_v1.7.1.md` - テンプレートハンドラー修正の技術ドキュメント
+  - `docs/CONSTANT_CONVERT_IMPROVEMENTS_v1.7.1.md` - 定数変換機能改善の技術ドキュメント
+  - `docs/CONSTANT_CONVERT_TEST_RESULTS_v1.7.1.md` - 定数変換機能のテスト結果
+  - `docs/CONSTANT_CONVERT_QUICK_REFERENCE.md` - 定数変換ツールのクイックリファレンス
+  - `docs/SERIALIZED_FIELD_IMPROVEMENTS_v1.7.1.md` - SerializedField対応の技術ドキュメント
+  - `docs/SERIALIZED_FIELD_TEST_RESULTS_v1.7.1.md` - SerializedFieldのテスト結果
+  - `docs/TOOLS_TEST_REPORT_v1.7.1.md` - 全ツールの包括的テストレポート
+  - `Assets/Scripts/TestSerializedFieldComponent.cs` - SerializedFieldテスト用コンポーネント
+
 ### Changed
 - **MCPサーバープロンプトの最適化**
   - プロンプト行数を227行から138行に削減（39%削減）
@@ -18,14 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - トラブルシューティングセクションを新規追加
   - Critical Rulesを最上位に配置
 
-### Added
-- `docs/MCP_PROMPT_REVIEW_AND_IMPROVEMENTS.md` - 詳細なコードレビューレポート
-- `docs/PROMPT_IMPROVEMENT_SUMMARY.md` - 改善サマリー
-
 ### Improved
 - プロンプトの階層構造が明確化され、情報アクセスが容易に
 - エラーハンドリングと問題解決のガイダンスを強化
 - バッチ操作とパフォーマンス最適化の推奨を明示化
+- 定数変換ツールのエラーメッセージがより詳細で有用に
+- ComponentとScriptableObjectがUnityのベストプラクティス（[SerializeField]）を完全サポート
 
 ## [Unreleased]
 

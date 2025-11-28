@@ -18,6 +18,7 @@ namespace MCP.Editor.Handlers.Settings
             "enumToValue",
             "valueToEnum",
             "listEnums",
+            "listCommonEnums",
             // Color conversions
             "colorToRGBA",
             "rgbaToColor",
@@ -40,6 +41,7 @@ namespace MCP.Editor.Handlers.Settings
                 "enumToValue" => ConvertEnumToValue(payload),
                 "valueToEnum" => ConvertValueToEnum(payload),
                 "listEnums" => ListEnumValues(payload),
+                "listCommonEnums" => ListCommonEnumTypes(),
                 // Color conversions
                 "colorToRGBA" => ConvertColorToRGBA(payload),
                 "rgbaToColor" => ConvertRGBAToColor(payload),
@@ -121,6 +123,23 @@ namespace MCP.Editor.Handlers.Settings
                 ["enumType"] = enumTypeName,
                 ["values"] = enumValues,
                 ["count"] = enumValues.Count,
+                ["success"] = true
+            };
+        }
+        
+        private object ListCommonEnumTypes()
+        {
+            var commonEnums = McpConstantConverter.ListCommonUnityEnums();
+            var totalCount = 0;
+            foreach (var category in commonEnums.Values)
+            {
+                totalCount += category.Count;
+            }
+            
+            return new Dictionary<string, object>
+            {
+                ["categories"] = commonEnums,
+                ["totalCount"] = totalCount,
                 ["success"] = true
             };
         }

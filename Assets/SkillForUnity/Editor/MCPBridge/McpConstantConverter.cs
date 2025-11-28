@@ -11,6 +11,45 @@ namespace MCP.Editor
     /// </summary>
     internal static class McpConstantConverter
     {
+        // Cache for resolved types to improve performance
+        private static readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+        
+        /// <summary>
+        /// Resolves a type by name, searching through all loaded assemblies.
+        /// Supports both simple names (e.g., "UnityEngine.KeyCode") and assembly-qualified names.
+        /// </summary>
+        private static Type ResolveType(string typeName)
+        {
+            if (_typeCache.TryGetValue(typeName, out var cachedType))
+            {
+                return cachedType;
+            }
+            
+            // Try simple Type.GetType first
+            var type = Type.GetType(typeName);
+            
+            // If not found, search through all loaded assemblies
+            if (type == null)
+            {
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    type = assembly.GetType(typeName);
+                    if (type != null)
+                    {
+                        break;
+                    }
+                }
+            }
+            
+            // Cache the result (even if null) to avoid repeated searches
+            if (type != null)
+            {
+                _typeCache[typeName] = type;
+            }
+            
+            return type;
+        }
+        
         /// <summary>
         /// Converts an enum value name to its numeric value.
         /// </summary>
@@ -20,15 +59,28 @@ namespace MCP.Editor
         /// <exception cref="ArgumentException">Thrown when enum type or value is not found</exception>
         public static int EnumNameToValue(string enumTypeName, string enumValueName)
         {
-            var enumType = Type.GetType(enumTypeName);
+            var enumType = ResolveType(enumTypeName);
             if (enumType == null || !enumType.IsEnum)
             {
-                throw new ArgumentException($"Enum type '{enumTypeName}' not found");
+                // Provide helpful error message with available assemblies
+                var assemblies = string.Join(", ", AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(a => a.GetName().Name.Contains("Unity"))
+                    .Select(a => a.GetName().Name)
+                    .Take(5));
+                throw new ArgumentException(
+                    $"Enum type '{enumTypeName}' not found. " +
+                    $"Available Unity assemblies: {assemblies}. " +
+                    $"Use fully qualified name or check spelling."
+                );
             }
 
             if (!Enum.IsDefined(enumType, enumValueName))
             {
-                throw new ArgumentException($"Enum value '{enumValueName}' not found in type '{enumTypeName}'");
+                var availableValues = string.Join(", ", Enum.GetNames(enumType).Take(10));
+                throw new ArgumentException(
+                    $"Enum value '{enumValueName}' not found in type '{enumTypeName}'. " +
+                    $"Available values (first 10): {availableValues}"
+                );
             }
 
             return (int)Enum.Parse(enumType, enumValueName);
@@ -43,7 +95,7 @@ namespace MCP.Editor
         /// <exception cref="ArgumentException">Thrown when enum type is not found</exception>
         public static string EnumValueToName(string enumTypeName, int numericValue)
         {
-            var enumType = Type.GetType(enumTypeName);
+            var enumType = ResolveType(enumTypeName);
             if (enumType == null || !enumType.IsEnum)
             {
                 throw new ArgumentException($"Enum type '{enumTypeName}' not found");
@@ -181,7 +233,7 @@ namespace MCP.Editor
         /// <exception cref="ArgumentException">Thrown when enum type is not found</exception>
         public static Dictionary<string, int> ListEnumValues(string enumTypeName)
         {
-            var enumType = Type.GetType(enumTypeName);
+            var enumType = ResolveType(enumTypeName);
             if (enumType == null || !enumType.IsEnum)
             {
                 throw new ArgumentException($"Enum type '{enumTypeName}' not found");
@@ -236,6 +288,62 @@ namespace MCP.Editor
             var db = c1.b - c2.b;
             var da = c1.a - c2.a;
             return Mathf.Sqrt(dr * dr + dg * dg + db * db + da * da);
+        }
+        
+        /// <summary>
+        /// Lists commonly used Unity enum types for quick reference.
+        /// </summary>
+        /// <returns>Dictionary mapping category names to enum type names</returns>
+        public static Dictionary<string, List<string>> ListCommonUnityEnums()
+        {
+            return new Dictionary<string, List<string>>
+            {
+                ["Input"] = new List<string>
+                {
+                    "UnityEngine.KeyCode",
+                    "UnityEngine.TouchPhase",
+                    "UnityEngine.IMECompositionMode"
+                },
+                ["Rendering"] = new List<string>
+                {
+                    "UnityEngine.RenderingPath",
+                    "UnityEngine.LightType",
+                    "UnityEngine.LightShadows",
+                    "UnityEngine.ShadowQuality",
+                    "UnityEngine.ColorSpace",
+                    "UnityEngine.CameraClearFlags"
+                },
+                ["Physics"] = new List<string>
+                {
+                    "UnityEngine.CollisionDetectionMode",
+                    "UnityEngine.RigidbodyConstraints",
+                    "UnityEngine.ForceMode"
+                },
+                ["UI"] = new List<string>
+                {
+                    "UnityEngine.TextAnchor",
+                    "UnityEngine.FontStyle",
+                    "UnityEngine.UI.Image+Type",
+                    "UnityEngine.UI.Image+FillMethod"
+                },
+                ["Audio"] = new List<string>
+                {
+                    "UnityEngine.AudioRolloffMode",
+                    "UnityEngine.AudioVelocityUpdateMode"
+                },
+                ["Animation"] = new List<string>
+                {
+                    "UnityEngine.AnimatorCullingMode",
+                    "UnityEngine.AnimatorUpdateMode",
+                    "UnityEngine.WrapMode"
+                },
+                ["Scripting"] = new List<string>
+                {
+                    "UnityEngine.RuntimePlatform",
+                    "UnityEngine.HideFlags",
+                    "UnityEngine.Space"
+                }
+            };
         }
     }
 }

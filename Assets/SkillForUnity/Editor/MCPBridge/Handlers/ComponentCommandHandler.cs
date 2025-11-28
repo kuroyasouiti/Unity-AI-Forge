@@ -515,6 +515,7 @@ namespace MCP.Editor.Handlers
         private List<string> ApplyPropertyChanges(Component component, Dictionary<string, object> propertyChanges)
         {
             var updated = new List<string>();
+            var failed = new List<string>();
             var type = component.GetType();
             
             foreach (var kvp in propertyChanges)
@@ -532,16 +533,25 @@ namespace MCP.Editor.Handlers
                     continue;
                 }
                 
-                // Try field
-                var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.Instance);
+                // Try field (including private fields with [SerializeField] attribute)
+                var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (field != null)
                 {
+                    // For private fields, require SerializeField attribute
+                    if (!field.IsPublic && field.GetCustomAttribute<SerializeField>() == null)
+                    {
+                        Debug.LogWarning($"Private field '{propertyName}' on {type.Name} is not marked with [SerializeField]");
+                        failed.Add(propertyName);
+                        continue;
+                    }
+                    
                     var convertedValue = ConvertValue(value, field.FieldType);
                     field.SetValue(component, convertedValue);
                     updated.Add(propertyName);
                     continue;
                 }
                 
+                failed.Add(propertyName);
                 Debug.LogWarning($"Property or field '{propertyName}' not found on {type.Name}");
             }
             
@@ -578,8 +588,11 @@ namespace MCP.Editor.Handlers
                 }
             }
             
-            // Serialize public fields
-            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            // Serialize public fields and private fields with [SerializeField] attribute
+            var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Where(f => f.IsPublic || f.GetCustomAttribute<SerializeField>() != null);
+            
+            foreach (var field in fields)
             {
                 if (propertyFilter != null && !propertyFilter.Contains(field.Name))
                     continue;

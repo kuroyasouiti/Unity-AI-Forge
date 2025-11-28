@@ -497,10 +497,16 @@ namespace MCP.Editor.Handlers
                 return;
             }
             
-            // Try field
-            var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.Instance);
+            // Try field (including private fields with [SerializeField] attribute)
+            var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             if (field != null)
             {
+                // For private fields, require SerializeField attribute
+                if (!field.IsPublic && field.GetCustomAttribute<SerializeField>() == null)
+                {
+                    throw new InvalidOperationException($"Private field '{propertyName}' on type {type.Name} is not marked with [SerializeField]");
+                }
+                
                 var convertedValue = ConvertPropertyValue(value, field.FieldType);
                 field.SetValue(obj, convertedValue);
                 return;
@@ -537,8 +543,11 @@ namespace MCP.Editor.Handlers
                 }
             }
             
-            // Serialize public fields
-            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            // Serialize public fields and private fields with [SerializeField] attribute
+            var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Where(f => f.IsPublic || f.GetCustomAttribute<SerializeField>() != null);
+            
+            foreach (var field in fields)
             {
                 if (propertyFilter != null && !propertyFilter.Contains(field.Name))
                     continue;
