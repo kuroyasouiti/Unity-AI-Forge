@@ -14,10 +14,11 @@ Complete reference for all MCP tools available in SkillForUnity.
 4. [Component Manage](#component-manage)
 5. [Asset Manage](#asset-manage)
 6. [ScriptableObject Manage](#scriptableobject-manage)
-7. [uGUI RectTransform Adjustment](#ugui-recttransform-adjustment)
-8. [Script Management](#script-management)
-9. [Error Handling](#error-handling)
-10. [Best Practices](#best-practices)
+7. [Vector Sprite Conversion](#vector-sprite-conversion)
+8. [uGUI RectTransform Adjustment](#ugui-recttransform-adjustment)
+9. [Script Management](#script-management)
+10. [Error Handling](#error-handling)
+11. [Best Practices](#best-practices)
 
 ---
 
@@ -1278,6 +1279,191 @@ Find all ScriptableObjects of type GameConfig in the project, including their pr
 - Use `propertyFilter` to limit which properties are returned for better performance
 - When searching for abstract types, a note is included in the response
 - Use pagination with `maxResults` and `offset` for large datasets
+
+---
+
+## Vector Sprite Conversion
+
+### `vectorSpriteConvert`
+
+Convert vector data to sprites for rapid prototyping. Generate sprites from primitive shapes, SVG files, or solid colors without external assets. Perfect for game jams, prototyping, and placeholder graphics.
+
+### Operations
+
+#### primitiveToSprite
+
+Creates a sprite from primitive geometric shapes (circle, square, triangle, polygon).
+
+**Payload**:
+```json
+{
+  "operation": "primitiveToSprite",
+  "primitiveType": "circle",
+  "width": 256,
+  "height": 256,
+  "color": {"r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0},
+  "outputPath": "Assets/Sprites/RedCircle.png",
+  "sides": 6
+}
+```
+
+**Parameters**:
+- `operation` (string, required): `"primitiveToSprite"`
+- `primitiveType` (string, required): Shape type - `"circle"`, `"square"`, `"rectangle"`, `"triangle"`, `"polygon"`
+- `width` (integer, optional): Width in pixels. Default: 256
+- `height` (integer, optional): Height in pixels. Default: 256
+- `color` (object/string, optional): Color as object `{r, g, b, a}` (0-1 range) or hex string `"#FF0000"`. Default: white
+- `outputPath` (string, required): Output path (must start with `Assets/` and end with `.png`)
+- `sides` (integer, optional): Number of sides for polygon. Default: 6
+
+**Returns**:
+```json
+{
+  "success": true,
+  "spritePath": "Assets/Sprites/RedCircle.png",
+  "primitiveType": "circle",
+  "size": {"width": 256, "height": 256},
+  "spriteGuid": "abc123..."
+}
+```
+
+**Example**:
+```
+Create a red circle sprite at Assets/Sprites/PlayerIcon.png
+```
+
+---
+
+#### svgToSprite
+
+Converts an SVG file to a Unity sprite with proper import settings.
+
+**Payload**:
+```json
+{
+  "operation": "svgToSprite",
+  "svgPath": "Assets/Vectors/Icon.svg",
+  "outputPath": "Assets/Sprites/Icon.png",
+  "width": 512,
+  "height": 512
+}
+```
+
+**Parameters**:
+- `operation` (string, required): `"svgToSprite"`
+- `svgPath` (string, required): Path to SVG file in project
+- `outputPath` (string, required): Output path for sprite
+- `width` (integer, optional): Rasterization width. Default: 256
+- `height` (integer, optional): Rasterization height. Default: 256
+
+**Returns**:
+```json
+{
+  "success": true,
+  "spritePath": "Assets/Sprites/Icon.png",
+  "svgSourcePath": "Assets/Vectors/Icon.svg",
+  "spriteGuid": "def456..."
+}
+```
+
+**Requirements**:
+- Unity 2021.2+ for SVG support
+- SVG file must be in the project
+
+---
+
+#### textureToSprite
+
+Configures an existing texture as a sprite with proper import settings.
+
+**Payload**:
+```json
+{
+  "operation": "textureToSprite",
+  "texturePath": "Assets/Textures/Character.png",
+  "pixelsPerUnit": 100,
+  "filterMode": "point"
+}
+```
+
+**Parameters**:
+- `operation` (string, required): `"textureToSprite"`
+- `texturePath` (string, required): Path to texture file
+- `pixelsPerUnit` (number, optional): Pixels per unit setting
+- `filterMode` (string, optional): Filter mode - `"point"`, `"bilinear"`, `"trilinear"`. Default: `"bilinear"`
+
+**Returns**:
+```json
+{
+  "success": true,
+  "spritePath": "Assets/Textures/Character.png",
+  "spriteGuid": "ghi789..."
+}
+```
+
+---
+
+#### createColorSprite
+
+Creates a solid color sprite. Useful for UI placeholders and prototyping.
+
+**Payload**:
+```json
+{
+  "operation": "createColorSprite",
+  "width": 64,
+  "height": 64,
+  "color": {"r": 0.5, "g": 0.5, "b": 0.5, "a": 1.0},
+  "outputPath": "Assets/UI/Placeholder.png"
+}
+```
+
+**Parameters**:
+- `operation` (string, required): `"createColorSprite"`
+- `width` (integer, optional): Width in pixels. Default: 256
+- `height` (integer, optional): Height in pixels. Default: 256
+- `color` (object/string, optional): Solid color. Default: white
+- `outputPath` (string, required): Output path
+
+**Returns**:
+```json
+{
+  "success": true,
+  "spritePath": "Assets/UI/Placeholder.png",
+  "size": {"width": 64, "height": 64},
+  "color": {"r": 0.5, "g": 0.5, "b": 0.5, "a": 1.0},
+  "spriteGuid": "jkl012..."
+}
+```
+
+**Example**:
+```
+Create a gray placeholder sprite at Assets/UI/ButtonBackground.png
+```
+
+---
+
+### Common Use Cases
+
+**Rapid Prototyping**:
+```
+Generate circle, square, and triangle sprites for a puzzle game prototype
+```
+
+**UI Placeholders**:
+```
+Create solid color sprites for button backgrounds and panel fills
+```
+
+**Game Jam Assets**:
+```
+Generate geometric shapes in different colors for quick game objects
+```
+
+**Icon Generation**:
+```
+Create simple icon sprites from primitive shapes
+```
 
 ---
 

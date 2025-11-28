@@ -1346,6 +1346,73 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    vector_sprite_convert_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["primitiveToSprite", "svgToSprite", "textureToSprite", "createColorSprite"],
+                    "description": "Operation to perform. 'primitiveToSprite' creates sprite from primitive shapes (circle, square, triangle, polygon), 'svgToSprite' converts SVG to sprite, 'textureToSprite' converts texture to sprite with proper import settings, 'createColorSprite' creates solid color sprite for prototyping.",
+                },
+                "primitiveType": {
+                    "type": "string",
+                    "enum": ["circle", "square", "rectangle", "triangle", "polygon"],
+                    "description": "Type of primitive shape to generate. Used with 'primitiveToSprite' operation.",
+                },
+                "width": {
+                    "type": "integer",
+                    "description": "Width of the generated sprite in pixels. Default: 256.",
+                },
+                "height": {
+                    "type": "integer",
+                    "description": "Height of the generated sprite in pixels. Default: 256.",
+                },
+                "color": {
+                    "description": "Color for the sprite. Can be a dictionary with r, g, b, a keys (0-1 range) or a hex color string (e.g., '#FF0000'). Default: white.",
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "r": {"type": "number", "minimum": 0, "maximum": 1},
+                                "g": {"type": "number", "minimum": 0, "maximum": 1},
+                                "b": {"type": "number", "minimum": 0, "maximum": 1},
+                                "a": {"type": "number", "minimum": 0, "maximum": 1},
+                            },
+                        },
+                        {"type": "string"},
+                    ],
+                },
+                "outputPath": {
+                    "type": "string",
+                    "description": "Output path for the generated sprite (must start with 'Assets/' and end with '.png'). Required for all operations except 'textureToSprite'.",
+                },
+                "sides": {
+                    "type": "integer",
+                    "description": "Number of sides for polygon primitive. Default: 6. Used with 'primitiveToSprite' operation when primitiveType is 'polygon'.",
+                },
+                "svgPath": {
+                    "type": "string",
+                    "description": "Path to the SVG file to convert. Required for 'svgToSprite' operation.",
+                },
+                "texturePath": {
+                    "type": "string",
+                    "description": "Path to the texture file to convert to sprite. Required for 'textureToSprite' operation.",
+                },
+                "pixelsPerUnit": {
+                    "type": "number",
+                    "description": "Pixels per unit for sprite. Used with 'textureToSprite' operation. Default: Unity's default value.",
+                },
+                "filterMode": {
+                    "type": "string",
+                    "enum": ["point", "bilinear", "trilinear"],
+                    "description": "Filter mode for sprite texture. Used with 'textureToSprite' operation. Default: 'bilinear'.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     tool_definitions = [
         types.Tool(
             name="unity_ping",
@@ -1466,6 +1533,11 @@ def register_tools(server: Server) -> None:
             name="unity_scriptableObject_crud",
             description="Manage Unity ScriptableObject assets. Create new ScriptableObject instances with initial property values, inspect existing assets with optional property filtering, update property values, delete assets, duplicate assets to create copies, list all ScriptableObjects in a folder with optional type filtering, and find ScriptableObjects by type including derived types. Supports both asset path and GUID-based identification for precise asset management.",
             inputSchema=scriptable_object_manage_schema,
+        ),
+        types.Tool(
+            name="unity_vectorSprite_convert",
+            description="Convert vector data to sprites for rapid prototyping. Generate sprites from primitive shapes (circle, square, triangle, polygon), convert SVG files to sprites, configure existing textures as sprites, or create solid color sprites for UI placeholders. Perfect for prototyping without external assets.",
+            inputSchema=vector_sprite_convert_schema,
         ),
     ]
 
@@ -1635,6 +1707,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_scriptableObject_crud":
             return await _call_bridge_tool("scriptableObjectManage", args)
+
+        if name == "unity_vectorSprite_convert":
+            return await _call_bridge_tool("vectorSpriteConvert", args)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
 

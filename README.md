@@ -5,17 +5,16 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.6.0-brightgreen)](https://github.com/kuroyasouiti/SkillForUnity/releases)
+[![Version](https://img.shields.io/badge/Version-1.7.0-brightgreen)](https://github.com/kuroyasouiti/SkillForUnity/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🆕 What's New in v1.6.0
+## 🆕 What's New in v1.7.0
 
-- **Integrated Server Manager**: Install/manage MCP server directly from Unity Editor
-- **AI Tool Registration**: Direct JSON configuration editing for Cursor, Claude Desktop, Cline, Windsurf
-- **User-Configurable Install Path**: Customize server installation location with UI
-- **Cursor Auto-Detection**: Intelligent configuration file path detection (5 locations)
-- **Unified MCP Assistant**: Single window for all MCP management (Tools > MCP Assistant)
-- **Default Path Simplified**: Changed to `~/SkillForUnity` (fully customizable)
+- **Vector to Sprite Conversion**: Generate sprites from primitive shapes, SVG files, or solid colors
+  - Perfect for rapid prototyping without external assets
+  - Create circles, squares, triangles, polygons with customizable colors and sizes
+  - Convert SVG files and configure texture import settings
+  - Ideal for game jams, UI placeholders, and prototyping
 
 ## 📦 Skill Package Structure
 
@@ -142,6 +141,7 @@ AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity 
 - **Quick Scene Setup** - Instant 3D/2D/UI/VR scene configuration
 - **GameObject Templates** - Create primitives, lights, player, enemy with one command
 - **UI Templates** - Complete UI elements (Button, Panel, ScrollView, etc.)
+- **Vector Sprite Generation** - Create sprites from primitive shapes, SVG files, or solid colors for prototyping
 - **Hierarchy Builder** - Build complex nested structures declaratively
 - **Design Patterns** - Generate Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator
 - **Layout Management** - Configure UI layouts (Vertical, Horizontal, Grid)
@@ -241,6 +241,39 @@ unity_gameobject_createFromTemplate({
 ```
 
 See [SkillForUnity/examples/](SkillForUnity/examples/) for more tutorials.
+
+## 🎨 Example: Vector Sprite Generation for Prototyping
+
+```python
+# Generate a red circle sprite
+unity_vectorSprite_convert({
+    "operation": "primitiveToSprite",
+    "primitiveType": "circle",
+    "width": 256,
+    "height": 256,
+    "color": {"r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0},
+    "outputPath": "Assets/Sprites/RedCircle.png"
+})
+
+# Generate a blue triangle
+unity_vectorSprite_convert({
+    "operation": "primitiveToSprite",
+    "primitiveType": "triangle",
+    "width": 256,
+    "height": 256,
+    "color": "#0000FF",
+    "outputPath": "Assets/Sprites/BlueTriangle.png"
+})
+
+# Create a solid color sprite for UI placeholder
+unity_vectorSprite_convert({
+    "operation": "createColorSprite",
+    "width": 64,
+    "height": 64,
+    "color": {"r": 0.5, "g": 0.5, "b": 0.5, "a": 1.0},
+    "outputPath": "Assets/UI/Placeholder.png"
+})
+```
 
 ## 📦 ScriptableObject Management Example
 

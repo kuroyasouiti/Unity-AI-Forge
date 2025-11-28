@@ -1,4 +1,5 @@
 using MCP.Editor.Handlers;
+using SkillForUnity.MCPBridge.Handlers;
 using UnityEditor;
 using UnityEngine;
 
@@ -46,6 +47,9 @@ namespace MCP.Editor.Base
                 
                 // Phase 7で実装済みのハンドラーを登録
                 RegisterPhase7Handlers();
+                
+                // Phase 8で実装済みのハンドラーを登録
+                RegisterPhase8Handlers();
                 
                 // 統計情報をログ出力
                 var stats = CommandHandlerFactory.GetStatistics();
@@ -144,11 +148,20 @@ namespace MCP.Editor.Base
         }
         
         /// <summary>
-        /// 残りのハンドラーを登録します（Phase 8以降で実装予定）。
+        /// Phase 8で実装されたハンドラーを登録します（Vector & Sprite関連）。
+        /// </summary>
+        private static void RegisterPhase8Handlers()
+        {
+            // Vector to Sprite Conversion Handler
+            CommandHandlerFactory.Register("vectorSpriteConvert", new VectorSpriteConvertHandler());
+        }
+        
+        /// <summary>
+        /// 残りのハンドラーを登録します（Phase 9以降で実装予定）。
         /// </summary>
         private static void RegisterRemainingHandlers()
         {
-            // TODO: Phase 8以降で実装
+            // TODO: Phase 9以降で実装
         }
     }
 }

@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2025-11-28
+
+### Added
+- **Vector to Sprite Conversion Tool**: New `unity_vectorSprite_convert` tool for rapid prototyping without external assets
+  - **Primitive Shapes**: Generate sprites from circles, squares, rectangles, triangles, and polygons
+  - **SVG Import**: Convert SVG files to Unity sprites with proper import settings
+  - **Texture Conversion**: Configure existing textures as sprites with customizable settings
+  - **Color Sprites**: Create solid color sprites for UI placeholders and prototyping
+  - Perfect for game jams, rapid prototyping, and placeholder graphics
+  
+- **C# Handler**: VectorSpriteConvertHandler with 4 operations
+  - `primitiveToSprite`: Generate geometric shapes with customizable colors and sizes
+  - `svgToSprite`: Import and convert SVG files (Unity 2021.2+)
+  - `textureToSprite`: Configure textures as sprites with filter modes and pixels per unit
+  - `createColorSprite`: Create solid color sprites for UI elements
+
+### Improved
+- **MCP Server Instructions**: Enhanced prompt with vector sprite conversion guidelines
+  - Added guidance for rapid prototyping workflows
+  - Updated tool count and examples
+  - Clarified when to use vector sprite tools vs external assets
+
+### Documentation
+- Updated API.md with vector sprite conversion documentation
+- Added examples for primitive shape generation and color sprites
+- Updated README.md to include vector sprite tool in features list
+
+---
+
 ## [1.6.0] - 2025-11-27
 
 ### Added
