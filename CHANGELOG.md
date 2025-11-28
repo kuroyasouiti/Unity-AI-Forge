@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2025-11-28
+
+### Changed
+- **MCPサーバープロンプトの最適化**
+  - プロンプト行数を227行から138行に削減（39%削減）
+  - 推定トークン消費を~6,000から~3,500に削減（42%削減）
+  - セクション構造を15+から9に整理（情報検索性向上）
+  - ツール名記法を統一（`unity.xxx.xxx` → `unity_xxx_xxx`）
+  - 重複する情報を削除・統合
+  - パフォーマンス最適化ガイドラインを強調
+  - トラブルシューティングセクションを新規追加
+  - Critical Rulesを最上位に配置
+
+### Added
+- `docs/MCP_PROMPT_REVIEW_AND_IMPROVEMENTS.md` - 詳細なコードレビューレポート
+- `docs/PROMPT_IMPROVEMENT_SUMMARY.md` - 改善サマリー
+
+### Improved
+- プロンプトの階層構造が明確化され、情報アクセスが容易に
+- エラーハンドリングと問題解決のガイダンスを強化
+- バッチ操作とパフォーマンス最適化の推奨を明示化
+
 ## [Unreleased]
 
 ---
