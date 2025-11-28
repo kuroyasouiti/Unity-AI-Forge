@@ -35,6 +35,37 @@ namespace MCP.Editor.Handlers
         {
         }
         
+        protected override void ValidatePayload(Dictionary<string, object> payload)
+        {
+            // UGUI template tool doesn't require 'operation' parameter
+            // It's invoked by tool name directly
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload), "Payload cannot be null");
+            }
+        }
+        
+        public override object Execute(Dictionary<string, object> payload)
+        {
+            try
+            {
+                // 1. Validate payload
+                ValidatePayload(payload);
+                
+                // 2. UGUI template tool uses "create" as the default operation
+                var operation = "create";
+                
+                // 3. Execute operation
+                var result = ExecuteOperation(operation, payload);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResponse(ex);
+            }
+        }
+        
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
             var template = GetString(payload, "template");
