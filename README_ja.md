@@ -75,18 +75,46 @@ Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツー�
   - [完全なリリースノート](docs/Release_Notes_v1.8.0.md)
   - [変更履歴](CHANGELOG.md)
 
+## 📦 パッケージ構造
+
+Unity-AI-ForgeはMCPサーバーを統合したUnityパッケージです！
+
+```
+Unity-AI-Forge/
+├── Assets/
+│   └── UnityAIForge/                           # Unityパッケージ
+│       ├── Editor/
+│       │   └── MCPBridge/                      # Unity C# WebSocketブリッジ
+│       ├── GameKit/                            # GameKitフレームワーク
+│       ├── MCPServer/                          # ⭐ MCPサーバー（Python、ドキュメント、ツール）
+│       │   ├── src/                            # Python MCPサーバー
+│       │   ├── setup/                          # インストールスクリプト
+│       │   ├── examples/                       # 実践的チュートリアル
+│       │   ├── config/                         # 設定テンプレート
+│       │   └── docs/                           # 追加ドキュメント
+│       ├── Tests/                              # テストスイート
+│       └── package.json                        # Unityパッケージ定義
+```
+
 ## アーキテクチャ
 
 Unity-AI-Forgeは**双方向WebSocketブリッジ**アーキテクチャを使用します：
 
 ```
 AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(WebSocket)--> Unity Editorブリッジ
+                                                (MCPServer/src/)      (Editor/MCPBridge/)
 ```
 
 ### コンポーネント
 
-1. **Unity C#ブリッジ** (`Assets/Unity-AI-Forge/Editor/MCPBridge/`) - Unity Editor内で動作するWebSocketサーバー（Claude SkillのZIPを同梱）
-2. **Claude Skill (Python MCPサーバー)** (`Unity-AI-Forge/src/`) - ブリッジに接続するMCPプロトコル実装
+| コンポーネント | 場所 | 説明 |
+|-----------|----------|-------------|
+| **Unity C#ブリッジ** | `Assets/UnityAIForge/Editor/MCPBridge/` | Unity Editor内で動作するWebSocketサーバー |
+| **Python MCPサーバー** | `Assets/UnityAIForge/MCPServer/src/` | MCPプロトコル実装 |
+| **GameKitフレームワーク** | `Assets/UnityAIForge/GameKit/Runtime/` | ハイレベルゲーム開発コンポーネント |
+| **セットアップスクリプト** | `Assets/UnityAIForge/MCPServer/setup/` | インストールと設定ヘルパー |
+| **サンプル** | `Assets/UnityAIForge/MCPServer/examples/` | 実践的チュートリアル |
+| **テスト** | `Assets/UnityAIForge/Tests/Editor/` | 包括的テストスイート |
 
 ## クイックスタート
 
@@ -97,34 +125,39 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 1. Unity Editorを開く
 2. **Window > Package Manager**を開く
 3. **+ (プラス)** ボタン → **Add package from git URL...**をクリック
-4. 次のURLを入力: `https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/Unity-AI-Forge`
+4. 次のURLを入力: `https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/UnityAIForge`
 5. **Add**をクリック
 
 **方法B: 手動インストール**
 
 1. このリポジトリをダウンロード
-2. `Assets/Unity-AI-Forge`をあなたのUnityプロジェクトの`Assets/`フォルダにコピー
+2. `Assets/UnityAIForge`をあなたのUnityプロジェクトの`Assets/`フォルダにコピー
 
-### 2. Claude Skillのインストール
+### 2. MCPサーバーのインストール
 
-Unityパッケージには `Assets/Unity-AI-Forge/Unity-AI-Forge.zip` が同梱されています。
+MCPサーバーは `Assets/UnityAIForge/MCPServer/` にあります。
 
-**方法A: 同梱ZIPをClaude Desktopのskillsフォルダへコピー**
+**方法A: Unity経由の自動インストール（推奨）**
+
+1. パッケージをインストールしたUnity Editorを開く
+2. **Tools > Unity-AI-Forge > MCP Server Manager**へ
+3. **Install Server**をクリック（`~/Unity-AI-Forge`にインストール）
+4. 使用するAIツール（Cursor、Claude Desktopなど）の**Register**をクリック
+5. AIツールを再起動
+
+**方法B: 手動セットアップ**
 
 ```bash
-# Claude SkillのZIPをコピー
-cp Assets/Unity-AI-Forge/Unity-AI-Forge.zip ~/.claude/skills/
+# Windows (PowerShell)
+xcopy /E /I /Y "Assets\UnityAIForge\MCPServer" "%USERPROFILE%\Unity-AI-Forge"
+cd %USERPROFILE%\Unity-AI-Forge
+uv sync
 
-# 展開して ~/Unity-AI-Forge を作成
-cd ~/.claude/skills
-unzip -o Unity-AI-Forge.zip
+# macOS/Linux
+cp -r Assets/UnityAIForge/MCPServer ~/Unity-AI-Forge
+cd ~/Unity-AI-Forge
+uv sync
 ```
-
-**方法B: MCPウィンドウから登録**
-
-1. Claude Desktopを開く
-2. MCP設定ウィンドウを開く
-3. スキル設定で新しいMCPサーバーを追加
 
 **方法C: 手動設定**
 
@@ -132,9 +165,9 @@ Claude Desktopの設定ファイル（`~/.claude/claude_desktop_config.json`）�
 ```json
 {
   "mcpServers": {
-    "skill-for-unity": {
+    "unity-ai-forge": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/Unity-AI-Forge", "src/main.py"],
+      "args": ["--directory", "/path/to/Unity-AI-Forge", "run", "unity-ai-forge"],
       "env": {
         "MCP_SERVER_TRANSPORT": "stdio",
         "MCP_LOG_LEVEL": "info"
@@ -143,6 +176,11 @@ Claude Desktopの設定ファイル（`~/.claude/claude_desktop_config.json`）�
   }
 }
 ```
+
+`/path/to/Unity-AI-Forge` を実際のパスに置き換えてください：
+- Windows: `C:\Users\YOUR_USERNAME\Unity-AI-Forge`
+- macOS: `/Users/YOUR_USERNAME/Unity-AI-Forge`
+- Linux: `/home/YOUR_USERNAME/Unity-AI-Forge`
 
 ### 3. Unity Bridgeの起動
 
@@ -616,38 +654,47 @@ unity_prefab_crud({
 ```
 Unity-AI-Forge/
 ├── Assets/
-│   └── Unity-AI-Forge/
-│       ├── Unity-AI-Forge.zip                # Claude Skill MCPサーバーパッケージ
-│       └── Editor/
-│           └── MCPBridge/                    # Unity C#ブリッジ
-│               ├── McpBridgeService.cs            # WebSocketサーバー
-│               ├── McpCommandProcessor.cs         # ツール実行（4700+行）
-│               ├── McpContextCollector.cs         # コンテキスト収集
-│               ├── McpBridgeWindow.cs             # Unity Editor UI
-│               └── McpBridgeSettings.cs           # 設定
+│   └── UnityAIForge/                          # Unityパッケージ
+│       ├── Editor/
+│       │   └── MCPBridge/                     # Unity C#ブリッジ
+│       │       ├── McpBridgeService.cs            # WebSocketサーバー
+│       │       ├── McpCommandProcessor.cs         # ツール実行
+│       │       ├── McpContextCollector.cs         # コンテキスト収集
+│       │       ├── McpBridgeWindow.cs             # Unity Editor UI
+│       │       └── Handlers/                      # ツール実装
+│       ├── GameKit/
+│       │   └── Runtime/                       # GameKitフレームワーク
+│       │       ├── Actor/
+│       │       ├── Manager/
+│       │       ├── Interaction/
+│       │       └── SceneFlow/
+│       ├── MCPServer/                         # MCPサーバー（Python）
+│       │   ├── src/                               # サーバー実装
+│       │   │   ├── bridge/                        # Unityブリッジ通信
+│       │   │   ├── tools/                         # ツール定義
+│       │   │   ├── resources/                     # リソース
+│       │   │   └── main.py                        # エントリポイント
+│       │   ├── setup/                             # インストールスクリプト
+│       │   ├── examples/                          # チュートリアル
+│       │   ├── config/                            # 設定テンプレート
+│       │   ├── skill.yml                          # MCPサーバーマニフェスト
+│       │   └── pyproject.toml                     # Pythonパッケージ構成
+│       ├── Tests/
+│       │   └── Editor/                        # Unity Test Frameworkテスト
+│       └── package.json                       # Unityパッケージ定義
 │
-├── .claude/
-│   └── skills/
-│       └── Unity-AI-Forge/                    # Claude Skill (Python MCPサーバー)
-│           ├── src/                               # サーバー実装
-│           │   ├── bridge/                        # Unityブリッジ通信
-│           │   ├── tools/                         # ツール定義
-│           │   ├── resources/                     # リソース
-│           │   └── main.py                        # エントリポイント
-│           ├── docs/                              # ドキュメント
-│           ├── examples/                          # チュートリアル
-│           ├── setup/                             # インストールスクリプト
-│           ├── config/                            # 設定テンプレート
-│           ├── skill.yml                          # スキル定義
-│           └── pyproject.toml                     # Pythonパッケージ構成
+├── ProjectSettings/                           # Unityプロジェクト設定
+├── Packages/                                  # Unityパッケージ
+├── docs/                                      # プロジェクトドキュメント
+└── README.md                                  # このファイル
 ```
 
 ### 新しいツールの追加
 
 詳細なガイドは以下を参照:
 - [CLAUDE.md](CLAUDE.md) - 完全な開発ドキュメント
-- [TOOL_SELECTION_GUIDE.md](Unity-AI-Forge/docs/TOOL_SELECTION_GUIDE.md) - バッチ操作やワークフローのまとめ
-- `Unity-AI-Forge/docs/` - API リファレンスと詳細ガイド
+- [Assets/UnityAIForge/MCPServer/](Assets/UnityAIForge/MCPServer/) - MCPサーバーソースコード
+- [docs/](docs/) - プロジェクトドキュメント
 
 ---
 
@@ -749,10 +796,11 @@ Unity-AI-Forge/
 ## ドキュメント
 
 - **メインドキュメント**: [CLAUDE.md](CLAUDE.md)
-- **クイックスタート**: [Unity-AI-Forge/QUICKSTART.md](Unity-AI-Forge/QUICKSTART.md)
-- **API リファレンス**: [Unity-AI-Forge/docs/](Unity-AI-Forge/docs/)
-- **バッチ処理例**: [TOOL_SELECTION_GUIDE.md](Unity-AI-Forge/docs/TOOL_SELECTION_GUIDE.md)
-- **このファイル**: 完全なツールリファレンスとクイックスタート
+- **クイックスタート**: [Assets/UnityAIForge/MCPServer/QUICKSTART.md](Assets/UnityAIForge/MCPServer/QUICKSTART.md)
+- **インストールガイド**: [Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md](Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md)
+- **サンプル**: [Assets/UnityAIForge/MCPServer/examples/](Assets/UnityAIForge/MCPServer/examples/)
+- **テストスイート**: [Assets/UnityAIForge/Tests/Editor/README.md](Assets/UnityAIForge/Tests/Editor/README.md)
+- **プロジェクトドキュメント**: [docs/](docs/)
 
 ---
 
@@ -770,8 +818,8 @@ MIT License - [MIT License](https://opensource.org/licenses/MIT)
 問題、質問、機能リクエストについて:
 1. Unity Consoleでエラーメッセージを確認
 2. [CLAUDE.md](CLAUDE.md)のドキュメントを確認
-3. [TOOL_SELECTION_GUIDE.md](Unity-AI-Forge/docs/TOOL_SELECTION_GUIDE.md)でバッチ操作のワークフローを確認
-4. プロジェクトリポジトリにissueを作成
+3. [Assets/UnityAIForge/MCPServer/examples/](Assets/UnityAIForge/MCPServer/examples/)のサンプルを確認
+4. [GitHub Issues](https://github.com/kuroyasouiti/Unity-AI-Forge/issues)にissueを作成
 
 ---
 

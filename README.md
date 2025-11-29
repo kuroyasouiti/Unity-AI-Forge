@@ -77,17 +77,23 @@
 
 ## 📦 Package Structure
 
-Unity-AI-Forge is structured as a **Claude Agent Skill** for easier setup and distribution!
+Unity-AI-Forge is a Unity package with integrated MCP server!
 
 ```
 Unity-AI-Forge/
-├── Assets/Unity-AI-Forge/Editor/MCPBridge/     # Unity C# WebSocket Bridge + bundled Claude Skill zip
-└── Unity-AI-Forge/                             # ⭐ Claude Skill source (Python MCP server, docs, tools)
-    ├── src/                     # Python MCP Server
-    ├── setup/                   # Installation scripts
-    ├── examples/                # Practical tutorials
-    ├── docs/                    # Comprehensive documentation
-    └── config/                  # Configuration templates
+├── Assets/
+│   └── UnityAIForge/                           # Unity Package
+│       ├── Editor/
+│       │   └── MCPBridge/                      # Unity C# WebSocket Bridge
+│       ├── GameKit/                            # GameKit Framework Runtime
+│       ├── MCPServer/                          # ⭐ MCP Server (Python, docs, tools)
+│       │   ├── src/                            # Python MCP Server
+│       │   ├── setup/                          # Installation scripts
+│       │   ├── examples/                       # Practical tutorials
+│       │   ├── config/                         # Configuration templates
+│       │   └── docs/                           # Additional documentation
+│       ├── Tests/                              # Test Suite
+│       └── package.json                        # Unity Package definition
 ```
 
 ## 🚀 Quick Start
@@ -99,34 +105,39 @@ Unity-AI-Forge/
 1. Open Unity Editor
 2. Open **Window > Package Manager**
 3. Click **+ (Plus)** button → **Add package from git URL...**
-4. Enter: `https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/Unity-AI-Forge`
+4. Enter: `https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/UnityAIForge`
 5. Click **Add**
 
 **Option B: Manual Installation**
 
 1. Download this repository
-2. Copy `Assets/Unity-AI-Forge` to your Unity project's `Assets/` folder
+2. Copy `Assets/UnityAIForge` to your Unity project's `Assets/` folder
 
-### 2. Install Claude Skill Package
+### 2. Install MCP Server
 
-The Unity package already bundles the Claude Skill archive at `Assets/Unity-AI-Forge/Unity-AI-Forge.zip`.
+The MCP server is located in `Assets/UnityAIForge/MCPServer/`.
 
-**Option A: Copy the bundled zip to Claude Desktop's skills folder**
+**Option A: Automatic Installation via Unity (Recommended)**
+
+1. Open Unity Editor with the package installed
+2. Go to **Tools > Unity-AI-Forge > MCP Server Manager**
+3. Click **Install Server** (installs to `~/Unity-AI-Forge`)
+4. Click **Register** for your AI tool (Cursor, Claude Desktop, etc.)
+5. Restart your AI tool
+
+**Option B: Manual Setup**
 
 ```bash
-# Copy the Claude Skill zip
-cp Assets/Unity-AI-Forge/Unity-AI-Forge.zip ~/.claude/skills/
+# Windows (PowerShell)
+xcopy /E /I /Y "Assets\UnityAIForge\MCPServer" "%USERPROFILE%\Unity-AI-Forge"
+cd %USERPROFILE%\Unity-AI-Forge
+uv sync
 
-# Extract to create ~/.claude/skills/Unity-AI-Forge
-cd ~/.claude/skills
-unzip -o Unity-AI-Forge.zip
+# macOS/Linux
+cp -r Assets/UnityAIForge/MCPServer ~/Unity-AI-Forge
+cd ~/Unity-AI-Forge
+uv sync
 ```
-
-**Option B: Register via MCP Window**
-
-1. Open Claude Desktop
-2. Open MCP Settings Window
-3. Add new MCP server with the skill configuration
 
 **Option C: Manual Configuration**
 
@@ -134,9 +145,9 @@ Add to your Claude Desktop config (`~/.claude/claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "skill-for-unity": {
+    "unity-ai-forge": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/Unity-AI-Forge", "src/main.py"],
+      "args": ["--directory", "/path/to/Unity-AI-Forge", "run", "unity-ai-forge"],
       "env": {
         "MCP_SERVER_TRANSPORT": "stdio",
         "MCP_LOG_LEVEL": "info"
@@ -145,6 +156,10 @@ Add to your Claude Desktop config (`~/.claude/claude_desktop_config.json`):
   }
 }
 ```
+
+Replace `/path/to/Unity-AI-Forge` with:
+- Windows: `C:\Users\YOUR_USERNAME\Unity-AI-Forge`
+- macOS/Linux: `/Users/YOUR_USERNAME/Unity-AI-Forge` or `/home/YOUR_USERNAME/Unity-AI-Forge`
 
 ### 3. Start Unity Bridge
 
@@ -166,33 +181,34 @@ The AI should call `unity_ping()` and show Unity version information.
 
 ### For Users
 
-- **[Claude Skill QUICKSTART](Unity-AI-Forge/QUICKSTART.md)** - Get started in 5 minutes
-- **[Claude Skill README](Unity-AI-Forge/README.md)** - Complete skill documentation
-- **[Claude Skill examples](Unity-AI-Forge/examples/)** - Practical tutorials and walkthroughs
+- **[MCP Server QUICKSTART](Assets/UnityAIForge/MCPServer/QUICKSTART.md)** - Get started in 5 minutes
+- **[MCP Server README](Assets/UnityAIForge/MCPServer/README.md)** - Complete MCP server documentation
+- **[Installation Guide](Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md)** - Detailed installation instructions
+- **[Examples](Assets/UnityAIForge/MCPServer/examples/)** - Practical tutorials and walkthroughs
 
 ### For Developers
 
-- **[Claude Skill docs](Unity-AI-Forge/docs/)** - API reference and guides
 - **[CLAUDE.md](CLAUDE.md)** - Instructions for Claude Code integration
-- **[Best Practices guide](Unity-AI-Forge/docs/guides/best-practices.md)** - Repository guidelines and tips
-- **[Test Suite](Assets/Unity-AI-Forge/Tests/Editor/README.md)** - Comprehensive test suite for all tools
+- **[Test Suite](Assets/UnityAIForge/Tests/Editor/README.md)** - Comprehensive test suite for all tools
+- **[Documentation Index](docs/)** - Additional guides and release notes
 
 ## 🏗️ Architecture
 
 ```
 AI Client (Claude/Cursor) <--(MCP)--> Python MCP Server <--(WebSocket)--> Unity C# Bridge
-                                      (Unity-AI-Forge/src/)   (Assets/Unity-AI-Forge/Editor/)
+                                      (MCPServer/src/)         (Editor/MCPBridge/)
 ```
 
 ### Components
 
 | Component | Location | Description |
 |-----------|----------|-------------|
-| **Unity C# Bridge** | `Assets/Unity-AI-Forge/Editor/MCPBridge/` | WebSocket server running inside Unity Editor |
-| **Python MCP Server** | `Unity-AI-Forge/src/` | MCP protocol implementation |
-| **Setup Scripts** | `Unity-AI-Forge/setup/` | Installation and configuration helpers |
-| **Examples** | `Unity-AI-Forge/examples/` | Practical tutorials and guides |
-| **Documentation** | `Unity-AI-Forge/docs/` | API reference and best practices |
+| **Unity C# Bridge** | `Assets/UnityAIForge/Editor/MCPBridge/` | WebSocket server running inside Unity Editor |
+| **Python MCP Server** | `Assets/UnityAIForge/MCPServer/src/` | MCP protocol implementation |
+| **GameKit Framework** | `Assets/UnityAIForge/GameKit/Runtime/` | High-level game development components |
+| **Setup Scripts** | `Assets/UnityAIForge/MCPServer/setup/` | Installation and configuration helpers |
+| **Examples** | `Assets/UnityAIForge/MCPServer/examples/` | Practical tutorials and guides |
+| **Tests** | `Assets/UnityAIForge/Tests/Editor/` | Comprehensive test suite |
 
 ## 🧪 Testing
 
@@ -298,31 +314,37 @@ all_configs = unity_scriptableobject_manage({
 ```
 Unity-AI-Forge/
 ├── Assets/
-│   └── Unity-AI-Forge/
-│       ├── Unity-AI-Forge.zip        # Bundled Claude Skill MCP server package
-│       └── Editor/
-│           └── MCPBridge/           # Unity C# Bridge
-│               ├── McpBridgeService.cs
-│               ├── McpCommandProcessor.cs
-│               └── McpContextCollector.cs
-│
-├── .claude/
-│   └── skills/
-│       └── Unity-AI-Forge/           # Claude Skill (Python MCP server)
-│           ├── src/                 # Server source
-│           │   ├── bridge/          # Unity Bridge communication
-│           │   ├── tools/           # MCP tool definitions
-│           │   ├── resources/       # MCP resources
-│           │   └── main.py          # Entry point
-│           ├── setup/               # Installation scripts
-│           ├── examples/            # Tutorials
-│           ├── docs/                # Documentation
-│           ├── config/              # Configuration templates
-│           ├── skill.yml            # Skill manifest
-│           └── pyproject.toml       # Python package config
+│   └── UnityAIForge/                # Unity Package
+│       ├── Editor/
+│       │   └── MCPBridge/           # Unity C# Bridge
+│       │       ├── McpBridgeService.cs
+│       │       ├── McpCommandProcessor.cs
+│       │       ├── McpContextCollector.cs
+│       │       └── Handlers/        # Tool implementations
+│       ├── GameKit/
+│       │   └── Runtime/             # GameKit Framework
+│       │       ├── Actor/
+│       │       ├── Manager/
+│       │       ├── Interaction/
+│       │       └── SceneFlow/
+│       ├── MCPServer/               # MCP Server (Python)
+│       │   ├── src/                 # Server source
+│       │   │   ├── bridge/          # Unity Bridge communication
+│       │   │   ├── tools/           # MCP tool definitions
+│       │   │   ├── resources/       # MCP resources
+│       │   │   └── main.py          # Entry point
+│       │   ├── setup/               # Installation scripts
+│       │   ├── examples/            # Tutorials
+│       │   ├── config/              # Configuration templates
+│       │   ├── skill.yml            # MCP server manifest
+│       │   └── pyproject.toml       # Python package config
+│       ├── Tests/
+│       │   └── Editor/              # Unity Test Framework tests
+│       └── package.json             # Unity Package definition
 │
 ├── ProjectSettings/                 # Unity project settings
 ├── Packages/                        # Unity packages
+├── docs/                            # Project documentation
 └── README.md                        # This file
 ```
 
@@ -358,7 +380,7 @@ Contributions are welcome! Please:
 4. Add tests and documentation
 5. Submit a pull request
 
-See [Unity-AI-Forge/docs/guides/best-practices.md](Unity-AI-Forge/docs/guides/best-practices.md) for coding guidelines.
+See [CLAUDE.md](CLAUDE.md) for development guidelines.
 
 ## 📄 License
 
@@ -372,20 +394,23 @@ MIT License - see [MIT License](https://opensource.org/licenses/MIT) for details
 
 ## 🆘 Support
 
-- **Quick Start**: [Unity-AI-Forge/QUICKSTART.md](Unity-AI-Forge/QUICKSTART.md)
-- **Examples**: [Unity-AI-Forge/examples/](Unity-AI-Forge/examples/)
-- **Troubleshooting**: [Unity-AI-Forge/docs/troubleshooting.md](Unity-AI-Forge/docs/troubleshooting.md)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/Unity-AI-Forge/issues)
+- **Quick Start**: [Assets/UnityAIForge/MCPServer/QUICKSTART.md](Assets/UnityAIForge/MCPServer/QUICKSTART.md)
+- **Examples**: [Assets/UnityAIForge/MCPServer/examples/](Assets/UnityAIForge/MCPServer/examples/)
+- **Installation Guide**: [Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md](Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md)
+- **Issues**: [GitHub Issues](https://github.com/kuroyasouiti/Unity-AI-Forge/issues)
 
 ## 🔄 Migration from Old Structure
 
-If you were using the old structure (`Assets/Runtime/MCPServer/` or `SkillPackage/`):
+If you were using the old structure:
 
-1. **Unity Side**: Install via Unity Package Manager (see installation instructions above)
-   - The Unity Bridge remains at `Assets/Unity-AI-Forge/Editor/MCPBridge/` (unchanged)
-2. **Claude Skill Side**: Extract `Assets/Unity-AI-Forge/Unity-AI-Forge.zip` into your Claude Desktop skills folder (creates `~/.claude/skills/Unity-AI-Forge`)
-   - Or configure via MCP Window by pointing to the extracted `skill.yml`
-   - Or manually add to `claude_desktop_config.json`
+1. **Unity Side**: Install via Unity Package Manager using the correct path:
+   ```
+   https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/UnityAIForge
+   ```
+2. **MCP Server Side**: Use Unity's MCP Server Manager:
+   - Go to **Tools > Unity-AI-Forge > MCP Server Manager**
+   - Click **Install Server** to copy files to `~/.claude/skills/Unity-AI-Forge`
+   - Click **Register** for your AI tool
 3. Remove old installation files if desired
 
 ---
