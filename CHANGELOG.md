@@ -1,9 +1,126 @@
 # Changelog
 
-All notable changes to SkillForUnity will be documented in this file.
+All notable changes to Unity-AI-Forge will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [2.0.0] - 2025-11-29
+
+### 🔥 Project Renamed
+
+- **SkillForUnity** → **Unity-AI-Forge**
+  - New package name: `com.unityaiforge`
+  - New repository: `https://github.com/kuroyasouiti/Unity-AI-Forge`
+  - Emphasizes AI-powered development and the "forging" of games through AI collaboration
+
+### Breaking Changes
+
+- **Project Name Change** - Update package references and imports
+- **GameKit Manager** - Complete redesign to hub-based architecture. Existing code using manager methods will continue to work (backward compatible API), but the internal structure has changed.
+- **GameKit Interaction** - New trigger types and action system may require updating existing interaction setups.
+- **GameKit SceneFlow** - Transitions now defined per-scene rather than globally. Migration required for projects using scene transitions.
+
+### Changed
+
+- **GameKit Manager** - Redesigned as manager hub with mode-specific components
+  - Automatically adds mode-specific components based on ManagerType
+  - **TurnBased** → GameKitTurnManager (turn phases, turn counter, phase/turn events)
+  - **ResourcePool** → GameKitResourceManager (Machinations-inspired resource flow system)
+    - Resource pools with min/max constraints
+    - Automatic resource flows (sources/drains)
+    - Resource converters (crafting, transformation)
+    - Resource triggers (threshold-based events)
+    - Events: `OnResourceChanged`, `OnResourceTriggered`
+  - **EventHub** → GameKitEventManager (event registration, event triggering)
+  - **StateManager** → GameKitStateManager (state changes, state history)
+  - **Realtime** → GameKitRealtimeManager (time scale, pause/resume, timers)
+  - Convenience methods automatically delegate to mode-specific components
+  - Backward compatible API (existing code continues to work)
+  - `GetModeComponent<T>()` for direct access to mode-specific components
+
+- **GameKit Interaction** - Redesigned as interaction hub
+  - Supports traditional triggers (Collision, Trigger, Input, Proximity, Raycast)
+  - **New specialized triggers**: TilemapCell, GraphNode, SplineProgress
+  - **Extended actions**: TriggerActorAction, UpdateManagerResource, TriggerSceneFlow, TeleportToTile, MoveToGraphNode, SetSplineProgress
+  - **Extended conditions**: ActorId, ManagerResource
+  - UnityEvent integration (`OnInteractionTriggered`)
+  - Cooldown and repeat settings
+  - Manual trigger support
+  - Debug logging option
+  - Gizmo visualization for proximity and tilemap triggers
+
+### Added
+- **CharacterController Bundle** (`unity_character_controller_bundle`) - Mid-level tool
+  - Apply CharacterController with presets: fps, tps, platformer, child, large, narrow, custom
+  - Batch operations for multiple GameObjects
+  - Configurable collision properties (radius, height, center, slope limit, step offset)
+  - Inspect CharacterController properties including runtime state (isGrounded, velocity)
+  
+- **GameKit Actor Input System Integration**
+  - `GameKitInputSystemController` component for Unity's new Input System
+  - Automatic PlayerInput configuration with pre-built action map
+  - Default input actions asset generation (WASD, Mouse, Gamepad support)
+  - Automatic fallback to `GameKitSimpleInput` when Input System unavailable
+  - 2D/3D input conversion based on behavior profile
+
+- **GameKit AI Controller**
+  - `GameKitSimpleAI` component for autonomous character control
+  - AI behaviors: Idle, Patrol, Follow, Wander
+  - Configurable waypoints, follow targets, wander radius
+
+### Changed
+- **GameKit UI Command Hub** - Redesigned as UI-to-Actor bridge
+  - Now acts as centralized hub bridging UI controls to `GameKitActor`'s UnityEvents
+  - Command type system (Move, Jump, Action, Look, Custom)
+  - Directional button support for movement commands
+  - Parameter-based action commands
+  - Actor reference caching for better performance
+  - Backward compatible with `SendMessage` via Custom command type
+  - Improved API: `ExecuteMoveCommand()`, `ExecuteJumpCommand()`, `ExecuteActionCommand()`, `ExecuteLookCommand()`
+  - Command binding management: `RegisterButton()`, `RegisterDirectionalButton()`, `ClearBindings()`
+  - Enhanced debugging with optional command logging
+
+- **GameKit SceneFlow** - Redesigned as scene-centric state machine
+  - Transitions now integrated into scene definitions (scene-centric design)
+  - Same trigger can lead to different destinations based on current scene (e.g., "nextPage" from Page1→Page2, from Page2→Page3)
+  - **Simplified shared scene management**: Removed `SharedSceneGroup`, scenes now directly define their shared scene paths
+  - Scene definitions include transitions and shared scene paths
+  - Improved shared scene management (only reload what's needed)
+  - New API: `SetCurrentScene()`, `GetAvailableTriggers()`, `GetSceneNames()`, `AddSharedScenesToScene()`
+  - Enhanced logging for scene transitions
+  - Backward compatible API (AddTransition parameter order changed to: fromScene, trigger, toScene)
+  - `sharedGroups` parameter renamed to `sharedScenePaths` (legacy `sharedGroups` still supported for backward compatibility)
+
+- **GameKit Graph Node Movement** - New behavior profile
+  - `GraphNode` component for defining movement nodes
+
+- **GameKit Spline Movement** - New behavior profile for 2.5D games
+  - `SplineMovement` component for rail/spline-based movement
+  - Catmull-Rom spline interpolation for smooth curved paths
+  - Closed loop support for circular tracks
+  - Lateral offset for lane-based gameplay (rail shooters, side-scrollers)
+  - Manual and automatic speed control with acceleration/deceleration
+  - Forward and backward movement support
+  - Auto-rotation to face movement direction (configurable axis)
+  - Visual spline debugging in Scene view
+  - Ideal for rail shooters, 2.5D platformers, racing games, on-rails sequences
+  - `GraphNodeMovement` component with A* pathfinding
+  - Node connections with cost and traversability
+  - Works in both 2D and 3D (dimension-agnostic)
+  - Use cases: board games, tactical RPGs, puzzle games, adventure games
+  - Features: weighted edges, pathfinding, reachable node queries, debug visualization
+
+### Changed
+- Updated `GameKitActorHandler.ApplyControlComponents()` to use Input System by default
+- Added `UNITY_INPUT_SYSTEM_INSTALLED` define constraint to GameKit Runtime assembly
+
+### Documentation
+- Added CharacterController Bundle comprehensive documentation
+- Added GameKit Runtime components README with architecture overview
+- Updated README.md and README_ja.md with new features
 
 ## [1.8.0] - 2025-11-29
 

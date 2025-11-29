@@ -1,29 +1,56 @@
-# SkillForUnity - Unity向けModel Context Protocolサーバー
+# Unity-AI-Forge - AI駆動型Unity開発ツールキット
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.8.0-brightgreen)](https://github.com/kuroyasouiti/SkillForUnity/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-SkillForUnityは、AIアシスタントがUnity Editorとリアルタイムで対話できる包括的なModel Context Protocol (MCP) サーバーです。Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKitフレームワークの3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
+Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKitフレームワークの3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
 
-## 🆕 v1.8.0の新機能
+## 🆕 v2.0.0の新機能
 
-- **新ツール**: PrefabとVector Sprite管理
-  - `unity_prefab_crud`: Prefabの作成、更新、検査、インスタンス化、アンパック、オーバーライド管理
-  - `unity_vector_sprite_convert`: プリミティブ形状からスプライト生成、SVGインポート、テクスチャ変換、単色スプライト作成
+- **🎯 ハブベースアーキテクチャ**: GameKitコンポーネント全体を賢いハブとして再設計
+  - モジュラー、拡張可能、宣言的な設計パターンを全体に適用
 
-- **GameKitフレームワーク**: ハイレベルゲーム開発ツール
-  - `unity_gamekit_actor`: 振る舞いプロファイル（2D/3D移動）、制御モード（直接/AI/UIコマンド）、ステータス、アビリティを持つゲームアクター
-  - `unity_gamekit_manager`: ターン制/リアルタイム/リソースプールのゲームマネージャー、Machinationsフレームワーク対応
-  - `unity_gamekit_interaction`: トリガー型インタラクション、宣言的アクションと条件
-  - `unity_gamekit_ui_command`: アクターへのコマンド送信用UIパネル
-  - `unity_gamekit_sceneflow`: シーン遷移ステートマシン、加算ロード、共有シーングループ
+- **🎮 GameKit Actor**: 強化されたコントローラー→ビヘイビアハブ
+  - **8つの移動モード**: 2D（Linear, Physics, TileGrid）、3D（CharacterController, Physics, NavMesh）、GraphNode、SplineMovement
+  - **4つの制御モード**: DirectController（Input System）、AIAutonomous、UICommand、ScriptTriggerOnly
+  - すべての入力用UnityEvents（Move, Jump, Action, Look）
+
+- **⚙️ GameKit Managerハブ**: モード別コンポーネントの動的追加
+  - **TurnBased** → GameKitTurnManager（フェーズ、ターンカウンター、イベント）
+  - **ResourcePool** → GameKitResourceManager（Machinationsフレームワーク着想のフロー、コンバーター、トリガー）
+  - **EventHub** → GameKitEventManager（グローバルイベントシステム）
+  - **StateManager** → GameKitStateManager（状態スタック、履歴）
+  - **Realtime** → GameKitRealtimeManager（タイムスケール、一時停止、タイマー）
+
+- **🎭 GameKit Interactionハブ**: マルチトリガー宣言的システム
+  - 従来型: Collision, Trigger, Input, Proximity, Raycast
+  - 専門型: **TilemapCell**、**GraphNode**、**SplineProgress**
+  - アクション: TriggerActorAction、UpdateManagerResource、TriggerSceneFlow、テレポート
+  - 条件: ActorId、ManagerResource、カスタム条件
+  - クールダウン、リピート、UnityEvents
+
+- **🎬 GameKit SceneFlow**: シーン中心トランジションシステム
+  - 同じトリガー → シーンごとに異なる遷移先
+  - 共有シーンの統合（個別グループ不要）
+  - シーンごとのトランジション定義
+
+- **📱 GameKit UI Command**: 構造化コマンドハブ
+  - 型安全なコマンドシステム（Move, Jump, Action, Look, Custom）
+  - パラメータ付きボタン登録
+  - GameKitActorへの直接統合
+
+- **🛤️ Spline Movement**: 2.5Dスプライン移動
+  - Catmull-Rom補間
+  - 閉ループ、横方向オフセット、自動回転
+  - 手動/自動速度制御
 
 - **Mid-Levelツール**: バッチ操作とプリセット
   - Transform/RectTransformバッチ操作（配置、整列、分配）
   - 物理バンドル（2D/3D プリセット: dynamic, kinematic, character, platformer, vehicle）
+  - CharacterControllerバンドル（fps, tps, platformer, child, large, narrowプリセット）
   - カメラリグ（follow, orbit, split-screen, fixed, dolly）
   - UI基礎（Canvas, Panel, Button, Text, Image, InputField）
   - オーディオソースバンドル（music, sfx, ambient, voice, ui プリセット）
@@ -38,7 +65,7 @@ SkillForUnityは、AIアシスタントがUnity Editorとリアルタイムで�
   - Unity Test Framework統合
   - 全ツールカテゴリで97.7%の成功率
   - GitHub Actionsによる自動CI/CD
-  - エディタメニュー統合（`Tools > SkillForUnity > Run All Tests`）
+  - エディタメニュー統合（`Tools > Unity-AI-Forge > Run All Tests`）
 
 - **ドキュメント**: 完全刷新
   - テストスイートドキュメントと結果
@@ -50,7 +77,7 @@ SkillForUnityは、AIアシスタントがUnity Editorとリアルタイムで�
 
 ## アーキテクチャ
 
-SkillForUnityは**双方向WebSocketブリッジ**アーキテクチャを使用します：
+Unity-AI-Forgeは**双方向WebSocketブリッジ**アーキテクチャを使用します：
 
 ```
 AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(WebSocket)--> Unity Editorブリッジ
@@ -58,8 +85,8 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 
 ### コンポーネント
 
-1. **Unity C#ブリッジ** (`Assets/SkillForUnity/Editor/MCPBridge/`) - Unity Editor内で動作するWebSocketサーバー（Claude SkillのZIPを同梱）
-2. **Claude Skill (Python MCPサーバー)** (`SkillForUnity/src/`) - ブリッジに接続するMCPプロトコル実装
+1. **Unity C#ブリッジ** (`Assets/Unity-AI-Forge/Editor/MCPBridge/`) - Unity Editor内で動作するWebSocketサーバー（Claude SkillのZIPを同梱）
+2. **Claude Skill (Python MCPサーバー)** (`Unity-AI-Forge/src/`) - ブリッジに接続するMCPプロトコル実装
 
 ## クイックスタート
 
@@ -70,27 +97,27 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 1. Unity Editorを開く
 2. **Window > Package Manager**を開く
 3. **+ (プラス)** ボタン → **Add package from git URL...**をクリック
-4. 次のURLを入力: `https://github.com/kuroyasouiti/SkillForUnity.git?path=/Assets/SkillForUnity`
+4. 次のURLを入力: `https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/Unity-AI-Forge`
 5. **Add**をクリック
 
 **方法B: 手動インストール**
 
 1. このリポジトリをダウンロード
-2. `Assets/SkillForUnity`をあなたのUnityプロジェクトの`Assets/`フォルダにコピー
+2. `Assets/Unity-AI-Forge`をあなたのUnityプロジェクトの`Assets/`フォルダにコピー
 
 ### 2. Claude Skillのインストール
 
-Unityパッケージには `Assets/SkillForUnity/SkillForUnity.zip` が同梱されています。
+Unityパッケージには `Assets/Unity-AI-Forge/Unity-AI-Forge.zip` が同梱されています。
 
 **方法A: 同梱ZIPをClaude Desktopのskillsフォルダへコピー**
 
 ```bash
 # Claude SkillのZIPをコピー
-cp Assets/SkillForUnity/SkillForUnity.zip ~/.claude/skills/
+cp Assets/Unity-AI-Forge/Unity-AI-Forge.zip ~/.claude/skills/
 
-# 展開して ~/SkillForUnity を作成
+# 展開して ~/Unity-AI-Forge を作成
 cd ~/.claude/skills
-unzip -o SkillForUnity.zip
+unzip -o Unity-AI-Forge.zip
 ```
 
 **方法B: MCPウィンドウから登録**
@@ -107,7 +134,7 @@ Claude Desktopの設定ファイル（`~/.claude/claude_desktop_config.json`）�
   "mcpServers": {
     "skill-for-unity": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/SkillForUnity", "src/main.py"],
+      "args": ["run", "--directory", "/path/to/Unity-AI-Forge", "src/main.py"],
       "env": {
         "MCP_SERVER_TRANSPORT": "stdio",
         "MCP_LOG_LEVEL": "info"
@@ -135,7 +162,7 @@ AIが`unity_ping()`を呼び出し、Unityバージョン情報を表示する�
 
 ## 📝 スクリプトテンプレート生成
 
-SkillForUnityは、MonoBehaviourとScriptableObjectの**スクリプトテンプレート生成**機能を提供します。
+Unity-AI-Forgeは、MonoBehaviourとScriptableObjectの**スクリプトテンプレート生成**機能を提供します。
 
 ### 主な機能
 
@@ -185,11 +212,11 @@ Unity Test Frameworkによる包括的なテストスイート：
 - **コマンドラインテストランナー** - バッチテスト対応
 
 テスト実行方法：
-- Unity Editor: `Tools > SkillForUnity > Run All Tests`
+- Unity Editor: `Tools > Unity-AI-Forge > Run All Tests`
 - PowerShell: `.\run-tests.ps1`
 - Bash: `./run-tests.sh`
 
-詳細は[テストスイートドキュメント](Assets/SkillForUnity/Tests/Editor/README.md)を参照してください。
+詳細は[テストスイートドキュメント](Assets/Unity-AI-Forge/Tests/Editor/README.md)を参照してください。
 
 ## ✨ 機能
 
@@ -260,17 +287,19 @@ Unity Test Frameworkによる包括的なテストスイート：
 
 | ツール | 説明 | 主な操作 |
 |------|------|---------|
-| `unity_gamekit_actor` | ゲームアクター | create, update, inspect, delete（振る舞い、制御、ステータス、アビリティ） |
+| `unity_gamekit_actor` | ゲームアクター | create, update, inspect, delete（コントローラー→ビヘイビアハブ、UnityEvents） |
 | `unity_gamekit_manager` | ゲームマネージャー | create, update, inspect, delete（ターン制御、リソース管理、Machinations） |
 | `unity_gamekit_interaction` | インタラクション | create, update, inspect, delete（トリガー、アクション、条件） |
 | `unity_gamekit_ui_command` | UIコマンド | createCommandPanel, addCommand, inspect, delete |
 | `unity_gamekit_sceneflow` | シーンフロー | create, update, inspect, delete, transition（シーン遷移、共有グループ） |
 
 **GameKit Actor (`unity_gamekit_actor`)**
-- 振る舞いプロファイル: 2D/3D物理、リニア、タイルマップ移動
-- 制御モード: 直接コントローラー、AI、UIコマンド
-- ステータスシステム（health, mana, speedなど）
-- アビリティと武器装備
+- コントローラー→ビヘイビア間のハブとして機能
+- UnityEventsによる入力中継: OnMoveInput, OnJumpInput, OnActionInput, OnLookInput
+- 振る舞いプロファイル: 
+  - 2D: リニア、物理、タイルグリッド（`TileGridMovement`コンポーネント自動追加）
+  - 3D: キャラクターコントローラー、物理、NavMesh
+- 制御モード: 直接コントローラー、AI、UIコマンド、スクリプトトリガーのみ
 
 **GameKit Manager (`unity_gamekit_manager`)**
 - マネージャータイプ: ターン制、リアルタイム、リソースプール、イベントハブ、ステートマネージャー
@@ -307,20 +336,20 @@ Unity Test Frameworkによる包括的なテストスイート：
 
 - **43テスト** - Low/Mid/High-Level全カテゴリ
 - **97.7%成功率** - 高品質保証
-- **エディタ統合** - `Tools > SkillForUnity`メニュー
+- **エディタ統合** - `Tools > Unity-AI-Forge`メニュー
 - **CI/CD対応** - GitHub Actions自動実行
 
 テスト実行：
 ```bash
 # Unity Editor内
-Tools > SkillForUnity > Run All Tests
+Tools > Unity-AI-Forge > Run All Tests
 
 # コマンドライン
 .\run-tests.ps1              # Windows
 ./run-tests.sh               # macOS/Linux
 ```
 
-詳細: [テストスイートREADME](Assets/SkillForUnity/Tests/Editor/README.md)
+詳細: [テストスイートREADME](Assets/Unity-AI-Forge/Tests/Editor/README.md)
 
 ---
 
@@ -394,34 +423,24 @@ Tools > SkillForUnity > Run All Tests
 ### 例1: ゲームアクターの作成（GameKit）
 
 ```python
-# プレイヤーアクターを作成
+# プレイヤーアクターを作成（コントローラー→ビヘイビアハブ）
 unity_gamekit_actor({
     "operation": "create",
     "actorId": "player_001",
-    "actorType": "player",
     "behaviorProfile": "2dPhysics",
     "controlMode": "directController",
-    "stats": {
-        "health": 100,
-        "maxHealth": 100,
-        "speed": 5.0,
-        "jumpForce": 10.0
-    },
-    "abilities": ["Jump", "Dash", "Attack"],
     "spritePath": "Assets/Sprites/Player.png"
 })
+# → OnMoveInput, OnJumpInput, OnActionInput, OnLookInputイベントが自動設定される
+# → コントローラースクリプトはSendMoveInput()等でアクターに入力を送る
+# → ビヘイビアスクリプトはOnMoveInput.AddListener()で入力を受け取る
 
-# 敵アクターを作成
+# 敵アクターを作成（AIコントロール）
 unity_gamekit_actor({
     "operation": "create",
     "actorId": "enemy_001",
-    "actorType": "enemy",
     "behaviorProfile": "2dPhysics",
-    "controlMode": "aiAutonomous",
-    "stats": {
-        "health": 50,
-        "speed": 2.0
-    }
+    "controlMode": "aiAutonomous"
 })
 ```
 
@@ -595,10 +614,10 @@ unity_prefab_crud({
 ### ファイル構造
 
 ```
-SkillForUnity/
+Unity-AI-Forge/
 ├── Assets/
-│   └── SkillForUnity/
-│       ├── SkillForUnity.zip                # Claude Skill MCPサーバーパッケージ
+│   └── Unity-AI-Forge/
+│       ├── Unity-AI-Forge.zip                # Claude Skill MCPサーバーパッケージ
 │       └── Editor/
 │           └── MCPBridge/                    # Unity C#ブリッジ
 │               ├── McpBridgeService.cs            # WebSocketサーバー
@@ -609,7 +628,7 @@ SkillForUnity/
 │
 ├── .claude/
 │   └── skills/
-│       └── SkillForUnity/                    # Claude Skill (Python MCPサーバー)
+│       └── Unity-AI-Forge/                    # Claude Skill (Python MCPサーバー)
 │           ├── src/                               # サーバー実装
 │           │   ├── bridge/                        # Unityブリッジ通信
 │           │   ├── tools/                         # ツール定義
@@ -627,8 +646,8 @@ SkillForUnity/
 
 詳細なガイドは以下を参照:
 - [CLAUDE.md](CLAUDE.md) - 完全な開発ドキュメント
-- [TOOL_SELECTION_GUIDE.md](SkillForUnity/docs/TOOL_SELECTION_GUIDE.md) - バッチ操作やワークフローのまとめ
-- `SkillForUnity/docs/` - API リファレンスと詳細ガイド
+- [TOOL_SELECTION_GUIDE.md](Unity-AI-Forge/docs/TOOL_SELECTION_GUIDE.md) - バッチ操作やワークフローのまとめ
+- `Unity-AI-Forge/docs/` - API リファレンスと詳細ガイド
 
 ---
 
@@ -647,7 +666,7 @@ SkillForUnity/
 - ✅ CI/CD統合（GitHub Actions）
 
 ### GameKitフレームワーク
-- ✅ **Actor System** - 振る舞いプロファイル、制御モード、ステータス、アビリティ
+- ✅ **Actor System** - コントローラー→ビヘイビア間のハブ、UnityEventsによる入力中継
 - ✅ **Manager System** - ターン制御、リソース管理、Machinations対応
 - ✅ **Interaction System** - トリガー、アクション、条件の宣言的定義
 - ✅ **UI Command System** - UIボタンからアクターへのコマンド送信
@@ -730,9 +749,9 @@ SkillForUnity/
 ## ドキュメント
 
 - **メインドキュメント**: [CLAUDE.md](CLAUDE.md)
-- **クイックスタート**: [SkillForUnity/QUICKSTART.md](SkillForUnity/QUICKSTART.md)
-- **API リファレンス**: [SkillForUnity/docs/](SkillForUnity/docs/)
-- **バッチ処理例**: [TOOL_SELECTION_GUIDE.md](SkillForUnity/docs/TOOL_SELECTION_GUIDE.md)
+- **クイックスタート**: [Unity-AI-Forge/QUICKSTART.md](Unity-AI-Forge/QUICKSTART.md)
+- **API リファレンス**: [Unity-AI-Forge/docs/](Unity-AI-Forge/docs/)
+- **バッチ処理例**: [TOOL_SELECTION_GUIDE.md](Unity-AI-Forge/docs/TOOL_SELECTION_GUIDE.md)
 - **このファイル**: 完全なツールリファレンスとクイックスタート
 
 ---
@@ -751,9 +770,9 @@ MIT License - [MIT License](https://opensource.org/licenses/MIT)
 問題、質問、機能リクエストについて:
 1. Unity Consoleでエラーメッセージを確認
 2. [CLAUDE.md](CLAUDE.md)のドキュメントを確認
-3. [TOOL_SELECTION_GUIDE.md](SkillForUnity/docs/TOOL_SELECTION_GUIDE.md)でバッチ操作のワークフローを確認
+3. [TOOL_SELECTION_GUIDE.md](Unity-AI-Forge/docs/TOOL_SELECTION_GUIDE.md)でバッチ操作のワークフローを確認
 4. プロジェクトリポジトリにissueを作成
 
 ---
 
-**SkillForUnity** - Model Context Protocolによる包括的なUnity Editor自動化
+**Unity-AI-Forge** - Model Context Protocolによる包括的なUnity Editor自動化
