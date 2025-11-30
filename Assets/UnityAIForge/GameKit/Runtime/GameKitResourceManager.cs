@@ -7,11 +7,16 @@ namespace UnityAIForge.GameKit
     /// <summary>
     /// GameKit Resource Manager: Machinations-inspired resource flow system.
     /// Supports resource pools, automatic flows, converters, and triggers.
+    /// Can use Machinations Asset for structured economic system management.
     /// Automatically added by GameKitManager when ManagerType.ResourcePool is selected.
     /// </summary>
     [AddComponentMenu("")]
     public class GameKitResourceManager : MonoBehaviour
     {
+        [Header("Machinations Asset (Optional)")]
+        [Tooltip("Use a Machinations diagram asset for structured resource management")]
+        [SerializeField] private GameKitMachinationsAsset machinationsAsset;
+        
         [Header("Resource Pool")]
         [SerializeField] private List<ResourceEntry> resources = new List<ResourceEntry>();
         
@@ -35,6 +40,17 @@ namespace UnityAIForge.GameKit
         public ResourceTriggerEvent OnResourceTriggered = new ResourceTriggerEvent();
 
         private Dictionary<string, float> lastTriggerValues = new Dictionary<string, float>();
+        
+        public GameKitMachinationsAsset MachinationsAsset => machinationsAsset;
+
+        private void Start()
+        {
+            // Initialize from machinations asset if available
+            if (machinationsAsset != null)
+            {
+                ApplyMachinationsAsset(machinationsAsset, true);
+            }
+        }
 
         private void Update()
         {
@@ -128,6 +144,172 @@ namespace UnityAIForge.GameKit
         {
             resources.Clear();
         }
+
+        #region Machinations Asset Management
+
+        /// <summary>
+        /// Apply a machinations asset to this resource manager.
+        /// </summary>
+        public void ApplyMachinationsAsset(GameKitMachinationsAsset asset, bool resetExisting = false)
+        {
+            if (asset == null)
+            {
+                Debug.LogWarning("[GameKitResourceManager] Cannot apply null machinations asset");
+                return;
+            }
+
+            // Validate asset
+            if (!asset.Validate(out string errorMessage))
+            {
+                Debug.LogError($"[GameKitResourceManager] Invalid machinations asset: {errorMessage}");
+                return;
+            }
+
+            machinationsAsset = asset;
+
+            if (resetExisting)
+            {
+                // Clear existing configuration
+                resources.Clear();
+                flows.Clear();
+                converters.Clear();
+                triggers.Clear();
+            }
+
+            // Apply resource pools
+            foreach (var pool in asset.Pools)
+            {
+                var existing = resources.Find(r => r.name == pool.resourceName);
+                if (existing != null)
+                {
+                    // Update existing
+                    existing.amount = pool.initialAmount;
+                    existing.minValue = pool.minValue;
+                    existing.maxValue = pool.maxValue;
+                }
+                else
+                {
+                    // Create new
+                    resources.Add(new ResourceEntry
+                    {
+                        name = pool.resourceName,
+                        amount = pool.initialAmount,
+                        minValue = pool.minValue,
+                        maxValue = pool.maxValue
+                    });
+                }
+                lastTriggerValues[pool.resourceName] = pool.initialAmount;
+            }
+
+            // Apply flows
+            foreach (var flowDef in asset.Flows)
+            {
+                var existing = flows.Find(f => f.resourceName == flowDef.resourceName && f.isSource == flowDef.isSource);
+                if (existing != null)
+                {
+                    existing.ratePerSecond = flowDef.ratePerSecond;
+                    existing.enabled = flowDef.enabledByDefault;
+                }
+                else
+                {
+                    flows.Add(new ResourceFlow
+                    {
+                        resourceName = flowDef.resourceName,
+                        ratePerSecond = flowDef.ratePerSecond,
+                        isSource = flowDef.isSource,
+                        enabled = flowDef.enabledByDefault
+                    });
+                }
+            }
+
+            // Apply converters
+            foreach (var converterDef in asset.Converters)
+            {
+                var existing = converters.Find(c => c.fromResource == converterDef.fromResource && c.toResource == converterDef.toResource);
+                if (existing != null)
+                {
+                    existing.conversionRate = converterDef.conversionRate;
+                    existing.inputCost = converterDef.inputCost;
+                    existing.enabled = converterDef.enabledByDefault;
+                }
+                else
+                {
+                    converters.Add(new ResourceConverter
+                    {
+                        fromResource = converterDef.fromResource,
+                        toResource = converterDef.toResource,
+                        conversionRate = converterDef.conversionRate,
+                        inputCost = converterDef.inputCost,
+                        enabled = converterDef.enabledByDefault
+                    });
+                }
+            }
+
+            // Apply triggers
+            foreach (var triggerDef in asset.Triggers)
+            {
+                var existing = triggers.Find(t => t.triggerName == triggerDef.triggerName);
+                if (existing != null)
+                {
+                    existing.resourceName = triggerDef.resourceName;
+                    existing.thresholdType = triggerDef.thresholdType;
+                    existing.thresholdValue = triggerDef.thresholdValue;
+                    existing.enabled = triggerDef.enabledByDefault;
+                }
+                else
+                {
+                    triggers.Add(new ResourceTrigger
+                    {
+                        triggerName = triggerDef.triggerName,
+                        resourceName = triggerDef.resourceName,
+                        thresholdType = triggerDef.thresholdType,
+                        thresholdValue = triggerDef.thresholdValue,
+                        enabled = triggerDef.enabledByDefault
+                    });
+                }
+            }
+
+            Debug.Log($"[GameKitResourceManager] Applied machinations asset: {asset.DiagramId}");
+        }
+
+        /// <summary>
+        /// Export current configuration to a machinations asset.
+        /// </summary>
+        public GameKitMachinationsAsset ExportToAsset(string diagramId = "ExportedDiagram")
+        {
+            var asset = ScriptableObject.CreateInstance<GameKitMachinationsAsset>();
+            
+#if UNITY_EDITOR
+            // Add pools
+            foreach (var resource in resources)
+            {
+                asset.AddPool(resource.name, resource.amount, resource.minValue, resource.maxValue);
+            }
+
+            // Add flows
+            foreach (var flow in flows)
+            {
+                asset.AddFlow($"flow_{flow.resourceName}", flow.resourceName, flow.ratePerSecond, flow.isSource);
+            }
+
+            // Add converters
+            foreach (var converter in converters)
+            {
+                asset.AddConverter($"converter_{converter.fromResource}_to_{converter.toResource}", 
+                    converter.fromResource, converter.toResource, converter.conversionRate, converter.inputCost);
+            }
+
+            // Add triggers
+            foreach (var trigger in triggers)
+            {
+                asset.AddTrigger(trigger.triggerName, trigger.resourceName, trigger.thresholdType, trigger.thresholdValue);
+            }
+#endif
+
+            return asset;
+        }
+
+        #endregion
 
         #region Machinations-Inspired Features
 
