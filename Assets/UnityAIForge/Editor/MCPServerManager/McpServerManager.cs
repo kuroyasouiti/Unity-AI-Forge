@@ -68,8 +68,53 @@ namespace MCP.Editor.ServerManager
         {
             get
             {
+                // パッケージとしてインストールされているか確認
+                var packagePath = GetPackagePath();
+                if (!string.IsNullOrEmpty(packagePath))
+                {
+                    return Path.Combine(packagePath, "MCPServer");
+                }
+                
+                // ローカルパッケージの場合
                 return Path.Combine(Application.dataPath, "UnityAIForge", "MCPServer");
             }
+        }
+        
+        /// <summary>
+        /// パッケージのルートパスを取得（パッケージとしてインストールされている場合）
+        /// </summary>
+        private static string GetPackagePath()
+        {
+            try
+            {
+                // このスクリプトファイル自体のパスからパッケージルートを推測
+                var guids = UnityEditor.AssetDatabase.FindAssets("McpServerManager t:Script");
+                if (guids.Length > 0)
+                {
+                    var scriptPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
+                    
+                    // パッケージパスの場合（Packages/com.unityaiforge/...）
+                    if (scriptPath.StartsWith("Packages/"))
+                    {
+                        var parts = scriptPath.Split('/');
+                        if (parts.Length >= 2)
+                        {
+                            var packageName = parts[1]; // com.unityaiforge
+                            var packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssetPath(scriptPath);
+                            if (packageInfo != null)
+                            {
+                                return packageInfo.resolvedPath;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[McpServerManager] Failed to get package path: {ex.Message}");
+            }
+            
+            return null;
         }
         
         /// <summary>
