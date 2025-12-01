@@ -53,6 +53,64 @@ Before using these tools, ensure:
 - **Tags & Layers**: Manage project tags and layers, set on GameObjects
 - **Constants**: Convert between Unity constants and numeric values (enums, colors, layers)
 
+## 🎮 GameKit Framework
+
+**Unity-AI-Forge includes the GameKit framework - a high-level game development system with MCP integration.**
+
+GameKit provides:
+- **GameKitActor**: Player/NPC controllers with input abstraction
+- **GameKitManager**: Centralized game systems (resources, states, turns)
+- **GameKitUICommand**: Bridge UI buttons to game logic
+- **GameKitMachinations**: Economic systems with flows/converters/triggers
+- **GameKitSceneFlow**: State machine-based scene transitions
+- **GameKitInteraction**: Trigger-based game events
+
+**📚 See [SKILL_GAMEKIT.md](SKILL_GAMEKIT.md) for complete GameKit documentation with examples.**
+
+### Quick GameKit Examples
+
+```python
+# Create a player actor
+gamekitActor({
+    "operation": "create",
+    "actorId": "Player",
+    "controlMode": "directController",
+    "behaviorProfile": "3dCharacterController"
+})
+
+# Create a resource manager for RPG
+gamekitManager({
+    "operation": "create",
+    "managerId": "PlayerStats",
+    "managerType": "resourcepool",
+    "initialResources": {
+        "health": 100,
+        "mana": 50,
+        "gold": 0
+    }
+})
+
+# Create UI buttons that control resources
+gamekitUICommand({
+    "operation": "createCommandPanel",
+    "panelId": "ShopUI",
+    "canvasPath": "Canvas",
+    "targetType": "manager",
+    "targetManagerId": "PlayerStats",
+    "commands": [
+        {
+            "name": "buyPotion",
+            "label": "HP Potion (50g)",
+            "commandType": "consumeResource",
+            "commandParameter": "gold",
+            "resourceAmount": 50
+        }
+    ]
+})
+```
+
+---
+
 ## Quick Start Commands
 
 ### Scene Setup
@@ -495,6 +553,23 @@ The tools are organized into 10 categories:
 5. **Use property filters** - Get only the data you need
 6. **Test with small limits first** - Before scaling up batch operations
 7. **Follow Unity naming conventions** - Use full component type names
+
+---
+
+## Additional Documentation
+
+### GameKit Framework
+**📚 [SKILL_GAMEKIT.md](SKILL_GAMEKIT.md)** - Complete guide to GameKit framework:
+- GameKitActor (player/NPC controllers)
+- GameKitManager (resource/state/turn management)  
+- GameKitUICommand (UI → game logic bridge)
+- GameKitMachinations (economic systems)
+- GameKitSceneFlow (scene transitions)
+- GameKitInteraction (trigger systems)
+- **Includes complete game examples** (RPG, Tower Defense, Turn-Based Strategy)
+
+### MCP Tools Reference
+**📚 [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)** - Detailed documentation of all 28+ MCP tools
 
 ---
 
