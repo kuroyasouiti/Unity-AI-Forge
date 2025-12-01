@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace UnityAIForge.GameKit
@@ -403,6 +404,231 @@ namespace UnityAIForge.GameKit
 
         #endregion
 
+        #region State Persistence
+
+        /// <summary>
+        /// Export current resource state to a serializable object.
+        /// </summary>
+        public ResourceState ExportState(string managerId = null)
+        {
+            var state = new ResourceState
+            {
+                managerId = managerId ?? $"ResourceManager_{GetInstanceID()}",
+                timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            };
+
+            // Export resources
+            foreach (var resource in resources)
+            {
+                state.resources.Add(new ResourceState.ResourceSnapshot
+                {
+                    name = resource.name,
+                    amount = resource.amount,
+                    minValue = resource.minValue,
+                    maxValue = resource.maxValue
+                });
+            }
+
+            // Export flow states
+            foreach (var kvp in flowStates)
+            {
+                state.flowStates.Add(new ResourceState.FlowStateSnapshot
+                {
+                    flowId = kvp.Key,
+                    enabled = kvp.Value
+                });
+            }
+
+            // Export machinations asset reference
+#if UNITY_EDITOR
+            if (machinationsAsset != null)
+            {
+                state.machinationsAssetPath = UnityEditor.AssetDatabase.GetAssetPath(machinationsAsset);
+            }
+#endif
+
+            return state;
+        }
+
+        /// <summary>
+        /// Import resource state from a serializable object.
+        /// </summary>
+        public void ImportState(ResourceState state, bool resetExisting = true)
+        {
+            if (state == null)
+            {
+                Debug.LogWarning("[GameKitResourceManager] Cannot import null state");
+                return;
+            }
+
+            if (resetExisting)
+            {
+                resources.Clear();
+                flowStates.Clear();
+            }
+
+            // Import resources
+            foreach (var snapshot in state.resources)
+            {
+                var existing = resources.Find(r => r.name == snapshot.name);
+                if (existing != null)
+                {
+                    existing.amount = snapshot.amount;
+                    existing.minValue = snapshot.minValue;
+                    existing.maxValue = snapshot.maxValue;
+                }
+                else
+                {
+                    resources.Add(new ResourceEntry
+                    {
+                        name = snapshot.name,
+                        amount = snapshot.amount,
+                        minValue = snapshot.minValue,
+                        maxValue = snapshot.maxValue
+                    });
+                }
+            }
+
+            // Import flow states
+            foreach (var flowSnapshot in state.flowStates)
+            {
+                flowStates[flowSnapshot.flowId] = flowSnapshot.enabled;
+            }
+
+            // Load machinations asset reference if available
+#if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(state.machinationsAssetPath))
+            {
+                var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<GameKitMachinationsAsset>(state.machinationsAssetPath);
+                if (asset != null)
+                {
+                    machinationsAsset = asset;
+                }
+            }
+#endif
+
+            Debug.Log($"[GameKitResourceManager] Imported state: {state.resources.Count} resources, {state.flowStates.Count} flow states");
+        }
+
+        /// <summary>
+        /// Save resource state to JSON file.
+        /// </summary>
+        public void SaveStateToFile(string filePath, string managerId = null)
+        {
+            try
+            {
+                var state = ExportState(managerId);
+                string json = JsonUtility.ToJson(state, true);
+                
+                // Ensure directory exists
+                string directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                
+                File.WriteAllText(filePath, json);
+                Debug.Log($"[GameKitResourceManager] State saved to: {filePath}");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GameKitResourceManager] Failed to save state: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Load resource state from JSON file.
+        /// </summary>
+        public bool LoadStateFromFile(string filePath, bool resetExisting = true)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    Debug.LogWarning($"[GameKitResourceManager] State file not found: {filePath}");
+                    return false;
+                }
+
+                string json = File.ReadAllText(filePath);
+                var state = JsonUtility.FromJson<ResourceState>(json);
+                
+                ImportState(state, resetExisting);
+                Debug.Log($"[GameKitResourceManager] State loaded from: {filePath}");
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GameKitResourceManager] Failed to load state: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Save resource state to PlayerPrefs.
+        /// </summary>
+        public void SaveStateToPlayerPrefs(string key = "GameKitResourceState")
+        {
+            try
+            {
+                var state = ExportState();
+                string json = JsonUtility.ToJson(state);
+                PlayerPrefs.SetString(key, json);
+                PlayerPrefs.Save();
+                Debug.Log($"[GameKitResourceManager] State saved to PlayerPrefs: {key}");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GameKitResourceManager] Failed to save state to PlayerPrefs: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Load resource state from PlayerPrefs.
+        /// </summary>
+        public bool LoadStateFromPlayerPrefs(string key = "GameKitResourceState", bool resetExisting = true)
+        {
+            try
+            {
+                if (!PlayerPrefs.HasKey(key))
+                {
+                    Debug.LogWarning($"[GameKitResourceManager] PlayerPrefs key not found: {key}");
+                    return false;
+                }
+
+                string json = PlayerPrefs.GetString(key);
+                var state = JsonUtility.FromJson<ResourceState>(json);
+                
+                ImportState(state, resetExisting);
+                Debug.Log($"[GameKitResourceManager] State loaded from PlayerPrefs: {key}");
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GameKitResourceManager] Failed to load state from PlayerPrefs: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Clear saved state from PlayerPrefs.
+        /// </summary>
+        public void ClearStateFromPlayerPrefs(string key = "GameKitResourceState")
+        {
+            PlayerPrefs.DeleteKey(key);
+            PlayerPrefs.Save();
+            Debug.Log($"[GameKitResourceManager] Cleared state from PlayerPrefs: {key}");
+        }
+
+        /// <summary>
+        /// Get the default save file path for this manager.
+        /// </summary>
+        public static string GetDefaultSavePath(string managerId = "default")
+        {
+            return Path.Combine(Application.persistentDataPath, $"ResourceState_{managerId}.json");
+        }
+
+        #endregion
+
         [Serializable]
         public class ResourceEntry
         {
@@ -417,6 +643,35 @@ namespace UnityAIForge.GameKit
             
             [Tooltip("Maximum value (default: +Infinity)")]
             public float maxValue = float.MaxValue;
+        }
+
+        /// <summary>
+        /// Serializable resource state for save/load functionality.
+        /// </summary>
+        [Serializable]
+        public class ResourceState
+        {
+            public string managerId;
+            public long timestamp;
+            public List<ResourceSnapshot> resources = new List<ResourceSnapshot>();
+            public List<FlowStateSnapshot> flowStates = new List<FlowStateSnapshot>();
+            public string machinationsAssetPath;
+
+            [Serializable]
+            public class ResourceSnapshot
+            {
+                public string name;
+                public float amount;
+                public float minValue;
+                public float maxValue;
+            }
+
+            [Serializable]
+            public class FlowStateSnapshot
+            {
+                public string flowId;
+                public bool enabled;
+            }
         }
 
         [Serializable]

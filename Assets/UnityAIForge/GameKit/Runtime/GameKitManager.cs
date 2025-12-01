@@ -203,6 +203,48 @@ namespace UnityAIForge.GameKit
             return new Dictionary<string, float>();
         }
 
+        // Resource state persistence convenience methods
+        public void SaveResourceState(string filePath = null)
+        {
+            var resourceType = System.Type.GetType("UnityAIForge.GameKit.GameKitResourceManager, UnityAIForge.GameKit.Runtime");
+            if (resourceType != null)
+            {
+                var resourceManager = GetComponent(resourceType);
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    // Save to PlayerPrefs
+                    resourceType.GetMethod("SaveStateToPlayerPrefs")?.Invoke(resourceManager, new object[] { $"GameKitState_{ManagerId}" });
+                }
+                else
+                {
+                    // Save to file
+                    resourceType.GetMethod("SaveStateToFile")?.Invoke(resourceManager, new object[] { filePath, ManagerId });
+                }
+            }
+        }
+
+        public bool LoadResourceState(string filePath = null)
+        {
+            var resourceType = System.Type.GetType("UnityAIForge.GameKit.GameKitResourceManager, UnityAIForge.GameKit.Runtime");
+            if (resourceType != null)
+            {
+                var resourceManager = GetComponent(resourceType);
+                object result;
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    // Load from PlayerPrefs
+                    result = resourceType.GetMethod("LoadStateFromPlayerPrefs")?.Invoke(resourceManager, new object[] { $"GameKitState_{ManagerId}", true });
+                }
+                else
+                {
+                    // Load from file
+                    result = resourceType.GetMethod("LoadStateFromFile")?.Invoke(resourceManager, new object[] { filePath, true });
+                }
+                return result != null && (bool)result;
+            }
+            return false;
+        }
+
         // Event Hub convenience methods
         public void TriggerEvent(string eventName)
         {
