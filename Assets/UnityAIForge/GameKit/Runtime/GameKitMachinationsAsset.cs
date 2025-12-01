@@ -137,7 +137,7 @@ namespace UnityAIForge.GameKit
             public string resourceName;
             
             [Tooltip("Threshold type")]
-            public GameKitResourceManager.ThresholdType thresholdType;
+            public ThresholdType thresholdType;
             
             [Tooltip("Threshold value")]
             public float thresholdValue;
@@ -147,6 +147,17 @@ namespace UnityAIForge.GameKit
             
             [Tooltip("Trigger description")]
             public string description;
+        }
+        
+        /// <summary>
+        /// Threshold type for resource triggers
+        /// </summary>
+        public enum ThresholdType
+        {
+            Above,      // Trigger when crossing above threshold
+            Below,      // Trigger when crossing below threshold
+            Equal,      // Trigger when equal to threshold
+            NotEqual    // Trigger when not equal to threshold
         }
 
         /// <summary>
@@ -340,7 +351,7 @@ namespace UnityAIForge.GameKit
         /// <summary>
         /// Add a new trigger (Editor only)
         /// </summary>
-        public void AddTrigger(string triggerName, string resourceName, GameKitResourceManager.ThresholdType thresholdType, float thresholdValue)
+        public void AddTrigger(string triggerName, string resourceName, ThresholdType thresholdType, float thresholdValue)
         {
             triggers.Add(new ResourceTriggerDefinition
             {

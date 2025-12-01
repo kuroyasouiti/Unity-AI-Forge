@@ -527,15 +527,15 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitResourceManager.ThresholdType ParseThresholdType(string str)
+        private GameKitMachinationsAsset.ThresholdType ParseThresholdType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "above" => GameKitResourceManager.ThresholdType.Above,
-                "below" => GameKitResourceManager.ThresholdType.Below,
-                "equal" => GameKitResourceManager.ThresholdType.Equal,
-                "notequal" => GameKitResourceManager.ThresholdType.NotEqual,
-                _ => GameKitResourceManager.ThresholdType.Above
+                "above" => GameKitMachinationsAsset.ThresholdType.Above,
+                "below" => GameKitMachinationsAsset.ThresholdType.Below,
+                "equal" => GameKitMachinationsAsset.ThresholdType.Equal,
+                "notequal" => GameKitMachinationsAsset.ThresholdType.NotEqual,
+                _ => GameKitMachinationsAsset.ThresholdType.Above
             };
         }
 
