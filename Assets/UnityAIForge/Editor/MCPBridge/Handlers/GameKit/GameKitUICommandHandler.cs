@@ -40,7 +40,9 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var panelId = GetString(payload, "panelId") ?? $"CommandPanel_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var canvasPath = GetString(payload, "canvasPath");
+            var targetType = GetString(payload, "targetType") ?? "actor";
             var targetActorId = GetString(payload, "targetActorId");
+            var targetManagerId = GetString(payload, "targetManagerId");
             var layout = GetString(payload, "layout") ?? "vertical";
 
             if (string.IsNullOrEmpty(canvasPath))
@@ -71,7 +73,34 @@ namespace MCP.Editor.Handlers.GameKit
 
             // Add GameKitUICommand component
             var uiCommand = Undo.AddComponent<GameKitUICommand>(panelGo);
-            uiCommand.Initialize(panelId, targetActorId);
+            
+            // Set target type using reflection
+            var targetTypeField = typeof(GameKitUICommand).GetField("targetType", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var targetTypeEnum = targetType.ToLowerInvariant() == "manager" 
+                ? GameKitUICommand.TargetType.Manager 
+                : GameKitUICommand.TargetType.Actor;
+            targetTypeField?.SetValue(uiCommand, targetTypeEnum);
+            
+            // Set target IDs using reflection
+            if (!string.IsNullOrEmpty(targetActorId))
+            {
+                var actorIdField = typeof(GameKitUICommand).GetField("targetActorId",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                actorIdField?.SetValue(uiCommand, targetActorId);
+            }
+            
+            if (!string.IsNullOrEmpty(targetManagerId))
+            {
+                var managerIdField = typeof(GameKitUICommand).GetField("targetManagerId",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                managerIdField?.SetValue(uiCommand, targetManagerId);
+            }
+            
+            // Initialize panel ID
+            var panelIdField = typeof(GameKitUICommand).GetField("panelId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            panelIdField?.SetValue(uiCommand, panelId);
 
             // Create command buttons if specified
             if (payload.TryGetValue("commands", out var commandsObj) && commandsObj is List<object> commandsList)
@@ -83,7 +112,12 @@ namespace MCP.Editor.Handlers.GameKit
                     {
                         var name = GetStringFromDict(commandDict, "name");
                         var label = GetStringFromDict(commandDict, "label") ?? name;
-                        CreateCommandButton(panelGo, uiCommand, name, label, buttonSize);
+                        var commandTypeStr = GetStringFromDict(commandDict, "commandType") ?? "action";
+                        var commandParam = GetStringFromDict(commandDict, "commandParameter");
+                        var resourceAmt = GetFloatFromDict(commandDict, "resourceAmount", 0f);
+                        
+                        var cmdType = ParseCommandType(commandTypeStr);
+                        CreateCommandButton(panelGo, uiCommand, name, label, buttonSize, cmdType, commandParam, resourceAmt);
                     }
                 }
             }
@@ -134,7 +168,8 @@ namespace MCP.Editor.Handlers.GameKit
             return new Vector2(100, 50);
         }
 
-        private void CreateCommandButton(GameObject parent, GameKitUICommand uiCommand, string commandName, string label, Vector2 size)
+        private void CreateCommandButton(GameObject parent, GameKitUICommand uiCommand, string commandName, string label, Vector2 size, 
+            GameKitUICommand.CommandType commandType = GameKitUICommand.CommandType.Action, string commandParameter = null, float resourceAmount = 0f)
         {
             // Create button GameObject
             var buttonGo = new GameObject(commandName, typeof(RectTransform));
@@ -167,7 +202,25 @@ namespace MCP.Editor.Handlers.GameKit
 
             // Register button with UICommand component
             Undo.RecordObject(uiCommand, "Register Button");
-            uiCommand.RegisterButton(commandName, button);
+            uiCommand.RegisterButton(commandName, button, commandType, commandParameter);
+            
+            // If resource amount is specified, update the binding
+            if (resourceAmount != 0f && (commandType == GameKitUICommand.CommandType.AddResource || 
+                commandType == GameKitUICommand.CommandType.SetResource || 
+                commandType == GameKitUICommand.CommandType.ConsumeResource))
+            {
+                // Access the command bindings using reflection to set resource amount
+                var bindingsField = typeof(GameKitUICommand).GetField("commandBindings", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var bindings = bindingsField?.GetValue(uiCommand) as System.Collections.IList;
+                
+                if (bindings != null && bindings.Count > 0)
+                {
+                    var lastBinding = bindings[bindings.Count - 1];
+                    var resourceAmountField = lastBinding.GetType().GetField("resourceAmount");
+                    resourceAmountField?.SetValue(lastBinding, resourceAmount);
+                }
+            }
         }
 
         #endregion
@@ -280,6 +333,34 @@ namespace MCP.Editor.Handlers.GameKit
         private string GetStringFromDict(Dictionary<string, object> dict, string key)
         {
             return dict.TryGetValue(key, out var value) ? value?.ToString() : null;
+        }
+
+        private float GetFloatFromDict(Dictionary<string, object> dict, string key, float defaultValue = 0f)
+        {
+            if (dict.TryGetValue(key, out var value))
+            {
+                return Convert.ToSingle(value);
+            }
+            return defaultValue;
+        }
+
+        private GameKitUICommand.CommandType ParseCommandType(string typeStr)
+        {
+            return typeStr.ToLowerInvariant() switch
+            {
+                "move" => GameKitUICommand.CommandType.Move,
+                "jump" => GameKitUICommand.CommandType.Jump,
+                "action" => GameKitUICommand.CommandType.Action,
+                "look" => GameKitUICommand.CommandType.Look,
+                "custom" => GameKitUICommand.CommandType.Custom,
+                "addresource" => GameKitUICommand.CommandType.AddResource,
+                "setresource" => GameKitUICommand.CommandType.SetResource,
+                "consumeresource" => GameKitUICommand.CommandType.ConsumeResource,
+                "changestate" => GameKitUICommand.CommandType.ChangeState,
+                "nextturn" => GameKitUICommand.CommandType.NextTurn,
+                "triggerscene" => GameKitUICommand.CommandType.TriggerScene,
+                _ => GameKitUICommand.CommandType.Action
+            };
         }
 
         private string BuildGameObjectPath(GameObject go)

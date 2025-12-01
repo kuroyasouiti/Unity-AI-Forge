@@ -6,8 +6,9 @@ using UnityEngine.UI;
 namespace UnityAIForge.GameKit
 {
     /// <summary>
-    /// GameKit UI Command Hub: bridges UI controls to GameKitActor's UnityEvents.
-    /// Acts as a central hub for translating UI interactions into actor commands.
+    /// GameKit UI Command Hub: bridges UI controls to GameKitActor and GameKitManager.
+    /// Acts as a central hub for translating UI interactions into game commands.
+    /// Supports both Actor commands (movement, actions) and Manager commands (resources, states).
     /// </summary>
     [AddComponentMenu("SkillForUnity/GameKit/UI Command Hub")]
     public class GameKitUICommand : MonoBehaviour
@@ -15,19 +16,30 @@ namespace UnityAIForge.GameKit
         [Header("Identity")]
         [SerializeField] private string panelId;
         
+        [Header("Target Type")]
+        [Tooltip("What type of target this command hub controls")]
+        [SerializeField] private TargetType targetType = TargetType.Actor;
+        
         [Header("Target Actor")]
-        [Tooltip("Reference to the target actor (preferred over actorId)")]
+        [Tooltip("Reference to the target actor (when targetType is Actor)")]
         [SerializeField] private GameKitActor targetActor;
         
         [Tooltip("Target actor ID (fallback if actor reference is not set)")]
         [SerializeField] private string targetActorId;
         
+        [Header("Target Manager")]
+        [Tooltip("Reference to the target manager (when targetType is Manager)")]
+        [SerializeField] private GameKitManager targetManager;
+        
+        [Tooltip("Target manager ID (fallback if manager reference is not set)")]
+        [SerializeField] private string targetManagerId;
+        
         [Header("Command Bindings")]
         [SerializeField] private List<UICommandBinding> commandBindings = new List<UICommandBinding>();
 
         [Header("Settings")]
-        [Tooltip("Cache actor reference on Start for better performance")]
-        [SerializeField] private bool cacheActorReference = true;
+        [Tooltip("Cache target reference on Start for better performance")]
+        [SerializeField] private bool cacheTargetReference = true;
         
         [Tooltip("Log command execution for debugging")]
         [SerializeField] private bool logCommands = false;
@@ -36,19 +48,46 @@ namespace UnityAIForge.GameKit
         private bool isInitialized = false;
 
         public string PanelId => panelId;
+        public TargetType Type => targetType;
         public string TargetActorId => targetActorId;
         public GameKitActor TargetActor => targetActor;
+        public string TargetManagerId => targetManagerId;
+        public GameKitManager TargetManager => targetManager;
+        
+        /// <summary>
+        /// Target type for UI commands
+        /// </summary>
+        public enum TargetType
+        {
+            Actor,      // Commands target GameKitActor
+            Manager     // Commands target GameKitManager
+        }
 
         /// <summary>
-        /// Command types that map to GameKitActor's UnityEvents
+        /// Command types that map to GameKitActor's UnityEvents or GameKitManager's methods
         /// </summary>
         public enum CommandType
         {
+            // Actor Commands
             Move,           // Maps to OnMoveInput (Vector3)
             Jump,           // Maps to OnJumpInput (void)
             Action,         // Maps to OnActionInput (string)
             Look,           // Maps to OnLookInput (Vector2)
-            Custom          // Custom command via SendMessage
+            Custom,         // Custom command via SendMessage
+            
+            // Manager Commands - Resource
+            AddResource,    // Add resource amount
+            SetResource,    // Set resource to specific amount
+            ConsumeResource,// Try to consume resource
+            
+            // Manager Commands - State
+            ChangeState,    // Change state manager state
+            
+            // Manager Commands - Turn
+            NextTurn,       // Advance to next turn phase
+            
+            // Manager Commands - Scene
+            TriggerScene    // Trigger scene transition
         }
 
         private void Start()
@@ -71,10 +110,17 @@ namespace UnityAIForge.GameKit
                 }
             }
 
-            // Cache actor reference if enabled
-            if (cacheActorReference && targetActor == null && !string.IsNullOrEmpty(targetActorId))
+            // Cache target reference if enabled
+            if (cacheTargetReference)
             {
-                targetActor = FindActorById(targetActorId);
+                if (targetType == TargetType.Actor && targetActor == null && !string.IsNullOrEmpty(targetActorId))
+                {
+                    targetActor = FindActorById(targetActorId);
+                }
+                else if (targetType == TargetType.Manager && targetManager == null && !string.IsNullOrEmpty(targetManagerId))
+                {
+                    targetManager = FindManagerById(targetManagerId);
+                }
             }
 
             isInitialized = true;
@@ -152,6 +198,19 @@ namespace UnityAIForge.GameKit
                 return;
             }
 
+            // Execute based on target type
+            if (targetType == TargetType.Actor)
+            {
+                ExecuteActorCommand(binding, commandName);
+            }
+            else if (targetType == TargetType.Manager)
+            {
+                ExecuteManagerCommand(binding, commandName);
+            }
+        }
+
+        private void ExecuteActorCommand(UICommandBinding binding, string commandName)
+        {
             // Get or find target actor
             var actor = GetTargetActor();
             if (actor == null)
@@ -193,6 +252,93 @@ namespace UnityAIForge.GameKit
                     actor.gameObject.SendMessage($"OnCommand_{commandName}", SendMessageOptions.DontRequireReceiver);
                     if (logCommands)
                         Debug.Log($"[GameKitUICommand] Custom command: {commandName}");
+                    break;
+                    
+                default:
+                    Debug.LogWarning($"[GameKitUICommand] Command type '{binding.commandType}' is not valid for Actor target");
+                    break;
+            }
+        }
+
+        private void ExecuteManagerCommand(UICommandBinding binding, string commandName)
+        {
+            // Get or find target manager
+            var manager = GetTargetManager();
+            if (manager == null)
+            {
+                Debug.LogWarning($"[GameKitUICommand] Target manager not found for command '{commandName}'");
+                return;
+            }
+
+            // Execute command based on type
+            switch (binding.commandType)
+            {
+                case CommandType.AddResource:
+                    {
+                        string resourceName = binding.commandParameter;
+                        float amount = binding.resourceAmount;
+                        manager.AddResource(resourceName, amount);
+                        if (logCommands)
+                            Debug.Log($"[GameKitUICommand] AddResource: {resourceName} +{amount}");
+                    }
+                    break;
+
+                case CommandType.SetResource:
+                    {
+                        string resourceName = binding.commandParameter;
+                        float amount = binding.resourceAmount;
+                        manager.SetResource(resourceName, amount);
+                        if (logCommands)
+                            Debug.Log($"[GameKitUICommand] SetResource: {resourceName} = {amount}");
+                    }
+                    break;
+
+                case CommandType.ConsumeResource:
+                    {
+                        string resourceName = binding.commandParameter;
+                        float amount = binding.resourceAmount;
+                        bool success = manager.ConsumeResource(resourceName, amount);
+                        if (logCommands)
+                            Debug.Log($"[GameKitUICommand] ConsumeResource: {resourceName} -{amount} (success: {success})");
+                    }
+                    break;
+
+                case CommandType.ChangeState:
+                    {
+                        string stateName = binding.commandParameter ?? commandName;
+                        manager.ChangeState(stateName);
+                        if (logCommands)
+                            Debug.Log($"[GameKitUICommand] ChangeState: {stateName}");
+                    }
+                    break;
+
+                case CommandType.NextTurn:
+                    {
+                        manager.NextPhase();
+                        if (logCommands)
+                            Debug.Log($"[GameKitUICommand] NextTurn");
+                    }
+                    break;
+
+                case CommandType.TriggerScene:
+                    {
+                        string triggerName = binding.commandParameter ?? commandName;
+                        // Assuming there's a GameKitSceneFlow instance
+                        GameKitSceneFlow.Transition(triggerName);
+                        if (logCommands)
+                            Debug.Log($"[GameKitUICommand] TriggerScene: {triggerName}");
+                    }
+                    break;
+
+                case CommandType.Custom:
+                    // Send custom message to manager
+                    manager.gameObject.SendMessage($"OnCommand_{commandName}", SendMessageOptions.DontRequireReceiver);
+                    if (logCommands)
+                        Debug.Log($"[GameKitUICommand] Custom command: {commandName}");
+                    break;
+                    
+                default:
+                    Debug.LogWarning($"[GameKitUICommand] Command type '{binding.commandType}' is not valid for Manager target");
                     break;
             }
         }
@@ -271,7 +417,7 @@ namespace UnityAIForge.GameKit
         public void SetTargetActor(string actorId)
         {
             targetActorId = actorId;
-            if (cacheActorReference)
+            if (cacheTargetReference)
             {
                 targetActor = FindActorById(actorId);
             }
@@ -332,6 +478,67 @@ namespace UnityAIForge.GameKit
             return null;
         }
 
+        private GameKitManager GetTargetManager()
+        {
+            // Use cached reference if available
+            if (targetManager != null)
+                return targetManager;
+
+            // Find by ID if not cached
+            if (!string.IsNullOrEmpty(targetManagerId))
+            {
+                targetManager = FindManagerById(targetManagerId);
+                return targetManager;
+            }
+
+            return null;
+        }
+
+        private GameKitManager FindManagerById(string managerId)
+        {
+            if (string.IsNullOrEmpty(managerId))
+                return null;
+
+            var managers = FindObjectsByType<GameKitManager>(FindObjectsSortMode.None);
+            foreach (var manager in managers)
+            {
+                if (manager.ManagerId == managerId)
+                {
+                    return manager;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Set target manager by reference.
+        /// </summary>
+        public void SetTargetManager(GameKitManager manager)
+        {
+            targetManager = manager;
+            if (manager != null)
+            {
+                targetManagerId = manager.ManagerId;
+            }
+        }
+
+        /// <summary>
+        /// Set target manager by ID.
+        /// </summary>
+        public void SetTargetManager(string managerId)
+        {
+            targetManagerId = managerId;
+            if (cacheTargetReference)
+            {
+                targetManager = FindManagerById(managerId);
+            }
+            else
+            {
+                targetManager = null; // Force lookup on next command
+            }
+        }
+
         /// <summary>
         /// Get all registered command names.
         /// </summary>
@@ -364,7 +571,7 @@ namespace UnityAIForge.GameKit
             [Tooltip("Unique command identifier")]
             public string commandName;
             
-            [Tooltip("Type of command (maps to GameKitActor events)")]
+            [Tooltip("Type of command (maps to GameKitActor events or GameKitManager methods)")]
             public CommandType commandType = CommandType.Action;
             
             [Tooltip("UI button that triggers this command")]
@@ -376,8 +583,11 @@ namespace UnityAIForge.GameKit
             [Tooltip("Direction for Look commands")]
             public Vector2 lookDirection = Vector2.zero;
             
-            [Tooltip("Parameter string for Action commands")]
+            [Tooltip("Parameter string for Action, Resource, State, or Scene commands")]
             public string commandParameter;
+            
+            [Tooltip("Amount for resource commands (AddResource, SetResource, ConsumeResource)")]
+            public float resourceAmount = 0f;
         }
     }
 }
