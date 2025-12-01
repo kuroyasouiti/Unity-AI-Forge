@@ -17,13 +17,30 @@ For manual installation and detailed documentation, see:
 
 ## Features
 
-- Scene hierarchy manipulation
-- GameObject creation and modification
-- Component management
-- GameKit framework integration
+### Core Unity Tools
+- Scene hierarchy manipulation and build settings
+- GameObject creation with templates and batch operations
+- Component management with property updates
+- Asset management and ScriptableObject CRUD
 - Prefab workflow automation
-- Asset management
 - Material and shader control
+- Project settings configuration
+
+### GameKit Framework (22 Tools Total)
+- **GameKitActor**: Player/NPC controllers with 8 behavior profiles and 4 control modes
+- **GameKitManager**: Resource/State/Turn/Event management with persistence
+- **GameKitUICommand**: UI button → Actor/Manager command bridge (11 command types)
+- **GameKitMachinations**: Economic system assets with flows/converters/triggers
+- **GameKitSceneFlow**: State machine-based scene transitions
+- **GameKitInteraction**: Trigger-based interactions with declarative actions
+
+### Advanced Features
+- State persistence (save/load system)
+- Resource economics with Machinations-inspired flows
+- Batch operations with pattern matching
+- Design pattern generation (Singleton, ObjectPool, StateMachine, etc.)
+- Physics presets and camera rigs
+- Input system integration
 
 ## Requirements
 

@@ -1,6 +1,6 @@
 name: Unity-AI-Forge
-version: 2.0.0
-description: "AI-powered Unity development toolkit - Model Context Protocol integration with GameKit framework"
+version: 2.1.0
+description: "AI-powered Unity development toolkit - MCP integration with GameKit framework (actors, managers, Machinations economics, UI commands, scene flow, state persistence)"
 author: "Unity-AI-Forge Team"
 license: MIT
 
@@ -38,7 +38,7 @@ prerequisites:
 
 # Skill capabilities
 capabilities:
-  tools: 21
+  tools: 22
   categories:
     - scene_management        # Create, load, save, delete, inspect scenes
     - gameobject_operations   # Create, move, rename, delete GameObjects with batch support
@@ -49,7 +49,16 @@ capabilities:
     - sprite_conversion      # Generate sprites from primitives, SVG, textures, and solid colors
     - project_settings       # Configure Unity project settings
     - batch_operations       # Mid-level batch utilities for Transform, RectTransform, Physics, Camera, UI, Audio, and Input
-    - gamekit_systems        # High-level GameKit tools for actors, managers, interactions, UI commands, and scene flow
+    - gamekit_systems        # High-level GameKit tools: actors, managers, interactions, UI commands, Machinations diagrams, and scene flow
+  
+  gamekit_features:
+    - actor_controller_separation   # Controller-behavior separation with 8 behavior profiles
+    - manager_systems               # Turn-based, realtime, resource pool, event hub, state machines
+    - ui_command_bridge            # UI buttons → Actor/Manager commands (11 command types)
+    - machinations_economics       # Resource flows, converters, triggers (Machinations.io-inspired)
+    - scene_flow_state_machine     # Scene transitions with additive loading
+    - interaction_triggers         # Collision/trigger/proximity/input-based interactions
+    - state_persistence            # Save/load system for resources and game state
 
 # MCP configuration
 mcp:

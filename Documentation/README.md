@@ -5,42 +5,45 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.0.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.1.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🆕 What's New in v2.0.0
+## 🆕 What's New in v2.1.0
+
+- **💾 State Persistence System**: Complete save/load functionality
+  - Export/Import resource states as JSON
+  - Save to files or PlayerPrefs
+  - Automatic timestamp and metadata tracking
+  - Cloud-save ready with serializable states
+  - Manager convenience methods for easy integration
+
+- **🎮 GameKit UICommand Extended**: Manager control support
+  - **NEW Target Types**: Actor OR Manager
+  - **11 Command Types**: Move/Jump/Action/Look/Custom + AddResource/SetResource/ConsumeResource/ChangeState/NextTurn/TriggerScene
+  - UI buttons can now control game economy, states, and turns
+  - Perfect for strategy games, shop UIs, and resource management
+
+- **📊 GameKit Machinations Enhanced**: Diagram execution
+  - ProcessDiagramFlows() - Execute automatic resource flows
+  - CheckDiagramTriggers() - Monitor threshold events
+  - ExecuteConverter() - Run specific resource conversions
+  - SetFlowEnabled() - Dynamic flow control at runtime
+  - Auto-execution modes for flows and triggers
+
+- **🎯 Simplified ResourceManager**: Focus on core functionality
+  - Pure resource storage and event management
+  - Complex logic moved to external controllers or Machinations
+  - Better performance (no Update() overhead by default)
+  - Cleaner separation of concerns
+
+### Previous Release (v2.0.0) Highlights
 
 - **🎯 Hub-Based Architecture**: All GameKit components redesigned as intelligent hubs
-  - Modular, extensible, and declarative design pattern throughout
-
-- **🎮 GameKit Actor**: Enhanced controller-to-behavior hub
-  - **8 Movement Modes**: 2D (Linear, Physics, TileGrid), 3D (CharacterController, Physics, NavMesh), GraphNode, SplineMovement
-  - **4 Control Modes**: DirectController (Input System), AIAutonomous, UICommand, ScriptTriggerOnly
-  - UnityEvents for all inputs (Move, Jump, Action, Look)
-
-- **⚙️ GameKit Manager Hub**: Dynamic mode-specific components
-  - **TurnBased** → GameKitTurnManager (phases, turn counter, events)
-  - **ResourcePool** → GameKitResourceManager (Machinations-inspired flows, converters, triggers)
-  - **EventHub** → GameKitEventManager (global event system)
-  - **StateManager** → GameKitStateManager (state stack, history)
-  - **Realtime** → GameKitRealtimeManager (timescale, pause, timers)
-
-- **🎭 GameKit Interaction Hub**: Multi-trigger declarative system
-  - Traditional: Collision, Trigger, Input, Proximity, Raycast
-  - Specialized: **TilemapCell**, **GraphNode**, **SplineProgress**
-  - Actions: TriggerActorAction, UpdateManagerResource, TriggerSceneFlow, teleports
-  - Conditions: ActorId, ManagerResource, custom conditions
-  - Cooldowns, repeats, UnityEvents
-
-- **🎬 GameKit SceneFlow**: Scene-centric transition system
-  - Same trigger → different destinations per scene
-  - Integrated shared scenes (no more separate groups)
-  - Per-scene transition definitions
-
-- **📱 GameKit UI Command**: Structured command hub
-  - Type-safe command system (Move, Jump, Action, Look, Custom)
-  - Button registration with parameters
-  - Direct GameKitActor integration
+- **🎮 GameKit Actor**: 8 behavior profiles, 4 control modes, UnityEvents
+- **⚙️ GameKit Manager Hub**: Dynamic mode-specific components (TurnBased, ResourcePool, EventHub, StateManager, Realtime)
+- **🎭 GameKit Interaction Hub**: Multi-trigger declarative system with specialized triggers
+- **🎬 GameKit SceneFlow**: Scene-centric transition system with additive loading
+- **🛤️ Spline Movement**: 2.5D spline-based movement with Catmull-Rom interpolation
 
 - **🛤️ Spline Movement**: 2.5D spline-based movement
   - Catmull-Rom interpolation

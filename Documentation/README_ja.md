@@ -3,12 +3,46 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.0.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.1.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKitフレームワークの3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
 
-## 🆕 v2.0.0の新機能
+## 🆕 v2.1.0の新機能
+
+- **💾 状態保存システム**: 完全なセーブ/ロード機能
+  - JSON形式でリソース状態をエクスポート/インポート
+  - ファイルまたはPlayerPrefsに保存
+  - 自動タイムスタンプとメタデータ追跡
+  - クラウドセーブ対応のシリアライズ可能な状態
+  - Manager便利メソッドで簡単統合
+
+- **🎮 GameKit UICommand拡張**: Manager制御対応
+  - **新ターゲットタイプ**: Actor または Manager
+  - **11コマンドタイプ**: Move/Jump/Action/Look/Custom + AddResource/SetResource/ConsumeResource/ChangeState/NextTurn/TriggerScene
+  - UIボタンからゲーム経済、状態、ターンを直接制御可能
+  - ストラテジーゲーム、ショップUI、リソース管理に最適
+
+- **📊 GameKit Machinations強化**: ダイアグラム実行機能
+  - ProcessDiagramFlows() - 自動リソースフローの実行
+  - CheckDiagramTriggers() - 閾値イベントの監視
+  - ExecuteConverter() - 特定のリソース変換実行
+  - SetFlowEnabled() - 実行時の動的フロー制御
+  - フローとトリガーの自動実行モード
+
+- **🎯 ResourceManager簡略化**: コア機能に集中
+  - 純粋なリソースストレージとイベント管理
+  - 複雑なロジックは外部コントローラーまたはMachinationsへ
+  - パフォーマンス向上（デフォルトでUpdate()オーバーヘッドなし）
+  - より明確な責任分離
+
+- **📚 包括的なドキュメント**: GameKit完全ガイド追加
+  - SKILL_GAMEKIT.md - 完全なGameKitガイド
+  - 3つの完全なゲーム例（RPG、タワーディフェンス、ターン制ストラテジー）
+  - 全22ツールの詳細スキーマ説明
+  - ベストプラクティスとトラブルシューティング
+
+## v2.0.0の主要機能
 
 - **🎯 ハブベースアーキテクチャ**: GameKitコンポーネント全体を賢いハブとして再設計
   - モジュラー、拡張可能、宣言的な設計パターンを全体に適用

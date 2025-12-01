@@ -53,20 +53,29 @@ git clone https://github.com/kuroyasouiti/Unity-AI-Forge.git
 
 ## 🎯 Features
 
-### 🤖 AI Integration (MCP)
+### 🤖 AI Integration (MCP) - 22 Tools
 - **Model Context Protocol** によるAIアシスタント連携
 - Unity Editor を AI から直接操作
 - 自然言語でゲームオブジェクト生成・編集
+- シーン、コンポーネント、アセット、プリファブの完全制御
+- バッチ操作とパターンマッチング
 
 ### 🎮 GameKit Framework
-- **Resource Management** - Machinations風の経済システム
-- **Scene Flow** - 柔軟なシーン遷移管理
-- **Interaction System** - イベント駆動のインタラクション
-- **Movement Systems** - スプライン、グラフベース移動
-- **UI Command** - UIとゲームロジックの連携
+- **GameKitActor** - 8種類の移動プロファイル、4種類の制御モード
+- **GameKitManager** - リソース/ステート/ターン/イベント管理
+- **GameKitUICommand** - UIボタン → Actor/Manager制御（11コマンドタイプ）
+- **GameKitMachinations** - 経済システムアセット（フロー/コンバーター/トリガー）
+- **GameKitSceneFlow** - ステートマシンベースのシーン遷移
+- **GameKitInteraction** - トリガーベースのインタラクション
+
+### 💾 State Persistence
+- **Save/Load System** - リソース状態の完全な保存/復元
+- **JSON Export/Import** - ファイルまたはPlayerPrefs対応
+- **Flow State Management** - 経済フローの動的制御
+- **Cloud Save Ready** - JSON形式でクラウド連携可能
 
 ### 📦 Asset Management
-- ScriptableObject ベースの設定管理
+- ScriptableObject ベースの設定管理（Machinations含む）
 - 再利用可能な経済システム・ステートマシン
 - Git でバージョン管理可能
 

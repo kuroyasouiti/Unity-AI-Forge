@@ -19,7 +19,8 @@
 ### 🔌 MCP サーバー
 
 - [**MCP サーバー概要**](MCPServer/README.md) - MCP サーバーの詳細
-- [**SKILL.md**](MCPServer/SKILL.md) - スキル定義と使用方法
+- [**SKILL.md**](MCPServer/SKILL.md) - 全ツールの使用方法とベストプラクティス
+- [**SKILL_GAMEKIT.md**](MCPServer/SKILL_GAMEKIT.md) - GameKitフレームワーク完全ガイド（アクター、マネージャー、Machinations、完全なゲーム例）
 
 ### 💡 使用例
 
@@ -53,7 +54,7 @@ GameKit は、ゲーム開発でよく使われる機能を提供するフレー
   シーン遷移管理システム
 
 - [**GameKitUICommand**](GameKit/GameKitUICommand.README.md)  
-  UIコマンドシステム（ボタンとアクターの連携）
+  UIコマンドシステム（UIボタン → Actor/Manager制御、11種類のコマンドタイプ）
 
 #### 移動システム
 
@@ -88,7 +89,8 @@ Documentation/
 │   └── INSTALL_GUIDE.md
 ├── MCPServer/
 │   ├── README.md
-│   └── SKILL.md
+│   ├── SKILL.md
+│   └── SKILL_GAMEKIT.md
 ├── Examples/
 │   ├── README.md
 │   ├── 01-basic-scene-setup.md
