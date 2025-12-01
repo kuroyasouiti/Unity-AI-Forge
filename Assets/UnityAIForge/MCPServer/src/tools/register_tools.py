@@ -803,26 +803,32 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "update", "inspect", "delete"],
+                    "description": "Actor operation.",
                 },
-                "actorId": {"type": "string", "description": "Unique actor identifier."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path."},
+                "actorId": {"type": "string", "description": "Unique actor identifier (used for targeting with UICommand and scripting)."},
+                "parentPath": {"type": "string", "description": "Parent GameObject path (optional, defaults to scene root)."},
                 "behaviorProfile": {
                     "type": "string",
                     "enum": ["2dLinear", "2dPhysics", "2dTileGrid", "graphNode", "splineMovement", "3dCharacterController", "3dPhysics", "3dNavMesh"],
-                    "description": "Actor behavior profile that determines movement type and required components. 'graphNode' provides node-based graph movement with A* pathfinding (2D/3D agnostic). 'splineMovement' provides rail/spline-based movement for 2.5D games, rail shooters, and side-scrollers.",
+                    "description": "Movement behavior profile: '2dLinear' (simple 2D movement), '2dPhysics' (Rigidbody2D physics), '2dTileGrid' (grid-based movement for tactics/roguelikes), 'graphNode' (A* pathfinding, 2D/3D agnostic), 'splineMovement' (rail-based for 2.5D/rail shooters), '3dCharacterController' (CharacterController for FPS/TPS), '3dPhysics' (Rigidbody physics), '3dNavMesh' (NavMesh agent for RTS/strategy).",
                 },
                 "controlMode": {
                     "type": "string",
                     "enum": ["directController", "aiAutonomous", "uiCommand", "scriptTriggerOnly"],
-                    "description": "Control mode that determines how the actor receives input (controller, AI, UI commands, or script-only).",
+                    "description": "Input control mode: 'directController' (player input via New Input System or legacy), 'aiAutonomous' (AI-driven patrol/follow/wander), 'uiCommand' (controlled by UI buttons via GameKitUICommand), 'scriptTriggerOnly' (event-driven from scripts only).",
                 },
                 "position": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
-                    "description": "Initial position of the actor.",
+                    "description": "Initial world position of the actor.",
                 },
-                "spritePath": {"type": "string", "description": "Sprite asset path for 2D actors."},
-                "modelPath": {"type": "string", "description": "Model prefab path for 3D actors."},
+                "rotation": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Initial euler rotation of the actor (optional).",
+                },
+                "spritePath": {"type": "string", "description": "Sprite asset path for 2D actors (e.g., 'Assets/Sprites/Player.png')."},
+                "modelPath": {"type": "string", "description": "Model prefab path for 3D actors (e.g., 'Assets/Models/Character.prefab')."},
             },
         },
         ["operation"],
@@ -834,31 +840,39 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete"],
+                    "enum": ["create", "update", "inspect", "delete", "exportState", "importState", "setFlowEnabled"],
+                    "description": "Manager operation.",
                 },
                 "managerId": {"type": "string", "description": "Unique manager identifier."},
                 "managerType": {
                     "type": "string",
                     "enum": ["turnBased", "realtime", "resourcePool", "eventHub", "stateManager"],
-                    "description": "Manager type.",
+                    "description": "Manager type: 'turnBased' for turn-based games, 'realtime' for real-time coordination, 'resourcePool' for resource/economy management, 'eventHub' for global events, 'stateManager' for finite state machines.",
                 },
                 "parentPath": {"type": "string", "description": "Parent GameObject path."},
-                "persistent": {"type": "boolean", "description": "DontDestroyOnLoad flag."},
+                "persistent": {"type": "boolean", "description": "DontDestroyOnLoad flag (survives scene changes)."},
                 "turnPhases": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Turn phase names for turn-based managers.",
+                    "description": "Turn phase names for turn-based managers (e.g., ['PlayerTurn', 'EnemyTurn', 'ResolveEffects']).",
                 },
                 "resourceTypes": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Resource type names for resource pool managers.",
+                    "description": "Resource type names for resource pool managers (deprecated, use initialResources instead).",
                 },
                 "initialResources": {
                     "type": "object",
                     "additionalProperties": {"type": "number"},
-                    "description": "Initial resource amounts.",
+                    "description": "Initial resource amounts for resource pool managers (e.g., {'health': 100, 'mana': 50, 'gold': 1000}).",
                 },
+                "stateData": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "State data for importState operation (JSON-serializable state from exportState).",
+                },
+                "flowId": {"type": "string", "description": "Flow identifier for setFlowEnabled operation."},
+                "enabled": {"type": "boolean", "description": "Enable/disable flow for setFlowEnabled operation."},
             },
         },
         ["operation"],
@@ -871,45 +885,47 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "update", "inspect", "delete"],
+                    "description": "Interaction operation.",
                 },
-                "interactionId": {"type": "string", "description": "Unique interaction identifier."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path."},
+                "interactionId": {"type": "string", "description": "Unique interaction identifier (e.g., 'GoldCoin', 'AutoDoor')."},
+                "parentPath": {"type": "string", "description": "Parent GameObject path (optional, creates new GameObject if not specified)."},
                 "triggerType": {
                     "type": "string",
                     "enum": ["collision", "trigger", "raycast", "proximity", "input"],
-                    "description": "Interaction trigger type.",
+                    "description": "Trigger detection type: 'collision' (OnCollisionEnter), 'trigger' (OnTriggerEnter), 'raycast' (ray hit detection), 'proximity' (distance-based), 'input' (key press).",
                 },
                 "triggerShape": {
                     "type": "string",
                     "enum": ["box", "sphere", "capsule"],
-                    "description": "Collider shape for collision/trigger types.",
+                    "description": "Collider shape for collision/trigger types (ignored for other types).",
                 },
                 "triggerSize": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Collider size/radius (Vector3 for box/capsule, x for sphere radius).",
                 },
                 "actions": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "enum": ["spawnPrefab", "destroyObject", "playSound", "sendMessage", "changeScene"]},
-                            "target": {"type": "string"},
-                            "parameter": {"type": "string"},
+                            "type": {"type": "string", "enum": ["spawnPrefab", "destroyObject", "playSound", "sendMessage", "changeScene"], "description": "Action type to execute."},
+                            "target": {"type": "string", "description": "Target GameObject name/path or 'self' for the interaction GameObject."},
+                            "parameter": {"type": "string", "description": "Action parameter (prefab path, message name, scene name, etc.)."},
                         },
                     },
-                    "description": "Actions to execute on trigger.",
+                    "description": "Declarative actions to execute when trigger conditions are met (executed in order).",
                 },
                 "conditions": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "enum": ["tag", "layer", "distance", "custom"]},
-                            "value": {"type": "string"},
+                            "type": {"type": "string", "enum": ["tag", "layer", "distance", "custom"], "description": "Condition type."},
+                            "value": {"type": "string", "description": "Condition value (tag name, layer name/number, distance threshold, custom script)."},
                         },
                     },
-                    "description": "Conditions to check before executing actions.",
+                    "description": "Conditions to check before executing actions (all conditions must pass, AND logic).",
                 },
             },
         },
@@ -926,7 +942,13 @@ def register_tools(server: Server) -> None:
                 },
                 "panelId": {"type": "string", "description": "Unique command panel identifier."},
                 "canvasPath": {"type": "string", "description": "Canvas GameObject path."},
-                "targetActorId": {"type": "string", "description": "Target actor ID to send commands to."},
+                "targetType": {
+                    "type": "string",
+                    "enum": ["actor", "manager"],
+                    "description": "Target type: 'actor' for GameKitActor or 'manager' for GameKitManager.",
+                },
+                "targetActorId": {"type": "string", "description": "Target actor ID (when targetType is 'actor')."},
+                "targetManagerId": {"type": "string", "description": "Target manager ID (when targetType is 'manager')."},
                 "commands": {
                     "type": "array",
                     "items": {
@@ -935,6 +957,23 @@ def register_tools(server: Server) -> None:
                             "name": {"type": "string"},
                             "label": {"type": "string"},
                             "icon": {"type": "string"},
+                            "commandType": {
+                                "type": "string",
+                                "enum": ["move", "jump", "action", "look", "custom", "addResource", "setResource", "consumeResource", "changeState", "nextTurn", "triggerScene"],
+                                "description": "Command type: Actor commands (move/jump/action/look/custom) or Manager commands (addResource/setResource/consumeResource/changeState/nextTurn/triggerScene).",
+                            },
+                            "commandParameter": {"type": "string", "description": "Parameter for action/resource/state commands."},
+                            "resourceAmount": {"type": "number", "description": "Amount for resource commands (addResource/setResource/consumeResource)."},
+                            "moveDirection": {
+                                "type": "object",
+                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                                "description": "Direction vector for move commands.",
+                            },
+                            "lookDirection": {
+                                "type": "object",
+                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                                "description": "Direction vector for look commands.",
+                            },
                         },
                     },
                     "description": "List of commands to create as buttons.",
@@ -953,6 +992,80 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    gamekit_machinations_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "apply", "export"],
+                    "description": "Machinations asset operation.",
+                },
+                "diagramId": {"type": "string", "description": "Unique diagram identifier."},
+                "assetPath": {"type": "string", "description": "Path to Machinations asset file."},
+                "managerId": {"type": "string", "description": "Manager ID to apply/export diagram to/from."},
+                "resetExisting": {"type": "boolean", "description": "Reset existing resources when applying."},
+                "initialResources": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "initialAmount": {"type": "number"},
+                            "minValue": {"type": "number"},
+                            "maxValue": {"type": "number"},
+                        },
+                    },
+                    "description": "Resource pool definitions.",
+                },
+                "flows": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "flowId": {"type": "string"},
+                            "resourceName": {"type": "string"},
+                            "ratePerSecond": {"type": "number"},
+                            "isSource": {"type": "boolean"},
+                            "enabledByDefault": {"type": "boolean"},
+                        },
+                    },
+                    "description": "Resource flow definitions (automatic generation/consumption).",
+                },
+                "converters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "converterId": {"type": "string"},
+                            "fromResource": {"type": "string"},
+                            "toResource": {"type": "string"},
+                            "conversionRate": {"type": "number"},
+                            "inputCost": {"type": "number"},
+                            "enabledByDefault": {"type": "boolean"},
+                        },
+                    },
+                    "description": "Resource converter definitions (transform resources).",
+                },
+                "triggers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "triggerName": {"type": "string"},
+                            "resourceName": {"type": "string"},
+                            "thresholdType": {"type": "string", "enum": ["above", "below", "equal", "notEqual"]},
+                            "thresholdValue": {"type": "number"},
+                            "enabledByDefault": {"type": "boolean"},
+                        },
+                    },
+                    "description": "Resource trigger definitions (threshold events).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     gamekit_sceneflow_schema = _schema_with_required(
         {
             "type": "object",
@@ -960,32 +1073,33 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": ["create", "update", "inspect", "delete", "transition"],
+                    "description": "SceneFlow operation.",
                 },
-                "flowId": {"type": "string", "description": "Unique scene flow identifier."},
+                "flowId": {"type": "string", "description": "Unique scene flow identifier (e.g., 'MainGameFlow')."},
                 "scenes": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "name": {"type": "string"},
-                            "scenePath": {"type": "string"},
-                            "loadMode": {"type": "string", "enum": ["single", "additive"]},
-                            "sharedGroups": {"type": "array", "items": {"type": "string"}},
+                            "name": {"type": "string", "description": "Scene state name (used in transitions)."},
+                            "scenePath": {"type": "string", "description": "Unity scene asset path (e.g., 'Assets/Scenes/Level1.unity')."},
+                            "loadMode": {"type": "string", "enum": ["single", "additive"], "description": "'single' unloads all scenes, 'additive' loads on top of existing."},
+                            "sharedGroups": {"type": "array", "items": {"type": "string"}, "description": "Shared scene group names to load with this scene (e.g., ['UI', 'Audio'])."},
                         },
                     },
-                    "description": "Scene definitions in the flow.",
+                    "description": "Scene definitions in the flow with load modes and shared groups.",
                 },
                 "transitions": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "trigger": {"type": "string"},
-                            "fromScene": {"type": "string"},
-                            "toScene": {"type": "string"},
+                            "trigger": {"type": "string", "description": "Trigger name to activate this transition (e.g., 'startGame', 'levelComplete')."},
+                            "fromScene": {"type": "string", "description": "Source scene name."},
+                            "toScene": {"type": "string", "description": "Destination scene name."},
                         },
                     },
-                    "description": "Scene transition definitions.",
+                    "description": "State machine transitions between scenes with trigger names.",
                 },
                 "sharedSceneGroups": {
                     "type": "object",
@@ -993,10 +1107,10 @@ def register_tools(server: Server) -> None:
                         "type": "array",
                         "items": {"type": "string"},
                     },
-                    "description": "Shared scene groups (e.g., UI, Audio).",
+                    "description": "Named groups of scenes to load additively (e.g., {'UI': ['Assets/Scenes/UIOverlay.unity'], 'Audio': ['Assets/Scenes/AudioManager.unity']}).",
                 },
-                "managerScenePath": {"type": "string", "description": "Persistent scene manager scene path."},
-                "triggerName": {"type": "string", "description": "Transition trigger name for transition operation."},
+                "managerScenePath": {"type": "string", "description": "Persistent manager scene path (stays loaded across transitions, e.g., 'Assets/Scenes/Managers.unity')."},
+                "triggerName": {"type": "string", "description": "Transition trigger name for 'transition' operation (e.g., 'startGame')."},
             },
         },
         ["operation"],
@@ -1010,103 +1124,108 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_scene_crud",
-            description="Manage Unity scenes and inspect scene context, including build settings operations.",
+            description="Comprehensive Unity scene management: create/load/save/delete/duplicate scenes, inspect scene hierarchy with optional component filtering, manage build settings (add/remove/reorder scenes). Use 'inspect' operation with 'includeHierarchy=true' to get scene context before making changes. Supports additive scene loading and build configuration operations.",
             inputSchema=scene_manage_schema,
         ),
         types.Tool(
             name="unity_gameobject_crud",
-            description="Create, delete, move, rename, duplicate, or inspect GameObjects in the active scenes.",
+            description="Full GameObject lifecycle management: create (with templates like Cube/Sphere/Player/Enemy), delete, move (reparent), rename, duplicate, update (tag/layer/active/static), inspect (with optional component details), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Use templates for fastest creation with proper components. Supports regex pattern matching for batch operations.",
             inputSchema=game_object_manage_schema,
         ),
         types.Tool(
             name="unity_component_crud",
-            description="Add, remove, update, or inspect components on GameObjects, with optional batch operations.",
+            description="Complete component management with batch operations: add/remove/update/inspect components on GameObjects. Update supports complex property changes including nested objects and asset references. Inspect supports fast existence checks (includeProperties=false, 10x faster) and property filtering for specific fields. Batch operations (addMultiple/removeMultiple/updateMultiple/inspectMultiple) support pattern matching with maxResults safety limits. Essential for configuring GameObject behavior.",
             inputSchema=component_manage_schema,
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Manage Unity assets under Assets/: create, update, delete, rename, duplicate, inspect, and update importer settings.",
+            description="Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), update (modify file contents), delete, rename, duplicate, inspect (view properties and content), updateImporter (modify asset import settings), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Essential for managing scripts, textures, audio, data files, and all Unity assets. Use with unity_script_template_generate for creating properly structured C# scripts.",
             inputSchema=asset_manage_schema,
         ),
         types.Tool(
             name="unity_scriptableObject_crud",
-            description="Create, inspect, update, delete, duplicate, list, or find ScriptableObject assets.",
+            description="ScriptableObject asset management: create new instances from type name, inspect/update properties, delete, duplicate, list all instances, or find by type. ScriptableObjects are Unity's data container assets perfect for game configuration (stats, settings, levels). Use 'create' to instantiate from existing type, 'update' to modify properties, 'list' to see all instances, 'findByType' to search by class name. Supports property filtering and batch operations.",
             inputSchema=scriptable_object_manage_schema,
         ),
         types.Tool(
             name="unity_prefab_crud",
-            description="Manage Unity prefabs: create from GameObject, update, inspect, instantiate in scene, unpack, apply/revert overrides.",
+            description="Complete prefab workflow management: create prefabs from scene GameObjects, update existing prefabs, inspect prefab contents and overrides, instantiate prefabs into scenes with custom position/rotation, unpack prefab instances (completely or outermost only), apply instance overrides back to prefab, or revert instance changes. Essential for creating reusable game objects (enemies, pickups, UI elements, buildings). Use 'create' to save GameObjects as prefabs, 'instantiate' to spawn prefab instances, 'applyOverrides' to update prefab from modified instance.",
             inputSchema=prefab_manage_schema,
         ),
         types.Tool(
             name="unity_vector_sprite_convert",
-            description="Convert vectors and primitives to sprites: generate primitive shapes (square, circle, triangle, polygon), import SVG, convert textures to sprites, create solid color sprites.",
+            description="Vector and primitive to sprite conversion: generate 2D sprites from primitives (square/circle/triangle/polygon with custom sides), import SVG vector files to sprites, convert existing textures to sprite assets with custom import settings, or create solid color sprites. Supports custom dimensions (width/height in pixels), RGBA colors (0-1 range), pixels per unit (sprite scale), and sprite modes (single/multiple for sprite sheets). Perfect for procedural sprite generation, prototyping without art assets, UI element creation, and SVG integration. Outputs ready-to-use sprite assets.",
             inputSchema=vector_sprite_convert_schema,
         ),
         types.Tool(
             name="unity_projectSettings_crud",
-            description="Read, write, or list Unity Project Settings (Player, Quality, Time, Physics, Audio, Editor).",
+            description="Unity Project Settings management: read/write/list settings across 7 categories (player: build settings & configurations, quality: quality levels & graphics, time: time scale & fixed timestep, physics: gravity & collision layers, audio: volume & DSP buffer, editor: serialization & asset pipeline, tagsLayers: custom tags & layers). Use 'list' to see available properties per category, 'read' to get specific property value, 'write' to modify settings. Essential for configuring project-wide settings, physics parameters, quality presets, and build configurations.",
             inputSchema=project_settings_manage_schema,
         ),
         types.Tool(
             name="unity_transform_batch",
-            description="Mid-level batch utilities for arranging Transforms/RectTransforms, renaming objects, and creating menu lists.",
+            description="Mid-level batch transform operations: arrange multiple GameObjects in patterns (arrangeCircle: circular formation, arrangeLine: linear spacing, createMenuList: vertical/horizontal menu layout from prefabs), rename objects sequentially (Item_01, Item_02) or from custom name lists, all in local or world space. Supports custom center points, radius, spacing, angles, and planes (XY/XZ/YZ). Perfect for organizing level objects, UI elements, menu items, and creating structured layouts without manual positioning.",
             inputSchema=transform_batch_schema,
         ),
         types.Tool(
             name="unity_rectTransform_batch",
-            description="Mid-level batch utilities for UI RectTransforms: set anchors, pivot, size, position, align to parent, distribute, and match size.",
+            description="Mid-level batch UI RectTransform operations: set anchors (topLeft/middleCenter/stretchAll, 16 presets), pivot points, size delta, anchored position for multiple UI elements simultaneously. Supports alignment to parent edges, horizontal/vertical distribution with custom spacing, and size matching (width/height/both) from source element. Essential for precise UI layout control, responsive design setup, and batch UI element positioning. Use for aligning panels, distributing buttons, matching UI element sizes, and creating consistent layouts.",
             inputSchema=rect_transform_batch_schema,
         ),
         types.Tool(
             name="unity_physics_bundle",
-            description="Mid-level physics bundle: apply 2D/3D Rigidbody + Collider presets (dynamic, kinematic, static, character, platformer, topDown, vehicle, projectile) or update individual physics properties.",
+            description="Mid-level physics setup: apply complete physics presets (dynamic: movable with physics, kinematic: movable without physics, static: immovable, character: player/NPC, platformer: 2D side-scrolling, topDown: 2D top-down, vehicle: car physics, projectile: bullets/arrows) or update individual Rigidbody/Collider properties. Automatically adds Rigidbody2D/Rigidbody + Collider (box/sphere/capsule/circle) with appropriate settings. Supports 2D and 3D physics, constraints (freeze position/rotation), collision detection modes (discrete/continuous), and physics materials. Perfect for rapid physics prototyping.",
             inputSchema=physics_bundle_schema,
         ),
         types.Tool(
             name="unity_camera_rig",
-            description="Mid-level camera rig utilities: create follow, orbit, split-screen, fixed, or dolly camera rigs with target tracking and smooth movement.",
+            description="Mid-level camera rig creation: create complete camera systems with single commands (follow: smooth following camera, orbit: rotate around target, splitScreen: multiplayer viewports, fixed: static camera, dolly: cinematic rail camera). Automatically configures Camera component, target tracking, follow smoothing, orbit distance, field of view, orthographic/perspective mode, and split-screen viewports. Perfect for quickly setting up player cameras, cinematic cameras, or multiplayer camera systems without manual rigging.",
             inputSchema=camera_rig_schema,
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation: create Canvas, Panel, Button, Text, Image, and InputField with preset anchors and styling.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder). Supports render modes (screenSpaceOverlay/screenSpaceCamera/worldSpace), anchor presets (topLeft/middleCenter/stretchAll, etc.), automatic sizing, and color configuration. Perfect for rapid UI prototyping. Use for basic UI setup, then customize with unity_component_crud if needed.",
             inputSchema=ui_foundation_schema,
         ),
         types.Tool(
             name="unity_audio_source_bundle",
-            description="Mid-level audio source utilities: create and configure AudioSource with presets (music, sfx, ambient, voice, ui) including 2D/3D spatial settings and mixer groups.",
+            description="Mid-level audio source setup: create and configure AudioSource components with presets (music: looping background music with lower priority, sfx: one-shot sound effects with high priority, ambient: looping environmental sounds, voice: dialogue with high priority, ui: button clicks/menu sounds). Automatically configures volume, pitch, loop, playOnAwake, spatialBlend (2D/3D), min/max distance for 3D audio, priority (0-256), and audio mixer group routing. Perfect for quickly setting up game audio without manual AudioSource configuration.",
             inputSchema=audio_source_bundle_schema,
         ),
         types.Tool(
             name="unity_input_profile",
-            description="Mid-level input profile utilities: create PlayerInput with New Input System, configure action maps, and set up input notification behaviors.",
+            description="Mid-level input system setup: create PlayerInput component with New Input System, configure action maps (player: move/jump/fire, ui: navigate/submit/cancel, vehicle: accelerate/brake/steer), set up notification behaviors (sendMessages/broadcastMessages/invokeUnityEvents/invokeCSharpEvents), and define custom actions with bindings. Automatically generates or uses existing InputActions assets. Essential for setting up player input handling with Unity's modern Input System. Use presets for quick setup or 'custom' for full control.",
             inputSchema=input_profile_schema,
         ),
         types.Tool(
             name="unity_character_controller_bundle",
-            description="Mid-level CharacterController bundle: apply CharacterController with presets (fps, tps, platformer, child, large, narrow, custom) for easy 3D character setup with configurable collision properties.",
+            description="Mid-level CharacterController setup: apply CharacterController component with presets optimized for different character types (fps: 1.8m height for first-person, tps: 2.0m for third-person, platformer: 1.0m for platformers, child: 0.5m for small characters, large: 3.0m for large characters, narrow: thin capsule for tight spaces, custom: full manual control). Automatically configures capsule radius, height, center offset, slope limit (max climbable angle), step offset (max stair height), skin width (collision padding), and minimum move distance. Perfect for 3D character setup without manual physics configuration.",
             inputSchema=character_controller_bundle_schema,
         ),
         types.Tool(
             name="unity_gamekit_actor",
-            description="High-level GameKit Actor: create game actors as controller-to-behavior hubs. Actors relay input from controllers to behavior components via UnityEvents (OnMoveInput, OnJumpInput, OnActionInput, OnLookInput). DirectController mode uses Unity's new Input System (PlayerInput + GameKitInputSystemController) with automatic fallback to legacy input (GameKitSimpleInput). AIAutonomous mode uses GameKitSimpleAI for patrol/follow/wander behaviors.",
+            description="High-level GameKit Actor: create game actors with controller-behavior separation. Choose from 8 behavior profiles (2dLinear/2dPhysics/2dTileGrid/graphNode/splineMovement/3dCharacterController/3dPhysics/3dNavMesh) and 4 control modes (directController for player input via New Input System or legacy, aiAutonomous for AI patrol/follow/wander, uiCommand for UI button control, scriptTriggerOnly for event-driven). Actors relay input to behaviors via UnityEvents (OnMoveInput/OnJumpInput/OnActionInput/OnLookInput). Perfect for players, NPCs, enemies, and interactive characters.",
             inputSchema=gamekit_actor_schema,
         ),
         types.Tool(
             name="unity_gamekit_manager",
-            description="High-level GameKit Manager: create game managers (turn-based, realtime, resource pool, event hub, state manager) with persistence and configuration.",
+            description="High-level GameKit Manager: create centralized game system managers for turn-based games (TurnManager), real-time coordination (RealtimeManager), resource/economy management (ResourceManager with Machinations support), global events (EventHub), or finite state machines (StateManager). Supports persistence (DontDestroyOnLoad), state export/import for save/load systems, and integration with GameKitUICommand for UI control. Essential for managing game-wide state, resources (health/mana/gold), turn phases, and game flow.",
             inputSchema=gamekit_manager_schema,
         ),
         types.Tool(
             name="unity_gamekit_interaction",
-            description="High-level GameKit Interaction: create interaction triggers (collision, raycast, proximity, input) with declarative actions (spawn, destroy, sound, message, scene change).",
+            description="High-level GameKit Interaction: create trigger-based interactions with declarative actions. Choose from 5 trigger types (collision/trigger/raycast/proximity/input) and 5 action types (spawnPrefab/destroyObject/playSound/sendMessage/changeScene). Add conditions (tag/layer/distance/custom) for filtering. Perfect for collectibles, doors, switches, treasure chests, and interactive objects. No scripting required - define complete interactions declaratively.",
             inputSchema=gamekit_interaction_schema,
         ),
         types.Tool(
             name="unity_gamekit_ui_command",
-            description="High-level GameKit UI Command: create command panels with buttons that send commands to actors with uiCommand control mode.",
+            description="High-level GameKit UI Command: create command panels with buttons that send commands to GameKitActors (move/jump/action) or GameKitManagers (resources/state/turn/scene). Supports both actor control and manager control via targetType parameter.",
             inputSchema=gamekit_ui_command_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_machinations",
+            description="High-level GameKit Machinations: create and manage Machinations diagram assets for economic systems. Define resource pools, flows (automatic generation/consumption), converters (resource transformation), and triggers (threshold events). Apply diagrams to ResourceManagers or export current manager state to assets.",
+            inputSchema=gamekit_machinations_schema,
         ),
         types.Tool(
             name="unity_gamekit_sceneflow",
@@ -1198,6 +1317,9 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_gamekit_ui_command":
             return await _call_bridge_tool("gamekitUICommand", args)
+
+        if name == "unity_gamekit_machinations":
+            return await _call_bridge_tool("gamekitMachinations", args)
 
         if name == "unity_gamekit_sceneflow":
             return await _call_bridge_tool("gamekitSceneFlow", args)
