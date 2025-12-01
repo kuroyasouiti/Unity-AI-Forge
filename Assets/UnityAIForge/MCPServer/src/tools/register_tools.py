@@ -1072,45 +1072,23 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "transition"],
-                    "description": "SceneFlow operation.",
+                    "enum": ["create", "inspect", "delete", "transition", "addScene", "removeScene", "updateScene", "addTransition", "removeTransition", "addSharedScene", "removeSharedScene"],
+                    "description": "SceneFlow operation: 'create' for initial setup, then use individual add/remove/update operations for granular control.",
                 },
                 "flowId": {"type": "string", "description": "Unique scene flow identifier (e.g., 'MainGameFlow')."},
-                "scenes": {
+                "sceneName": {"type": "string", "description": "Scene name for single-scene operations (addScene, removeScene, updateScene, addSharedScene, removeSharedScene)."},
+                "scenePath": {"type": "string", "description": "Unity scene asset path (e.g., 'Assets/Scenes/Level1.unity') for addScene/updateScene."},
+                "loadMode": {"type": "string", "enum": ["single", "additive"], "description": "'single' unloads all scenes, 'additive' loads on top of existing (for addScene/updateScene)."},
+                "sharedScenePaths": {
                     "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string", "description": "Scene state name (used in transitions)."},
-                            "scenePath": {"type": "string", "description": "Unity scene asset path (e.g., 'Assets/Scenes/Level1.unity')."},
-                            "loadMode": {"type": "string", "enum": ["single", "additive"], "description": "'single' unloads all scenes, 'additive' loads on top of existing."},
-                            "sharedGroups": {"type": "array", "items": {"type": "string"}, "description": "Shared scene group names to load with this scene (e.g., ['UI', 'Audio'])."},
-                        },
-                    },
-                    "description": "Scene definitions in the flow with load modes and shared groups.",
+                    "items": {"type": "string"},
+                    "description": "Array of shared scene paths to load with this scene (for addScene/updateScene), e.g., ['Assets/Scenes/UIOverlay.unity', 'Assets/Scenes/AudioManager.unity'].",
                 },
-                "transitions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "trigger": {"type": "string", "description": "Trigger name to activate this transition (e.g., 'startGame', 'levelComplete')."},
-                            "fromScene": {"type": "string", "description": "Source scene name."},
-                            "toScene": {"type": "string", "description": "Destination scene name."},
-                        },
-                    },
-                    "description": "State machine transitions between scenes with trigger names.",
-                },
-                "sharedSceneGroups": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "description": "Named groups of scenes to load additively (e.g., {'UI': ['Assets/Scenes/UIOverlay.unity'], 'Audio': ['Assets/Scenes/AudioManager.unity']}).",
-                },
-                "managerScenePath": {"type": "string", "description": "Persistent manager scene path (stays loaded across transitions, e.g., 'Assets/Scenes/Managers.unity')."},
-                "triggerName": {"type": "string", "description": "Transition trigger name for 'transition' operation (e.g., 'startGame')."},
+                "sharedScenePath": {"type": "string", "description": "Single shared scene path for addSharedScene/removeSharedScene operations."},
+                "fromScene": {"type": "string", "description": "Source scene name for transition operations (addTransition/removeTransition)."},
+                "toScene": {"type": "string", "description": "Destination scene name for addTransition operation."},
+                "trigger": {"type": "string", "description": "Trigger name for transition operations (addTransition/removeTransition, e.g., 'startGame', 'levelComplete')."},
+                "triggerName": {"type": "string", "description": "Transition trigger name for 'transition' operation (runtime execution)."},
             },
         },
         ["operation"],
@@ -1229,7 +1207,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_gamekit_sceneflow",
-            description="High-level GameKit SceneFlow: manage scene transitions with state machine, additive loading, persistent manager scene, and shared scene groups.",
+            description="High-level GameKit SceneFlow: manage scene transitions with granular control. Use 'create' to initialize, then 'addScene' to add individual scenes with load modes and shared scenes. Use 'addTransition' to define state machine transitions between scenes. Use 'removeScene'/'removeTransition' to modify flow. Each scene can have its own transitions - same trigger can lead to different destinations per scene. Perfect for level progression, menu systems, and complex scene workflows.",
             inputSchema=gamekit_sceneflow_schema,
         ),
     ]

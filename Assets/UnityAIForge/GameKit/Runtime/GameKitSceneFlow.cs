@@ -85,6 +85,55 @@ namespace UnityAIForge.GameKit
         }
 
         /// <summary>
+        /// Remove a scene definition by name.
+        /// </summary>
+        public bool RemoveScene(string name)
+        {
+            var scene = scenes.Find(s => s.name == name);
+            if (scene == null)
+            {
+                Debug.LogWarning($"[GameKitSceneFlow] Scene '{name}' not found.");
+                return false;
+            }
+
+            scenes.Remove(scene);
+            
+            // Update lookup
+            if (sceneLookup != null && sceneLookup.ContainsKey(name))
+            {
+                sceneLookup.Remove(name);
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Update an existing scene definition's properties.
+        /// </summary>
+        public bool UpdateScene(string name, string scenePath = null, SceneLoadMode? loadMode = null, string[] sharedScenePaths = null)
+        {
+            if (sceneLookup == null)
+                BuildSceneLookup();
+
+            if (!sceneLookup.TryGetValue(name, out var scene))
+            {
+                Debug.LogWarning($"[GameKitSceneFlow] Scene '{name}' not found.");
+                return false;
+            }
+
+            if (scenePath != null)
+                scene.scenePath = scenePath;
+            
+            if (loadMode.HasValue)
+                scene.loadMode = loadMode.Value;
+            
+            if (sharedScenePaths != null)
+                scene.sharedScenePaths = new List<string>(sharedScenePaths);
+            
+            return true;
+        }
+
+        /// <summary>
         /// Add a transition from a specific scene. The same trigger can lead to different scenes
         /// depending on the current scene (e.g., "nextPage" from Page1 goes to Page2, from Page2 goes to Page3).
         /// </summary>
@@ -104,6 +153,29 @@ namespace UnityAIForge.GameKit
                 trigger = trigger,
                 toScene = toSceneName
             });
+        }
+
+        /// <summary>
+        /// Remove a transition from a specific scene by trigger name.
+        /// </summary>
+        public bool RemoveTransition(string fromSceneName, string trigger)
+        {
+            var fromScene = scenes.Find(s => s.name == fromSceneName);
+            if (fromScene == null)
+            {
+                Debug.LogWarning($"[GameKitSceneFlow] Source scene '{fromSceneName}' not found.");
+                return false;
+            }
+
+            var transition = fromScene.transitions.Find(t => t.trigger == trigger);
+            if (transition == null)
+            {
+                Debug.LogWarning($"[GameKitSceneFlow] Transition with trigger '{trigger}' not found in scene '{fromSceneName}'.");
+                return false;
+            }
+
+            fromScene.transitions.Remove(transition);
+            return true;
         }
 
         /// <summary>
@@ -128,6 +200,23 @@ namespace UnityAIForge.GameKit
             {
                 Debug.LogWarning($"[GameKitSceneFlow] Scene '{sceneName}' not found. Create scene first.");
             }
+        }
+
+        /// <summary>
+        /// Remove shared scene paths from an existing scene definition.
+        /// </summary>
+        public bool RemoveSharedSceneFromScene(string sceneName, string sharedScenePath)
+        {
+            if (sceneLookup == null)
+                BuildSceneLookup();
+
+            if (sceneLookup.TryGetValue(sceneName, out var scene))
+            {
+                return scene.sharedScenePaths.Remove(sharedScenePath);
+            }
+            
+            Debug.LogWarning($"[GameKitSceneFlow] Scene '{sceneName}' not found.");
+            return false;
         }
 
         /// <summary>
