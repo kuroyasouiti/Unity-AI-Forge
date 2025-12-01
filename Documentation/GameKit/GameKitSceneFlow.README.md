@@ -272,17 +272,213 @@ sceneFlow.AddScene("Level2", "...", SceneLoadMode.Additive, new string[] { gameU
 // Only reloaded if transitioning to a scene without that path
 ```
 
-## API Reference
+## MCP Tool Operations
+
+### Create SceneFlow
+
+Initialize a new scene flow manager:
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "create",
+    "flowId": "MainGameFlow"
+})
+```
+
+### Add Scene (Granular Operation)
+
+Add individual scenes one at a time:
+
+```python
+# Add main menu
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "MainMenu",
+    "scenePath": "Assets/Scenes/MainMenu.unity",
+    "loadMode": "single"
+})
+
+# Add level with shared scenes
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1",
+    "scenePath": "Assets/Scenes/Level1.unity",
+    "loadMode": "additive",
+    "sharedScenePaths": [
+        "Assets/Scenes/Shared/GameUI.unity",
+        "Assets/Scenes/Shared/AudioManager.unity"
+    ]
+})
+```
+
+### Remove Scene
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "removeScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1"
+})
+```
+
+### Update Scene
+
+Update scene properties (only specified properties are changed):
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "updateScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1",
+    "loadMode": "single",
+    "sharedScenePaths": ["Assets/Scenes/Shared/NewUI.unity"]
+})
+```
+
+### Add Transition (Granular Operation)
+
+Add individual transitions one at a time:
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "addTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "MainMenu",
+    "trigger": "startGame",
+    "toScene": "Level1"
+})
+
+unity_gamekit_sceneflow({
+    "operation": "addTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "Level1",
+    "trigger": "complete",
+    "toScene": "Level2"
+})
+```
+
+### Remove Transition
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "removeTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "MainMenu",
+    "trigger": "startGame"
+})
+```
+
+### Add Shared Scene
+
+Add a shared scene to an existing scene definition:
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "addSharedScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1",
+    "sharedScenePath": "Assets/Scenes/Shared/NewFeature.unity"
+})
+```
+
+### Remove Shared Scene
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "removeSharedScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1",
+    "sharedScenePath": "Assets/Scenes/Shared/OldFeature.unity"
+})
+```
+
+### Inspect SceneFlow
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "inspect",
+    "flowId": "MainGameFlow"
+})
+```
+
+### Delete SceneFlow
+
+```python
+unity_gamekit_sceneflow({
+    "operation": "delete",
+    "flowId": "MainGameFlow"
+})
+```
+
+### Complete MCP Example
+
+Building a complete scene flow step by step:
+
+```python
+# 1. Create flow
+unity_gamekit_sceneflow({
+    "operation": "create",
+    "flowId": "MainGameFlow"
+})
+
+# 2. Add scenes one by one
+scenes = [
+    {"name": "MainMenu", "path": "Assets/Scenes/MainMenu.unity", "mode": "single"},
+    {"name": "Level1", "path": "Assets/Scenes/Level1.unity", "mode": "additive"},
+    {"name": "Level2", "path": "Assets/Scenes/Level2.unity", "mode": "additive"},
+    {"name": "Victory", "path": "Assets/Scenes/Victory.unity", "mode": "single"}
+]
+
+for scene in scenes:
+    unity_gamekit_sceneflow({
+        "operation": "addScene",
+        "flowId": "MainGameFlow",
+        "sceneName": scene["name"],
+        "scenePath": scene["path"],
+        "loadMode": scene["mode"],
+        "sharedScenePaths": [
+            "Assets/Scenes/Shared/GameUI.unity",
+            "Assets/Scenes/Shared/AudioManager.unity"
+        ] if scene["mode"] == "additive" else []
+    })
+
+# 3. Add transitions one by one
+transitions = [
+    {"from": "MainMenu", "trigger": "startGame", "to": "Level1"},
+    {"from": "Level1", "trigger": "complete", "to": "Level2"},
+    {"from": "Level1", "trigger": "quit", "to": "MainMenu"},
+    {"from": "Level2", "trigger": "complete", "to": "Victory"},
+    {"from": "Level2", "trigger": "quit", "to": "MainMenu"},
+    {"from": "Victory", "trigger": "mainMenu", "to": "MainMenu"}
+]
+
+for trans in transitions:
+    unity_gamekit_sceneflow({
+        "operation": "addTransition",
+        "flowId": "MainGameFlow",
+        "fromScene": trans["from"],
+        "trigger": trans["trigger"],
+        "toScene": trans["to"]
+    })
+```
+
+## C# API Reference
 
 ### Scene Management
 
 - `void AddScene(string name, string scenePath, SceneLoadMode loadMode, string[] sharedScenePaths = null)` - Define a scene with optional shared scene paths
+- `bool RemoveScene(string name)` - Remove a scene definition
+- `bool UpdateScene(string name, string scenePath = null, SceneLoadMode? loadMode = null, string[] sharedScenePaths = null)` - Update scene properties
 - `void AddSharedScenesToScene(string sceneName, string[] sharedScenePaths)` - Add shared scenes to existing scene definition
+- `bool RemoveSharedSceneFromScene(string sceneName, string sharedScenePath)` - Remove a shared scene from a scene definition
 - `void SetCurrentScene(string sceneName)` - Set current scene without loading
 
 ### Transitions
 
 - `void AddTransition(string fromScene, string trigger, string toScene)` - Add transition from specific scene
+- `bool RemoveTransition(string fromSceneName, string trigger)` - Remove a transition
 - `void TriggerTransition(string trigger)` - Trigger transition from current scene
 - `static void Transition(string trigger)` - Static method to trigger from anywhere
 
