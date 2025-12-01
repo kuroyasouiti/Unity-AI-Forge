@@ -20,6 +20,13 @@ namespace UnityAIForge.GameKit
         [Tooltip("Use a Machinations diagram asset to initialize resource pools")]
         [SerializeField] private GameKitMachinationsAsset machinationsAsset;
         
+        [Header("Diagram Execution")]
+        [Tooltip("Automatically process flows from machinations asset")]
+        [SerializeField] private bool autoProcessFlows = false;
+        
+        [Tooltip("Automatically check triggers from machinations asset")]
+        [SerializeField] private bool autoCheckTriggers = false;
+        
         [Header("Resource Pool")]
         [SerializeField] private List<ResourceEntry> resources = new List<ResourceEntry>();
         
@@ -27,7 +34,13 @@ namespace UnityAIForge.GameKit
         [Tooltip("Invoked when any resource changes (resourceName, newAmount)")]
         public ResourceChangedEvent OnResourceChanged = new ResourceChangedEvent();
         
+        [Tooltip("Invoked when a trigger from machinations asset is fired")]
+        public TriggerFiredEvent OnTriggerFired = new TriggerFiredEvent();
+        
         public GameKitMachinationsAsset MachinationsAsset => machinationsAsset;
+        
+        private Dictionary<string, float> lastTriggerValues = new Dictionary<string, float>();
+        private Dictionary<string, bool> flowStates = new Dictionary<string, bool>();
 
         private void Start()
         {
@@ -35,6 +48,39 @@ namespace UnityAIForge.GameKit
             if (machinationsAsset != null)
             {
                 ApplyMachinationsAsset(machinationsAsset, true);
+                InitializeFlowStates();
+            }
+        }
+
+        private void Update()
+        {
+            if (machinationsAsset == null)
+                return;
+
+            float deltaTime = Time.deltaTime;
+
+            // Process flows if enabled
+            if (autoProcessFlows)
+            {
+                ProcessDiagramFlows(deltaTime);
+            }
+
+            // Check triggers if enabled
+            if (autoCheckTriggers)
+            {
+                CheckDiagramTriggers();
+            }
+        }
+
+        private void InitializeFlowStates()
+        {
+            if (machinationsAsset == null)
+                return;
+
+            flowStates.Clear();
+            foreach (var flow in machinationsAsset.Flows)
+            {
+                flowStates[flow.flowId] = flow.enabledByDefault;
             }
         }
 
@@ -108,12 +154,162 @@ namespace UnityAIForge.GameKit
             resources.Clear();
         }
 
+        #region Machinations Diagram Execution
+
+        /// <summary>
+        /// Process all flows from the machinations asset.
+        /// Call this manually or enable autoProcessFlows for automatic execution.
+        /// </summary>
+        public void ProcessDiagramFlows(float deltaTime)
+        {
+            if (machinationsAsset == null)
+                return;
+
+            foreach (var flow in machinationsAsset.Flows)
+            {
+                // Check if flow is enabled
+                if (!flowStates.TryGetValue(flow.flowId, out bool enabled) || !enabled)
+                    continue;
+
+                float flowAmount = flow.ratePerSecond * deltaTime;
+
+                if (flow.isSource)
+                {
+                    // Source: generate resource
+                    AddResource(flow.resourceName, flowAmount);
+                }
+                else
+                {
+                    // Drain: consume resource
+                    float current = GetResource(flow.resourceName);
+                    var resource = resources.Find(r => r.name == flow.resourceName);
+                    if (resource != null && current > resource.minValue)
+                    {
+                        ConsumeResource(flow.resourceName, flowAmount);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check all triggers from the machinations asset.
+        /// Call this manually or enable autoCheckTriggers for automatic execution.
+        /// </summary>
+        public void CheckDiagramTriggers()
+        {
+            if (machinationsAsset == null)
+                return;
+
+            foreach (var trigger in machinationsAsset.Triggers)
+            {
+                if (!trigger.enabledByDefault)
+                    continue;
+
+                float currentValue = GetResource(trigger.resourceName);
+                float lastValue = lastTriggerValues.ContainsKey(trigger.resourceName)
+                    ? lastTriggerValues[trigger.resourceName]
+                    : currentValue;
+
+                bool shouldTrigger = false;
+
+                switch (trigger.thresholdType)
+                {
+                    case GameKitMachinationsAsset.ThresholdType.Above:
+                        shouldTrigger = lastValue <= trigger.thresholdValue && currentValue > trigger.thresholdValue;
+                        break;
+                    case GameKitMachinationsAsset.ThresholdType.Below:
+                        shouldTrigger = lastValue >= trigger.thresholdValue && currentValue < trigger.thresholdValue;
+                        break;
+                    case GameKitMachinationsAsset.ThresholdType.Equal:
+                        shouldTrigger = Mathf.Approximately(currentValue, trigger.thresholdValue);
+                        break;
+                    case GameKitMachinationsAsset.ThresholdType.NotEqual:
+                        shouldTrigger = !Mathf.Approximately(currentValue, trigger.thresholdValue);
+                        break;
+                }
+
+                if (shouldTrigger)
+                {
+                    OnTriggerFired?.Invoke(trigger.triggerName, trigger.resourceName, currentValue);
+                }
+
+                lastTriggerValues[trigger.resourceName] = currentValue;
+            }
+        }
+
+        /// <summary>
+        /// Execute a specific converter from the machinations asset.
+        /// </summary>
+        public bool ExecuteConverter(string converterId, float amount = 1f)
+        {
+            if (machinationsAsset == null)
+            {
+                Debug.LogWarning("[GameKitResourceManager] No machinations asset assigned");
+                return false;
+            }
+
+            var converter = machinationsAsset.GetConverter(converterId);
+            if (converter == null)
+            {
+                Debug.LogWarning($"[GameKitResourceManager] Converter '{converterId}' not found in asset");
+                return false;
+            }
+
+            if (!converter.enabledByDefault)
+            {
+                Debug.LogWarning($"[GameKitResourceManager] Converter '{converterId}' is disabled");
+                return false;
+            }
+
+            float totalCost = converter.inputCost * amount;
+            if (GetResource(converter.fromResource) >= totalCost)
+            {
+                ConsumeResource(converter.fromResource, totalCost);
+                AddResource(converter.toResource, converter.conversionRate * amount);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Enable or disable a specific flow by ID.
+        /// </summary>
+        public void SetFlowEnabled(string flowId, bool enabled)
+        {
+            if (flowStates.ContainsKey(flowId))
+            {
+                flowStates[flowId] = enabled;
+            }
+            else
+            {
+                Debug.LogWarning($"[GameKitResourceManager] Flow '{flowId}' not found");
+            }
+        }
+
+        /// <summary>
+        /// Check if a flow is currently enabled.
+        /// </summary>
+        public bool IsFlowEnabled(string flowId)
+        {
+            return flowStates.TryGetValue(flowId, out bool enabled) && enabled;
+        }
+
+        /// <summary>
+        /// Get all flow states.
+        /// </summary>
+        public Dictionary<string, bool> GetFlowStates()
+        {
+            return new Dictionary<string, bool>(flowStates);
+        }
+
+        #endregion
+
         #region Machinations Asset Management
 
         /// <summary>
         /// Apply a machinations asset to this resource manager.
-        /// Only applies resource pools (initial values and constraints).
-        /// Other features (flows, converters, triggers) should be implemented externally.
+        /// Initializes resource pools and prepares flows/converters/triggers.
         /// </summary>
         public void ApplyMachinationsAsset(GameKitMachinationsAsset asset, bool resetExisting = false)
         {
@@ -137,7 +333,7 @@ namespace UnityAIForge.GameKit
                 resources.Clear();
             }
 
-            // Apply resource pools only
+            // Apply resource pools
             foreach (var pool in asset.Pools)
             {
                 var existing = resources.Find(r => r.name == pool.resourceName);
@@ -159,9 +355,17 @@ namespace UnityAIForge.GameKit
                         maxValue = pool.maxValue
                     });
                 }
+                
+                // Initialize trigger tracking
+                lastTriggerValues[pool.resourceName] = pool.initialAmount;
             }
 
-            Debug.Log($"[GameKitResourceManager] Applied resource pools from machinations asset: {asset.DiagramId}");
+            // Initialize flow states
+            InitializeFlowStates();
+
+            Debug.Log($"[GameKitResourceManager] Applied machinations asset: {asset.DiagramId} " +
+                      $"({asset.Pools.Count} pools, {asset.Flows.Count} flows, " +
+                      $"{asset.Converters.Count} converters, {asset.Triggers.Count} triggers)");
         }
 
         /// <summary>
@@ -180,188 +384,6 @@ namespace UnityAIForge.GameKit
 #endif
 
             return asset;
-        }
-
-        #endregion
-
-        #region Machinations Diagram Execution
-
-        /// <summary>
-        /// Process all flows from the machinations asset for the given time delta.
-        /// Call this manually (e.g., in Update) to execute automatic resource generation/consumption.
-        /// </summary>
-        public void ProcessFlows(float deltaTime)
-        {
-            if (machinationsAsset == null)
-                return;
-
-            foreach (var flowDef in machinationsAsset.Flows)
-            {
-                if (!flowDef.enabledByDefault)
-                    continue;
-
-                float flowAmount = flowDef.ratePerSecond * deltaTime;
-
-                if (flowDef.isSource)
-                {
-                    // Source: generate resource
-                    AddResource(flowDef.resourceName, flowAmount);
-                }
-                else
-                {
-                    // Drain: consume resource (only if resource exists and > min)
-                    var resource = resources.Find(r => r.name == flowDef.resourceName);
-                    if (resource != null && resource.amount > resource.minValue)
-                    {
-                        ConsumeResource(flowDef.resourceName, flowAmount);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Execute a specific flow by ID.
-        /// </summary>
-        public void ProcessFlow(string flowId, float deltaTime)
-        {
-            if (machinationsAsset == null)
-                return;
-
-            var flowDef = machinationsAsset.Flows.Find(f => f.flowId == flowId);
-            if (flowDef == null)
-            {
-                Debug.LogWarning($"[GameKitResourceManager] Flow '{flowId}' not found in machinations asset");
-                return;
-            }
-
-            float flowAmount = flowDef.ratePerSecond * deltaTime;
-
-            if (flowDef.isSource)
-            {
-                AddResource(flowDef.resourceName, flowAmount);
-            }
-            else
-            {
-                var resource = resources.Find(r => r.name == flowDef.resourceName);
-                if (resource != null && resource.amount > resource.minValue)
-                {
-                    ConsumeResource(flowDef.resourceName, flowAmount);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Execute a converter by ID.
-        /// Converts input resource to output resource based on conversion rate.
-        /// </summary>
-        public bool ExecuteConverter(string converterId, float amount = 1f)
-        {
-            if (machinationsAsset == null)
-            {
-                Debug.LogWarning("[GameKitResourceManager] Cannot execute converter without machinations asset");
-                return false;
-            }
-
-            var converterDef = machinationsAsset.GetConverter(converterId);
-            if (converterDef == null)
-            {
-                Debug.LogWarning($"[GameKitResourceManager] Converter '{converterId}' not found in machinations asset");
-                return false;
-            }
-
-            if (!converterDef.enabledByDefault)
-            {
-                Debug.LogWarning($"[GameKitResourceManager] Converter '{converterId}' is disabled");
-                return false;
-            }
-
-            float totalCost = converterDef.inputCost * amount;
-            if (GetResource(converterDef.fromResource) >= totalCost)
-            {
-                ConsumeResource(converterDef.fromResource, totalCost);
-                AddResource(converterDef.toResource, converterDef.conversionRate * amount);
-                return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check all triggers from the machinations asset and fire events.
-        /// Call this manually to check resource thresholds.
-        /// </summary>
-        public void CheckTriggers()
-        {
-            if (machinationsAsset == null)
-                return;
-
-            foreach (var triggerDef in machinationsAsset.Triggers)
-            {
-                if (!triggerDef.enabledByDefault)
-                    continue;
-
-                float currentValue = GetResource(triggerDef.resourceName);
-                bool shouldTrigger = EvaluateTrigger(currentValue, triggerDef.thresholdType, triggerDef.thresholdValue);
-
-                if (shouldTrigger)
-                {
-                    // Fire a generic event with trigger info
-                    // Users can listen to OnResourceChanged or implement custom trigger handling
-                    Debug.Log($"[GameKitResourceManager] Trigger fired: {triggerDef.triggerName} " +
-                              $"(resource: {triggerDef.resourceName}, value: {currentValue})");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Check a specific trigger by name.
-        /// Returns true if the trigger condition is met.
-        /// </summary>
-        public bool CheckTrigger(string triggerName)
-        {
-            if (machinationsAsset == null)
-                return false;
-
-            var triggerDef = machinationsAsset.GetTrigger(triggerName);
-            if (triggerDef == null || !triggerDef.enabledByDefault)
-                return false;
-
-            float currentValue = GetResource(triggerDef.resourceName);
-            return EvaluateTrigger(currentValue, triggerDef.thresholdType, triggerDef.thresholdValue);
-        }
-
-        /// <summary>
-        /// Evaluate trigger condition.
-        /// </summary>
-        private bool EvaluateTrigger(float currentValue, GameKitMachinationsAsset.ThresholdType thresholdType, float thresholdValue)
-        {
-            return thresholdType switch
-            {
-                GameKitMachinationsAsset.ThresholdType.Above => currentValue > thresholdValue,
-                GameKitMachinationsAsset.ThresholdType.Below => currentValue < thresholdValue,
-                GameKitMachinationsAsset.ThresholdType.Equal => Mathf.Approximately(currentValue, thresholdValue),
-                GameKitMachinationsAsset.ThresholdType.NotEqual => !Mathf.Approximately(currentValue, thresholdValue),
-                _ => false
-            };
-        }
-
-        /// <summary>
-        /// Execute all converters from the machinations asset automatically.
-        /// Useful for automatic conversions (e.g., every frame).
-        /// </summary>
-        public void ProcessConverters()
-        {
-            if (machinationsAsset == null)
-                return;
-
-            foreach (var converterDef in machinationsAsset.Converters)
-            {
-                if (!converterDef.enabledByDefault)
-                    continue;
-
-                // Try to execute converter with amount 1
-                ExecuteConverter(converterDef.converterId, 1f);
-            }
         }
 
         #endregion
@@ -399,6 +421,9 @@ namespace UnityAIForge.GameKit
 
         [Serializable]
         public class ResourceChangedEvent : UnityEngine.Events.UnityEvent<string, float> { }
+        
+        [Serializable]
+        public class TriggerFiredEvent : UnityEngine.Events.UnityEvent<string, string, float> { }
     }
 }
 
