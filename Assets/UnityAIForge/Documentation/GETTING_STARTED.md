@@ -351,7 +351,7 @@ AI が自動的に:
 | リソース | 内容 |
 |:---|:---|
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
-| [**MCP Tools**](MCPServer/SKILL.md) | 全22ツールのリファレンス |
+| [**MCP Tools**](MCPServer/SKILL.md) | 全24ツールのリファレンス |
 | [**Examples**](Examples/README.md) | 実践的なサンプル集 |
 | [**API Docs**](GameKit/README.md) | GameKit API ドキュメント |
 

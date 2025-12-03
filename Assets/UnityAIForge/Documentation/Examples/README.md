@@ -207,7 +207,7 @@ GameKit を使うとさらに効率的です：
 
 ### より詳しい解説
 
-- [**MCP Tools Reference**](../MCPServer/SKILL.md) - 全22ツール
+- [**MCP Tools Reference**](../MCPServer/SKILL.md) - 全24ツール
 - [**Installation Guide**](../Installation/INSTALL_GUIDE.md) - セットアップ詳細
 
 ---

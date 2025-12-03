@@ -196,7 +196,7 @@ def register_tools(server: Server) -> None:
                 },
                 "category": {
                     "type": "string",
-                    "enum": ["player", "quality", "time", "physics", "audio", "editor", "tagsLayers"],
+                    "enum": ["player", "quality", "time", "physics", "physics2d", "audio", "editor", "tagsLayers"],
                 },
                 "property": {"type": "string"},
                 "value": {},
@@ -1139,7 +1139,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_projectSettings_crud",
-            description="Unity Project Settings management: read/write/list settings across 7 categories (player: build settings & configurations, quality: quality levels & graphics, time: time scale & fixed timestep, physics: gravity & collision layers, audio: volume & DSP buffer, editor: serialization & asset pipeline, tagsLayers: custom tags & layers). Use 'list' to see available properties per category, 'read' to get specific property value, 'write' to modify settings. Essential for configuring project-wide settings, physics parameters, quality presets, and build configurations.",
+            description="Unity Project Settings management: read/write/list settings across 8 categories (player: build settings & configurations, quality: quality levels & graphics, time: time scale & fixed timestep, physics: 3D gravity & collision settings, physics2d: 2D gravity & collision settings, audio: volume & DSP buffer, editor: serialization & asset pipeline, tagsLayers: custom tags, layers & sorting layers). Use 'list' to see available properties per category, 'read' to get specific property value, 'write' to modify settings. Essential for configuring project-wide settings, 2D/3D physics parameters, quality presets, sorting layers, and build configurations.",
             inputSchema=project_settings_manage_schema,
         ),
         types.Tool(

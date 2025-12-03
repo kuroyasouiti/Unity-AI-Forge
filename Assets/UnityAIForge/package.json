@@ -1,8 +1,8 @@
 {
   "name": "com.unityaiforge",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "displayName": "Unity-AI-Forge",
-  "description": "AI-powered Unity development toolkit. MCP bridge with GameKit framework (actors, managers, Machinations economics, UI commands, scene flow, state persistence) for intelligent game creation through AI collaboration.",
+  "description": "AI-powered Unity development toolkit. MCP bridge with 24 tools including GameKit framework (actors, managers, Machinations economics, UI commands, scene flow, state persistence), Physics2D support, sorting layers, character controller presets, and batch sequential execution for intelligent game creation through AI collaboration.",
   "unity": "2022.3",
   "keywords": [
     "mcp",

@@ -7,6 +7,59 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 ## [未リリース]
 
+## [2.3.0] - 2025-12-04
+
+### 追加
+
+- **Physics2D 設定サポート**
+  - 新カテゴリ `physics2d` を `unity_projectSettings_crud` に追加
+  - 2D重力設定 (gravity x/y)
+  - 速度・位置反復回数、閾値設定
+  - シミュレーションモードの制御
+  - 2Dゲーム開発に必要な物理パラメータを完全サポート
+
+- **ソートレイヤー管理機能**
+  - `unity_projectSettings_crud` の `tagsLayers` カテゴリに追加
+  - `addSortingLayer`: ソートレイヤーの追加
+  - `removeSortingLayer`: ソートレイヤーの削除
+  - `sortingLayers`: ソートレイヤー一覧の取得
+  - 2Dスプライトの描画順序を完全制御
+
+- **CharacterController Bundle ツール** (`unity_character_controller_bundle`)
+  - 3Dキャラクター用の最適化されたプリセット
+  - 7つのプリセット: fps, tps, platformer, child, large, narrow, custom
+  - 自動設定: radius, height, center, slopeLimit, stepOffset, skinWidth
+  - バッチ適用とカスタム設定に対応
+
+- **MCPサーバープロンプト強化**
+  - Machinations システムの詳細説明を追加
+  - CharacterController Bundle の使用例を追加
+  - バッチ順次処理の詳細ガイドを追加
+  - 4つの構成要素の説明 (Resource Pools/Flows/Converters/Triggers)
+
+### 変更
+
+- **ツール総数**: 22 → 24ツール
+  - Mid-Level Batch: 7 → 8ツール (CharacterController追加)
+  - High-Level GameKit: Machinations を含む6ツール
+  
+- **プロジェクト設定カテゴリ**: 7 → 8カテゴリ
+  - `physics2d` カテゴリを追加
+  - `tagsLayers` カテゴリにソートレイヤー機能を追加
+
+### 修正
+
+- Physics2D プロパティの正確性を向上
+  - `velocityThreshold` を正しく `Physics2D.velocityThreshold` にマッピング
+  - Unityバージョン互換性のため `baumgarteTimeOfImpactScale` を削除
+
+### ドキュメント
+
+- README.md にv2.3.0の新機能セクションを追加
+- INDEX.md のツール数を更新 (22→24)
+- MCPサーバープロンプトを全面的に更新
+- すべてのバージョン情報を2.3.0に統一
+
 ## [2.2.0] - 2025-12-03
 
 ### 追加

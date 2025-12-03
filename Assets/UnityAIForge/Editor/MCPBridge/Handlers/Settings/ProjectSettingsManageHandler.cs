@@ -74,6 +74,9 @@ namespace MCP.Editor.Handlers.Settings
                 case "physics":
                     result["settings"] = ReadPhysicsSettings(property);
                     break;
+                case "physics2d":
+                    result["settings"] = ReadPhysics2DSettings(property);
+                    break;
                 case "audio":
                     result["settings"] = ReadAudioSettings(property);
                     break;
@@ -123,6 +126,9 @@ namespace MCP.Editor.Handlers.Settings
                 case "physics":
                     WritePhysicsSettings(property, value);
                     break;
+                case "physics2d":
+                    WritePhysics2DSettings(property, value);
+                    break;
                 case "audio":
                     WriteAudioSettings(property, value);
                     break;
@@ -160,8 +166,10 @@ namespace MCP.Editor.Handlers.Settings
                         "quality",
                         "time",
                         "physics",
+                        "physics2d",
                         "audio",
                         "editor",
+                        "tagsLayers",
                     },
                 };
             }
@@ -193,6 +201,16 @@ namespace MCP.Editor.Handlers.Settings
                     "bounceThreshold", "sleepThreshold", "defaultContactOffset",
                     "queriesHitTriggers", "queriesHitBackfaces", "autoSimulation",
                 },
+                "physics2d" => new List<string>
+                {
+                    "gravity", "velocityIterations", "positionIterations",
+                    "velocityThreshold", "maxLinearCorrection", "maxAngularCorrection",
+                    "maxTranslationSpeed", "maxRotationSpeed", "baumgarteScale",
+                    "timeToSleep", "linearSleepTolerance", "angularSleepTolerance",
+                    "defaultContactOffset", "autoSimulation", "queriesHitTriggers",
+                    "queriesStartInColliders", "callbacksOnDisable", "reuseCollisionCallbacks",
+                    "autoSyncTransforms", "simulationMode",
+                },
                 "audio" => new List<string>
                 {
                     "dspBufferSize", "sampleRate", "speakerMode", "numRealVoices",
@@ -207,10 +225,13 @@ namespace MCP.Editor.Handlers.Settings
                 {
                     "tags",
                     "layers",
+                    "sortingLayers",
                     "addTag",
                     "removeTag",
                     "addLayer",
                     "removeLayer",
+                    "addSortingLayer",
+                    "removeSortingLayer",
                 },
                 _ => throw new InvalidOperationException($"Unknown settings category: {category}"),
             };
@@ -230,6 +251,7 @@ namespace MCP.Editor.Handlers.Settings
         {
             var tags = InternalEditorUtility.tags;
             var layers = InternalEditorUtility.layers;
+            var sortingLayers = GetSortingLayerNames();
 
             if (string.IsNullOrEmpty(property))
             {
@@ -237,6 +259,7 @@ namespace MCP.Editor.Handlers.Settings
                 {
                     ["tags"] = tags,
                     ["layers"] = layers,
+                    ["sortingLayers"] = sortingLayers,
                 };
             }
 
@@ -244,8 +267,28 @@ namespace MCP.Editor.Handlers.Settings
             {
                 "tags" => tags,
                 "layers" => layers,
+                "sortinglayers" => sortingLayers,
                 _ => throw new InvalidOperationException($"Unknown tagsLayers property: {property}"),
             };
+        }
+        
+        private string[] GetSortingLayerNames()
+        {
+            var tagManager = GetTagManagerSerializedObject();
+            var sortingLayersProp = tagManager.FindProperty("m_SortingLayers");
+            var names = new List<string>();
+            
+            for (int i = 0; i < sortingLayersProp.arraySize; i++)
+            {
+                var layerProp = sortingLayersProp.GetArrayElementAtIndex(i);
+                var nameProp = layerProp.FindPropertyRelative("name");
+                if (nameProp != null)
+                {
+                    names.Add(nameProp.stringValue);
+                }
+            }
+            
+            return names.ToArray();
         }
 
         private void WriteTagsAndLayers(string property, object value)
@@ -269,6 +312,12 @@ namespace MCP.Editor.Handlers.Settings
                     break;
                 case "removelayer":
                     RemoveLayer(stringValue);
+                    break;
+                case "addsortinglayer":
+                    AddSortingLayer(stringValue);
+                    break;
+                case "removesortinglayer":
+                    RemoveSortingLayer(stringValue);
                     break;
                 default:
                     throw new InvalidOperationException($"Unsupported tagsLayers property: {property}");
@@ -375,6 +424,81 @@ namespace MCP.Editor.Handlers.Settings
             }
 
             throw new InvalidOperationException($"Layer '{layerNameOrIndex}' does not exist.");
+        }
+
+        private void AddSortingLayer(string layerName)
+        {
+            var tagManager = GetTagManagerSerializedObject();
+            var sortingLayersProp = tagManager.FindProperty("m_SortingLayers");
+            
+            // Check if layer already exists
+            for (int i = 0; i < sortingLayersProp.arraySize; i++)
+            {
+                var layerProp = sortingLayersProp.GetArrayElementAtIndex(i);
+                var nameProp = layerProp.FindPropertyRelative("name");
+                if (nameProp != null && nameProp.stringValue == layerName)
+                {
+                    throw new InvalidOperationException($"Sorting layer '{layerName}' already exists.");
+                }
+            }
+            
+            // Add new sorting layer
+            sortingLayersProp.arraySize++;
+            var newLayerProp = sortingLayersProp.GetArrayElementAtIndex(sortingLayersProp.arraySize - 1);
+            var newNameProp = newLayerProp.FindPropertyRelative("name");
+            var newIdProp = newLayerProp.FindPropertyRelative("uniqueID");
+            
+            if (newNameProp != null)
+            {
+                newNameProp.stringValue = layerName;
+            }
+            
+            // Assign unique ID (use timestamp-based ID)
+            if (newIdProp != null)
+            {
+                var maxId = 0;
+                for (int i = 0; i < sortingLayersProp.arraySize - 1; i++)
+                {
+                    var idProp = sortingLayersProp.GetArrayElementAtIndex(i).FindPropertyRelative("uniqueID");
+                    if (idProp != null && idProp.intValue > maxId)
+                    {
+                        maxId = idProp.intValue;
+                    }
+                }
+                newIdProp.intValue = maxId + 1;
+            }
+            
+            tagManager.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+        }
+        
+        private void RemoveSortingLayer(string layerName)
+        {
+            var tagManager = GetTagManagerSerializedObject();
+            var sortingLayersProp = tagManager.FindProperty("m_SortingLayers");
+            
+            // Find and remove the sorting layer
+            for (int i = 0; i < sortingLayersProp.arraySize; i++)
+            {
+                var layerProp = sortingLayersProp.GetArrayElementAtIndex(i);
+                var nameProp = layerProp.FindPropertyRelative("name");
+                
+                if (nameProp != null && nameProp.stringValue == layerName)
+                {
+                    // Don't allow removing the Default sorting layer (index 0)
+                    if (i == 0)
+                    {
+                        throw new InvalidOperationException("Cannot remove the 'Default' sorting layer.");
+                    }
+                    
+                    sortingLayersProp.DeleteArrayElementAtIndex(i);
+                    tagManager.ApplyModifiedProperties();
+                    AssetDatabase.SaveAssets();
+                    return;
+                }
+            }
+            
+            throw new InvalidOperationException($"Sorting layer '{layerName}' does not exist.");
         }
 
         private SerializedObject GetTagManagerSerializedObject()
@@ -684,6 +808,149 @@ namespace MCP.Editor.Handlers.Settings
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown PhysicsSettings property: {property}");
+            }
+        }
+        
+        #endregion
+        
+        #region Physics2DSettings Read/Write
+        
+        private object ReadPhysics2DSettings(string property)
+        {
+            if (string.IsNullOrEmpty(property))
+            {
+                return new Dictionary<string, object>
+                {
+                    ["gravity"] = new Dictionary<string, object>
+                    {
+                        ["x"] = Physics2D.gravity.x,
+                        ["y"] = Physics2D.gravity.y,
+                    },
+                    ["velocityIterations"] = Physics2D.velocityIterations,
+                    ["positionIterations"] = Physics2D.positionIterations,
+                    ["velocityThreshold"] = Physics2D.bounceThreshold,
+                    ["maxLinearCorrection"] = Physics2D.maxLinearCorrection,
+                    ["maxAngularCorrection"] = Physics2D.maxAngularCorrection,
+                    ["maxTranslationSpeed"] = Physics2D.maxTranslationSpeed,
+                    ["maxRotationSpeed"] = Physics2D.maxRotationSpeed,
+                    ["defaultContactOffset"] = Physics2D.defaultContactOffset,
+                    ["queriesHitTriggers"] = Physics2D.queriesHitTriggers,
+                    ["queriesStartInColliders"] = Physics2D.queriesStartInColliders,
+                    ["callbacksOnDisable"] = Physics2D.callbacksOnDisable,
+                    ["reuseCollisionCallbacks"] = Physics2D.reuseCollisionCallbacks,
+                    ["autoSyncTransforms"] = Physics2D.autoSyncTransforms,
+                    ["autoSimulation"] = Physics2D.simulationMode == SimulationMode2D.FixedUpdate,
+                };
+            }
+            
+            return property.ToLower() switch
+            {
+                "gravity" => new Dictionary<string, object>
+                {
+                    ["x"] = Physics2D.gravity.x,
+                    ["y"] = Physics2D.gravity.y,
+                },
+                "velocityiterations" => Physics2D.velocityIterations,
+                "positioniterations" => Physics2D.positionIterations,
+                "velocitythreshold" => Physics2D.bounceThreshold,
+                "maxlinearcorrection" => Physics2D.maxLinearCorrection,
+                "maxangularcorrection" => Physics2D.maxAngularCorrection,
+                "maxtranslationspeed" => Physics2D.maxTranslationSpeed,
+                "maxrotationspeed" => Physics2D.maxRotationSpeed,
+                "baumgartescale" => Physics2D.baumgarteScale,
+                "timetosleep" => Physics2D.timeToSleep,
+                "linearsleeptolerance" => Physics2D.linearSleepTolerance,
+                "angularsleeptolerance" => Physics2D.angularSleepTolerance,
+                "defaultcontactoffset" => Physics2D.defaultContactOffset,
+                "querieshittriggers" => Physics2D.queriesHitTriggers,
+                "queriesstartincolliders" => Physics2D.queriesStartInColliders,
+                "callbacksondisable" => Physics2D.callbacksOnDisable,
+                "reusecollisioncallbacks" => Physics2D.reuseCollisionCallbacks,
+                "autosynctransforms" => Physics2D.autoSyncTransforms,
+                "autosimulation" => Physics2D.simulationMode == SimulationMode2D.FixedUpdate,
+                "simulationmode" => Physics2D.simulationMode.ToString(),
+                _ => throw new InvalidOperationException($"Unknown Physics2D property: {property}"),
+            };
+        }
+        
+        private void WritePhysics2DSettings(string property, object value)
+        {
+            switch (property.ToLower())
+            {
+                case "gravity":
+                    if (value is Dictionary<string, object> gravityDict)
+                    {
+                        var x = gravityDict.ContainsKey("x") ? Convert.ToSingle(gravityDict["x"]) : Physics2D.gravity.x;
+                        var y = gravityDict.ContainsKey("y") ? Convert.ToSingle(gravityDict["y"]) : Physics2D.gravity.y;
+                        Physics2D.gravity = new Vector2(x, y);
+                    }
+                    break;
+                case "velocityiterations":
+                    Physics2D.velocityIterations = Convert.ToInt32(value);
+                    break;
+                case "positioniterations":
+                    Physics2D.positionIterations = Convert.ToInt32(value);
+                    break;
+                case "velocitythreshold":
+                    Physics2D.bounceThreshold = Convert.ToSingle(value);
+                    break;
+                case "maxlinearcorrection":
+                    Physics2D.maxLinearCorrection = Convert.ToSingle(value);
+                    break;
+                case "maxangularcorrection":
+                    Physics2D.maxAngularCorrection = Convert.ToSingle(value);
+                    break;
+                case "maxtranslationspeed":
+                    Physics2D.maxTranslationSpeed = Convert.ToSingle(value);
+                    break;
+                case "maxrotationspeed":
+                    Physics2D.maxRotationSpeed = Convert.ToSingle(value);
+                    break;
+                case "baumgartescale":
+                    Physics2D.baumgarteScale = Convert.ToSingle(value);
+                    break;
+                case "timetosleep":
+                    Physics2D.timeToSleep = Convert.ToSingle(value);
+                    break;
+                case "linearsleeptolerance":
+                    Physics2D.linearSleepTolerance = Convert.ToSingle(value);
+                    break;
+                case "angularsleeptolerance":
+                    Physics2D.angularSleepTolerance = Convert.ToSingle(value);
+                    break;
+                case "defaultcontactoffset":
+                    Physics2D.defaultContactOffset = Convert.ToSingle(value);
+                    break;
+                case "querieshittriggers":
+                    Physics2D.queriesHitTriggers = Convert.ToBoolean(value);
+                    break;
+                case "queriesstartincolliders":
+                    Physics2D.queriesStartInColliders = Convert.ToBoolean(value);
+                    break;
+                case "callbacksondisable":
+                    Physics2D.callbacksOnDisable = Convert.ToBoolean(value);
+                    break;
+                case "reusecollisioncallbacks":
+                    Physics2D.reuseCollisionCallbacks = Convert.ToBoolean(value);
+                    break;
+                case "autosynctransforms":
+                    Physics2D.autoSyncTransforms = Convert.ToBoolean(value);
+                    break;
+                case "autosimulation":
+                    Physics2D.simulationMode = Convert.ToBoolean(value) ? SimulationMode2D.FixedUpdate : SimulationMode2D.Script;
+                    break;
+                case "simulationmode":
+                    if (Enum.TryParse<SimulationMode2D>(value.ToString(), true, out var simMode))
+                    {
+                        Physics2D.simulationMode = simMode;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Invalid SimulationMode2D value: {value}");
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown Physics2D property: {property}");
             }
         }
         

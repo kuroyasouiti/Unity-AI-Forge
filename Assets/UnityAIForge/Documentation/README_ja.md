@@ -3,12 +3,42 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.1.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKitフレームワークの3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
 
-## 🆕 v2.1.0の新機能
+## 🆕 v2.3.0の新機能
+
+- **⚙️ Physics2D 完全サポート**: 2D物理設定の読み書き
+  - 2D重力の設定 (gravity x/y)
+  - 速度・位置反復回数、閾値の調整
+  - シミュレーションモードの制御
+  - 2Dゲームに必要な全物理パラメータに対応
+
+- **🎨 ソートレイヤー管理**: 2Dスプライトの描画順序を完全制御
+  - ソートレイヤーの追加/削除
+  - レイヤー一覧の取得
+  - Unity Editorの手動設定が不要に
+
+- **🏃 CharacterController Bundle**: 3Dキャラクター設定を簡単に
+  - 7つの最適化プリセット (fps/tps/platformer/child/large/narrow/custom)
+  - 自動的に適切なカプセルサイズと物理パラメータを設定
+  - バッチ適用で複数キャラクターを一括設定
+
+- **📋 Batch Sequential Execute**: 複雑な多段階処理を確実に
+  - 順次実行でエラー発生時に自動停止
+  - レジューム機能で中断した処理を再開
+  - 進捗状態の保存と確認が可能
+
+- **📖 GameKit Machinations詳細ドキュメント**: 経済システム設計ガイド
+  - Resource Pools/Flows/Converters/Triggersの4要素を詳しく解説
+  - 実践的な使用例とユースケースを追加
+  - RPG、リソース管理、カードゲームでの活用方法
+
+**ツール総数: 22 → 24ツール** (Mid-Level Batchに2ツール追加)
+
+### 前回のリリース（v2.1.0）のハイライト
 
 - **💾 状態保存システム**: 完全なセーブ/ロード機能
   - JSON形式でリソース状態をエクスポート/インポート
@@ -39,7 +69,7 @@ Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツー�
 - **📚 包括的なドキュメント**: GameKit完全ガイド追加
   - SKILL_GAMEKIT.md - 完全なGameKitガイド
   - 3つの完全なゲーム例（RPG、タワーディフェンス、ターン制ストラテジー）
-  - 全22ツールの詳細スキーマ説明
+  - 全24ツールの詳細スキーマ説明
   - ベストプラクティスとトラブルシューティング
 
 ## v2.0.0の主要機能
