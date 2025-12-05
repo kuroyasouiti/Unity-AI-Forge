@@ -193,7 +193,7 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["read", "write", "list"],
+                    "enum": ["read", "write", "list", "addSceneToBuild", "removeSceneFromBuild", "listBuildScenes", "reorderBuildScenes", "setBuildSceneEnabled"],
                 },
                 "category": {
                     "type": "string",
@@ -201,6 +201,11 @@ def register_tools(server: Server) -> None:
                 },
                 "property": {"type": "string"},
                 "value": {},
+                "scenePath": {"type": "string", "description": "Path to scene file for build settings operations"},
+                "index": {"type": "integer", "description": "Scene index for build settings operations"},
+                "fromIndex": {"type": "integer", "description": "Source index for reordering build scenes"},
+                "toIndex": {"type": "integer", "description": "Target index for reordering build scenes"},
+                "enabled": {"type": "boolean", "description": "Whether scene is enabled in build settings"},
             },
         },
         ["operation"],
@@ -1140,7 +1145,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_projectSettings_crud",
-            description="Unity Project Settings management: read/write/list settings across 8 categories (player: build settings & configurations, quality: quality levels & graphics, time: time scale & fixed timestep, physics: 3D gravity & collision settings, physics2d: 2D gravity & collision settings, audio: volume & DSP buffer, editor: serialization & asset pipeline, tagsLayers: custom tags, layers & sorting layers). Use 'list' to see available properties per category, 'read' to get specific property value, 'write' to modify settings. Essential for configuring project-wide settings, 2D/3D physics parameters, quality presets, sorting layers, and build configurations.",
+            description="Unity Project Settings management: read/write/list settings across 8 categories (player: build settings & configurations, quality: quality levels & graphics, time: time scale & fixed timestep, physics: 3D gravity & collision settings, physics2d: 2D gravity & collision settings, audio: volume & DSP buffer, editor: serialization & asset pipeline, tagsLayers: custom tags, layers & sorting layers). Build Settings operations: addSceneToBuild (add scene to build with optional index), removeSceneFromBuild (remove by path or index), listBuildScenes (view all build scenes), reorderBuildScenes (change scene order), setBuildSceneEnabled (enable/disable scene). Use 'list' to see available properties per category, 'read' to get specific property value, 'write' to modify settings. Essential for configuring project-wide settings, 2D/3D physics parameters, quality presets, sorting layers, and build configurations.",
             inputSchema=project_settings_manage_schema,
         ),
         types.Tool(

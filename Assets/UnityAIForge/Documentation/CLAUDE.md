@@ -2115,6 +2115,74 @@ Read and write Unity Project Settings across multiple categories (player, qualit
 - **editor** - EditorSettings (serialization mode, line endings, etc.)
   - Properties: serializationMode, spritePackerMode, lineEndingsForNewScripts, defaultBehaviorMode
 
+**Build Settings Operations:**
+
+4. **listBuildScenes** - List all scenes in build settings
+   ```json
+   {
+     "operation": "listBuildScenes"
+   }
+   ```
+   Returns array of build scenes with path, GUID, enabled status, and index.
+
+5. **addSceneToBuild** - Add scene to build settings
+   ```json
+   {
+     "operation": "addSceneToBuild",
+     "scenePath": "Assets/Scenes/Level1.unity",
+     "index": 0,
+     "enabled": true
+   }
+   ```
+   - `scenePath`: Path to scene asset (required)
+   - `index`: Insert at specific index (optional, -1 = append to end)
+   - `enabled`: Enable scene in build (optional, default: true)
+
+6. **removeSceneFromBuild** - Remove scene from build settings
+   ```json
+   {
+     "operation": "removeSceneFromBuild",
+     "scenePath": "Assets/Scenes/Level1.unity"
+   }
+   ```
+   OR
+   ```json
+   {
+     "operation": "removeSceneFromBuild",
+     "index": 0
+   }
+   ```
+   - Specify either `scenePath` or `index`
+
+7. **reorderBuildScenes** - Change scene order in build
+   ```json
+   {
+     "operation": "reorderBuildScenes",
+     "fromIndex": 0,
+     "toIndex": 2
+   }
+   ```
+   - Moves scene from `fromIndex` to `toIndex`
+
+8. **setBuildSceneEnabled** - Enable/disable scene in build
+   ```json
+   {
+     "operation": "setBuildSceneEnabled",
+     "scenePath": "Assets/Scenes/Level1.unity",
+     "enabled": false
+   }
+   ```
+   OR
+   ```json
+   {
+     "operation": "setBuildSceneEnabled",
+     "index": 0,
+     "enabled": true
+   }
+   ```
+   - Specify either `scenePath` or `index`
+   - `enabled`: true to enable, false to disable
+
 **Implementation Notes:**
 - The tool uses Unity's PlayerSettings, QualitySettings, Time, Physics, AudioSettings, and EditorSettings APIs
 - All property names are case-insensitive for convenience

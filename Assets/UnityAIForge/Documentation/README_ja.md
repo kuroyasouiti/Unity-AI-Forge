@@ -350,7 +350,7 @@ Unity Test Frameworkによる包括的なテストスイート：
 | `unity_scriptableObject_crud` | ScriptableObject管理 | create, inspect, update, delete, duplicate, list, findByType ScriptableObject |
 | `unity_prefab_crud` | Prefab管理 | create, update, inspect, instantiate, unpack, applyOverrides, revertOverrides |
 | `unity_vector_sprite_convert` | Vector/Sprite変換 | primitiveToSprite, svgToSprite, textureToSprite, createColorSprite |
-| `unity_projectSettings_crud` | プロジェクト設定管理 | read, write, list 設定（Player, Quality, Time, Physics, Audio, Editor）|
+| `unity_projectSettings_crud` | プロジェクト設定管理 | read, write, list 設定（Player, Quality, Time, Physics, Audio, Editor）、ビルド設定（addSceneToBuild, removeSceneFromBuild, listBuildScenes, reorderBuildScenes, setBuildSceneEnabled）|
 
 ### Mid-Levelツール（バッチ操作とプリセット）
 
@@ -485,7 +485,7 @@ Tools > Unity-AI-Forge > Run All Tests
 | `unity_scriptableObject_crud` | ScriptableObject管理 | create, inspect, update, delete, duplicate, list, findByType |
 | `unity_prefab_crud` | Prefab管理 | create, update, inspect, instantiate, unpack, applyOverrides, revertOverrides |
 | `unity_vector_sprite_convert` | Vector/Sprite変換 | primitiveToSprite, svgToSprite, textureToSprite, createColorSprite |
-| `unity_projectSettings_crud` | プロジェクト設定 | read, write, list（Player, Quality, Time, Physics, Audio, Editor）|
+| `unity_projectSettings_crud` | プロジェクト設定 | read, write, list（Player, Quality, Time, Physics, Audio, Editor）、ビルド設定管理 |
 
 **Prefab Management (`unity_prefab_crud`)**
 - GameObjectからPrefab作成

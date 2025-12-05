@@ -7,6 +7,23 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 ## [未リリース]
 
+### 追加
+
+- **ビルド設定管理機能 (`unity_projectSettings_crud`)**
+  - `addSceneToBuild`: ビルド設定にシーンを追加（任意のインデックス位置に挿入可能）
+  - `removeSceneFromBuild`: シーンパスまたはインデックスでビルド設定からシーンを削除
+  - `listBuildScenes`: ビルド設定内の全シーンを一覧表示（パス、GUID、有効/無効状態、インデックス）
+  - `reorderBuildScenes`: ビルド内のシーン順序を変更
+  - `setBuildSceneEnabled`: ビルド内のシーンを有効化/無効化
+  - ビルド設定の完全な自動化が可能に
+
+### 確認
+
+- **GameObjectレイヤー設定機能 (`unity_gameobject_crud`)**
+  - `update`操作の`layer`パラメータで既に実装済み
+  - レイヤー名（文字列）またはレイヤー番号（整数）の両方に対応
+  - レイヤーが存在しない場合は適切なエラーメッセージを返す
+
 ## [2.3.1] - 2025-01-03
 
 ### 追加
