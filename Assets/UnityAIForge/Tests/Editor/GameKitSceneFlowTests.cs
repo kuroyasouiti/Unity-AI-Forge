@@ -236,6 +236,160 @@ namespace UnityAIForge.Tests.Editor
             Assert.Contains("Level1", sceneNames);
             Assert.Contains("Level2", sceneNames);
         }
+
+        [Test]
+        public void GetLoadedSharedScenes_ReturnsEmptyList_WhenNoScenesLoaded()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            
+            // Act
+            var loadedSharedScenes = sceneFlow.GetLoadedSharedScenes();
+            
+            // Assert
+            Assert.IsNotNull(loadedSharedScenes);
+            Assert.AreEqual(0, loadedSharedScenes.Count);
+        }
+
+        [Test]
+        public void IsInitialized_InitialState_ReturnsFalse()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            
+            // Act & Assert - Before Awake/Initialize, should be false
+            // Note: In edit mode, Awake doesn't automatically run
+            Assert.IsFalse(sceneFlow.IsInitialized);
+        }
+
+        [Test]
+        public void SetCurrentScene_SetsSceneName()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            sceneFlow.AddScene("Title", "Assets/Scenes/Title.unity", GameKitSceneFlow.SceneLoadMode.Single, new string[] { });
+            
+            // Act
+            sceneFlow.SetCurrentScene("Title");
+            
+            // Assert
+            Assert.AreEqual("Title", sceneFlow.CurrentScene);
+        }
+
+        [Test]
+        public void ReinitializeCurrentScene_AllowsReinitialization()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            
+            // Note: Current scene is the editor test scene (usually called "InitTestScene###")
+            // We can't easily test automatic scene detection in edit mode,
+            // but we can verify that the method can be called without errors
+            
+            // Act & Assert - Should not throw an exception
+            sceneFlow.ReinitializeCurrentScene();
+            Assert.IsNotNull(sceneFlow);
+        }
+
+        [Test]
+        public void RemoveScene_RemovesSceneDefinition()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            sceneFlow.AddScene("Title", "Assets/Scenes/Title.unity", GameKitSceneFlow.SceneLoadMode.Single, new string[] { });
+            sceneFlow.AddScene("Level1", "Assets/Scenes/Level1.unity", GameKitSceneFlow.SceneLoadMode.Additive, new string[] { });
+            
+            // Act
+            var removed = sceneFlow.RemoveScene("Title");
+            
+            // Assert
+            Assert.IsTrue(removed);
+            var sceneNames = sceneFlow.GetSceneNames();
+            Assert.AreEqual(1, sceneNames.Count);
+            Assert.IsFalse(sceneNames.Contains("Title"));
+            Assert.Contains("Level1", sceneNames);
+        }
+
+        [Test]
+        public void RemoveScene_NonExistentScene_ReturnsFalse()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            
+            // Act
+            var removed = sceneFlow.RemoveScene("NonExistent");
+            
+            // Assert
+            Assert.IsFalse(removed);
+        }
+
+        [Test]
+        public void UpdateScene_UpdatesSceneProperties()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            sceneFlow.AddScene("Level1", "Assets/Scenes/Level1.unity", GameKitSceneFlow.SceneLoadMode.Additive, new string[] { });
+            
+            // Act
+            var updated = sceneFlow.UpdateScene("Level1", 
+                scenePath: "Assets/Scenes/Level1_Updated.unity", 
+                loadMode: GameKitSceneFlow.SceneLoadMode.Single,
+                sharedScenePaths: new string[] { "Assets/Scenes/Shared/UI.unity" });
+            
+            // Assert
+            Assert.IsTrue(updated);
+        }
+
+        [Test]
+        public void RemoveTransition_RemovesTransitionFromScene()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            sceneFlow.AddScene("Page1", "Assets/Scenes/Page1.unity", GameKitSceneFlow.SceneLoadMode.Single, new string[] { });
+            sceneFlow.AddScene("Page2", "Assets/Scenes/Page2.unity", GameKitSceneFlow.SceneLoadMode.Single, new string[] { });
+            sceneFlow.AddTransition("Page1", "next", "Page2");
+            
+            // Act
+            var removed = sceneFlow.RemoveTransition("Page1", "next");
+            
+            // Assert
+            Assert.IsTrue(removed);
+            sceneFlow.SetCurrentScene("Page1");
+            var triggers = sceneFlow.GetAvailableTriggers();
+            Assert.AreEqual(0, triggers.Count);
+        }
+
+        [Test]
+        public void RemoveSharedSceneFromScene_RemovesSharedScene()
+        {
+            // Arrange
+            testSceneFlowGo = new GameObject("TestSceneFlow");
+            var sceneFlow = testSceneFlowGo.AddComponent<GameKitSceneFlow>();
+            sceneFlow.Initialize("flow_001");
+            sceneFlow.AddScene("Level1", "Assets/Scenes/Level1.unity", GameKitSceneFlow.SceneLoadMode.Additive, 
+                new string[] { "Assets/Scenes/Shared/UI.unity", "Assets/Scenes/Shared/Audio.unity" });
+            
+            // Act
+            var removed = sceneFlow.RemoveSharedSceneFromScene("Level1", "Assets/Scenes/Shared/UI.unity");
+            
+            // Assert
+            Assert.IsTrue(removed);
+        }
     }
 }
 

@@ -23,6 +23,7 @@ namespace UnityAIForge.GameKit
         [Header("Current State")]
         [SerializeField] private string currentSceneName;
         [SerializeField] private List<string> loadedSharedScenes = new List<string>();
+        [SerializeField] private bool isInitialized = false;
 
         private static GameKitSceneFlow instance;
         private Dictionary<string, SceneDefinition> sceneLookup;
@@ -37,11 +38,143 @@ namespace UnityAIForge.GameKit
                 instance = this;
                 DontDestroyOnLoad(gameObject);
                 BuildSceneLookup();
+                InitializeCurrentScene();
             }
             else
             {
                 Destroy(gameObject);
             }
+        }
+
+        /// <summary>
+        /// Initialize by detecting the current scene and loading its shared scenes.
+        /// Called automatically during Awake.
+        /// </summary>
+        private void InitializeCurrentScene()
+        {
+            if (isInitialized)
+            {
+                Debug.Log("[GameKitSceneFlow] Already initialized. Skipping automatic initialization.");
+                return;
+            }
+
+            // Detect current active scene
+            var activeScene = SceneManager.GetActiveScene();
+            if (activeScene == null || !activeScene.isLoaded)
+            {
+                Debug.LogWarning("[GameKitSceneFlow] No active scene found during initialization.");
+                return;
+            }
+
+            string activeScenePath = activeScene.path;
+            string activeSceneName = activeScene.name;
+
+            Debug.Log($"[GameKitSceneFlow] Initializing with current scene: {activeSceneName} ({activeScenePath})");
+
+            // Try to find matching scene definition by path or name
+            SceneDefinition matchedScene = null;
+
+            // First try to match by scene path
+            foreach (var sceneDef in scenes)
+            {
+                if (sceneDef.scenePath == activeScenePath)
+                {
+                    matchedScene = sceneDef;
+                    break;
+                }
+            }
+
+            // If not found by path, try to match by name
+            if (matchedScene == null)
+            {
+                foreach (var sceneDef in scenes)
+                {
+                    if (sceneDef.name == activeSceneName)
+                    {
+                        matchedScene = sceneDef;
+                        break;
+                    }
+                }
+            }
+
+            if (matchedScene != null)
+            {
+                // Set current scene
+                currentSceneName = matchedScene.name;
+                Debug.Log($"[GameKitSceneFlow] Matched scene definition: {currentSceneName}");
+
+                // Load shared scenes for this scene
+                if (matchedScene.sharedScenePaths != null && matchedScene.sharedScenePaths.Count > 0)
+                {
+                    Debug.Log($"[GameKitSceneFlow] Loading {matchedScene.sharedScenePaths.Count} shared scene(s) for '{currentSceneName}'");
+                    StartCoroutine(LoadInitialSharedScenes(matchedScene.sharedScenePaths));
+                }
+                else
+                {
+                    Debug.Log($"[GameKitSceneFlow] No shared scenes defined for '{currentSceneName}'");
+                    isInitialized = true;
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[GameKitSceneFlow] Current scene '{activeSceneName}' not found in flow definitions. " +
+                                 "Use SetCurrentScene() manually or ensure the scene is added to the flow.");
+                isInitialized = true;
+            }
+        }
+
+        /// <summary>
+        /// Manually reinitialize the SceneFlow by detecting the current scene and loading its shared scenes.
+        /// Useful for hot-reloading or manual initialization.
+        /// </summary>
+        public void ReinitializeCurrentScene()
+        {
+            Debug.Log("[GameKitSceneFlow] Manual reinitialization requested.");
+            isInitialized = false;
+            
+            // Clear loaded shared scenes
+            loadedSharedScenes.Clear();
+            
+            InitializeCurrentScene();
+        }
+
+        /// <summary>
+        /// Coroutine to load initial shared scenes during initialization.
+        /// </summary>
+        private IEnumerator LoadInitialSharedScenes(List<string> sharedScenePaths)
+        {
+            foreach (var sharedScenePath in sharedScenePaths)
+            {
+                // Check if the scene is already loaded
+                var loadedScene = SceneManager.GetSceneByPath(sharedScenePath);
+                if (loadedScene.isLoaded)
+                {
+                    Debug.Log($"[GameKitSceneFlow] Shared scene already loaded: {sharedScenePath}");
+                    if (!loadedSharedScenes.Contains(sharedScenePath))
+                    {
+                        loadedSharedScenes.Add(sharedScenePath);
+                    }
+                    continue;
+                }
+
+                Debug.Log($"[GameKitSceneFlow] Loading initial shared scene: {sharedScenePath}");
+                
+                // Load the shared scene additively
+                var asyncOp = SceneManager.LoadSceneAsync(sharedScenePath, LoadSceneMode.Additive);
+                if (asyncOp != null)
+                {
+                    yield return asyncOp;
+                    loadedSharedScenes.Add(sharedScenePath);
+                    Debug.Log($"[GameKitSceneFlow] Successfully loaded shared scene: {sharedScenePath}");
+                }
+                else
+                {
+                    Debug.LogError($"[GameKitSceneFlow] Failed to load shared scene: {sharedScenePath}");
+                }
+            }
+
+            isInitialized = true;
+            Debug.Log($"[GameKitSceneFlow] Initialization complete. Current scene: {currentSceneName}, Loaded shared scenes: {loadedSharedScenes.Count}");
         }
 
         private void BuildSceneLookup()
@@ -344,6 +477,21 @@ namespace UnityAIForge.GameKit
         }
 
         /// <summary>
+        /// Static method to manually reinitialize the SceneFlow instance.
+        /// </summary>
+        public static void Reinitialize()
+        {
+            if (instance != null)
+            {
+                instance.ReinitializeCurrentScene();
+            }
+            else
+            {
+                Debug.LogError("[GameKitSceneFlow] No SceneFlow instance found");
+            }
+        }
+
+        /// <summary>
         /// Set the current scene without loading (useful for initialization).
         /// </summary>
         public void SetCurrentScene(string sceneName)
@@ -388,6 +536,19 @@ namespace UnityAIForge.GameKit
             }
             return names;
         }
+
+        /// <summary>
+        /// Get all currently loaded shared scene paths.
+        /// </summary>
+        public List<string> GetLoadedSharedScenes()
+        {
+            return new List<string>(loadedSharedScenes);
+        }
+
+        /// <summary>
+        /// Check if the SceneFlow has been initialized.
+        /// </summary>
+        public bool IsInitialized => isInitialized;
 
         [Serializable]
         public class SceneDefinition

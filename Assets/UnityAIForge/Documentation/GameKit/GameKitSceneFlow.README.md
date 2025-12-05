@@ -17,11 +17,13 @@ Unlike traditional global transition systems, `GameKitSceneFlow` integrates tran
 ## Features
 
 - **🎯 Automatic Loading**: Prefabs in `Resources/GameKitSceneFlows/` are loaded automatically
+- **🎯 Automatic Initialization**: Detects current scene on startup and loads its shared scenes
 - **Scene-Centric Design**: Transitions defined per scene, not globally
 - **Prefab-Based**: Configuration saved as prefabs for version control
 - **Additive Scene Loading**: Support for both single and additive scene modes
 - **Shared Scene Paths**: Each scene defines its own shared scenes (e.g., UI, Audio) directly
 - **Smart Scene Management**: Only reload shared scenes when needed
+- **Start from Any Scene**: Test individual scenes directly without boot scene
 - **Static API**: Trigger transitions from anywhere with `GameKitSceneFlow.Transition()`
 
 ## Automatic Loading System
@@ -289,6 +291,74 @@ public void OnBackButton()
 
 ## Advanced Features
 
+### Automatic Scene Detection and Initialization
+
+**✨ NEW**: GameKitSceneFlow now automatically detects the current scene on startup and loads its associated shared scenes!
+
+When a SceneFlow prefab is loaded, it will:
+1. Detect the currently active scene (by path or name)
+2. Match it against defined scene definitions
+3. Automatically load all shared scenes for that scene
+4. Mark itself as initialized
+
+This means if you start play mode from any scene in your flow, the SceneFlow will:
+- Recognize which scene you're in
+- Load the appropriate shared scenes (UI, Audio, etc.)
+- Be ready for transitions without manual setup
+
+```csharp
+// Example: Define scenes with shared scenes
+sceneFlow.AddScene("Level1", "Assets/Scenes/Level1.unity", SceneLoadMode.Additive, 
+    new string[] { 
+        "Assets/Scenes/Shared/GameUI.unity",
+        "Assets/Scenes/Shared/AudioManager.unity"
+    });
+
+// When you start play mode from Level1, GameKitSceneFlow will:
+// 1. Detect you're in Level1
+// 2. Automatically load GameUI.unity and AudioManager.unity
+// 3. Set current scene to "Level1"
+// 4. Be ready for transitions
+```
+
+**Check Initialization Status:**
+
+```csharp
+if (sceneFlow.IsInitialized)
+{
+    Debug.Log($"SceneFlow initialized. Current scene: {sceneFlow.CurrentScene}");
+    Debug.Log($"Loaded shared scenes: {sceneFlow.GetLoadedSharedScenes().Count}");
+}
+```
+
+**Manual Reinitialization:**
+
+If you need to reinitialize (e.g., after hot-reloading or dynamic changes):
+
+```csharp
+// Instance method
+sceneFlow.ReinitializeCurrentScene();
+
+// Static method (from anywhere)
+GameKitSceneFlow.Reinitialize();
+```
+
+**Get Loaded Shared Scenes:**
+
+```csharp
+List<string> loadedSharedScenes = sceneFlow.GetLoadedSharedScenes();
+foreach (string scenePath in loadedSharedScenes)
+{
+    Debug.Log($"Shared scene loaded: {scenePath}");
+}
+```
+
+**Benefits:**
+- **Start from any scene**: No need to always start from a "boot" scene
+- **Faster iteration**: Test individual levels directly in play mode
+- **Automatic setup**: Shared scenes load automatically based on current scene
+- **Smart detection**: Matches by both scene path and scene name
+
 ### Dynamic Available Triggers
 
 Get available triggers for current scene (useful for UI):
@@ -542,8 +612,15 @@ for trans in transitions:
 
 - `List<string> GetAvailableTriggers()` - Get triggers available from current scene
 - `List<string> GetSceneNames()` - Get all scene names
+- `List<string> GetLoadedSharedScenes()` - Get currently loaded shared scene paths
+- `bool IsInitialized` - Check if the SceneFlow has completed initialization
 - `string CurrentScene` - Get current scene name
 - `string FlowId` - Get flow identifier
+
+### Initialization
+
+- `void ReinitializeCurrentScene()` - Manually reinitialize by detecting current scene and loading its shared scenes
+- `static void Reinitialize()` - Static method to reinitialize the singleton instance
 
 ### Enums
 
@@ -649,27 +726,70 @@ sceneFlow.AddScene("Level1", "...", SceneLoadMode.Additive,
 - Use `Single` for distinct scenes (menus, levels that don't overlap)
 - Use `Additive` for content scenes with shared persistent scenes
 
-### 5. Initialization
+### 5. Initialization and Scene Detection
 
-Initialize in a persistent manager scene:
+With automatic initialization, SceneFlow detects and sets up the current scene automatically:
+
+```csharp
+void Start()
+{
+    // Wait for automatic initialization to complete
+    StartCoroutine(WaitForInitialization());
+}
+
+IEnumerator WaitForInitialization()
+{
+    // Wait for SceneFlow to initialize
+    while (!sceneFlow.IsInitialized)
+    {
+        yield return null;
+    }
+    
+    // Now safe to use SceneFlow
+    Debug.Log($"Current scene: {sceneFlow.CurrentScene}");
+    Debug.Log($"Loaded shared scenes: {sceneFlow.GetLoadedSharedScenes().Count}");
+    
+    // Setup game state based on current scene
+    OnSceneReady();
+}
+```
+
+**For manual setup** (less common now):
 ```csharp
 void Awake()
 {
-    // SceneFlow persists across scene loads
+    // Manual initialization if needed
     sceneFlow = GetComponent<GameKitSceneFlow>();
     sceneFlow.Initialize("mainFlow");
     SetupScenes();
     SetupTransitions();
-    sceneFlow.SetCurrentScene(SceneManager.GetActiveScene().name);
+    
+    // Manual scene detection
+    sceneFlow.ReinitializeCurrentScene();
 }
+```
+
+### 6. Scene Path Consistency
+
+Ensure scene paths in definitions match actual scene paths:
+
+```csharp
+// Get exact path from SceneManager
+string currentScenePath = SceneManager.GetActiveScene().path;
+Debug.Log($"Current scene path: {currentScenePath}");
+
+// Use exact path in definition
+sceneFlow.AddScene("Level1", currentScenePath, SceneLoadMode.Additive, 
+    new string[] { "Assets/Scenes/Shared/GameUI.unity" });
 ```
 
 ## Troubleshooting
 
 **"No transition found" warning:**
 - Ensure transition is added FROM the current scene
-- Check current scene is set: `sceneFlow.SetCurrentScene()`
+- Check current scene is set: Use `sceneFlow.CurrentScene` to verify
 - Verify trigger name matches exactly
+- If using automatic initialization, wait for `IsInitialized` to be true
 
 **"Scene not found" error:**
 - Verify scene path is correct and scene exists
@@ -677,13 +797,33 @@ void Awake()
 - Ensure scene name matches definition
 
 **Shared scenes not loading:**
-- Check group name matches in `AddScene` and `AddSharedGroup`
-- Verify shared scene paths are correct
+- Verify shared scene paths are correct in scene definition
 - Ensure shared scenes are in Build Settings
+- Check scene paths match exactly (use `SceneManager.GetActiveScene().path` to verify)
+- Wait for initialization: Check `IsInitialized` before checking loaded scenes
+
+**Current scene not detected on initialization:**
+- Ensure scene is defined in SceneFlow before entering play mode
+- Check scene path matches: scene definition path must match actual scene path
+- Scene name can also be used for matching if path match fails
+- Use `Debug.Log(SceneManager.GetActiveScene().path)` to verify actual path
+- Try manual initialization: `sceneFlow.ReinitializeCurrentScene()`
+
+**Shared scenes loading multiple times:**
+- The system prevents duplicate loading - this shouldn't happen
+- If it does, check for multiple SceneFlow instances (should be singleton)
+- Verify `IsInitialized` flag is working correctly
 
 **Transitions from wrong scene:**
 - Remember: transitions are per-scene, not global
 - Use `GetAvailableTriggers()` to debug which triggers are available
+- Verify `CurrentScene` property shows the expected scene name
+
+**Initialization not completing:**
+- Check Unity console for loading errors
+- Verify all shared scene paths exist and are valid
+- Ensure scenes are in Build Settings
+- Try manual reinitialization: `GameKitSceneFlow.Reinitialize()`
 
 ## Migration from Global Transitions
 

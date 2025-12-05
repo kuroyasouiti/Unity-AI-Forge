@@ -436,6 +436,9 @@ namespace MCP.Editor.Handlers.GameKit
                 { "flowId", sceneFlow.FlowId },
                 { "prefabPath", prefabPath },
                 { "currentScene", sceneFlow.CurrentScene },
+                { "isInitialized", sceneFlow.IsInitialized },
+                { "loadedSharedScenes", sceneFlow.GetLoadedSharedScenes() },
+                { "sceneCount", sceneFlow.GetSceneNames().Count },
                 { "autoLoad", "Loaded automatically in Play Mode and at runtime" }
             };
 
