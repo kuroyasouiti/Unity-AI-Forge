@@ -182,11 +182,12 @@ namespace UnityAIForge.GameKit
                 else
                 {
                     // Drain: consume resource
-                    float current = GetResource(flow.resourceName);
                     var resource = resources.Find(r => r.name == flow.resourceName);
-                    if (resource != null && current > resource.minValue)
+                    if (resource != null)
                     {
-                        ConsumeResource(flow.resourceName, flowAmount);
+                        float newAmount = resource.amount - flowAmount;
+                        resource.amount = Mathf.Max(newAmount, resource.minValue);
+                        OnResourceChanged?.Invoke(flow.resourceName, resource.amount);
                     }
                 }
             }

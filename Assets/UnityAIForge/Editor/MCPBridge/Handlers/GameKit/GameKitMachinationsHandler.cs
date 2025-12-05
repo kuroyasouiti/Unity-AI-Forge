@@ -69,14 +69,15 @@ namespace MCP.Editor.Handlers.GameKit
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             descriptionField?.SetValue(asset, description);
 
-            // Add pools
-            if (payload.TryGetValue("pools", out var poolsObj) && poolsObj is List<object> poolsList)
+            // Add pools (support both "pools" and "initialResources" keys for MCP compatibility)
+            var poolsKey = payload.ContainsKey("initialResources") ? "initialResources" : "pools";
+            if (payload.TryGetValue(poolsKey, out var poolsObj) && poolsObj is List<object> poolsList)
             {
                 foreach (var poolObj in poolsList)
                 {
                     if (poolObj is Dictionary<string, object> poolDict)
                     {
-                        var resourceName = GetString(poolDict, "resourceName");
+                        var resourceName = GetString(poolDict, "name") ?? GetString(poolDict, "resourceName");
                         var initialAmount = GetFloat(poolDict, "initialAmount", 0f);
                         var minValue = GetFloat(poolDict, "minValue", 0f);
                         var maxValue = GetFloat(poolDict, "maxValue", 100f);

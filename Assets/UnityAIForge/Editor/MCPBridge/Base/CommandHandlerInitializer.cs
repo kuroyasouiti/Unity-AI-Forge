@@ -119,6 +119,7 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("uiFoundation", new UIFoundationHandler());
             CommandHandlerFactory.Register("audioSourceBundle", new AudioSourceBundleHandler());
             CommandHandlerFactory.Register("inputProfile", new InputProfileHandler());
+            CommandHandlerFactory.Register("characterControllerBundle", new CharacterControllerBundleHandler());
         }
 
         /// <summary>
@@ -130,6 +131,7 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("gamekitManager", new Handlers.GameKit.GameKitManagerHandler());
             CommandHandlerFactory.Register("gamekitInteraction", new Handlers.GameKit.GameKitInteractionHandler());
             CommandHandlerFactory.Register("gamekitUICommand", new Handlers.GameKit.GameKitUICommandHandler());
+            CommandHandlerFactory.Register("gamekitMachinations", new Handlers.GameKit.GameKitMachinationsHandler());
             CommandHandlerFactory.Register("gamekitSceneFlow", new Handlers.GameKit.GameKitSceneFlowHandler());
         }
     }

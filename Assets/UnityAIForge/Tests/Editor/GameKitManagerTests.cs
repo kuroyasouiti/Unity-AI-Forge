@@ -328,24 +328,29 @@ namespace UnityAIForge.Tests.Editor
             var manager = testManagerGo.AddComponent<GameKitManager>();
             manager.Initialize("manager_001", GameKitManager.ManagerType.ResourcePool, false);
             
+            // Create Machinations asset with converter: 1 wood → 4 planks
+            var asset = ScriptableObject.CreateInstance<GameKitMachinationsAsset>();
+            asset.AddPool("wood", 100f, 0f, 1000f);
+            asset.AddPool("planks", 0f, 0f, 1000f);
+            asset.AddConverter("woodToPlanks", "wood", "planks", 4f, 1f);
+            
+            // Apply Machinations asset to manager
             var resourceType = System.Type.GetType("UnityAIForge.GameKit.GameKitResourceManager, UnityAIForge.GameKit.Runtime");
             var resourceManager = testManagerGo.GetComponent(resourceType);
+            var applyMethod = resourceType.GetMethod("ApplyMachinationsAsset");
+            applyMethod?.Invoke(resourceManager, new object[] { asset, true });
             
-            manager.SetResource("wood", 100f);
-            manager.SetResource("planks", 0f);
-            
-            // Act - Add converter: 1 wood → 4 planks
-            var addConverterMethod = resourceType.GetMethod("AddConverter");
-            addConverterMethod?.Invoke(resourceManager, new object[] { "wood", "planks", 4f, 1f });
-            
-            // Convert 10 wood
-            var convertMethod = resourceType.GetMethod("Convert");
-            var success = convertMethod?.Invoke(resourceManager, new object[] { "wood", "planks", 10f });
+            // Act - Convert 10 wood using the converter
+            var executeMethod = resourceType.GetMethod("ExecuteConverter");
+            var success = executeMethod?.Invoke(resourceManager, new object[] { "woodToPlanks", 10f });
             
             // Assert
             Assert.IsTrue((bool)success);
-            Assert.AreEqual(90f, manager.GetResource("wood"));  // 100 - 10
-            Assert.AreEqual(40f, manager.GetResource("planks")); // 10 * 4
+            Assert.AreEqual(90f, manager.GetResource("wood"), 0.01f);  // 100 - 10
+            Assert.AreEqual(40f, manager.GetResource("planks"), 0.01f); // 10 * 4
+            
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(asset);
         }
 
         [Test]
@@ -356,20 +361,20 @@ namespace UnityAIForge.Tests.Editor
             var manager = testManagerGo.AddComponent<GameKitManager>();
             manager.Initialize("manager_001", GameKitManager.ManagerType.ResourcePool, false);
             
+            // Create Machinations asset with trigger: warn when health drops below 30
+            var asset = ScriptableObject.CreateInstance<GameKitMachinationsAsset>();
+            asset.AddPool("health", 100f, 0f, 100f);
+            asset.AddTrigger("lowHealth", "health", GameKitMachinationsAsset.ThresholdType.Below, 30f);
+            
+            // Apply Machinations asset to manager
             var resourceType = System.Type.GetType("UnityAIForge.GameKit.GameKitResourceManager, UnityAIForge.GameKit.Runtime");
             var resourceManager = testManagerGo.GetComponent(resourceType);
+            var applyMethod = resourceType.GetMethod("ApplyMachinationsAsset");
+            applyMethod?.Invoke(resourceManager, new object[] { asset, true });
             
-            manager.SetResource("health", 100f);
-            
-            // Add trigger: warn when health drops below 30
-            var addTriggerMethod = resourceType.GetMethod("AddTrigger");
-            var thresholdType = resourceType.GetNestedType("ThresholdType");
-            var belowValue = Enum.Parse(thresholdType, "Below");
-            
-            addTriggerMethod?.Invoke(resourceManager, new object[] { "lowHealth", "health", belowValue, 30f });
-            
+            // Listen to trigger event
             string triggeredName = null;
-            var onTriggerProperty = resourceType.GetField("OnResourceTriggered");
+            var onTriggerProperty = resourceType.GetField("OnTriggerFired");
             var triggerEvent = onTriggerProperty?.GetValue(resourceManager);
             var addListenerMethod = triggerEvent?.GetType().GetMethod("AddListener");
             
@@ -381,13 +386,15 @@ namespace UnityAIForge.Tests.Editor
             // Act - Drop health below threshold
             manager.SetResource("health", 25f);
             
-            // Trigger check (would normally happen in Update)
-            var checkTriggersMethod = resourceType.GetMethod("CheckTriggers", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            // Check triggers using new API
+            var checkTriggersMethod = resourceType.GetMethod("CheckDiagramTriggers");
             checkTriggersMethod?.Invoke(resourceManager, null);
             
             // Assert
             Assert.AreEqual("lowHealth", triggeredName);
+            
+            // Cleanup
+            UnityEngine.Object.DestroyImmediate(asset);
         }
     }
 }
