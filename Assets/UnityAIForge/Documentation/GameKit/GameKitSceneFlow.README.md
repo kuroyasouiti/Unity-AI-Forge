@@ -1,8 +1,10 @@
-# GameKitSceneFlow - Scene-Centric State Machine
+# GameKitSceneFlow - Scene-Centric State Machine with Auto-Loading
 
 ## Overview
 
 `GameKitSceneFlow` manages scene transitions with a scene-centric state machine. Each scene defines its own transitions, allowing the same trigger to lead to different destinations depending on which scene is currently active. This is perfect for paginated interfaces, level progressions, and narrative-driven games.
+
+**✨ NEW**: SceneFlow prefabs are now automatically loaded at startup! No need to manually place them in your initial scene.
 
 ## Key Concept: Scene-Centric Transitions
 
@@ -14,80 +16,134 @@ Unlike traditional global transition systems, `GameKitSceneFlow` integrates tran
 
 ## Features
 
+- **🎯 Automatic Loading**: Prefabs in `Resources/GameKitSceneFlows/` are loaded automatically
 - **Scene-Centric Design**: Transitions defined per scene, not globally
+- **Prefab-Based**: Configuration saved as prefabs for version control
 - **Additive Scene Loading**: Support for both single and additive scene modes
 - **Shared Scene Paths**: Each scene defines its own shared scenes (e.g., UI, Audio) directly
 - **Smart Scene Management**: Only reload shared scenes when needed
 - **Static API**: Trigger transitions from anywhere with `GameKitSceneFlow.Transition()`
 
-## Basic Setup
+## Automatic Loading System
 
-### 1. Create SceneFlow Manager
+GameKitSceneFlow now uses a prefab-based approach with automatic loading:
 
-```csharp
-// Create persistent scene flow manager
-GameObject managerGo = new GameObject("SceneFlowManager");
-GameKitSceneFlow sceneFlow = managerGo.AddComponent<GameKitSceneFlow>();
-sceneFlow.Initialize("mainFlow");
+1. **Create via MCP Tool**: SceneFlow is saved as a prefab in `Resources/GameKitSceneFlows/`
+2. **Automatic Loading**: 
+   - **Play Mode**: `GameKitSceneFlowAutoLoader` (Editor) loads prefabs when entering play mode
+   - **Runtime**: `GameKitSceneFlowRuntimeLoader` loads prefabs before first scene loads
+3. **Persistent**: Prefabs are instantiated with `DontDestroyOnLoad()`
+4. **Version Control**: Prefabs can be committed to Git for team collaboration
+
+No need to manually place GameObjects in your initial scene!
+
+## Basic Setup (MCP Tool - Recommended)
+
+### 1. Create SceneFlow Prefab
+
+```python
+# Creates prefab at Resources/GameKitSceneFlows/MainGameFlow.prefab
+unity_gamekit_sceneflow({
+    "operation": "create",
+    "flowId": "MainGameFlow"
+})
 ```
 
-### 2. Define Scenes with Shared Scene Paths
+### 2. Add Scenes One by One
 
-```csharp
-// Add scenes with load mode and shared scene paths
-sceneFlow.AddScene("MainMenu", "Assets/Scenes/MainMenu.unity", 
-    GameKitSceneFlow.SceneLoadMode.Single, 
-    new string[] { 
+```python
+# Add main menu
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "MainMenu",
+    "scenePath": "Assets/Scenes/MainMenu.unity",
+    "loadMode": "single"
+})
+
+# Add Level1 with shared scenes
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1",
+    "scenePath": "Assets/Scenes/Level1.unity",
+    "loadMode": "additive",
+    "sharedScenePaths": [
         "Assets/Scenes/Shared/GameUI.unity",
         "Assets/Scenes/Shared/AudioManager.unity"
-    });
+    ]
+})
 
-sceneFlow.AddScene("Level1", "Assets/Scenes/Level1.unity", 
-    GameKitSceneFlow.SceneLoadMode.Additive, 
-    new string[] { 
+# Add Level2
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level2",
+    "scenePath": "Assets/Scenes/Level2.unity",
+    "loadMode": "additive",
+    "sharedScenePaths": [
         "Assets/Scenes/Shared/GameUI.unity",
         "Assets/Scenes/Shared/AudioManager.unity"
-    });
-
-sceneFlow.AddScene("Level2", "Assets/Scenes/Level2.unity", 
-    GameKitSceneFlow.SceneLoadMode.Additive, 
-    new string[] { 
-        "Assets/Scenes/Shared/GameUI.unity",
-        "Assets/Scenes/Shared/AudioManager.unity"
-    });
+    ]
+})
 ```
 
 ### 3. Add Scene-Specific Transitions
 
-```csharp
-// Each scene defines its own transitions
-// Format: AddTransition(fromScene, trigger, toScene)
+```python
+# Each scene defines its own transitions
+unity_gamekit_sceneflow({
+    "operation": "addTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "MainMenu",
+    "trigger": "startGame",
+    "toScene": "Level1"
+})
 
-sceneFlow.AddTransition("MainMenu", "startGame", "Level1");
-sceneFlow.AddTransition("MainMenu", "quit", "ExitGame");
+unity_gamekit_sceneflow({
+    "operation": "addTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "Level1",
+    "trigger": "complete",
+    "toScene": "Level2"
+})
 
-sceneFlow.AddTransition("Level1", "complete", "Level2");
-sceneFlow.AddTransition("Level1", "mainMenu", "MainMenu");
-
-sceneFlow.AddTransition("Level2", "complete", "Victory");
-sceneFlow.AddTransition("Level2", "mainMenu", "MainMenu");
+unity_gamekit_sceneflow({
+    "operation": "addTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "Level1",
+    "trigger": "mainMenu",
+    "toScene": "MainMenu"
+})
 ```
 
-### 4. Set Initial Scene
+### 4. Start Play Mode
+
+The prefab is automatically loaded! Trigger transitions from your scripts:
 
 ```csharp
-// Set the starting scene (doesn't load it, just tracks state)
-sceneFlow.SetCurrentScene("MainMenu");
-```
-
-### 5. Trigger Transitions
-
-```csharp
-// From scripts or UI
-sceneFlow.TriggerTransition("startGame");
-
-// Or use static method from anywhere
+// From UI buttons or game logic
+GameKitSceneFlow.Transition("startGame");
 GameKitSceneFlow.Transition("complete");
+```
+
+## Manual C# Setup (Advanced)
+
+If you need to create SceneFlow programmatically:
+
+```csharp
+// This approach is less common now that prefabs auto-load
+GameObject managerGo = new GameObject("SceneFlowManager");
+GameKitSceneFlow sceneFlow = managerGo.AddComponent<GameKitSceneFlow>();
+sceneFlow.Initialize("mainFlow");
+
+// Add scenes and transitions
+sceneFlow.AddScene("MainMenu", "Assets/Scenes/MainMenu.unity", 
+    GameKitSceneFlow.SceneLoadMode.Single);
+sceneFlow.AddTransition("MainMenu", "startGame", "Level1");
+
+// Trigger transitions
+sceneFlow.TriggerTransition("startGame");
 ```
 
 ## Common Patterns
@@ -498,6 +554,50 @@ public enum SceneLoadMode
     Additive   // Add to existing scenes
 }
 ```
+
+## Prefab-Based Approach Benefits
+
+### Why Prefabs?
+
+1. **No Manual Placement**: No need to add GameObjects to your initial scene
+2. **Version Control Friendly**: Prefabs can be committed to Git
+3. **Team Collaboration**: Team members share the same SceneFlow configuration
+4. **Automatic Loading**: Works in both Editor and builds without setup
+5. **Persistent**: Survives scene transitions automatically
+6. **Inspector Editable**: Can view/edit prefabs directly in Project window
+
+### How It Works
+
+```
+1. MCP Tool creates prefab → Resources/GameKitSceneFlows/MainGameFlow.prefab
+2. Unity Editor starts or Play Mode begins
+3. GameKitSceneFlowAutoLoader (Editor) or RuntimeLoader loads all prefabs
+4. Prefabs instantiated with DontDestroyOnLoad()
+5. SceneFlow ready to use from any scene
+```
+
+### Directory Structure
+
+```
+Assets/
+  Resources/
+    GameKitSceneFlows/
+      MainGameFlow.prefab       # Your SceneFlow prefabs
+      TutorialFlow.prefab
+      BossRushFlow.prefab
+```
+
+### Creating Directory Manually
+
+If needed, you can create the directory manually:
+
+**Unity Editor Menu**:
+```
+Tools → Unity-AI-Forge → GameKit → Create SceneFlows Directory
+```
+
+**Or via MCP**:
+Just create a SceneFlow - the directory is created automatically!
 
 ## Best Practices
 

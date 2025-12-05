@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using MCP.Editor.Base;
 using UnityAIForge.GameKit;
 using UnityEditor;
@@ -11,9 +12,13 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit SceneFlow handler: manage scene transitions and flow.
+    /// Now uses prefab-based approach with automatic loading via InitializeOnLoad and RuntimeInitializeOnLoadMethod.
     /// </summary>
     public class GameKitSceneFlowHandler : BaseCommandHandler
     {
+        private const string RESOURCES_PATH = "Assets/Resources/GameKitSceneFlows";
+        private const string PREFAB_EXTENSION = ".prefab";
+        
         private static readonly string[] Operations = { 
             "create", "inspect", "delete", "transition",
             "addScene", "removeScene", "updateScene",
@@ -51,16 +56,23 @@ namespace MCP.Editor.Handlers.GameKit
         private object CreateSceneFlow(Dictionary<string, object> payload)
         {
             var flowId = GetString(payload, "flowId") ?? $"SceneFlow_{Guid.NewGuid().ToString().Substring(0, 8)}";
-            var managerScenePath = GetString(payload, "managerScenePath");
-
-            // Create SceneFlow GameObject
+            
+            // 1. Ensure Resources/GameKitSceneFlows directory exists
+            EnsureResourcesDirectory();
+            
+            // 2. Check if prefab already exists
+            var prefabPath = GetPrefabPath(flowId);
+            if (File.Exists(prefabPath))
+            {
+                throw new InvalidOperationException($"SceneFlow prefab '{flowId}' already exists at {prefabPath}");
+            }
+            
+            // 3. Create temporary GameObject
             var flowGo = new GameObject(flowId);
-            Undo.RegisterCreatedObjectUndo(flowGo, "Create SceneFlow");
-
-            var sceneFlow = Undo.AddComponent<GameKitSceneFlow>(flowGo);
+            var sceneFlow = flowGo.AddComponent<GameKitSceneFlow>();
             sceneFlow.Initialize(flowId);
 
-            // Add scenes
+            // 4. Add scenes
             if (payload.TryGetValue("scenes", out var scenesObj) && scenesObj is List<object> scenesList)
             {
                 foreach (var sceneObj in scenesList)
@@ -79,18 +91,13 @@ namespace MCP.Editor.Handlers.GameKit
                         {
                             sharedScenePaths = scenePathsList.Select(p => p.ToString()).ToList();
                         }
-                        // Support legacy "sharedGroups" for backward compatibility (treated as scene paths)
-                        else if (sceneDict.TryGetValue("sharedGroups", out var sharedGroupsObj) && sharedGroupsObj is List<object> groupsList)
-                        {
-                            sharedScenePaths = groupsList.Select(g => g.ToString()).ToList();
-                        }
 
                         sceneFlow.AddScene(name, scenePath, loadMode, sharedScenePaths.ToArray());
                     }
                 }
             }
 
-            // Add transitions (now scene-centric: each scene defines its own transitions)
+            // 5. Add transitions
             if (payload.TryGetValue("transitions", out var transitionsObj) && transitionsObj is List<object> transitionsList)
             {
                 foreach (var transitionObj in transitionsList)
@@ -112,15 +119,20 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            // Legacy support: Add shared scene groups (deprecated - use sharedScenePaths in scene definition instead)
-            if (payload.TryGetValue("sharedSceneGroups", out var sharedGroupsDict) && sharedGroupsDict is Dictionary<string, object> groupsDict)
-            {
-                Debug.LogWarning("[GameKitSceneFlowHandler] 'sharedSceneGroups' is deprecated. Use 'sharedScenePaths' in scene definitions instead.");
-                // For backward compatibility, we could add these to scenes, but it's better to just warn
-            }
-
-            EditorSceneManager.MarkSceneDirty(flowGo.scene);
-            return CreateSuccessResponse(("flowId", flowId), ("path", BuildGameObjectPath(flowGo)));
+            // 6. Save as prefab
+            var prefab = PrefabUtility.SaveAsPrefabAsset(flowGo, prefabPath);
+            
+            // 7. Destroy temporary GameObject
+            UnityEngine.Object.DestroyImmediate(flowGo);
+            
+            Debug.Log($"[GameKitSceneFlow] Created prefab: {prefabPath}");
+            
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("prefabPath", prefabPath),
+                ("message", "SceneFlow prefab created successfully"),
+                ("autoLoad", "Prefab will be auto-loaded in Play Mode and at runtime")
+            );
         }
 
         #endregion
@@ -133,12 +145,6 @@ namespace MCP.Editor.Handlers.GameKit
             if (string.IsNullOrEmpty(flowId))
             {
                 throw new InvalidOperationException("flowId is required for addScene.");
-            }
-
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
             }
 
             var sceneName = GetString(payload, "sceneName");
@@ -159,11 +165,18 @@ namespace MCP.Editor.Handlers.GameKit
                 sharedScenePaths = scenePathsList.Select(p => p.ToString()).ToList();
             }
 
-            Undo.RecordObject(sceneFlow, "Add Scene");
-            sceneFlow.AddScene(sceneName, scenePath, loadMode, sharedScenePaths.ToArray());
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            // Edit prefab
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                sceneFlow.AddScene(sceneName, scenePath, loadMode, sharedScenePaths.ToArray());
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("sceneName", sceneName), ("scenePath", scenePath));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("sceneName", sceneName), 
+                ("scenePath", scenePath),
+                ("message", "Scene added to prefab successfully")
+            );
         }
 
         #endregion
@@ -178,23 +191,24 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for removeScene.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
-            }
-
             var sceneName = GetString(payload, "sceneName");
             if (string.IsNullOrEmpty(sceneName))
             {
                 throw new InvalidOperationException("sceneName is required for removeScene.");
             }
 
-            Undo.RecordObject(sceneFlow, "Remove Scene");
-            bool removed = sceneFlow.RemoveScene(sceneName);
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            bool removed = false;
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                removed = sceneFlow.RemoveScene(sceneName);
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("sceneName", sceneName), ("removed", removed));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("sceneName", sceneName), 
+                ("removed", removed),
+                ("message", "Scene removed from prefab successfully")
+            );
         }
 
         #endregion
@@ -207,12 +221,6 @@ namespace MCP.Editor.Handlers.GameKit
             if (string.IsNullOrEmpty(flowId))
             {
                 throw new InvalidOperationException("flowId is required for updateScene.");
-            }
-
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
             }
 
             var sceneName = GetString(payload, "sceneName");
@@ -237,11 +245,18 @@ namespace MCP.Editor.Handlers.GameKit
                 sharedScenePaths = scenePathsList.Select(p => p.ToString()).ToArray();
             }
 
-            Undo.RecordObject(sceneFlow, "Update Scene");
-            bool updated = sceneFlow.UpdateScene(sceneName, scenePath, loadMode, sharedScenePaths);
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            bool updated = false;
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                updated = sceneFlow.UpdateScene(sceneName, scenePath, loadMode, sharedScenePaths);
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("sceneName", sceneName), ("updated", updated));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("sceneName", sceneName), 
+                ("updated", updated),
+                ("message", "Scene updated in prefab successfully")
+            );
         }
 
         #endregion
@@ -256,12 +271,6 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for addTransition.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
-            }
-
             var fromScene = GetString(payload, "fromScene");
             var trigger = GetString(payload, "trigger");
             var toScene = GetString(payload, "toScene");
@@ -271,11 +280,18 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("fromScene, trigger, and toScene are required for addTransition.");
             }
 
-            Undo.RecordObject(sceneFlow, "Add Transition");
-            sceneFlow.AddTransition(fromScene, trigger, toScene);
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                sceneFlow.AddTransition(fromScene, trigger, toScene);
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("fromScene", fromScene), ("trigger", trigger), ("toScene", toScene));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("fromScene", fromScene), 
+                ("trigger", trigger), 
+                ("toScene", toScene),
+                ("message", "Transition added to prefab successfully")
+            );
         }
 
         #endregion
@@ -290,12 +306,6 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for removeTransition.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
-            }
-
             var fromScene = GetString(payload, "fromScene");
             var trigger = GetString(payload, "trigger");
 
@@ -304,11 +314,19 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("fromScene and trigger are required for removeTransition.");
             }
 
-            Undo.RecordObject(sceneFlow, "Remove Transition");
-            bool removed = sceneFlow.RemoveTransition(fromScene, trigger);
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            bool removed = false;
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                removed = sceneFlow.RemoveTransition(fromScene, trigger);
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("fromScene", fromScene), ("trigger", trigger), ("removed", removed));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("fromScene", fromScene), 
+                ("trigger", trigger), 
+                ("removed", removed),
+                ("message", "Transition removed from prefab successfully")
+            );
         }
 
         #endregion
@@ -323,12 +341,6 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for addSharedScene.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
-            }
-
             var sceneName = GetString(payload, "sceneName");
             var sharedScenePath = GetString(payload, "sharedScenePath");
 
@@ -337,11 +349,17 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("sceneName and sharedScenePath are required for addSharedScene.");
             }
 
-            Undo.RecordObject(sceneFlow, "Add Shared Scene");
-            sceneFlow.AddSharedScenesToScene(sceneName, new[] { sharedScenePath });
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                sceneFlow.AddSharedScenesToScene(sceneName, new[] { sharedScenePath });
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("sceneName", sceneName), ("sharedScenePath", sharedScenePath));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("sceneName", sceneName), 
+                ("sharedScenePath", sharedScenePath),
+                ("message", "Shared scene added to prefab successfully")
+            );
         }
 
         #endregion
@@ -356,12 +374,6 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for removeSharedScene.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
-            {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
-            }
-
             var sceneName = GetString(payload, "sceneName");
             var sharedScenePath = GetString(payload, "sharedScenePath");
 
@@ -370,11 +382,19 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("sceneName and sharedScenePath are required for removeSharedScene.");
             }
 
-            Undo.RecordObject(sceneFlow, "Remove Shared Scene");
-            bool removed = sceneFlow.RemoveSharedSceneFromScene(sceneName, sharedScenePath);
-            EditorSceneManager.MarkSceneDirty(sceneFlow.gameObject.scene);
+            bool removed = false;
+            EditPrefab(flowId, (sceneFlow) =>
+            {
+                removed = sceneFlow.RemoveSharedSceneFromScene(sceneName, sharedScenePath);
+            });
 
-            return CreateSuccessResponse(("flowId", flowId), ("sceneName", sceneName), ("sharedScenePath", sharedScenePath), ("removed", removed));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("sceneName", sceneName), 
+                ("sharedScenePath", sharedScenePath), 
+                ("removed", removed),
+                ("message", "Shared scene removed from prefab successfully")
+            );
         }
 
         #endregion
@@ -389,18 +409,34 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for inspect.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
+            var prefabPath = GetPrefabPath(flowId);
+            if (!File.Exists(prefabPath))
+            {
+                return CreateSuccessResponse(
+                    ("found", false), 
+                    ("flowId", flowId),
+                    ("message", $"SceneFlow prefab '{flowId}' not found")
+                );
+            }
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            var sceneFlow = prefab.GetComponent<GameKitSceneFlow>();
             if (sceneFlow == null)
             {
-                return CreateSuccessResponse(("found", false), ("flowId", flowId));
+                return CreateSuccessResponse(
+                    ("found", false), 
+                    ("flowId", flowId),
+                    ("message", "Prefab found but GameKitSceneFlow component not found")
+                );
             }
 
             var info = new Dictionary<string, object>
             {
                 { "found", true },
                 { "flowId", sceneFlow.FlowId },
-                { "path", BuildGameObjectPath(sceneFlow.gameObject) },
-                { "currentScene", sceneFlow.CurrentScene }
+                { "prefabPath", prefabPath },
+                { "currentScene", sceneFlow.CurrentScene },
+                { "autoLoad", "Loaded automatically in Play Mode and at runtime" }
             };
 
             return CreateSuccessResponse(("sceneFlow", info));
@@ -418,17 +454,23 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("flowId is required for delete.");
             }
 
-            var sceneFlow = FindSceneFlowById(flowId);
-            if (sceneFlow == null)
+            var prefabPath = GetPrefabPath(flowId);
+            if (!File.Exists(prefabPath))
             {
-                throw new InvalidOperationException($"SceneFlow with ID '{flowId}' not found.");
+                throw new InvalidOperationException($"SceneFlow prefab '{flowId}' not found at {prefabPath}");
             }
 
-            var scene = sceneFlow.gameObject.scene;
-            Undo.DestroyObjectImmediate(sceneFlow.gameObject);
-            EditorSceneManager.MarkSceneDirty(scene);
+            // Delete prefab file
+            AssetDatabase.DeleteAsset(prefabPath);
+            AssetDatabase.Refresh();
+            
+            Debug.Log($"[GameKitSceneFlow] Deleted prefab: {prefabPath}");
 
-            return CreateSuccessResponse(("flowId", flowId), ("deleted", true));
+            return CreateSuccessResponse(
+                ("flowId", flowId), 
+                ("deleted", true),
+                ("message", "SceneFlow prefab deleted successfully")
+            );
         }
 
         #endregion
@@ -453,34 +495,62 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitSceneFlow FindSceneFlowById(string flowId)
+        /// <summary>
+        /// Ensures that Resources/GameKitSceneFlows directory exists.
+        /// </summary>
+        private void EnsureResourcesDirectory()
         {
-            var sceneFlows = UnityEngine.Object.FindObjectsByType<GameKitSceneFlow>(FindObjectsSortMode.None);
-            foreach (var sceneFlow in sceneFlows)
+            if (!AssetDatabase.IsValidFolder("Assets/Resources"))
             {
-                if (sceneFlow.FlowId == flowId)
-                {
-                    return sceneFlow;
-                }
+                AssetDatabase.CreateFolder("Assets", "Resources");
             }
-            return null;
+            
+            if (!AssetDatabase.IsValidFolder(RESOURCES_PATH))
+            {
+                AssetDatabase.CreateFolder("Assets/Resources", "GameKitSceneFlows");
+            }
+        }
+
+        /// <summary>
+        /// Gets the prefab path for a given flowId.
+        /// </summary>
+        private string GetPrefabPath(string flowId)
+        {
+            return $"{RESOURCES_PATH}/{flowId}{PREFAB_EXTENSION}";
+        }
+
+        /// <summary>
+        /// Edits a SceneFlow prefab with the given action.
+        /// </summary>
+        private void EditPrefab(string flowId, System.Action<GameKitSceneFlow> editAction)
+        {
+            var prefabPath = GetPrefabPath(flowId);
+            if (!File.Exists(prefabPath))
+            {
+                throw new InvalidOperationException($"SceneFlow prefab '{flowId}' not found at {prefabPath}");
+            }
+
+            // Edit prefab using PrefabUtility.EditPrefabContentsScope
+            using (var scope = new PrefabUtility.EditPrefabContentsScope(prefabPath))
+            {
+                var sceneFlow = scope.prefabContentsRoot.GetComponent<GameKitSceneFlow>();
+                if (sceneFlow == null)
+                {
+                    throw new InvalidOperationException($"GameKitSceneFlow component not found on prefab '{flowId}'");
+                }
+
+                editAction(sceneFlow);
+                
+                // Changes are automatically saved when scope is disposed
+                EditorUtility.SetDirty(sceneFlow);
+            }
+
+            Debug.Log($"[GameKitSceneFlow] Edited prefab: {prefabPath}");
         }
 
         private string GetStringFromDict(Dictionary<string, object> dict, string key)
         {
             return dict.TryGetValue(key, out var value) ? value?.ToString() : null;
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

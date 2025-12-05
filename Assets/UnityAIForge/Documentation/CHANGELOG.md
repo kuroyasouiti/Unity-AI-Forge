@@ -9,6 +9,17 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 ## [2.3.1] - 2025-01-03
 
+### 追加
+
+- **GameKitSceneFlow 自動ロードシステム**
+  - プレハブベースのSceneFlow管理を実装
+  - `GameKitSceneFlowAutoLoader` (Editor): Play Mode開始時に自動ロード
+  - `GameKitSceneFlowRuntimeLoader` (Runtime): ゲーム開始前に自動ロード
+  - `Resources/GameKitSceneFlows/` にプレハブを配置すると自動で読み込まれる
+  - 初期シーンへの手動配置が不要に
+  - Git管理可能なプレハブファイルでチームコラボレーション対応
+  - Unity Editorメニューから `Tools → Unity-AI-Forge → GameKit → Create SceneFlows Directory` でディレクトリ作成
+
 ### 修正
 
 - **Unity Editor フリーズ問題の解決**
@@ -38,6 +49,13 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - 60秒のタイムアウト設定
   - エラー発生時もオペレーション自体は失敗させない
   - コンパイル結果をレスポンスに自動的に追加
+
+- **GameKitSceneFlowHandler のプレハブベース化**
+  - 全操作が `Resources/GameKitSceneFlows/` のプレハブを編集
+  - `create` 操作でプレハブを自動生成
+  - `delete` 操作でプレハブファイルを削除
+  - `PrefabUtility.EditPrefabContentsScope` を使用した安全な編集
+  - レスポンスに `prefabPath` と自動ロード情報を含める
 
 ### 技術的な詳細
 

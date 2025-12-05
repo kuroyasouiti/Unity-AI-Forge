@@ -8,7 +8,15 @@
 [![Version](https://img.shields.io/badge/Version-2.3.1-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🆕 v2.3.1の修正
+## 🆕 v2.3.1の修正と追加
+
+- **🎬 GameKitSceneFlow 自動ロードシステム**
+  - **プレハブベース管理**: `Resources/GameKitSceneFlows/` にプレハブを配置
+  - **自動ロード**: Editor (Play Mode) と Runtime (ビルド) で自動読み込み
+  - **初期シーン不要**: どのシーンからでも使用可能
+  - **Git管理可能**: プレハブファイルでチーム協業をサポート
+  - **DontDestroyOnLoad**: 自動的に永続化
+  - Unity Editorメニュー: `Tools → Unity-AI-Forge → GameKit → Create SceneFlows Directory`
 
 - **🐛 Unity Editorフリーズ問題の完全解決**
   - C#スクリプト作成・更新・削除時のフリーズを修正
