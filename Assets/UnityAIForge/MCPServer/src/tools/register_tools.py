@@ -1120,7 +1120,20 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_component_crud",
-            description="Complete component management with batch operations: add/remove/update/inspect components on GameObjects. Update supports complex property changes including nested objects and asset references. Inspect supports fast existence checks (includeProperties=false, 10x faster) and property filtering for specific fields. Batch operations (addMultiple/removeMultiple/updateMultiple/inspectMultiple) support pattern matching with maxResults safety limits. Essential for configuring GameObject behavior.",
+            description="""Complete component management with batch operations: add/remove/update/inspect components on GameObjects.
+
+**Property Changes:** Supports complex property changes including nested objects and asset references.
+
+**Unity Object References:** For properties that expect Unity Object references (TMP_Text, Button, InputField, etc.), use one of these formats:
+- `{ "$ref": "Canvas/Panel/Text" }` - Recommended format
+- `{ "_gameObjectPath": "Canvas/Panel/Text" }` - Alternative format
+- `"Canvas/Panel/Text"` - Simple string (only when target type is UnityEngine.Object)
+
+**Property Filtering:** Inspect supports fast existence checks (includeProperties=false, 10x faster) and property filtering for specific fields.
+
+**Batch Operations:** addMultiple/removeMultiple/updateMultiple/inspectMultiple support pattern matching with maxResults safety limits.
+
+Essential for configuring GameObject behavior and wiring up component references.""",
             inputSchema=component_manage_schema,
         ),
         types.Tool(

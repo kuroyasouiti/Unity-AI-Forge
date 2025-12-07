@@ -51,12 +51,18 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 - `ResolveUnityObjectFromPath()` メソッドを追加
 - サポートする参照形式:
   - `{ "$ref": "path" }` - シンプルな参照形式（推奨）
+  - `{ "_gameObjectPath": "path" }` - 代替形式
   - `{ "$type": "reference", "$path": "path" }` - 明示的参照形式
   - `"path"` - 文字列形式（ターゲット型がUnityEngine.Objectの場合のみ）
 - 階層パスの検索ロジック:
   1. `GameObject.Find()` で完全パス検索
   2. 見つからない場合、アクティブシーンのルートオブジェクトから相対パス検索
   3. コンポーネント型の場合、見つかったGameObjectから `GetComponent()` で取得
+
+### ドキュメント
+
+- MCPサーバーの `unity_component_crud` ツール説明に参照形式のドキュメントを追加
+- `skill.yml` バージョンを 2.3.4 に更新
 
 ## [2.3.3] - 2025-12-08
 
