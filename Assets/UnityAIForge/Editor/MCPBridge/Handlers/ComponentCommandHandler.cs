@@ -664,6 +664,12 @@ namespace MCP.Editor.Handlers
             if (targetType.IsInstanceOfType(value))
                 return value;
             
+            // Handle Unity Object references from string path
+            if (value is string stringValue && typeof(UnityEngine.Object).IsAssignableFrom(targetType))
+            {
+                return ResolveUnityObjectFromPath(stringValue, targetType);
+            }
+            
             // Handle basic types
             if (targetType == typeof(float))
             {
@@ -792,6 +798,148 @@ namespace MCP.Editor.Handlers
             }
             
             return Convert.ChangeType(value, targetType);
+        }
+        
+        /// <summary>
+        /// Resolves a Unity Object from a string path.
+        /// Handles both GameObject references and Component references.
+        /// </summary>
+        /// <param name="path">The GameObject path (e.g., "Canvas/Panel/Button")</param>
+        /// <param name="targetType">The expected type (GameObject, Component subclass, etc.)</param>
+        /// <returns>The resolved Unity Object, or null if not found</returns>
+        private UnityEngine.Object ResolveUnityObjectFromPath(string path, Type targetType)
+        {
+            if (string.IsNullOrEmpty(path))
+                return null;
+            
+            // Try to find the GameObject by path
+            GameObject targetObject = GameObject.Find(path);
+            
+            // If not found by full path, try finding by name in hierarchy
+            if (targetObject == null)
+            {
+                // Try searching in all root objects
+                var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+                foreach (var root in rootObjects)
+                {
+                    targetObject = FindChildByPath(root.transform, path);
+                    if (targetObject != null)
+                        break;
+                }
+            }
+            
+            if (targetObject == null)
+            {
+                Debug.LogWarning($"GameObject not found at path: {path}");
+                return null;
+            }
+            
+            // If target type is GameObject, return it directly
+            if (targetType == typeof(GameObject))
+            {
+                return targetObject;
+            }
+            
+            // If target type is Transform, return the transform
+            if (targetType == typeof(Transform) || targetType == typeof(RectTransform))
+            {
+                if (targetType == typeof(RectTransform))
+                    return targetObject.GetComponent<RectTransform>() ?? (UnityEngine.Object)targetObject.transform;
+                return targetObject.transform;
+            }
+            
+            // If target type is a Component, get it from the GameObject
+            if (typeof(Component).IsAssignableFrom(targetType))
+            {
+                var component = targetObject.GetComponent(targetType);
+                if (component == null)
+                {
+                    Debug.LogWarning($"Component {targetType.Name} not found on GameObject at path: {path}");
+                }
+                return component;
+            }
+            
+            // For other Unity Object types (like ScriptableObject, Material, etc.),
+            // try to load from asset path if it looks like an asset path
+            if (path.StartsWith("Assets/") && path.Contains("."))
+            {
+                return AssetDatabase.LoadAssetAtPath(path, targetType);
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// Finds a child GameObject by path relative to a parent transform.
+        /// </summary>
+        private GameObject FindChildByPath(Transform parent, string path)
+        {
+            if (parent == null || string.IsNullOrEmpty(path))
+                return null;
+            
+            // Check if this object matches
+            string parentPath = GetTransformPath(parent);
+            if (parentPath == path || parent.name == path)
+                return parent.gameObject;
+            
+            // Check if path starts with parent name
+            if (path.StartsWith(parent.name + "/"))
+            {
+                string remainingPath = path.Substring(parent.name.Length + 1);
+                return FindChildRecursive(parent, remainingPath);
+            }
+            
+            // Search children recursively
+            foreach (Transform child in parent)
+            {
+                var result = FindChildByPath(child, path);
+                if (result != null)
+                    return result;
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// Finds a child by relative path.
+        /// </summary>
+        private GameObject FindChildRecursive(Transform parent, string relativePath)
+        {
+            if (string.IsNullOrEmpty(relativePath))
+                return parent.gameObject;
+            
+            int slashIndex = relativePath.IndexOf('/');
+            string childName = slashIndex >= 0 ? relativePath.Substring(0, slashIndex) : relativePath;
+            string remaining = slashIndex >= 0 ? relativePath.Substring(slashIndex + 1) : "";
+            
+            Transform child = parent.Find(childName);
+            if (child == null)
+                return null;
+            
+            if (string.IsNullOrEmpty(remaining))
+                return child.gameObject;
+            
+            return FindChildRecursive(child, remaining);
+        }
+        
+        /// <summary>
+        /// Gets the full hierarchy path of a Transform.
+        /// </summary>
+        private string GetTransformPath(Transform transform)
+        {
+            if (transform == null)
+                return null;
+            
+            var path = transform.name;
+            var parent = transform.parent;
+            
+            while (parent != null)
+            {
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+            }
+            
+            return path;
         }
         
         /// <summary>

@@ -9,6 +9,39 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.3.4] - 2025-12-08
+
+### 追加
+
+- **Unity オブジェクト参照の文字列パス解決**
+  - `propertyChanges` で文字列パスから Unity オブジェクト参照を自動解決
+  - サポートする参照タイプ:
+    - `GameObject`: パスからGameObjectを取得
+    - `Transform` / `RectTransform`: パスからTransformを取得
+    - `Component` 派生型（`TMP_Text`, `Button`, `InputField` など）: パスからGameObjectを見つけ、指定コンポーネントを取得
+    - アセット参照: `Assets/...` 形式のパスからアセットをロード
+  - 使用例:
+    ```json
+    {
+      "operation": "update",
+      "gameObjectPath": "Controller",
+      "componentType": "MyUIController",
+      "propertyChanges": {
+        "titleText": "Canvas/Panel/TitleText",
+        "submitButton": "Canvas/Panel/SubmitButton",
+        "inputField": "Canvas/Panel/InputField"
+      }
+    }
+    ```
+
+### 技術詳細
+
+- `ResolveUnityObjectFromPath()` メソッドを追加
+- 階層パスの検索ロジック:
+  1. `GameObject.Find()` で完全パス検索
+  2. 見つからない場合、アクティブシーンのルートオブジェクトから相対パス検索
+  3. コンポーネント型の場合、見つかったGameObjectから `GetComponent()` で取得
+
 ## [2.3.3] - 2025-12-08
 
 ### 追加
