@@ -20,30 +20,28 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
     - `Transform` / `RectTransform`: パスからTransformを取得
     - `Component` 派生型（`TMP_Text`, `Button`, `InputField` など）: パスからGameObjectを見つけ、指定コンポーネントを取得
     - アセット参照: `Assets/...` 形式のパスからアセットをロード
-  - **2つの指定形式をサポート**:
+  - **3つの指定形式をサポート**:
     - 文字列形式（シンプル）: `"titleText": "Canvas/Panel/TitleText"`
+    - $ref形式（推奨）: `"titleText": { "$ref": "Canvas/Panel/TitleText" }`
     - 明示的参照形式: `"titleText": { "$type": "reference", "$path": "Canvas/Panel/TitleText" }`
-  - 使用例（文字列形式）:
+  - 使用例（$ref形式 - 推奨）:
     ```json
     {
       "operation": "update",
       "gameObjectPath": "Controller",
       "componentType": "MyUIController",
       "propertyChanges": {
-        "titleText": "Canvas/Panel/TitleText",
-        "submitButton": "Canvas/Panel/SubmitButton"
+        "titleText": { "$ref": "Canvas/Panel/TitleText" },
+        "submitButton": { "$ref": "Canvas/Panel/SubmitButton" },
+        "normalValue": "plain string value"
       }
     }
     ```
-  - 使用例（明示的参照形式）:
+  - 使用例（文字列形式 - 型が UnityEngine.Object の場合のみ）:
     ```json
     {
-      "operation": "update",
-      "gameObjectPath": "Controller",
-      "componentType": "MyUIController",
       "propertyChanges": {
-        "titleText": { "$type": "reference", "$path": "Canvas/Panel/TitleText" },
-        "submitButton": { "$type": "reference", "$path": "Canvas/Panel/SubmitButton" }
+        "titleText": "Canvas/Panel/TitleText"
       }
     }
     ```
@@ -51,7 +49,10 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 ### 技術詳細
 
 - `ResolveUnityObjectFromPath()` メソッドを追加
-- 明示的参照形式 `{ "$type": "reference", "$path": "..." }` のサポートを追加
+- サポートする参照形式:
+  - `{ "$ref": "path" }` - シンプルな参照形式（推奨）
+  - `{ "$type": "reference", "$path": "path" }` - 明示的参照形式
+  - `"path"` - 文字列形式（ターゲット型がUnityEngine.Objectの場合のみ）
 - 階層パスの検索ロジック:
   1. `GameObject.Find()` で完全パス検索
   2. 見つからない場合、アクティブシーンのルートオブジェクトから相対パス検索
