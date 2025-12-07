@@ -7,13 +7,12 @@ namespace MCP.Editor
 {
     internal static class McpBridgeMessages
     {
-        public static Dictionary<string, object> CreateHelloPayload(string sessionId, string token)
+        public static Dictionary<string, object> CreateHelloPayload(string sessionId)
         {
             return new Dictionary<string, object>
             {
                 ["type"] = "hello",
                 ["sessionId"] = sessionId,
-                ["token"] = string.IsNullOrWhiteSpace(token) ? null : token,
                 ["unityVersion"] = Application.unityVersion,
                 ["projectName"] = Application.productName,
             };

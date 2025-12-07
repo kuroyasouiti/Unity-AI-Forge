@@ -112,3 +112,4 @@ CodeCoverage/
 Thumbs.db
 docs/
 .mcp_bridge_token
+.mcp_bridge_tokens.json

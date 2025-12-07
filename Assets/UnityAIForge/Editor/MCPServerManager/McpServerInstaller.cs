@@ -41,9 +41,6 @@ namespace MCP.Editor.ServerManager
                 
                 // ファイルとディレクトリをコピー
                 CopyDirectory(sourcePath, destPath);
-                
-                // プロジェクトルートのトークンをコピー（パッケージマネージャー経由でも同期されるように）
-                MaybeCopyBridgeToken(destPath);
 
                 Debug.Log($"[McpServerInstaller] Successfully copied server files to: {destPath}");
             }
@@ -262,30 +259,6 @@ namespace MCP.Editor.ServerManager
             }
         }
 
-        /// <summary>
-        /// プロジェクトルートの .mcp_bridge_token をインストール先にコピー（無ければ生成）
-        /// </summary>
-        private static void MaybeCopyBridgeToken(string destPath)
-        {
-            try
-            {
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                var sourceTokenPath = Path.Combine(projectRoot, ".mcp_bridge_token");
-                var destTokenPath = Path.Combine(destPath, ".mcp_bridge_token");
-
-                if (!File.Exists(sourceTokenPath))
-                {
-                    var token = Guid.NewGuid().ToString("N");
-                    File.WriteAllText(sourceTokenPath, token);
-                }
-
-                File.Copy(sourceTokenPath, destTokenPath, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[McpServerInstaller] Failed to copy bridge token: {ex.Message}");
-            }
-        }
         
         #endregion
     }

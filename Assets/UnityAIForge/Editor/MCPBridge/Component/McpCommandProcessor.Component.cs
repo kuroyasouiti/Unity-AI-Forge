@@ -124,11 +124,23 @@ namespace MCP.Editor
                 throw new InvalidOperationException($"Component {type.FullName} not found on {go.name}");
             }
 
+            var updatedProperties = new List<string>();
+            var failedProperties = new Dictionary<string, string>();
+
             if (payload.TryGetValue("propertyChanges", out var propertyObj) && propertyObj is Dictionary<string, object> propertyChanges)
             {
                 foreach (var kvp in propertyChanges)
                 {
-                    ApplyProperty(component, kvp.Key, kvp.Value);
+                    try
+                    {
+                        ApplyProperty(component, kvp.Key, kvp.Value);
+                        updatedProperties.Add(kvp.Key);
+                    }
+                    catch (Exception ex)
+                    {
+                        failedProperties[kvp.Key] = ex.Message;
+                        Debug.LogWarning($"[MCP] Failed to update property '{kvp.Key}': {ex.Message}");
+                    }
                 }
             }
 
@@ -136,6 +148,14 @@ namespace MCP.Editor
 
             var result = DescribeComponent(component);
             result["success"] = true;
+            result["updatedProperties"] = updatedProperties;
+            
+            if (failedProperties.Count > 0)
+            {
+                result["failedProperties"] = failedProperties;
+                result["partialSuccess"] = true;
+            }
+            
             return result;
         }
 
@@ -217,14 +237,25 @@ namespace MCP.Editor
                 }
 
                 // Get all public fields and private fields with [SerializeField] attribute
+                // When propertyFilter is specified, skip internal fields (starting with m_ or _)
                 var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                     .Where(f => f.IsPublic || f.GetCustomAttribute<SerializeField>() != null);
                 foreach (var field in fieldInfos)
                 {
-                    // Skip if property filter is specified and this field doesn't match
-                    if (propertyFilter != null && !propertyFilter.Contains(field.Name))
+                    // If propertyFilter is specified, skip internal fields and only include filtered fields
+                    if (propertyFilter != null)
                     {
-                        continue;
+                        // Skip internal fields (Unity convention: m_ or _ prefix)
+                        if (field.Name.StartsWith("m_") || field.Name.StartsWith("_"))
+                        {
+                            continue;
+                        }
+                        
+                        // Skip if this field doesn't match the filter
+                        if (!propertyFilter.Contains(field.Name))
+                        {
+                            continue;
+                        }
                     }
 
                     try
@@ -297,20 +328,45 @@ namespace MCP.Editor
                         throw new InvalidOperationException($"Failed to add component {type.FullName} to {GetHierarchyPath(go)}");
                     }
 
+                    var appliedProperties = new List<string>();
+                    var failedProperties = new Dictionary<string, string>();
+
                     // Apply initial property changes if specified
                     foreach (var kvp in propertyChanges)
                     {
-                        ApplyProperty(component, kvp.Key, kvp.Value);
+                        try
+                        {
+                            ApplyProperty(component, kvp.Key, kvp.Value);
+                            appliedProperties.Add(kvp.Key);
+                        }
+                        catch (Exception ex)
+                        {
+                            failedProperties[kvp.Key] = ex.Message;
+                            Debug.LogWarning($"[MCP] Failed to apply initial property '{kvp.Key}' on {GetHierarchyPath(go)}: {ex.Message}");
+                        }
                     }
 
                     EditorUtility.SetDirty(go);
 
-                    results.Add(new Dictionary<string, object>
+                    var resultItem = new Dictionary<string, object>
                     {
                         ["gameObject"] = GetHierarchyPath(go),
                         ["type"] = type.FullName,
                         ["success"] = true,
-                    });
+                    };
+
+                    if (appliedProperties.Count > 0)
+                    {
+                        resultItem["appliedProperties"] = appliedProperties;
+                    }
+
+                    if (failedProperties.Count > 0)
+                    {
+                        resultItem["failedProperties"] = failedProperties;
+                        resultItem["partialSuccess"] = true;
+                    }
+
+                    results.Add(resultItem);
                 }
                 catch (Exception ex)
                 {
@@ -444,20 +500,41 @@ namespace MCP.Editor
                     var component = go.GetComponent(type);
                     if (component != null)
                     {
+                        var updatedProperties = new List<string>();
+                        var failedProperties = new Dictionary<string, string>();
+
                         // Apply each property change using existing ApplyProperty method
                         foreach (var kvp in propertyChanges)
                         {
-                            ApplyProperty(component, kvp.Key, kvp.Value);
+                            try
+                            {
+                                ApplyProperty(component, kvp.Key, kvp.Value);
+                                updatedProperties.Add(kvp.Key);
+                            }
+                            catch (Exception ex)
+                            {
+                                failedProperties[kvp.Key] = ex.Message;
+                                Debug.LogWarning($"[MCP] Failed to update property '{kvp.Key}' on {GetHierarchyPath(go)}: {ex.Message}");
+                            }
                         }
 
                         EditorUtility.SetDirty(component);
 
-                        results.Add(new Dictionary<string, object>
+                        var resultItem = new Dictionary<string, object>
                         {
                             ["gameObject"] = GetHierarchyPath(go),
                             ["type"] = type.FullName,
                             ["updated"] = true,
-                        });
+                            ["updatedProperties"] = updatedProperties,
+                        };
+
+                        if (failedProperties.Count > 0)
+                        {
+                            resultItem["failedProperties"] = failedProperties;
+                            resultItem["partialSuccess"] = true;
+                        }
+
+                        results.Add(resultItem);
                     }
                     else
                     {
@@ -588,14 +665,25 @@ namespace MCP.Editor
                         }
 
                         // Get all public fields and private fields with [SerializeField] attribute
+                        // When propertyFilter is specified, skip internal fields (starting with m_ or _)
                         var fieldInfos = componentType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                             .Where(f => f.IsPublic || f.GetCustomAttribute<SerializeField>() != null);
                         foreach (var field in fieldInfos)
                         {
-                            // Skip if property filter is specified and this field doesn't match
-                            if (propertyFilter != null && !propertyFilter.Contains(field.Name))
+                            // If propertyFilter is specified, skip internal fields and only include filtered fields
+                            if (propertyFilter != null)
                             {
-                                continue;
+                                // Skip internal fields (Unity convention: m_ or _ prefix)
+                                if (field.Name.StartsWith("m_") || field.Name.StartsWith("_"))
+                                {
+                                    continue;
+                                }
+                                
+                                // Skip if this field doesn't match the filter
+                                if (!propertyFilter.Contains(field.Name))
+                                {
+                                    continue;
+                                }
                             }
 
                             try

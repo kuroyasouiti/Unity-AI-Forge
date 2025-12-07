@@ -126,7 +126,6 @@ MCP_LOG_LEVEL=info
 MCP_BRIDGE_HOST=localhost
 MCP_BRIDGE_PORT=7077
 MCP_BRIDGE_PATH=/bridge
-MCP_BRIDGE_TOKEN=
 
 # Server Settings (for websocket transport)
 MCP_SERVER_HOST=127.0.0.1

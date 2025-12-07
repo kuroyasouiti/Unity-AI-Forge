@@ -126,34 +126,6 @@ namespace MCP.Editor.ServerManager
                    File.Exists(Path.Combine(UserInstallPath, "pyproject.toml"));
         }
 
-        /// <summary>
-        /// プロジェクトのトークンをインストール先へ同期（存在しなければ生成）
-        /// </summary>
-        public static void SyncBridgeTokenFile()
-        {
-            try
-            {
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                var sourceTokenPath = Path.Combine(projectRoot, ".mcp_bridge_token");
-                var installPath = UserInstallPath;
-                Directory.CreateDirectory(installPath);
-                var destTokenPath = Path.Combine(installPath, ".mcp_bridge_token");
-
-                // ソースが無ければ生成
-                if (!File.Exists(sourceTokenPath))
-                {
-                    var token = Guid.NewGuid().ToString("N");
-                    File.WriteAllText(sourceTokenPath, token);
-                }
-
-                // コピー（上書き）
-                File.Copy(sourceTokenPath, destTokenPath, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[McpServerManager] Failed to sync bridge token: {ex.Message}");
-            }
-        }
         
         /// <summary>
         /// サーバーのステータスを取得

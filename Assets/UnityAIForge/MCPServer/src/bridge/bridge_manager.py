@@ -236,17 +236,9 @@ class BridgeManager:
             logger.warning("Received unsupported bridge message: %s", message_type)
 
     async def _handle_hello(self, message: BridgeHelloMessage) -> None:
-        token = message.get("token")
-        socket = self._socket
-        if env.bridge_token and token != env.bridge_token:
-            logger.error("Bridge authentication failed: invalid token")
-            if socket and _is_socket_open(socket):
-                await socket.close(code=4401, reason="Invalid bridge token")
-            return
-
         self._session_id = message.get("sessionId")
         logger.info(
-            "Unity bridge authenticated (session=%s unityVersion=%s project=%s)",
+            "Unity bridge connected (session=%s unityVersion=%s project=%s)",
             self._session_id,
             message.get("unityVersion"),
             message.get("projectName"),

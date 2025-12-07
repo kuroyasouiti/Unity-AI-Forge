@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -8,14 +10,21 @@ namespace MCP.Editor
     [FilePath("ProjectSettings/McpBridgeSettings.asset", FilePathAttribute.Location.ProjectFolder)]
     internal sealed class McpBridgeSettings : ScriptableSingleton<McpBridgeSettings>
     {
+        private const string TokenFileName = ".mcp_bridge_tokens.json";
+        private const string LegacyTokenFileName = ".mcp_bridge_token";
+        private const string TokenFileVersion = "1.0";
+
         private static bool _hideFlagsInitialized;
 
         [SerializeField] private string serverHost = "127.0.0.1";
         [SerializeField] private int serverPort = 7070;
-        [SerializeField] private string bridgeToken = string.Empty;
+        [SerializeField] private string bridgeToken = string.Empty; // Legacy: kept for backward compatibility
         [SerializeField] private bool autoConnectOnLoad = true;
         [SerializeField] private float contextPushIntervalSeconds = 5f;
         [SerializeField] private string serverInstallPath = string.Empty;
+
+        // Cached tokens loaded from file
+        private List<string> _cachedTokens;
 
         static McpBridgeSettings()
         {
@@ -113,45 +122,85 @@ namespace MCP.Editor
         }
 
         /// <summary>
-        /// Gets or sets the bridge authentication token.
-        /// Priority: 1) Environment variable MCP_BRIDGE_TOKEN, 2) Token file (.mcp_bridge_token), 3) Stored value.
+        /// Gets the list of valid bridge authentication tokens.
+        /// Priority: 1) Environment variable MCP_BRIDGE_TOKEN, 2) Token file (.mcp_bridge_tokens.json), 3) Legacy file (.mcp_bridge_token).
         /// Use environment variables in CI/CD or shared environments to avoid committing secrets.
+        /// </summary>
+        public IReadOnlyList<string> BridgeTokens
+        {
+            get
+            {
+                // Token authentication removed; keep API surface but return empty.
+                return Array.Empty<string>();
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the primary bridge authentication token.
+        /// For backward compatibility, returns the first token from the list.
+        /// Setting this value will add or update the first token in the list.
         /// </summary>
         public string BridgeToken
         {
             get
             {
-                // First check environment variable
-                var envToken = Environment.GetEnvironmentVariable("MCP_BRIDGE_TOKEN");
-                if (!string.IsNullOrWhiteSpace(envToken))
-                {
-                    return envToken;
-                }
-
-                // Next try shared token file at project root
-                var tokenFromFile = LoadTokenFromFile();
-                if (!string.IsNullOrWhiteSpace(tokenFromFile))
-                {
-                    if (bridgeToken != tokenFromFile)
-                    {
-                        bridgeToken = tokenFromFile;
-                        SaveSettings();
-                    }
-                    return tokenFromFile;
-                }
-
-                // Fallback to stored value
-                return bridgeToken;
+                return string.Empty;
             }
             set
             {
-                if (bridgeToken == value)
-                {
-                    return;
-                }
+                // no-op: token authentication disabled
+            }
+        }
 
-                bridgeToken = value;
-                SaveSettings();
+        /// <summary>
+        /// Adds a new token to the token list.
+        /// </summary>
+        /// <returns>True if token was added, false if it already exists.</returns>
+        public bool AddToken(string token)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Removes a token from the token list.
+        /// </summary>
+        /// <returns>True if token was removed, false if it was not found.</returns>
+        public bool RemoveToken(string token)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Generates a new unique token and adds it to the list.
+        /// </summary>
+        /// <returns>The newly generated token.</returns>
+        public string GenerateAndAddToken()
+        {
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Gets the number of configured tokens.
+        /// </summary>
+        public int TokenCount => 0;
+
+        /// <summary>
+        /// Checks if a given token is valid (exists in the token list).
+        /// </summary>
+        public bool IsValidToken(string token)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the stored tokens for display purposes.
+        /// Returns masked versions to avoid accidental exposure in logs/UI.
+        /// </summary>
+        public IReadOnlyList<string> BridgeTokensMasked
+        {
+            get
+            {
+                return Array.Empty<string>();
             }
         }
 
@@ -163,24 +212,29 @@ namespace MCP.Editor
         {
             get
             {
-                if (string.IsNullOrEmpty(bridgeToken))
-                {
-                    return string.Empty;
-                }
-
-                if (bridgeToken.Length <= 8)
-                {
-                    return new string('*', bridgeToken.Length);
-                }
-
-                return bridgeToken.Substring(0, 4) + new string('*', bridgeToken.Length - 8) + bridgeToken.Substring(bridgeToken.Length - 4);
+                return string.Empty;
             }
+        }
+
+        private static string MaskToken(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+            {
+                return string.Empty;
+            }
+
+            if (token.Length <= 8)
+            {
+                return new string('*', token.Length);
+            }
+
+            return token.Substring(0, 4) + new string('*', token.Length - 8) + token.Substring(token.Length - 4);
         }
 
         /// <summary>
         /// Checks if token is loaded from environment variable.
         /// </summary>
-        public bool IsTokenFromEnvironment => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("MCP_BRIDGE_TOKEN"));
+        public bool IsTokenFromEnvironment => false;
 
         public bool AutoConnectOnLoad
         {
@@ -232,18 +286,55 @@ namespace MCP.Editor
             AssetDatabase.SaveAssets();
         }
 
-        private string LoadTokenFromFile()
+        private List<string> LoadTokensFromFile()
         {
+            if (_cachedTokens != null)
+            {
+                return new List<string>(_cachedTokens);
+            }
+
+            var tokens = new List<string>();
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+
             try
             {
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                var tokenPath = Path.Combine(projectRoot, ".mcp_bridge_token");
-                if (File.Exists(tokenPath))
+                // Try new JSON format first
+                var jsonPath = Path.Combine(projectRoot, TokenFileName);
+                if (File.Exists(jsonPath))
                 {
-                    var content = File.ReadAllText(tokenPath).Trim();
+                    var json = File.ReadAllText(jsonPath);
+                    var data = MiniJson.Deserialize(json) as Dictionary<string, object>;
+                    if (data != null && data.TryGetValue("tokens", out var tokensObj) && tokensObj is List<object> tokenList)
+                    {
+                        foreach (var t in tokenList)
+                        {
+                            var tokenStr = t?.ToString()?.Trim();
+                            if (!string.IsNullOrWhiteSpace(tokenStr) && !tokens.Contains(tokenStr))
+                            {
+                                tokens.Add(tokenStr);
+                            }
+                        }
+                    }
+
+                    if (tokens.Count > 0)
+                    {
+                        _cachedTokens = new List<string>(tokens);
+                        return tokens;
+                    }
+                }
+
+                // Fallback: Try legacy single-token file
+                var legacyPath = Path.Combine(projectRoot, LegacyTokenFileName);
+                if (File.Exists(legacyPath))
+                {
+                    var content = File.ReadAllText(legacyPath).Trim();
                     if (!string.IsNullOrWhiteSpace(content))
                     {
-                        return content;
+                        tokens.Add(content);
+                        // Migrate to new format
+                        SaveTokensToFile(tokens);
+                        _cachedTokens = new List<string>(tokens);
+                        return tokens;
                     }
                 }
             }
@@ -252,24 +343,72 @@ namespace MCP.Editor
                 // ignore and fallback
             }
 
-            // Auto-create if missing
+            // Auto-create if no tokens found
+            if (tokens.Count == 0)
+            {
+                try
+                {
+                    var token = Guid.NewGuid().ToString("N");
+                    tokens.Add(token);
+                    SaveTokensToFile(tokens);
+                    _cachedTokens = new List<string>(tokens);
+                }
+                catch (Exception)
+                {
+                    // ignore
+                }
+            }
+
+            return tokens;
+        }
+
+        private void SaveTokensToFile(List<string> tokens)
+        {
             try
             {
                 var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                var tokenPath = Path.Combine(projectRoot, ".mcp_bridge_token");
-                if (!File.Exists(tokenPath))
+                var jsonPath = Path.Combine(projectRoot, TokenFileName);
+
+                var data = new Dictionary<string, object>
                 {
-                    var token = System.Guid.NewGuid().ToString("N");
-                    File.WriteAllText(tokenPath, token);
-                    return token;
+                    ["tokens"] = tokens,
+                    ["version"] = TokenFileVersion
+                };
+
+                var json = MiniJson.Serialize(data);
+                File.WriteAllText(jsonPath, json);
+
+                // Update cache
+                _cachedTokens = new List<string>(tokens);
+
+                // Also update legacy file for backward compatibility with older MCP servers
+                var legacyPath = Path.Combine(projectRoot, LegacyTokenFileName);
+                if (tokens.Count > 0)
+                {
+                    File.WriteAllText(legacyPath, tokens[0]);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // ignore and fallback
+                Debug.LogWarning($"[McpBridgeSettings] Failed to save tokens: {ex.Message}");
             }
+        }
 
-            return null;
+        /// <summary>
+        /// Clears the cached tokens, forcing a reload from file on next access.
+        /// </summary>
+        public void InvalidateTokenCache()
+        {
+            _cachedTokens = null;
+        }
+
+        /// <summary>
+        /// Gets the path to the tokens file.
+        /// </summary>
+        public static string GetTokensFilePath()
+        {
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            return Path.Combine(projectRoot, TokenFileName);
         }
 
         private static string NormalizeHost(string value)

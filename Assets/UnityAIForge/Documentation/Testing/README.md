@@ -48,6 +48,29 @@ Unity Test Framework を使用した包括的なエディタテストスイー�
 - 共有グループ追加テスト
 - トランジショントリガーテスト
 
+### 8. TextMeshPro Component Tests (`TextMeshProComponentTests.cs`)
+- TextMeshPro 3D コンポーネントの CRUD 操作テスト
+- TextMeshProUGUI (UI) コンポーネントの CRUD 操作テスト
+- 複数コンポーネントの一括操作テスト（Add/Update/Inspect/Remove Multiple）
+- プロパティフィルタを使用した情報取得テスト
+- 高度なプロパティ（自動サイズ調整、配置等）の更新テスト
+
+詳細については [TextMeshPro Tests Documentation](./TextMeshPro-Tests.md) を参照してください。
+
+### 9. TextMeshPro Component Improved Tests (`TextMeshProComponentImprovedTests.cs`)
+- **propertyFilter機能テスト**: 指定したプロパティのみを取得し、内部フィールドを除外
+- **部分的エラーハンドリングテスト**: 一部のプロパティ更新が失敗しても他は成功
+- **addMultiple propertyChangesテスト**: コンポーネント追加時の初期プロパティ適用
+- **統合ワークフローテスト**: すべての改善機能が連携して動作
+- **詳細なエラーレポート**: updatedPropertiesとfailedPropertiesを分けて報告
+
+詳細については [TextMeshPro Improved Tests Documentation](../../Tests/Editor/README-TextMeshPro-Improved-Tests.md) を参照してください。
+
+### 10. Character Controller Bundle Tests (`CharacterControllerBundleTests.cs`)
+- CharacterController のプリセット適用テスト（FPS、TPS、Platformer等）
+- CharacterController のプロパティ更新テスト
+- CharacterController の情報取得テスト
+
 ## テスト実行方法
 
 ### Unity Editor内で実行
@@ -137,5 +160,16 @@ GitHub Actionsを使用した自動テスト実行が設定されています：
 - **Run Low-Level Tests** - ローレベルツールのテストのみ実行
 - **Run Mid-Level Tests** - ミドルレベルツールのテストのみ実行
 - **Run GameKit Tests** - GameKitツールのテストのみ実行
+- **Run Component Tests** - コンポーネント関連のテストのみ実行
+- **Run TextMeshPro Tests** - TextMeshPro基本テストのみ実行
+- **Run TextMeshPro Improved Tests** - TextMeshPro改善機能テストのみ実行
+- **Run All TextMeshPro Tests** - すべてのTextMeshProテストを実行
 - **Open Test Runner Window** - Test Runnerウィンドウを開く
+
+## テスト実装の詳細ドキュメント
+
+各テストカテゴリの詳細な実装ドキュメント：
+
+- [TextMeshPro Tests](./TextMeshPro-Tests.md) - TextMeshProコンポーネントの基本CRUD操作テスト
+- [TextMeshPro Improved Tests](../../Tests/Editor/README-TextMeshPro-Improved-Tests.md) - TextMeshProコンポーネントの改善機能テスト
 

@@ -667,77 +667,9 @@ namespace MCP.Editor
 
         private static bool ValidateToken(HttpRequestData request, out string reason)
         {
-            var expected = McpBridgeSettings.Instance.BridgeToken;
-            if (string.IsNullOrWhiteSpace(expected))
-            {
-                reason = null;
-                return true; // Token not set => allow (backward compatibility)
-            }
-
-            string tokenFromQuery = null;
-            // Try to parse query parameter ?token=...
-            try
-            {
-                var rawPath = request?.RawPath ?? string.Empty;
-                var queryIndex = rawPath.IndexOf("?", StringComparison.Ordinal);
-                if (queryIndex >= 0 && queryIndex < rawPath.Length - 1)
-                {
-                    var query = rawPath.Substring(queryIndex + 1);
-                    var parts = query.Split('&');
-                    foreach (var part in parts)
-                    {
-                        var kv = part.Split('=');
-                        if (kv.Length == 2 && string.Equals(kv[0], "token", StringComparison.OrdinalIgnoreCase))
-                        {
-                            tokenFromQuery = Uri.UnescapeDataString(kv[1]);
-                            break;
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // ignore query parse errors
-            }
-
-            string GetHeader(string name)
-            {
-                if (request?.Headers == null)
-                {
-                    return null;
-                }
-                return request.Headers.TryGetValue(name, out var value) ? value : null;
-            }
-
-            // Authorization: Bearer <token>
-            var auth = GetHeader("Authorization");
-            if (!string.IsNullOrWhiteSpace(auth) && auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                var supplied = auth.Substring("Bearer ".Length).Trim();
-                if (string.Equals(supplied, expected, StringComparison.Ordinal))
-                {
-                    reason = null;
-                    return true;
-                }
-            }
-
-            // X-MCP-BRIDGE-TOKEN: <token>
-            var headerToken = GetHeader("X-MCP-BRIDGE-TOKEN");
-            if (!string.IsNullOrWhiteSpace(headerToken) && string.Equals(headerToken.Trim(), expected, StringComparison.Ordinal))
-            {
-                reason = null;
-                return true;
-            }
-
-            // Query parameter ?token=<token>
-            if (!string.IsNullOrWhiteSpace(tokenFromQuery) && string.Equals(tokenFromQuery.Trim(), expected, StringComparison.Ordinal))
-            {
-                reason = null;
-                return true;
-            }
-
-            reason = "Invalid or missing bridge token.";
-            return false;
+            // Token-based authentication removed; always allow connections.
+            reason = null;
+            return true;
         }
 
         private static void LogRejectedRequest(HttpRequestData request, string reason)
@@ -783,7 +715,7 @@ namespace MCP.Editor
                 {
                     _state = McpConnectionState.Connected;
                     StateChanged?.Invoke(_state);
-                    Send(McpBridgeMessages.CreateHelloPayload(_sessionId, McpBridgeSettings.Instance.BridgeToken));
+                    Send(McpBridgeMessages.CreateHelloPayload(_sessionId));
 
                     // Send restart signal if this is a reconnection after compilation/reload
                     if (_shouldSendRestartedSignal)
