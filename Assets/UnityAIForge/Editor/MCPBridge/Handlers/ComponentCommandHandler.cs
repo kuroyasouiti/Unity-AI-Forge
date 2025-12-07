@@ -667,6 +667,7 @@ namespace MCP.Editor.Handlers
             // Handle explicit reference formats:
             // Format 1: { "$type": "reference", "$path": "path/to/object" }
             // Format 2: { "$ref": "path/to/object" }
+            // Format 3: { "_gameObjectPath": "path/to/object" }
             if (value is Dictionary<string, object> refDict)
             {
                 // Format 1: { "$type": "reference", "$path": "..." }
@@ -684,6 +685,40 @@ namespace MCP.Editor.Handlers
                 if (refDict.TryGetValue("$ref", out var refValue) && refValue != null)
                 {
                     return ResolveUnityObjectFromPath(refValue.ToString(), targetType);
+                }
+                
+                // Format 3: { "_gameObjectPath": "..." }
+                if (refDict.TryGetValue("_gameObjectPath", out var goPathValue) && goPathValue != null)
+                {
+                    return ResolveUnityObjectFromPath(goPathValue.ToString(), targetType);
+                }
+                
+                // If target type is a Unity Object and we have a dictionary with path-like value,
+                // try to resolve any string value as a path
+                if (typeof(UnityEngine.Object).IsAssignableFrom(targetType))
+                {
+                    // Try common path keys
+                    string[] pathKeys = { "path", "gameObjectPath", "objectPath", "target", "reference" };
+                    foreach (var key in pathKeys)
+                    {
+                        if (refDict.TryGetValue(key, out var pathVal) && pathVal is string pathStr)
+                        {
+                            return ResolveUnityObjectFromPath(pathStr, targetType);
+                        }
+                    }
+                    
+                    // If dictionary has only one string value, try that as path
+                    if (refDict.Count == 1)
+                    {
+                        var singleValue = refDict.Values.First();
+                        if (singleValue is string singlePathStr)
+                        {
+                            return ResolveUnityObjectFromPath(singlePathStr, targetType);
+                        }
+                    }
+                    
+                    Debug.LogWarning($"Cannot resolve Unity Object from dictionary. Expected format: {{ \"$ref\": \"path\" }} or {{ \"_gameObjectPath\": \"path\" }}. Got: {string.Join(", ", refDict.Keys)}");
+                    return null;
                 }
             }
             
