@@ -53,16 +53,16 @@ namespace MCP.Editor
                 }
 
                 // Add scene statistics
-                var allObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
+                var allObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
                 result["totalGameObjects"] = allObjects.Length;
 
-                var cameras = UnityEngine.Object.FindObjectsOfType<Camera>();
+                var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
                 result["cameraCount"] = cameras.Length;
 
-                var lights = UnityEngine.Object.FindObjectsOfType<Light>();
+                var lights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
                 result["lightCount"] = lights.Length;
 
-                var canvases = UnityEngine.Object.FindObjectsOfType<Canvas>();
+                var canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
                 result["canvasCount"] = canvases.Length;
 
                 return result;

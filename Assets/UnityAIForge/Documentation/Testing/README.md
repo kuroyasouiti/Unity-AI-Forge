@@ -1,8 +1,8 @@
-# SkillForUnity Test Suite
+# Unity-AI-Forge Test Suite
 
 Unity Test Framework を使用した包括的なエディタテストスイートです。
 
-> **Note:** レガシーテスト (`Assets/SkillForUnity/Editor/Tests/`) は削除され、この新しいテストスイートに統合されました。
+> **Note:** レガシーテスト (`Assets/UnityAIForge/Editor/Tests/`) は削除され、この新しいテストスイートに統合されました。
 
 ## テストカテゴリ
 
@@ -48,12 +48,15 @@ Unity Test Framework を使用した包括的なエディタテストスイー�
 - 共有グループ追加テスト
 - トランジショントリガーテスト
 
-### 8. TextMeshPro Component Tests (`TextMeshProComponentTests.cs`)
-- TextMeshPro 3D コンポーネントの CRUD 操作テスト
-- TextMeshProUGUI (UI) コンポーネントの CRUD 操作テスト
+### 8. Component Command Handler Tests (`ComponentCommandHandlerTests.cs`)
+- TextMeshPro/TextMeshProUGUI コンポーネントの CRUD 操作テスト
 - 複数コンポーネントの一括操作テスト（Add/Update/Inspect/Remove Multiple）
-- プロパティフィルタを使用した情報取得テスト
-- 高度なプロパティ（自動サイズ調整、配置等）の更新テスト
+- **PropertyFilter テスト**: 様々な入力形式（List<object>, string[], カンマ区切り文字列）のフィルタリング
+- **AddMultiple with PropertyChanges テスト**: コンポーネント追加時の初期プロパティ設定
+- **Unity型変換テスト**:
+  - Color型: Dictionary `{r, g, b, a}` からの変換
+  - Vector2/3型: Dictionary `{x, y, z}` からの変換
+  - Enum型: 文字列名からの変換
 
 詳細については [TextMeshPro Tests Documentation](./TextMeshPro-Tests.md) を参照してください。
 
@@ -70,6 +73,14 @@ Unity Test Framework を使用した包括的なエディタテストスイー�
 - CharacterController のプリセット適用テスト（FPS、TPS、Platformer等）
 - CharacterController のプロパティ更新テスト
 - CharacterController の情報取得テスト
+
+### 11. 新しいテストカテゴリ (v2.3.3)
+
+- **PropertyFilter Tests** (4件): `inspect` 操作での様々なフィルタ形式テスト
+- **AddMultiple PropertyChanges Tests** (2件): 一括追加時の初期値設定テスト
+- **Color Type Conversion Tests** (3件): Color型のDictionary変換テスト
+- **Vector Type Conversion Tests** (2件): Vector2/3型のDictionary変換テスト
+- **Enum Type Conversion Tests** (1件): Enum型の文字列変換テスト
 
 ## テスト実行方法
 
@@ -88,10 +99,10 @@ Test Runnerウィンドウで特定のテストクラスまたはメソッドを
 
 ```bash
 # Windows
-Unity.exe -runTests -batchmode -projectPath "D:\Projects\SkillForUnity" -testResults results.xml -testPlatform EditMode
+Unity.exe -runTests -batchmode -projectPath "D:\Projects\Unity-AI-Forge" -testResults results.xml -testPlatform EditMode
 
 # macOS/Linux
-/Applications/Unity/Unity.app/Contents/MacOS/Unity -runTests -batchmode -projectPath "/path/to/SkillForUnity" -testResults results.xml -testPlatform EditMode
+/Applications/Unity/Unity.app/Contents/MacOS/Unity -runTests -batchmode -projectPath "/path/to/Unity-AI-Forge" -testResults results.xml -testPlatform EditMode
 ```
 
 ## テスト結果の確認
@@ -154,7 +165,7 @@ GitHub Actionsを使用した自動テスト実行が設定されています：
 
 ## Unity Editorメニューからの実行
 
-**Tools > SkillForUnity** メニューから以下のオプションを選択できます：
+**Tools > Unity-AI-Forge** メニューから以下のオプションを選択できます：
 
 - **Run All Tests** - 全テストを実行
 - **Run Low-Level Tests** - ローレベルツールのテストのみ実行

@@ -709,7 +709,8 @@ namespace MCP.Editor.Handlers
             return Convert.ToSingle(value);
         }
 
-        private int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
+        // Note: Using 'new' to explicitly hide inherited method for local use
+        private new int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
         {
             if (!payload.TryGetValue(key, out var value) || value == null)
             {

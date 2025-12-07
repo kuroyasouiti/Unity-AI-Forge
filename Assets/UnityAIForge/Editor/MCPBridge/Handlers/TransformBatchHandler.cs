@@ -307,7 +307,8 @@ namespace MCP.Editor.Handlers
             return fallback;
         }
 
-        private float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
+        // Note: Using 'new' to explicitly hide the inherited methods for local use
+        private new float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
         {
             if (!dict.TryGetValue(key, out var value) || value == null)
             {
@@ -327,7 +328,7 @@ namespace MCP.Editor.Handlers
             return Convert.ToSingle(value);
         }
 
-        private int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
+        private new int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
         {
             if (!payload.TryGetValue(key, out var value) || value == null)
             {

@@ -374,23 +374,7 @@ namespace MCP.Editor.Handlers
             return Convert.ToSingle(value);
         }
 
-        private bool GetBool(Dictionary<string, object> payload, string key, bool defaultValue = false)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-            return Convert.ToBoolean(value);
-        }
-
-        private int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-            return Convert.ToInt32(value);
-        }
+        // GetBool and GetInt are inherited from BaseCommandHandler
 
         private string BuildGameObjectPath(GameObject go)
         {

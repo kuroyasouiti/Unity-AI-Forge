@@ -24,7 +24,9 @@ namespace MCP.Editor
         
         // Server Manager State
         private ServerStatus _serverStatus;
+#pragma warning disable CS0414 // Field is assigned but its value is never used
         private bool _serverManagerInitialized;
+#pragma warning restore CS0414
         
         // Custom Config State
         private string _customConfigPath = "";

@@ -391,12 +391,13 @@ namespace MCP.Editor.Handlers
 
         #region Helper Methods
 
-        private string GetString(Dictionary<string, object> dict, string key, string defaultValue)
+        // Note: Using 'new' to explicitly hide inherited methods for local use
+        private new string GetString(Dictionary<string, object> dict, string key, string defaultValue)
         {
             return dict.TryGetValue(key, out var value) && value != null ? value.ToString() : defaultValue;
         }
 
-        private int GetInt(Dictionary<string, object> dict, string key, int defaultValue)
+        private new int GetInt(Dictionary<string, object> dict, string key, int defaultValue)
         {
             if (dict.TryGetValue(key, out var value) && value != null)
             {
@@ -439,7 +440,7 @@ namespace MCP.Editor.Handlers
             return defaultValue;
         }
 
-        private float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
+        private new float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
         {
             if (dict.TryGetValue(key, out var value) && value != null)
             {

@@ -3,12 +3,24 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.3.2-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.3-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKitフレームワークの3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
 
-## 🆕 v2.3.2の修正と追加
+## 🆕 v2.3.3の修正と追加
+
+- **🎨 ComponentCommandHandler の機能強化**
+  - **propertyFilter 修正**: `inspect` 操作で指定したプロパティのみを取得可能に（様々な入力形式をサポート）
+  - **addMultiple 初期プロパティ**: コンポーネント追加時に `propertyChanges` で初期値を設定可能
+  - **Unity型変換の大幅拡張**: Color, Vector2/3/4, Quaternion, Rect, Bounds, Enum 型のDictionary形式からの自動変換
+
+- **🧪 テストスイートの拡充**
+  - 187テスト（12テスト新規追加）
+  - ComponentCommandHandler: PropertyFilter, AddMultiple, 型変換テスト
+  - 全テスト成功率: 99.5%（186/187, 1件はテスト環境制限による Inconclusive）
+
+### v2.3.2の修正と追加
 
 - **🎬 GameKitSceneFlow 自動ロードシステム**
   - **プレハブベース管理**: `Resources/GameKitSceneFlows/` にプレハブを配置

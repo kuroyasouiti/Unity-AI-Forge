@@ -839,7 +839,7 @@ namespace MCP.Editor
                 else
                 {
                     // Find first Canvas in the scene
-                    var canvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+                    var canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
                     if (canvas != null)
                     {
                         parent = canvas.gameObject;
@@ -1905,7 +1905,7 @@ namespace MCP.Editor
                 if (checkAll)
                 {
                     // Check all UI elements for overlaps with each other
-                    var allRects = UnityEngine.Object.FindObjectsOfType<RectTransform>();
+                    var allRects = UnityEngine.Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None);
                     var rectList = new List<RectTransform>();
 
                     foreach (var rect in allRects)
@@ -1956,7 +1956,7 @@ namespace MCP.Editor
                     }
 
                     // Get all other RectTransforms in the scene
-                    var allRects = UnityEngine.Object.FindObjectsOfType<RectTransform>();
+                    var allRects = UnityEngine.Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None);
                     var otherRects = new List<RectTransform>();
 
                     foreach (var rect in allRects)

@@ -396,7 +396,8 @@ namespace MCP.Editor.Handlers
             return fallback;
         }
 
-        private float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
+        // Note: Using 'new' to explicitly hide the inherited GetFloat for local use with dict parameter naming
+        private new float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
         {
             if (!dict.TryGetValue(key, out var value) || value == null)
             {

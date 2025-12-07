@@ -9,6 +9,53 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.3.3] - 2025-12-08
+
+### 追加
+
+- **ComponentCommandHandler の機能強化**
+  - `propertyFilter` 機能の修正: `List<object>`、`string[]`、カンマ区切り文字列など様々な入力形式に対応
+  - `addMultiple` 操作で `propertyChanges` をサポート: コンポーネント追加時に初期プロパティを設定可能に
+  - 結果に `updatedProperties` を含めるように改善
+
+- **Unity型変換サポートの大幅拡張**
+  - `Color` / `Color32` 型: Dictionary形式 `{r, g, b, a}` からの変換
+  - `Vector2` / `Vector3` / `Vector4` 型: Dictionary形式からの変換
+  - `Quaternion` 型: Dictionary形式 `{x, y, z, w}` からの変換
+  - `Rect` 型: Dictionary形式 `{x, y, width, height}` からの変換
+  - `Bounds` 型: Dictionary形式 `{center, size}` からの変換
+  - `Enum` 型: 文字列名または整数値からの変換
+
+- **新規テストスイート**
+  - `ComponentCommandHandlerTests`: 36テスト（12テスト新規追加）
+    - PropertyFilter テスト（4件）: 各種入力形式のフィルタリング
+    - AddMultiple with PropertyChanges テスト（2件）: 初期プロパティ設定
+    - Color Type Conversion テスト（3件）: Color型のDictionary変換
+    - Vector Type Conversion テスト（2件）: Vector2/3型のDictionary変換
+    - Enum Type Conversion テスト（1件）: 文字列からEnum変換
+
+### 修正
+
+- **TypeResolverTests.ResolveByShortName_MultipleNamespaces_ShouldSearchAll**
+  - ジェネリック型 `List<T>` の短縮名検索問題を修正
+  - テストを `DateTime` 型を使用するように変更
+
+- **GameObjectCommandHandlerTests**
+  - `IList<object>` から `System.Collections.IList` へのキャスト修正
+  - `Execute_Inspect_ShouldReturnGameObjectInfo` の null 参照エラーを解決
+  - `Execute_InspectMultiple_WithPattern_ShouldReturnMultipleInfo` の null 参照エラーを解決
+
+- **SceneCommandHandlerTests**
+  - `Execute_Create_WithAdditive_ShouldCreateAdditiveScene` テストの安定性向上
+  - テスト環境の制限を考慮した `Assert.Inconclusive` による適切なハンドリング
+
+### テスト結果
+
+- 総テスト数: 187
+- 成功: 186
+- Inconclusive: 1（テスト環境の制限）
+- 失敗: 0
+
 ## [2.3.2] - 2025-12-06
 
 ### 追加

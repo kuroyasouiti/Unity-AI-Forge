@@ -195,9 +195,7 @@ namespace MCP.Editor.Handlers
             }
             
             var includeProperties = GetBool(payload, "includeProperties", true);
-            var propertyFilter = payload.ContainsKey("propertyFilter") 
-                ? (payload["propertyFilter"] as List<object>)?.Select(o => o.ToString()).ToList()
-                : null;
+            var propertyFilter = ParsePropertyFilter(payload);
             
             var info = new Dictionary<string, object>
             {
@@ -230,6 +228,11 @@ namespace MCP.Editor.Handlers
             var maxResults = GetInt(payload, "maxResults", 1000);
             var stopOnError = GetBool(payload, "stopOnError", false);
             
+            // Get optional propertyChanges to apply after adding
+            var propertyChanges = payload.ContainsKey("propertyChanges") 
+                ? payload["propertyChanges"] as Dictionary<string, object> 
+                : null;
+            
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
@@ -252,14 +255,29 @@ namespace MCP.Editor.Handlers
                 try
                 {
                     var component = Undo.AddComponent(go, type);
+                    
+                    // Apply property changes if provided
+                    List<string> updatedProperties = null;
+                    if (propertyChanges != null && propertyChanges.Count > 0)
+                    {
+                        updatedProperties = ApplyPropertyChanges(component, propertyChanges);
+                    }
+                    
                     successCount++;
                     
-                    results.Add(new Dictionary<string, object>
+                    var resultEntry = new Dictionary<string, object>
                     {
                         ["success"] = true,
                         ["gameObjectPath"] = GetGameObjectPath(go),
                         ["instanceID"] = component.GetInstanceID()
-                    });
+                    };
+                    
+                    if (updatedProperties != null)
+                    {
+                        resultEntry["updatedProperties"] = updatedProperties;
+                    }
+                    
+                    results.Add(resultEntry);
                 }
                 catch (Exception ex)
                 {
@@ -446,6 +464,7 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var includeProperties = GetBool(payload, "includeProperties", true);
+            var propertyFilter = ParsePropertyFilter(payload);
             
             if (string.IsNullOrEmpty(pattern))
             {
@@ -470,7 +489,7 @@ namespace MCP.Editor.Handlers
                     
                     if (includeProperties)
                     {
-                        info["properties"] = SerializeComponentProperties(component, null);
+                        info["properties"] = SerializeComponentProperties(component, propertyFilter);
                     }
                     
                     results.Add(info);
@@ -646,23 +665,186 @@ namespace MCP.Editor.Handlers
                 return value;
             
             // Handle basic types
-            if (targetType == typeof(float) && value is double d)
-                return (float)d;
-            
-            if (targetType == typeof(int) && value is long l)
-                return (int)l;
-            
-            // Handle Unity types
-            if (targetType == typeof(Vector3) && value is Dictionary<string, object> v3Dict)
+            if (targetType == typeof(float))
             {
-                return new Vector3(
-                    Convert.ToSingle(v3Dict["x"]),
-                    Convert.ToSingle(v3Dict["y"]),
-                    Convert.ToSingle(v3Dict["z"])
-                );
+                if (value is double d) return (float)d;
+                if (value is long l) return (float)l;
+                if (value is int i) return (float)i;
+                return Convert.ToSingle(value);
+            }
+            
+            if (targetType == typeof(int))
+            {
+                if (value is long l) return (int)l;
+                if (value is double d) return (int)d;
+                return Convert.ToInt32(value);
+            }
+            
+            if (targetType == typeof(bool))
+            {
+                if (value is string s) return bool.Parse(s);
+                return Convert.ToBoolean(value);
+            }
+            
+            // Handle Unity types from Dictionary
+            if (value is Dictionary<string, object> dict)
+            {
+                if (targetType == typeof(Vector3))
+                {
+                    return new Vector3(
+                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("z", 0f))
+                    );
+                }
+                
+                if (targetType == typeof(Vector2))
+                {
+                    return new Vector2(
+                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f))
+                    );
+                }
+                
+                if (targetType == typeof(Vector4))
+                {
+                    return new Vector4(
+                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("z", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("w", 0f))
+                    );
+                }
+                
+                if (targetType == typeof(Color))
+                {
+                    return new Color(
+                        Convert.ToSingle(dict.GetValueOrDefault("r", 1f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("g", 1f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("b", 1f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("a", 1f))
+                    );
+                }
+                
+                if (targetType == typeof(Color32))
+                {
+                    return new Color32(
+                        Convert.ToByte(dict.GetValueOrDefault("r", (byte)255)),
+                        Convert.ToByte(dict.GetValueOrDefault("g", (byte)255)),
+                        Convert.ToByte(dict.GetValueOrDefault("b", (byte)255)),
+                        Convert.ToByte(dict.GetValueOrDefault("a", (byte)255))
+                    );
+                }
+                
+                if (targetType == typeof(Quaternion))
+                {
+                    return new Quaternion(
+                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("z", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("w", 1f))
+                    );
+                }
+                
+                if (targetType == typeof(Rect))
+                {
+                    return new Rect(
+                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("width", 0f)),
+                        Convert.ToSingle(dict.GetValueOrDefault("height", 0f))
+                    );
+                }
+                
+                if (targetType == typeof(Bounds))
+                {
+                    var center = Vector3.zero;
+                    var size = Vector3.zero;
+                    
+                    if (dict.ContainsKey("center") && dict["center"] is Dictionary<string, object> centerDict)
+                    {
+                        center = new Vector3(
+                            Convert.ToSingle(centerDict.GetValueOrDefault("x", 0f)),
+                            Convert.ToSingle(centerDict.GetValueOrDefault("y", 0f)),
+                            Convert.ToSingle(centerDict.GetValueOrDefault("z", 0f))
+                        );
+                    }
+                    
+                    if (dict.ContainsKey("size") && dict["size"] is Dictionary<string, object> sizeDict)
+                    {
+                        size = new Vector3(
+                            Convert.ToSingle(sizeDict.GetValueOrDefault("x", 0f)),
+                            Convert.ToSingle(sizeDict.GetValueOrDefault("y", 0f)),
+                            Convert.ToSingle(sizeDict.GetValueOrDefault("z", 0f))
+                        );
+                    }
+                    
+                    return new Bounds(center, size);
+                }
+            }
+            
+            // Handle enum types
+            if (targetType.IsEnum)
+            {
+                if (value is string enumStr)
+                    return Enum.Parse(targetType, enumStr, true);
+                return Enum.ToObject(targetType, Convert.ToInt32(value));
             }
             
             return Convert.ChangeType(value, targetType);
+        }
+        
+        /// <summary>
+        /// Parses the propertyFilter from payload, handling various input formats.
+        /// </summary>
+        private List<string> ParsePropertyFilter(Dictionary<string, object> payload)
+        {
+            if (!payload.ContainsKey("propertyFilter"))
+                return null;
+            
+            var filterValue = payload["propertyFilter"];
+            
+            // Handle null
+            if (filterValue == null)
+                return null;
+            
+            // Handle List<object> (common from JSON deserialization)
+            if (filterValue is List<object> listObj)
+                return listObj.Select(o => o?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            
+            // Handle object[] array
+            if (filterValue is object[] objArray)
+                return objArray.Select(o => o?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            
+            // Handle string[] array
+            if (filterValue is string[] strArray)
+                return strArray.Where(s => !string.IsNullOrEmpty(s)).ToList();
+            
+            // Handle IEnumerable<string>
+            if (filterValue is IEnumerable<string> strEnum)
+                return strEnum.Where(s => !string.IsNullOrEmpty(s)).ToList();
+            
+            // Handle comma-separated string
+            if (filterValue is string str && !string.IsNullOrEmpty(str))
+                return str.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                         .Select(s => s.Trim())
+                         .Where(s => !string.IsNullOrEmpty(s))
+                         .ToList();
+            
+            // Handle generic IEnumerable
+            if (filterValue is System.Collections.IEnumerable enumerable)
+            {
+                var result = new List<string>();
+                foreach (var item in enumerable)
+                {
+                    var itemStr = item?.ToString();
+                    if (!string.IsNullOrEmpty(itemStr))
+                        result.Add(itemStr);
+                }
+                return result.Count > 0 ? result : null;
+            }
+            
+            return null;
         }
         
         #endregion

@@ -877,7 +877,8 @@ namespace MCP.Editor.Handlers.Settings
                 "defaultcontactoffset" => Physics.defaultContactOffset,
                 "querieshittriggers" => Physics.queriesHitTriggers,
                 "querieshitbackfaces" => Physics.queriesHitBackfaces,
-                "autosimulation" => Physics.autoSimulation,
+                "autosimulation" => Physics.simulationMode == SimulationMode.FixedUpdate,  // Legacy support
+                "simulationmode" => Physics.simulationMode.ToString(),
                 _ => throw new InvalidOperationException($"Unknown PhysicsSettings property: {property}"),
             };
         }
@@ -917,7 +918,8 @@ namespace MCP.Editor.Handlers.Settings
                     Physics.queriesHitBackfaces = Convert.ToBoolean(value);
                     break;
                 case "autosimulation":
-                    Physics.autoSimulation = Convert.ToBoolean(value);
+                    // Legacy support: convert autoSimulation to simulationMode
+                    Physics.simulationMode = Convert.ToBoolean(value) ? SimulationMode.FixedUpdate : SimulationMode.Script;
                     break;
                 case "simulationmode":
                     if (Enum.TryParse<SimulationMode>(value.ToString(), true, out var simMode))

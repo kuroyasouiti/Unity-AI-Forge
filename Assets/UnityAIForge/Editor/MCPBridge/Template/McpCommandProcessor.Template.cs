@@ -94,7 +94,7 @@ namespace MCP.Editor
             }
 
             // Check if Directional Light already exists
-            var existingLights = UnityEngine.Object.FindObjectsOfType<Light>();
+            var existingLights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
             var hasDirectionalLight = false;
             foreach (var existingLight in existingLights)
             {
@@ -149,7 +149,7 @@ namespace MCP.Editor
             var created = new List<string>();
 
             // Check if Canvas already exists
-            var existingCanvas = UnityEngine.Object.FindObjectOfType<Canvas>();
+            var existingCanvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
             if (existingCanvas == null)
             {
                 // Create Canvas
@@ -167,7 +167,7 @@ namespace MCP.Editor
             var includeEventSystem = GetBool(payload, "includeEventSystem", true);
             if (includeEventSystem)
             {
-                var existingEventSystem = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+                var existingEventSystem = UnityEngine.Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
                 if (existingEventSystem == null)
                 {
                     var eventSystem = new GameObject("EventSystem");

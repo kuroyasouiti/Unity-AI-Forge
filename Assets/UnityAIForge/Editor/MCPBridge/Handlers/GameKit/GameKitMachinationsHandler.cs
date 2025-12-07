@@ -540,7 +540,8 @@ namespace MCP.Editor.Handlers.GameKit
             };
         }
 
-        private float GetFloat(Dictionary<string, object> dict, string key, float defaultValue = 0f)
+        // Note: Using 'new' to explicitly hide inherited methods for local use
+        private new float GetFloat(Dictionary<string, object> dict, string key, float defaultValue = 0f)
         {
             if (dict.TryGetValue(key, out var value))
             {
@@ -549,7 +550,7 @@ namespace MCP.Editor.Handlers.GameKit
             return defaultValue;
         }
 
-        private bool GetBool(Dictionary<string, object> dict, string key, bool defaultValue = false)
+        private new bool GetBool(Dictionary<string, object> dict, string key, bool defaultValue = false)
         {
             if (dict.TryGetValue(key, out var value))
             {
