@@ -20,7 +20,10 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
     - `Transform` / `RectTransform`: パスからTransformを取得
     - `Component` 派生型（`TMP_Text`, `Button`, `InputField` など）: パスからGameObjectを見つけ、指定コンポーネントを取得
     - アセット参照: `Assets/...` 形式のパスからアセットをロード
-  - 使用例:
+  - **2つの指定形式をサポート**:
+    - 文字列形式（シンプル）: `"titleText": "Canvas/Panel/TitleText"`
+    - 明示的参照形式: `"titleText": { "$type": "reference", "$path": "Canvas/Panel/TitleText" }`
+  - 使用例（文字列形式）:
     ```json
     {
       "operation": "update",
@@ -28,8 +31,19 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
       "componentType": "MyUIController",
       "propertyChanges": {
         "titleText": "Canvas/Panel/TitleText",
-        "submitButton": "Canvas/Panel/SubmitButton",
-        "inputField": "Canvas/Panel/InputField"
+        "submitButton": "Canvas/Panel/SubmitButton"
+      }
+    }
+    ```
+  - 使用例（明示的参照形式）:
+    ```json
+    {
+      "operation": "update",
+      "gameObjectPath": "Controller",
+      "componentType": "MyUIController",
+      "propertyChanges": {
+        "titleText": { "$type": "reference", "$path": "Canvas/Panel/TitleText" },
+        "submitButton": { "$type": "reference", "$path": "Canvas/Panel/SubmitButton" }
       }
     }
     ```
@@ -37,6 +51,7 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 ### 技術詳細
 
 - `ResolveUnityObjectFromPath()` メソッドを追加
+- 明示的参照形式 `{ "$type": "reference", "$path": "..." }` のサポートを追加
 - 階層パスの検索ロジック:
   1. `GameObject.Find()` で完全パス検索
   2. 見つからない場合、アクティブシーンのルートオブジェクトから相対パス検索

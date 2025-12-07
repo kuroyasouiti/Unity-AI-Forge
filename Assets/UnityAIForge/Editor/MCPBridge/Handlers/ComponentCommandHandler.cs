@@ -664,6 +664,18 @@ namespace MCP.Editor.Handlers
             if (targetType.IsInstanceOfType(value))
                 return value;
             
+            // Handle explicit reference format: { "$type": "reference", "$path": "path/to/object" }
+            if (value is Dictionary<string, object> refDict && 
+                refDict.TryGetValue("$type", out var typeValue) && 
+                typeValue?.ToString() == "reference")
+            {
+                if (refDict.TryGetValue("$path", out var pathValue) && pathValue != null)
+                {
+                    return ResolveUnityObjectFromPath(pathValue.ToString(), targetType);
+                }
+                return null;
+            }
+            
             // Handle Unity Object references from string path
             if (value is string stringValue && typeof(UnityEngine.Object).IsAssignableFrom(targetType))
             {
