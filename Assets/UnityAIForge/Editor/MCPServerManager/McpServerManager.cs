@@ -272,17 +272,20 @@ namespace MCP.Editor.ServerManager
             try
             {
                 Debug.Log("[McpServerManager] Starting uninstallation...");
-                
+
                 if (!IsInstalled())
                 {
                     Debug.LogWarning("[McpServerManager] Server is not installed.");
                     return;
                 }
-                
-                // バックアップ作成（オプション）
-                var backupPath = UserInstallPath + ".backup." + DateTime.Now.ToString("yyyyMMddHHmmss");
+
+                // 古いバックアップを削除（1つだけ保持）
+                CleanupOldBackups();
+
+                // バックアップ作成
+                var backupPath = UserInstallPath + ".backup";
                 Directory.Move(UserInstallPath, backupPath);
-                
+
                 Debug.Log($"[McpServerManager] Server files moved to backup: {backupPath}");
                 Debug.Log("[McpServerManager] Uninstallation completed successfully!");
             }
@@ -290,6 +293,47 @@ namespace MCP.Editor.ServerManager
             {
                 Debug.LogError($"[McpServerManager] Uninstallation failed: {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 古いバックアップを削除（1つだけ保持するため、既存のバックアップを削除）
+        /// </summary>
+        private static void CleanupOldBackups()
+        {
+            try
+            {
+                var parentDir = Path.GetDirectoryName(UserInstallPath);
+                if (string.IsNullOrEmpty(parentDir) || !Directory.Exists(parentDir))
+                {
+                    return;
+                }
+
+                var installDirName = Path.GetFileName(UserInstallPath);
+                var backupPattern = installDirName + ".backup";
+
+                // バックアップディレクトリを探す（.backup と .backup.timestamp の両方に対応）
+                var directories = Directory.GetDirectories(parentDir);
+                foreach (var dir in directories)
+                {
+                    var dirName = Path.GetFileName(dir);
+                    if (dirName != null && dirName.StartsWith(backupPattern))
+                    {
+                        try
+                        {
+                            Directory.Delete(dir, true);
+                            Debug.Log($"[McpServerManager] Deleted old backup: {dir}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogWarning($"[McpServerManager] Failed to delete old backup {dir}: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[McpServerManager] Failed to cleanup old backups: {ex.Message}");
             }
         }
         
