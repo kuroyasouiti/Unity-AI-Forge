@@ -7,9 +7,29 @@ namespace MCP.Editor.ServerManager
 {
     /// <summary>
     /// 各AIツールへのMCPサーバー登録・解除を管理するクラス。
+    /// CLI対応ツールはCLIを使用し、非対応ツールはJSON設定ファイルを直接編集します。
     /// </summary>
     public static class McpToolRegistry
     {
+        /// <summary>
+        /// CLI対応のAIツール一覧
+        /// </summary>
+        private static readonly HashSet<AITool> CliSupportedTools = new()
+        {
+            AITool.Cursor,
+            AITool.ClaudeCode,
+            AITool.Cline,
+            AITool.Windsurf
+        };
+
+        /// <summary>
+        /// 指定されたAIツールがCLI登録をサポートしているかチェック
+        /// </summary>
+        public static bool IsCliSupported(AITool tool)
+        {
+            return CliSupportedTools.Contains(tool) && McpCliRegistry.IsCliAvailable(tool);
+        }
+
         /// <summary>
         /// 指定されたAIツールにMCPサーバーを登録
         /// </summary>
@@ -18,7 +38,7 @@ namespace MCP.Editor.ServerManager
             try
             {
                 Debug.Log($"[McpToolRegistry] Registering MCP server to {tool}...");
-                
+
                 // サーバーがインストールされているか確認
                 if (!McpServerManager.IsInstalled())
                 {
@@ -31,30 +51,17 @@ namespace MCP.Editor.ServerManager
                     Debug.LogWarning($"[McpToolRegistry] MCP server is already registered to {tool}");
                     return;
                 }
-                
-                // バックアップ
-                if (McpConfigManager.ConfigExists(tool))
+
+                // CLI対応ツールはCLIを使用
+                if (IsCliSupported(tool))
                 {
-                    McpConfigManager.BackupConfig(tool);
+                    RegisterViaCli(tool);
                 }
-                
-                // 設定読み込み
-                var config = McpConfigManager.LoadConfig(tool);
-                
-                // mcpServersセクションを取得または作成
-                if (!config.ContainsKey("mcpServers"))
+                else
                 {
-                    config["mcpServers"] = new JObject();
+                    RegisterViaConfig(tool);
                 }
-                
-                var mcpServers = config["mcpServers"] as JObject;
-                
-                // Unity-AI-Forgeのエントリを追加
-                mcpServers[McpServerManager.ServerName] = CreateServerEntry();
-                
-                // 保存
-                McpConfigManager.SaveConfig(tool, config);
-                
+
                 Debug.Log($"[McpToolRegistry] Successfully registered MCP server to {tool}");
             }
             catch (Exception ex)
@@ -63,7 +70,50 @@ namespace MCP.Editor.ServerManager
                 throw;
             }
         }
-        
+
+        /// <summary>
+        /// CLIを使用して登録
+        /// </summary>
+        private static void RegisterViaCli(AITool tool)
+        {
+            var serverPath = McpServerManager.UserInstallPath;
+            var result = McpCliRegistry.Register(tool, serverPath);
+
+            if (!result.Success)
+            {
+                throw new Exception($"CLI registration failed: {result.Error}");
+            }
+        }
+
+        /// <summary>
+        /// JSON設定ファイルを直接編集して登録
+        /// </summary>
+        private static void RegisterViaConfig(AITool tool)
+        {
+            // バックアップ
+            if (McpConfigManager.ConfigExists(tool))
+            {
+                McpConfigManager.BackupConfig(tool);
+            }
+
+            // 設定読み込み
+            var config = McpConfigManager.LoadConfig(tool);
+
+            // mcpServersセクションを取得または作成
+            if (!config.ContainsKey("mcpServers"))
+            {
+                config["mcpServers"] = new JObject();
+            }
+
+            var mcpServers = config["mcpServers"] as JObject;
+
+            // Unity-AI-Forgeのエントリを追加
+            mcpServers[McpServerManager.ServerName] = CreateServerEntry();
+
+            // 保存
+            McpConfigManager.SaveConfig(tool, config);
+        }
+
         /// <summary>
         /// 指定されたAIツールからMCPサーバーを解除
         /// </summary>
@@ -72,34 +122,24 @@ namespace MCP.Editor.ServerManager
             try
             {
                 Debug.Log($"[McpToolRegistry] Unregistering MCP server from {tool}...");
-                
+
                 // 登録されていない場合
                 if (!IsRegistered(tool))
                 {
                     Debug.LogWarning($"[McpToolRegistry] MCP server is not registered to {tool}");
                     return;
                 }
-                
-                // バックアップ
-                McpConfigManager.BackupConfig(tool);
-                
-                // 設定読み込み
-                var config = McpConfigManager.LoadConfig(tool);
-                
-                if (config.ContainsKey("mcpServers"))
+
+                // CLI対応ツールはCLIを使用
+                if (IsCliSupported(tool))
                 {
-                    var mcpServers = config["mcpServers"] as JObject;
-                    
-                    // Unity-AI-Forgeのエントリを削除
-                    if (mcpServers.ContainsKey(McpServerManager.ServerName))
-                    {
-                        mcpServers.Remove(McpServerManager.ServerName);
-                    }
+                    UnregisterViaCli(tool);
                 }
-                
-                // 保存
-                McpConfigManager.SaveConfig(tool, config);
-                
+                else
+                {
+                    UnregisterViaConfig(tool);
+                }
+
                 Debug.Log($"[McpToolRegistry] Successfully unregistered MCP server from {tool}");
             }
             catch (Exception ex)
@@ -107,6 +147,45 @@ namespace MCP.Editor.ServerManager
                 Debug.LogError($"[McpToolRegistry] Failed to unregister from {tool}: {ex.Message}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// CLIを使用して解除
+        /// </summary>
+        private static void UnregisterViaCli(AITool tool)
+        {
+            var result = McpCliRegistry.Unregister(tool);
+
+            if (!result.Success)
+            {
+                throw new Exception($"CLI unregistration failed: {result.Error}");
+            }
+        }
+
+        /// <summary>
+        /// JSON設定ファイルを直接編集して解除
+        /// </summary>
+        private static void UnregisterViaConfig(AITool tool)
+        {
+            // バックアップ
+            McpConfigManager.BackupConfig(tool);
+
+            // 設定読み込み
+            var config = McpConfigManager.LoadConfig(tool);
+
+            if (config.ContainsKey("mcpServers"))
+            {
+                var mcpServers = config["mcpServers"] as JObject;
+
+                // Unity-AI-Forgeのエントリを削除
+                if (mcpServers.ContainsKey(McpServerManager.ServerName))
+                {
+                    mcpServers.Remove(McpServerManager.ServerName);
+                }
+            }
+
+            // 保存
+            McpConfigManager.SaveConfig(tool, config);
         }
         
         /// <summary>

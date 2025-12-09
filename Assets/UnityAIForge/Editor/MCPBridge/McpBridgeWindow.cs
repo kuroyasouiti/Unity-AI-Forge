@@ -20,10 +20,14 @@ namespace MCP.Editor
         private bool _showBridgeSection = true;
         private bool _showLogSection = false;
         private bool _showServerManagerSection = true;
+        private bool _showAiToolRegistrationSection = true;
         private bool _showCustomConfigSection = false;
-        
+
         // Server Manager State
         private ServerStatus _serverStatus;
+
+        // AI Tool Registration State
+        private Dictionary<AITool, (bool cliAvailable, bool registered)> _aiToolStatus = new();
 #pragma warning disable CS0414 // Field is assigned but its value is never used
         private bool _serverManagerInitialized;
 #pragma warning restore CS0414
@@ -65,6 +69,7 @@ namespace MCP.Editor
             // Initialize Server Manager
             Application.logMessageReceived += OnLogMessageReceived;
             RefreshServerManagerStatus();
+            RefreshAiToolStatus();
         }
 
         private void OnDisable()
@@ -125,7 +130,16 @@ namespace MCP.Editor
 
                 GUILayout.Space(4f);
 
-                _showCustomConfigSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showCustomConfigSection, "Config File Manager");
+                _showAiToolRegistrationSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showAiToolRegistrationSection, "AI Tool Registration (CLI)");
+                if (_showAiToolRegistrationSection)
+                {
+                    DrawAiToolRegistrationSection();
+                }
+                EditorGUILayout.EndFoldoutHeaderGroup();
+
+                GUILayout.Space(4f);
+
+                _showCustomConfigSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showCustomConfigSection, "Config File Manager (JSON)");
                 if (_showCustomConfigSection)
                 {
                     DrawCustomConfigSection();
@@ -647,10 +661,11 @@ namespace MCP.Editor
         private void OnLogMessageReceived(string message, string stackTrace, LogType type)
         {
             // Filter Server Manager logs
-            if (message.Contains("[McpServerManager]") || 
+            if (message.Contains("[McpServerManager]") ||
                 message.Contains("[McpServerInstaller]") ||
                 message.Contains("[McpConfigManager]") ||
-                message.Contains("[McpToolRegistry]"))
+                message.Contains("[McpToolRegistry]") ||
+                message.Contains("[McpCliRegistry]"))
             {
                 // Extract clean message
                 var cleanMessage = message;
@@ -659,11 +674,287 @@ namespace MCP.Editor
                     var index = message.IndexOf("]");
                     cleanMessage = message.Substring(index + 1).Trim();
                 }
-                
+
                 AppendLog(cleanMessage);
             }
         }
-        
+
+        #endregion
+
+        #region AI Tool Registration (CLI)
+
+        private void RefreshAiToolStatus()
+        {
+            _aiToolStatus.Clear();
+
+            // CLI対応のAIツールのみチェック
+            var cliTools = new[] { AITool.Cursor, AITool.ClaudeCode, AITool.Cline, AITool.Windsurf };
+
+            foreach (var tool in cliTools)
+            {
+                var cliAvailable = McpCliRegistry.IsCliAvailable(tool);
+                var registered = McpToolRegistry.IsRegistered(tool);
+                _aiToolStatus[tool] = (cliAvailable, registered);
+            }
+        }
+
+        private void DrawAiToolRegistrationSection()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                if (_serverStatus == null || !_serverStatus.IsInstalled)
+                {
+                    EditorGUILayout.HelpBox("Please install the MCP server first.", MessageType.Info);
+                    return;
+                }
+
+                EditorGUILayout.LabelField("Register MCP Server via CLI", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(
+                    "Use the native CLI commands of each AI tool to register the MCP server.\n" +
+                    "This is the recommended method for tools that support it.",
+                    MessageType.Info
+                );
+
+                GUILayout.Space(5f);
+
+                // Tool table header
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField("AI Tool", EditorStyles.boldLabel, GUILayout.Width(120));
+                    EditorGUILayout.LabelField("CLI", EditorStyles.boldLabel, GUILayout.Width(50));
+                    EditorGUILayout.LabelField("Status", EditorStyles.boldLabel, GUILayout.Width(100));
+                    EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+                }
+
+                DrawToolDivider();
+
+                // Draw each AI tool row
+                DrawAiToolRow(AITool.Cursor);
+                DrawAiToolRow(AITool.ClaudeCode);
+                DrawAiToolRow(AITool.Cline);
+                DrawAiToolRow(AITool.Windsurf);
+
+                GUILayout.Space(5f);
+
+                // Batch operations
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUI.enabled = !_commandRunning;
+
+                    if (GUILayout.Button("Register All (CLI Available)", GUILayout.Height(25)))
+                    {
+                        RegisterAllViaCli();
+                    }
+
+                    if (GUILayout.Button("Unregister All (CLI Available)", GUILayout.Height(25)))
+                    {
+                        UnregisterAllViaCli();
+                    }
+
+                    if (GUILayout.Button("Refresh", GUILayout.Height(25)))
+                    {
+                        RefreshAiToolStatus();
+                        AppendLog("AI tool status refreshed");
+                    }
+
+                    GUI.enabled = true;
+                }
+            }
+        }
+
+        private void DrawToolDivider()
+        {
+            var rect = EditorGUILayout.GetControlRect(false, 1);
+            EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 0.5f));
+        }
+
+        private void DrawAiToolRow(AITool tool)
+        {
+            if (!_aiToolStatus.TryGetValue(tool, out var status))
+            {
+                status = (false, false);
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                // Tool name
+                EditorGUILayout.LabelField(McpConfigManager.GetToolDisplayName(tool), GUILayout.Width(120));
+
+                // CLI availability
+                var cliIcon = status.cliAvailable ? "✅" : "❌";
+                EditorGUILayout.LabelField(cliIcon, GUILayout.Width(50));
+
+                // Registration status
+                var statusText = status.registered ? "Registered" : "Not Registered";
+                var statusStyle = status.registered ? EditorStyles.boldLabel : EditorStyles.label;
+                EditorGUILayout.LabelField(statusText, statusStyle, GUILayout.Width(100));
+
+                // Actions
+                GUI.enabled = status.cliAvailable && !_commandRunning;
+
+                if (!status.registered)
+                {
+                    if (GUILayout.Button("Register", GUILayout.Width(80)))
+                    {
+                        RegisterToolViaCli(tool);
+                    }
+                }
+                else
+                {
+                    if (GUILayout.Button("Unregister", GUILayout.Width(80)))
+                    {
+                        UnregisterToolViaCli(tool);
+                    }
+                }
+
+                GUI.enabled = true;
+            }
+        }
+
+        private void RegisterToolViaCli(AITool tool)
+        {
+            try
+            {
+                _commandRunning = true;
+                AppendLog($"Registering to {McpConfigManager.GetToolDisplayName(tool)} via CLI...");
+
+                McpToolRegistry.Register(tool);
+
+                RefreshAiToolStatus();
+                AppendLog($"✅ Successfully registered to {McpConfigManager.GetToolDisplayName(tool)}");
+
+                EditorUtility.DisplayDialog("Success",
+                    $"Successfully registered to {McpConfigManager.GetToolDisplayName(tool)}!\n\n" +
+                    "Please restart the AI tool for changes to take effect.",
+                    "OK");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"❌ Failed to register to {McpConfigManager.GetToolDisplayName(tool)}: {ex.Message}");
+                EditorUtility.DisplayDialog("Error",
+                    $"Failed to register:\n\n{ex.Message}",
+                    "OK");
+            }
+            finally
+            {
+                _commandRunning = false;
+                Repaint();
+            }
+        }
+
+        private void UnregisterToolViaCli(AITool tool)
+        {
+            try
+            {
+                _commandRunning = true;
+                AppendLog($"Unregistering from {McpConfigManager.GetToolDisplayName(tool)} via CLI...");
+
+                McpToolRegistry.Unregister(tool);
+
+                RefreshAiToolStatus();
+                AppendLog($"✅ Successfully unregistered from {McpConfigManager.GetToolDisplayName(tool)}");
+
+                EditorUtility.DisplayDialog("Success",
+                    $"Successfully unregistered from {McpConfigManager.GetToolDisplayName(tool)}!\n\n" +
+                    "Please restart the AI tool for changes to take effect.",
+                    "OK");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"❌ Failed to unregister from {McpConfigManager.GetToolDisplayName(tool)}: {ex.Message}");
+                EditorUtility.DisplayDialog("Error",
+                    $"Failed to unregister:\n\n{ex.Message}",
+                    "OK");
+            }
+            finally
+            {
+                _commandRunning = false;
+                Repaint();
+            }
+        }
+
+        private void RegisterAllViaCli()
+        {
+            var successCount = 0;
+            var failCount = 0;
+
+            foreach (var kvp in _aiToolStatus)
+            {
+                var tool = kvp.Key;
+                var status = kvp.Value;
+
+                if (!status.cliAvailable || status.registered)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    AppendLog($"Registering to {McpConfigManager.GetToolDisplayName(tool)}...");
+                    McpToolRegistry.Register(tool);
+                    successCount++;
+                    AppendLog($"✅ {McpConfigManager.GetToolDisplayName(tool)} registered");
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    AppendLog($"❌ {McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
+                }
+            }
+
+            RefreshAiToolStatus();
+            AppendLog($"Batch registration completed: {successCount} succeeded, {failCount} failed");
+
+            if (successCount > 0)
+            {
+                EditorUtility.DisplayDialog("Batch Registration Complete",
+                    $"Registered to {successCount} AI tool(s).\n\n" +
+                    "Please restart the AI tools for changes to take effect.",
+                    "OK");
+            }
+        }
+
+        private void UnregisterAllViaCli()
+        {
+            var successCount = 0;
+            var failCount = 0;
+
+            foreach (var kvp in _aiToolStatus)
+            {
+                var tool = kvp.Key;
+                var status = kvp.Value;
+
+                if (!status.cliAvailable || !status.registered)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    AppendLog($"Unregistering from {McpConfigManager.GetToolDisplayName(tool)}...");
+                    McpToolRegistry.Unregister(tool);
+                    successCount++;
+                    AppendLog($"✅ {McpConfigManager.GetToolDisplayName(tool)} unregistered");
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    AppendLog($"❌ {McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
+                }
+            }
+
+            RefreshAiToolStatus();
+            AppendLog($"Batch unregistration completed: {successCount} succeeded, {failCount} failed");
+
+            if (successCount > 0)
+            {
+                EditorUtility.DisplayDialog("Batch Unregistration Complete",
+                    $"Unregistered from {successCount} AI tool(s).\n\n" +
+                    "Please restart the AI tools for changes to take effect.",
+                    "OK");
+            }
+        }
+
         #endregion
         
         #region Custom Config File
@@ -723,25 +1014,31 @@ namespace MCP.Editor
                     // Quick select buttons for common locations
                     using (new EditorGUILayout.HorizontalScope())
                     {
-                        if (GUILayout.Button("Cursor", GUILayout.Width(80)))
+                        if (GUILayout.Button("Cursor", GUILayout.Width(70)))
                         {
                             _customConfigPath = McpConfigManager.GetConfigPath(AITool.Cursor);
                             CheckCustomConfigStatus();
                         }
-                        
-                        if (GUILayout.Button("Claude Desktop", GUILayout.Width(110)))
+
+                        if (GUILayout.Button("Claude Desktop", GUILayout.Width(100)))
                         {
                             _customConfigPath = McpConfigManager.GetConfigPath(AITool.ClaudeDesktop);
                             CheckCustomConfigStatus();
                         }
-                        
-                        if (GUILayout.Button("Cline", GUILayout.Width(80)))
+
+                        if (GUILayout.Button("Claude Code", GUILayout.Width(85)))
+                        {
+                            _customConfigPath = McpConfigManager.GetConfigPath(AITool.ClaudeCode);
+                            CheckCustomConfigStatus();
+                        }
+
+                        if (GUILayout.Button("Cline", GUILayout.Width(55)))
                         {
                             _customConfigPath = McpConfigManager.GetConfigPath(AITool.Cline);
                             CheckCustomConfigStatus();
                         }
-                        
-                        if (GUILayout.Button("Windsurf", GUILayout.Width(80)))
+
+                        if (GUILayout.Button("Windsurf", GUILayout.Width(65)))
                         {
                             _customConfigPath = McpConfigManager.GetConfigPath(AITool.Windsurf);
                             CheckCustomConfigStatus();

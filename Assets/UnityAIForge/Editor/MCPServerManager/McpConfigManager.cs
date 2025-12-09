@@ -13,6 +13,7 @@ namespace MCP.Editor.ServerManager
     {
         Cursor,
         ClaudeDesktop,
+        ClaudeCode,
         Cline,
         Windsurf
     }
@@ -32,19 +33,24 @@ namespace MCP.Editor.ServerManager
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
             return tool switch
             {
                 // Cursorは複数の可能性があるため、FindCursorConfigPath()で検索
                 AITool.Cursor => FindCursorConfigPath(appData),
-                    
+
                 AITool.ClaudeDesktop => Path.Combine(appData, "Claude", "claude_desktop_config.json"),
-                
+
+                // Claude Code CLIはユーザーホームの.claude.jsonを使用
+                AITool.ClaudeCode => Path.Combine(userProfile, ".claude.json"),
+
                 AITool.Cline => Path.Combine(appData, "Code", "User", "globalStorage",
                     "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json"),
-                    
+
                 AITool.Windsurf => Path.Combine(appData, "Windsurf", "User", "globalStorage",
                     "windsurf.windsurf", "settings", "mcp_settings.json"),
-                    
+
                 _ => throw new ArgumentException($"Unknown AI tool: {tool}")
             };
         }
@@ -265,6 +271,7 @@ namespace MCP.Editor.ServerManager
             {
                 AITool.Cursor => "Cursor",
                 AITool.ClaudeDesktop => "Claude Desktop",
+                AITool.ClaudeCode => "Claude Code",
                 AITool.Cline => "Cline (VS Code)",
                 AITool.Windsurf => "Windsurf",
                 _ => tool.ToString()

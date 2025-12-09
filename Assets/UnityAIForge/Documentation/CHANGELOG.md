@@ -9,6 +9,48 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.3.5] - 2025-12-09
+
+### 追加
+
+- **CLI ベースの MCP サーバー登録機能**
+  - AIツール（Cursor、Claude Code、Cline、Windsurf）への MCP サーバー登録を CLI 経由で実行
+  - JSON 設定ファイル直接編集よりも信頼性が高く、公式CLIコマンドを使用
+  - CLI 非対応ツール（Claude Desktop）は従来の JSON 編集にフォールバック
+  - `McpToolRegistry.cs`: CLI サポートを自動検出し、適切な登録方法を選択
+  - `McpCliRegistry.cs`: 各 AI ツールの CLI コマンドを辞書ベースで管理
+
+- **Claude Code サポート**
+  - `AITool` enum に `ClaudeCode` を追加
+  - Claude Code 設定ファイルパス（`~/.claude.json`）のサポート
+  - `claude mcp add/remove` コマンドによる登録・解除
+
+- **MCP Bridge Window に「AI Tool Registration (CLI)」セクションを追加**
+  - 各 AI ツールの CLI 利用可否と登録状態をリアルタイム表示
+  - ツールごとの Register/Unregister ボタン
+  - 一括操作ボタン（Register All、Unregister All）
+  - 状態更新のための Refresh ボタン
+  - Config File Manager セクションに Claude Code ボタンを追加
+
+### 技術詳細
+
+- `McpCliRegistry.cs` を辞書ベースのアーキテクチャにリファクタリング
+  - 新しい AI ツールの追加が容易に
+  - `CliCommands` 辞書で CLI コマンドと表示名を管理
+  - `IsCliAvailable(AITool)` メソッドでツール固有の CLI 利用可否を確認
+
+- `McpToolRegistry.cs` の登録フロー改善
+  - `IsCliSupported(AITool)`: CLI 対応かつ CLI が利用可能かを判定
+  - `RegisterViaCli()` / `UnregisterViaCli()`: CLI 経由の登録・解除
+  - `RegisterViaConfig()` / `UnregisterViaConfig()`: JSON 設定ファイル経由の登録・解除
+  - 自動フォールバック機能
+
+### ドキュメント
+
+- CHANGELOG.md を v2.3.5 に更新
+- package.json バージョンを 2.3.5 に更新
+- pyproject.toml バージョンを 2.3.5 に更新
+
 ## [2.3.4] - 2025-12-08
 
 ### 追加

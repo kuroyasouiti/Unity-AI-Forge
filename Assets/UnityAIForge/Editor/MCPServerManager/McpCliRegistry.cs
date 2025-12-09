@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -20,89 +21,70 @@ namespace MCP.Editor.ServerManager
             public string Error { get; set; }
             public int ExitCode { get; set; }
         }
-        
+
         /// <summary>
-        /// Cursor CLIを使用して登録
+        /// 各AIツールのCLIコマンド情報
         /// </summary>
-        public static CliResult RegisterToCursor(string serverPath)
+        private static readonly Dictionary<AITool, (string command, string displayName)> CliCommands = new()
         {
-            var command = "cursor";
-            var args = $"mcp add unity-ai-forge --directory \"{serverPath}\"";
-            return ExecuteCliCommand(command, args, "Cursor");
-        }
-        
+            { AITool.Cursor, ("cursor", "Cursor") },
+            { AITool.ClaudeCode, ("claude", "Claude Code") },
+            { AITool.Cline, ("cline", "Cline") },
+            { AITool.Windsurf, ("windsurf", "Windsurf") }
+        };
+
         /// <summary>
-        /// Cursor CLIを使用して解除
+        /// 指定されたAIツールにMCPサーバーを登録
         /// </summary>
-        public static CliResult UnregisterFromCursor()
+        public static CliResult Register(AITool tool, string serverPath)
         {
-            var command = "cursor";
-            var args = "mcp remove unity-ai-forge";
-            return ExecuteCliCommand(command, args, "Cursor");
+            if (!CliCommands.TryGetValue(tool, out var cliInfo))
+            {
+                return new CliResult
+                {
+                    Success = false,
+                    Error = $"CLI not supported for {tool}",
+                    ExitCode = -1
+                };
+            }
+
+            var args = $"mcp add {McpServerManager.ServerName} --directory \"{serverPath}\"";
+            return ExecuteCliCommand(cliInfo.command, args, cliInfo.displayName);
         }
-        
+
         /// <summary>
-        /// Claude Code CLIを使用して登録
+        /// 指定されたAIツールからMCPサーバーを解除
         /// </summary>
-        public static CliResult RegisterToClaudeCode(string serverPath)
+        public static CliResult Unregister(AITool tool)
         {
-            var command = "claude-code";
-            var args = $"mcp add unity-ai-forge --directory \"{serverPath}\"";
-            return ExecuteCliCommand(command, args, "Claude Code");
+            if (!CliCommands.TryGetValue(tool, out var cliInfo))
+            {
+                return new CliResult
+                {
+                    Success = false,
+                    Error = $"CLI not supported for {tool}",
+                    ExitCode = -1
+                };
+            }
+
+            var args = $"mcp remove {McpServerManager.ServerName}";
+            return ExecuteCliCommand(cliInfo.command, args, cliInfo.displayName);
         }
-        
+
         /// <summary>
-        /// Claude Code CLIを使用して解除
+        /// 指定されたAIツールのCLIが利用可能かチェック
         /// </summary>
-        public static CliResult UnregisterFromClaudeCode()
+        public static bool IsCliAvailable(AITool tool)
         {
-            var command = "claude-code";
-            var args = "mcp remove unity-ai-forge";
-            return ExecuteCliCommand(command, args, "Claude Code");
+            if (!CliCommands.TryGetValue(tool, out var cliInfo))
+            {
+                return false;
+            }
+            return IsCliAvailable(cliInfo.command);
         }
-        
+
         /// <summary>
-        /// Cline CLIを使用して登録
-        /// </summary>
-        public static CliResult RegisterToCline(string serverPath)
-        {
-            var command = "cline";
-            var args = $"mcp add unity-ai-forge --directory \"{serverPath}\"";
-            return ExecuteCliCommand(command, args, "Cline");
-        }
-        
-        /// <summary>
-        /// Cline CLIを使用して解除
-        /// </summary>
-        public static CliResult UnregisterFromCline()
-        {
-            var command = "cline";
-            var args = "mcp remove unity-ai-forge";
-            return ExecuteCliCommand(command, args, "Cline");
-        }
-        
-        /// <summary>
-        /// Windsurf CLIを使用して登録
-        /// </summary>
-        public static CliResult RegisterToWindsurf(string serverPath)
-        {
-            var command = "windsurf";
-            var args = $"mcp add unity-ai-forge --directory \"{serverPath}\"";
-            return ExecuteCliCommand(command, args, "Windsurf");
-        }
-        
-        /// <summary>
-        /// Windsurf CLIを使用して解除
-        /// </summary>
-        public static CliResult UnregisterFromWindsurf()
-        {
-            var command = "windsurf";
-            var args = "mcp remove unity-ai-forge";
-            return ExecuteCliCommand(command, args, "Windsurf");
-        }
-        
-        /// <summary>
-        /// CLIが利用可能かチェック
+        /// CLIコマンドが利用可能かチェック
         /// </summary>
         public static bool IsCliAvailable(string command)
         {
