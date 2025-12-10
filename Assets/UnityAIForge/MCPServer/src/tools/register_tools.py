@@ -116,6 +116,18 @@ def register_tools(server: Server) -> None:
                 "useRegex": {"type": "boolean"},
                 "includeComponents": {"type": "boolean"},
                 "maxResults": {"type": "integer"},
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string", "description": "Component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.BoxCollider2D')."},
+                            "properties": {"type": "object", "additionalProperties": True, "description": "Property values to set on the component."},
+                        },
+                        "required": ["type"],
+                    },
+                    "description": "Components to automatically attach when creating a GameObject. Each item specifies a component type and optional property values.",
+                },
             },
         },
         ["operation"],
@@ -1115,7 +1127,7 @@ def register_tools(server: Server) -> None:
         ),
         types.Tool(
             name="unity_gameobject_crud",
-            description="Full GameObject lifecycle management: create (with templates like Cube/Sphere/Player/Enemy), delete, move (reparent), rename, duplicate, update (tag/layer/active/static), inspect (with optional component details), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Use templates for fastest creation with proper components. Supports regex pattern matching for batch operations.",
+            description="Full GameObject lifecycle management: create (with templates like Cube/Sphere/Player/Enemy, and optional auto-attach components with properties), delete, move (reparent), rename, duplicate, update (tag/layer/active/static), inspect (with optional component details), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Use 'components' array on create to auto-attach components: [{type: 'UnityEngine.Rigidbody2D', properties: {gravityScale: 0}}]. Supports regex pattern matching for batch operations.",
             inputSchema=game_object_manage_schema,
         ),
         types.Tool(

@@ -26,7 +26,7 @@ For manual installation and detailed documentation, see:
 - Material and shader control
 - Project settings configuration
 
-### GameKit Framework (22 Tools Total)
+### GameKit Framework (24 Tools Total)
 - **GameKitActor**: Player/NPC controllers with 8 behavior profiles and 4 control modes
 - **GameKitManager**: Resource/State/Turn/Event management with persistence
 - **GameKitUICommand**: UI button → Actor/Manager command bridge (11 command types)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using MCP.Editor.Base;
+using MCP.Editor.Interfaces;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,8 +16,25 @@ namespace MCP.Editor.Handlers
     /// </summary>
     public class ComponentCommandHandler : BaseCommandHandler
     {
+        #region Fields
+
+        private readonly IPropertyApplier _propertyApplier;
+        private readonly ValueConverterManager _converterManager;
+
+        #endregion
+
+        #region Constructor
+
+        public ComponentCommandHandler()
+        {
+            _converterManager = ValueConverterManager.Instance;
+            _propertyApplier = new ComponentPropertyApplier(_converterManager);
+        }
+
+        #endregion
+
         #region ICommandHandler Implementation
-        
+
         public override string Category => "component";
         
         public override IEnumerable<string> SupportedOperations => new[]
@@ -84,20 +102,29 @@ namespace MCP.Editor.Handlers
             var component = Undo.AddComponent(gameObject, type);
             
             // Apply property changes if provided
+            List<string> updatedProperties = null;
             if (payload.ContainsKey("propertyChanges"))
             {
                 var propertyChanges = payload["propertyChanges"] as Dictionary<string, object>;
                 if (propertyChanges != null)
                 {
-                    ApplyPropertyChanges(component, propertyChanges);
+                    var result = _propertyApplier.ApplyProperties(component, propertyChanges);
+                    updatedProperties = result.Updated;
                 }
             }
-            
-            return CreateSuccessResponse(
+
+            var response = CreateSuccessResponse(
                 ("gameObjectPath", GetGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
                 ("instanceID", component.GetInstanceID())
             );
+
+            if (updatedProperties != null && updatedProperties.Count > 0)
+            {
+                response["updatedProperties"] = updatedProperties;
+            }
+
+            return response;
         }
         
         /// <summary>
@@ -162,12 +189,12 @@ namespace MCP.Editor.Handlers
             }
             
             Undo.RecordObject(component, $"Update {componentType}");
-            var updated = ApplyPropertyChanges(component, propertyChanges);
-            
+            var result = _propertyApplier.ApplyProperties(component, propertyChanges);
+
             return CreateSuccessResponse(
                 ("gameObjectPath", GetGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
-                ("updated", updated)
+                ("updated", result.Updated)
             );
         }
         
@@ -260,23 +287,24 @@ namespace MCP.Editor.Handlers
                     List<string> updatedProperties = null;
                     if (propertyChanges != null && propertyChanges.Count > 0)
                     {
-                        updatedProperties = ApplyPropertyChanges(component, propertyChanges);
+                        var applyResult = _propertyApplier.ApplyProperties(component, propertyChanges);
+                        updatedProperties = applyResult.Updated;
                     }
-                    
+
                     successCount++;
-                    
+
                     var resultEntry = new Dictionary<string, object>
                     {
                         ["success"] = true,
                         ["gameObjectPath"] = GetGameObjectPath(go),
                         ["instanceID"] = component.GetInstanceID()
                     };
-                    
-                    if (updatedProperties != null)
+
+                    if (updatedProperties != null && updatedProperties.Count > 0)
                     {
                         resultEntry["updatedProperties"] = updatedProperties;
                     }
-                    
+
                     results.Add(resultEntry);
                 }
                 catch (Exception ex)
@@ -418,14 +446,14 @@ namespace MCP.Editor.Handlers
                     }
                     
                     Undo.RecordObject(component, $"Update {componentType}");
-                    var updated = ApplyPropertyChanges(component, propertyChanges);
+                    var applyResult = _propertyApplier.ApplyProperties(component, propertyChanges);
                     successCount++;
-                    
+
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = true,
                         ["gameObjectPath"] = GetGameObjectPath(go),
-                        ["updated"] = updated
+                        ["updated"] = applyResult.Updated
                     });
                 }
                 catch (Exception ex)
@@ -505,7 +533,7 @@ namespace MCP.Editor.Handlers
         #endregion
         
         #region Helper Methods
-        
+
         /// <summary>
         /// Gets the hierarchical path of a GameObject.
         /// </summary>
@@ -515,87 +543,38 @@ namespace MCP.Editor.Handlers
             {
                 return null;
             }
-            
+
             var path = go.name;
             var parent = go.transform.parent;
-            
+
             while (parent != null)
             {
                 path = parent.name + "/" + path;
                 parent = parent.parent;
             }
-            
+
             return path;
         }
-        
-        /// <summary>
-        /// Applies property changes to a component.
-        /// </summary>
-        private List<string> ApplyPropertyChanges(Component component, Dictionary<string, object> propertyChanges)
-        {
-            var updated = new List<string>();
-            var failed = new List<string>();
-            var type = component.GetType();
-            
-            foreach (var kvp in propertyChanges)
-            {
-                var propertyName = kvp.Key;
-                var value = kvp.Value;
-                
-                // Try property first
-                var property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
-                if (property != null && property.CanWrite)
-                {
-                    var convertedValue = ConvertValue(value, property.PropertyType);
-                    property.SetValue(component, convertedValue);
-                    updated.Add(propertyName);
-                    continue;
-                }
-                
-                // Try field (including private fields with [SerializeField] attribute)
-                var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (field != null)
-                {
-                    // For private fields, require SerializeField attribute
-                    if (!field.IsPublic && field.GetCustomAttribute<SerializeField>() == null)
-                    {
-                        Debug.LogWarning($"Private field '{propertyName}' on {type.Name} is not marked with [SerializeField]");
-                        failed.Add(propertyName);
-                        continue;
-                    }
-                    
-                    var convertedValue = ConvertValue(value, field.FieldType);
-                    field.SetValue(component, convertedValue);
-                    updated.Add(propertyName);
-                    continue;
-                }
-                
-                failed.Add(propertyName);
-                Debug.LogWarning($"Property or field '{propertyName}' not found on {type.Name}");
-            }
-            
-            return updated;
-        }
-        
+
         /// <summary>
         /// Serializes component properties to a dictionary.
         /// </summary>
         private Dictionary<string, object> SerializeComponentProperties(
-            Component component, 
+            Component component,
             List<string> propertyFilter)
         {
             var properties = new Dictionary<string, object>();
             var type = component.GetType();
-            
+
             // Serialize public properties
             foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (!prop.CanRead)
                     continue;
-                
+
                 if (propertyFilter != null && !propertyFilter.Contains(prop.Name))
                     continue;
-                
+
                 try
                 {
                     var value = prop.GetValue(component);
@@ -606,16 +585,16 @@ namespace MCP.Editor.Handlers
                     // Skip properties that throw on access
                 }
             }
-            
+
             // Serialize public fields and private fields with [SerializeField] attribute
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(f => f.IsPublic || f.GetCustomAttribute<SerializeField>() != null);
-            
+
             foreach (var field in fields)
             {
                 if (propertyFilter != null && !propertyFilter.Contains(field.Name))
                     continue;
-                
+
                 try
                 {
                     var value = field.GetValue(component);
@@ -626,10 +605,10 @@ namespace MCP.Editor.Handlers
                     // Skip fields that throw on access
                 }
             }
-            
+
             return properties;
         }
-        
+
         /// <summary>
         /// Serializes a value to a JSON-compatible type.
         /// </summary>
@@ -637,369 +616,22 @@ namespace MCP.Editor.Handlers
         {
             if (value == null)
                 return null;
-            
+
             if (value is Vector3 v3)
                 return new { x = v3.x, y = v3.y, z = v3.z };
-            
+
             if (value is Vector2 v2)
                 return new { x = v2.x, y = v2.y };
-            
+
             if (value is Color color)
                 return new { r = color.r, g = color.g, b = color.b, a = color.a };
-            
+
             if (value is Quaternion quat)
                 return new { x = quat.x, y = quat.y, z = quat.z, w = quat.w };
-            
+
             return value.ToString();
         }
-        
-        /// <summary>
-        /// Converts a value to the target type.
-        /// </summary>
-        private object ConvertValue(object value, Type targetType)
-        {
-            if (value == null)
-                return null;
-            
-            if (targetType.IsInstanceOfType(value))
-                return value;
-            
-            // Handle explicit reference formats:
-            // Format 1: { "$type": "reference", "$path": "path/to/object" }
-            // Format 2: { "$ref": "path/to/object" }
-            // Format 3: { "_gameObjectPath": "path/to/object" }
-            if (value is Dictionary<string, object> refDict)
-            {
-                // Format 1: { "$type": "reference", "$path": "..." }
-                if (refDict.TryGetValue("$type", out var typeValue) && 
-                    typeValue?.ToString() == "reference")
-                {
-                    if (refDict.TryGetValue("$path", out var pathValue) && pathValue != null)
-                    {
-                        return ResolveUnityObjectFromPath(pathValue.ToString(), targetType);
-                    }
-                    return null;
-                }
-                
-                // Format 2: { "$ref": "..." }
-                if (refDict.TryGetValue("$ref", out var refValue) && refValue != null)
-                {
-                    return ResolveUnityObjectFromPath(refValue.ToString(), targetType);
-                }
-                
-                // Format 3: { "_gameObjectPath": "..." }
-                if (refDict.TryGetValue("_gameObjectPath", out var goPathValue) && goPathValue != null)
-                {
-                    return ResolveUnityObjectFromPath(goPathValue.ToString(), targetType);
-                }
-                
-                // If target type is a Unity Object and we have a dictionary with path-like value,
-                // try to resolve any string value as a path
-                if (typeof(UnityEngine.Object).IsAssignableFrom(targetType))
-                {
-                    // Try common path keys
-                    string[] pathKeys = { "path", "gameObjectPath", "objectPath", "target", "reference" };
-                    foreach (var key in pathKeys)
-                    {
-                        if (refDict.TryGetValue(key, out var pathVal) && pathVal is string pathStr)
-                        {
-                            return ResolveUnityObjectFromPath(pathStr, targetType);
-                        }
-                    }
-                    
-                    // If dictionary has only one string value, try that as path
-                    if (refDict.Count == 1)
-                    {
-                        var singleValue = refDict.Values.First();
-                        if (singleValue is string singlePathStr)
-                        {
-                            return ResolveUnityObjectFromPath(singlePathStr, targetType);
-                        }
-                    }
-                    
-                    Debug.LogWarning($"Cannot resolve Unity Object from dictionary. Expected format: {{ \"$ref\": \"path\" }} or {{ \"_gameObjectPath\": \"path\" }}. Got: {string.Join(", ", refDict.Keys)}");
-                    return null;
-                }
-            }
-            
-            // Handle Unity Object references from string path
-            if (value is string stringValue && typeof(UnityEngine.Object).IsAssignableFrom(targetType))
-            {
-                return ResolveUnityObjectFromPath(stringValue, targetType);
-            }
-            
-            // Handle basic types
-            if (targetType == typeof(float))
-            {
-                if (value is double d) return (float)d;
-                if (value is long l) return (float)l;
-                if (value is int i) return (float)i;
-                return Convert.ToSingle(value);
-            }
-            
-            if (targetType == typeof(int))
-            {
-                if (value is long l) return (int)l;
-                if (value is double d) return (int)d;
-                return Convert.ToInt32(value);
-            }
-            
-            if (targetType == typeof(bool))
-            {
-                if (value is string s) return bool.Parse(s);
-                return Convert.ToBoolean(value);
-            }
-            
-            // Handle Unity types from Dictionary
-            if (value is Dictionary<string, object> dict)
-            {
-                if (targetType == typeof(Vector3))
-                {
-                    return new Vector3(
-                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("z", 0f))
-                    );
-                }
-                
-                if (targetType == typeof(Vector2))
-                {
-                    return new Vector2(
-                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f))
-                    );
-                }
-                
-                if (targetType == typeof(Vector4))
-                {
-                    return new Vector4(
-                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("z", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("w", 0f))
-                    );
-                }
-                
-                if (targetType == typeof(Color))
-                {
-                    return new Color(
-                        Convert.ToSingle(dict.GetValueOrDefault("r", 1f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("g", 1f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("b", 1f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("a", 1f))
-                    );
-                }
-                
-                if (targetType == typeof(Color32))
-                {
-                    return new Color32(
-                        Convert.ToByte(dict.GetValueOrDefault("r", (byte)255)),
-                        Convert.ToByte(dict.GetValueOrDefault("g", (byte)255)),
-                        Convert.ToByte(dict.GetValueOrDefault("b", (byte)255)),
-                        Convert.ToByte(dict.GetValueOrDefault("a", (byte)255))
-                    );
-                }
-                
-                if (targetType == typeof(Quaternion))
-                {
-                    return new Quaternion(
-                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("z", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("w", 1f))
-                    );
-                }
-                
-                if (targetType == typeof(Rect))
-                {
-                    return new Rect(
-                        Convert.ToSingle(dict.GetValueOrDefault("x", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("y", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("width", 0f)),
-                        Convert.ToSingle(dict.GetValueOrDefault("height", 0f))
-                    );
-                }
-                
-                if (targetType == typeof(Bounds))
-                {
-                    var center = Vector3.zero;
-                    var size = Vector3.zero;
-                    
-                    if (dict.ContainsKey("center") && dict["center"] is Dictionary<string, object> centerDict)
-                    {
-                        center = new Vector3(
-                            Convert.ToSingle(centerDict.GetValueOrDefault("x", 0f)),
-                            Convert.ToSingle(centerDict.GetValueOrDefault("y", 0f)),
-                            Convert.ToSingle(centerDict.GetValueOrDefault("z", 0f))
-                        );
-                    }
-                    
-                    if (dict.ContainsKey("size") && dict["size"] is Dictionary<string, object> sizeDict)
-                    {
-                        size = new Vector3(
-                            Convert.ToSingle(sizeDict.GetValueOrDefault("x", 0f)),
-                            Convert.ToSingle(sizeDict.GetValueOrDefault("y", 0f)),
-                            Convert.ToSingle(sizeDict.GetValueOrDefault("z", 0f))
-                        );
-                    }
-                    
-                    return new Bounds(center, size);
-                }
-            }
-            
-            // Handle enum types
-            if (targetType.IsEnum)
-            {
-                if (value is string enumStr)
-                    return Enum.Parse(targetType, enumStr, true);
-                return Enum.ToObject(targetType, Convert.ToInt32(value));
-            }
-            
-            return Convert.ChangeType(value, targetType);
-        }
-        
-        /// <summary>
-        /// Resolves a Unity Object from a string path.
-        /// Handles both GameObject references and Component references.
-        /// </summary>
-        /// <param name="path">The GameObject path (e.g., "Canvas/Panel/Button")</param>
-        /// <param name="targetType">The expected type (GameObject, Component subclass, etc.)</param>
-        /// <returns>The resolved Unity Object, or null if not found</returns>
-        private UnityEngine.Object ResolveUnityObjectFromPath(string path, Type targetType)
-        {
-            if (string.IsNullOrEmpty(path))
-                return null;
-            
-            // Try to find the GameObject by path
-            GameObject targetObject = GameObject.Find(path);
-            
-            // If not found by full path, try finding by name in hierarchy
-            if (targetObject == null)
-            {
-                // Try searching in all root objects
-                var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-                foreach (var root in rootObjects)
-                {
-                    targetObject = FindChildByPath(root.transform, path);
-                    if (targetObject != null)
-                        break;
-                }
-            }
-            
-            if (targetObject == null)
-            {
-                Debug.LogWarning($"GameObject not found at path: {path}");
-                return null;
-            }
-            
-            // If target type is GameObject, return it directly
-            if (targetType == typeof(GameObject))
-            {
-                return targetObject;
-            }
-            
-            // If target type is Transform, return the transform
-            if (targetType == typeof(Transform) || targetType == typeof(RectTransform))
-            {
-                if (targetType == typeof(RectTransform))
-                    return targetObject.GetComponent<RectTransform>() ?? (UnityEngine.Object)targetObject.transform;
-                return targetObject.transform;
-            }
-            
-            // If target type is a Component, get it from the GameObject
-            if (typeof(Component).IsAssignableFrom(targetType))
-            {
-                var component = targetObject.GetComponent(targetType);
-                if (component == null)
-                {
-                    Debug.LogWarning($"Component {targetType.Name} not found on GameObject at path: {path}");
-                }
-                return component;
-            }
-            
-            // For other Unity Object types (like ScriptableObject, Material, etc.),
-            // try to load from asset path if it looks like an asset path
-            if (path.StartsWith("Assets/") && path.Contains("."))
-            {
-                return AssetDatabase.LoadAssetAtPath(path, targetType);
-            }
-            
-            return null;
-        }
-        
-        /// <summary>
-        /// Finds a child GameObject by path relative to a parent transform.
-        /// </summary>
-        private GameObject FindChildByPath(Transform parent, string path)
-        {
-            if (parent == null || string.IsNullOrEmpty(path))
-                return null;
-            
-            // Check if this object matches
-            string parentPath = GetTransformPath(parent);
-            if (parentPath == path || parent.name == path)
-                return parent.gameObject;
-            
-            // Check if path starts with parent name
-            if (path.StartsWith(parent.name + "/"))
-            {
-                string remainingPath = path.Substring(parent.name.Length + 1);
-                return FindChildRecursive(parent, remainingPath);
-            }
-            
-            // Search children recursively
-            foreach (Transform child in parent)
-            {
-                var result = FindChildByPath(child, path);
-                if (result != null)
-                    return result;
-            }
-            
-            return null;
-        }
-        
-        /// <summary>
-        /// Finds a child by relative path.
-        /// </summary>
-        private GameObject FindChildRecursive(Transform parent, string relativePath)
-        {
-            if (string.IsNullOrEmpty(relativePath))
-                return parent.gameObject;
-            
-            int slashIndex = relativePath.IndexOf('/');
-            string childName = slashIndex >= 0 ? relativePath.Substring(0, slashIndex) : relativePath;
-            string remaining = slashIndex >= 0 ? relativePath.Substring(slashIndex + 1) : "";
-            
-            Transform child = parent.Find(childName);
-            if (child == null)
-                return null;
-            
-            if (string.IsNullOrEmpty(remaining))
-                return child.gameObject;
-            
-            return FindChildRecursive(child, remaining);
-        }
-        
-        /// <summary>
-        /// Gets the full hierarchy path of a Transform.
-        /// </summary>
-        private string GetTransformPath(Transform transform)
-        {
-            if (transform == null)
-                return null;
-            
-            var path = transform.name;
-            var parent = transform.parent;
-            
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            
-            return path;
-        }
-        
+
         /// <summary>
         /// Parses the propertyFilter from payload, handling various input formats.
         /// </summary>
@@ -1007,36 +639,36 @@ namespace MCP.Editor.Handlers
         {
             if (!payload.ContainsKey("propertyFilter"))
                 return null;
-            
+
             var filterValue = payload["propertyFilter"];
-            
+
             // Handle null
             if (filterValue == null)
                 return null;
-            
+
             // Handle List<object> (common from JSON deserialization)
             if (filterValue is List<object> listObj)
                 return listObj.Select(o => o?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            
+
             // Handle object[] array
             if (filterValue is object[] objArray)
                 return objArray.Select(o => o?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            
+
             // Handle string[] array
             if (filterValue is string[] strArray)
                 return strArray.Where(s => !string.IsNullOrEmpty(s)).ToList();
-            
+
             // Handle IEnumerable<string>
             if (filterValue is IEnumerable<string> strEnum)
                 return strEnum.Where(s => !string.IsNullOrEmpty(s)).ToList();
-            
+
             // Handle comma-separated string
             if (filterValue is string str && !string.IsNullOrEmpty(str))
                 return str.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                          .Select(s => s.Trim())
                          .Where(s => !string.IsNullOrEmpty(s))
                          .ToList();
-            
+
             // Handle generic IEnumerable
             if (filterValue is System.Collections.IEnumerable enumerable)
             {
@@ -1049,10 +681,10 @@ namespace MCP.Editor.Handlers
                 }
                 return result.Count > 0 ? result : null;
             }
-            
+
             return null;
         }
-        
+
         #endregion
     }
 }

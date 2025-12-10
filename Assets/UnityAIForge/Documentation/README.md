@@ -5,10 +5,23 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.3.4-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.5-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🆕 v2.3.4の修正と追加
+## 🆕 v2.3.5の新機能
+
+- **🖥️ CLI ベースの MCP サーバー登録機能**
+  - AIツール（Cursor、Claude Code、Cline、Windsurf）への MCP サーバー登録を CLI 経由で実行
+  - JSON 設定ファイル直接編集よりも信頼性が高く、公式CLIコマンドを使用
+  - CLI 非対応ツール（Claude Desktop）は従来の JSON 編集にフォールバック
+  - Claude Code サポート追加（`claude mcp add/remove` コマンド対応）
+
+- **🛠️ MCP Bridge Window 機能強化**
+  - 「AI Tool Registration (CLI)」セクションを新規追加
+  - 各 AI ツールの CLI 利用可否と登録状態をリアルタイム表示
+  - Register All/Unregister All による一括操作
+
+### v2.3.4の修正と追加
 
 - **🔗 Unity オブジェクト参照の文字列パス解決**
   - `propertyChanges` で文字列パスから Unity オブジェクト参照を自動解決

@@ -253,16 +253,25 @@ namespace MCP.Editor.Tests
 
         /// <summary>
         /// コンポーネント付きGameObjectを作成し、追跡リストに追加します。
+        /// Transformの場合は既存のTransformを返します（Transformは全GameObjectに自動的に存在するため）。
         /// </summary>
         /// <typeparam name="T">追加するコンポーネントの型</typeparam>
         /// <param name="name">GameObjectの名前</param>
         /// <returns>作成されたGameObjectとコンポーネントのタプル</returns>
-        public (GameObject gameObject, T component) CreateWithComponent<T>(string name) 
+        public (GameObject gameObject, T component) CreateWithComponent<T>(string name)
             where T : Component
         {
-            var (go, component) = TestUtilities.CreateGameObjectWithComponent<T>(name);
-            _trackedObjects.Add(go);
-            return (go, component);
+            // Transformは全GameObjectに自動的に存在するため、AddComponentではなくGetComponentを使用
+            if (typeof(T) == typeof(Transform))
+            {
+                var go = new GameObject(name);
+                _trackedObjects.Add(go);
+                return (go, go.GetComponent<T>());
+            }
+
+            var (gameObject, component) = TestUtilities.CreateGameObjectWithComponent<T>(name);
+            _trackedObjects.Add(gameObject);
+            return (gameObject, component);
         }
 
         /// <summary>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Base;
+using MCP.Editor.Interfaces;
 using UnityEditor;
 using UnityEngine;
 
@@ -14,8 +15,23 @@ namespace MCP.Editor.Handlers
     /// </summary>
     public class GameObjectCommandHandler : BaseCommandHandler
     {
+        #region Fields
+
+        private readonly IPropertyApplier _propertyApplier;
+
+        #endregion
+
+        #region Constructor
+
+        public GameObjectCommandHandler()
+        {
+            _propertyApplier = new ComponentPropertyApplier();
+        }
+
+        #endregion
+
         #region ICommandHandler Implementation
-        
+
         public override string Category => "gameObject";
         
         public override IEnumerable<string> SupportedOperations => new[]
@@ -73,16 +89,16 @@ namespace MCP.Editor.Handlers
             var name = GetString(payload, "name", "New GameObject");
             var parentPath = GetString(payload, "parentPath");
             var template = GetString(payload, "template");
-            
+
             GameObject instance;
             GameObject parent = null;
-            
+
             // Resolve parent if specified
             if (!string.IsNullOrEmpty(parentPath))
             {
                 parent = ResolveGameObject(parentPath);
             }
-            
+
             // Create from template (prefab) or create new
             if (!string.IsNullOrEmpty(template))
             {
@@ -91,28 +107,95 @@ namespace MCP.Editor.Handlers
                 {
                     throw new InvalidOperationException($"Prefab not found: {template}");
                 }
-                
+
                 instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             }
             else
             {
                 instance = new GameObject(name);
             }
-            
+
             // Set parent
             if (parent != null)
             {
                 instance.transform.SetParent(parent.transform, false);
             }
-            
+
             // Register undo
             Undo.RegisterCreatedObjectUndo(instance, $"Create GameObject: {instance.name}");
-            
-            return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(instance)),
-                ("name", instance.name),
-                ("instanceID", instance.GetInstanceID())
-            );
+
+            // Add components if specified
+            var addedComponents = new List<Dictionary<string, object>>();
+            if (payload.ContainsKey("components"))
+            {
+                var components = payload["components"] as List<object>;
+                if (components != null)
+                {
+                    foreach (var componentObj in components)
+                    {
+                        var componentDef = componentObj as Dictionary<string, object>;
+                        if (componentDef == null) continue;
+
+                        var componentTypeName = componentDef.ContainsKey("type") ? componentDef["type"]?.ToString() : null;
+                        if (string.IsNullOrEmpty(componentTypeName)) continue;
+
+                        try
+                        {
+                            var componentType = ResolveType(componentTypeName);
+                            if (!typeof(Component).IsAssignableFrom(componentType))
+                            {
+                                Debug.LogWarning($"Type {componentTypeName} is not a Component, skipping");
+                                continue;
+                            }
+
+                            var component = Undo.AddComponent(instance, componentType);
+
+                            var componentResult = new Dictionary<string, object>
+                            {
+                                ["type"] = componentType.FullName,
+                                ["instanceID"] = component.GetInstanceID()
+                            };
+
+                            // Apply property changes if provided
+                            if (componentDef.ContainsKey("properties"))
+                            {
+                                var properties = componentDef["properties"] as Dictionary<string, object>;
+                                if (properties != null && properties.Count > 0)
+                                {
+                                    var applyResult = _propertyApplier.ApplyProperties(component, properties);
+                                    componentResult["updatedProperties"] = applyResult.Updated;
+                                }
+                            }
+
+                            addedComponents.Add(componentResult);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogWarning($"Failed to add component {componentTypeName}: {ex.Message}");
+                            addedComponents.Add(new Dictionary<string, object>
+                            {
+                                ["type"] = componentTypeName,
+                                ["error"] = ex.Message
+                            });
+                        }
+                    }
+                }
+            }
+
+            var response = new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["gameObjectPath"] = GetGameObjectPath(instance),
+                ["name"] = instance.name,
+                ["instanceID"] = instance.GetInstanceID()
+            };
+
+            if (addedComponents.Count > 0)
+            {
+                response["components"] = addedComponents;
+            }
+
+            return response;
         }
         
         /// <summary>
@@ -474,7 +557,7 @@ namespace MCP.Editor.Handlers
                 ["z"] = vector.z
             };
         }
-        
+
         #endregion
     }
 }

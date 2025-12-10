@@ -34,7 +34,7 @@ git clone https://github.com/kuroyasouiti/Unity-AI-Forge.git
 
 ## ✨ Features
 
-### 🤖 AI Integration (22 Tools)
+### 🤖 AI Integration (24 Tools)
 Model Context Protocol で Unity を AI から操作
 - Scene/GameObject/Component の完全制御
 - 自然言語でのゲーム開発

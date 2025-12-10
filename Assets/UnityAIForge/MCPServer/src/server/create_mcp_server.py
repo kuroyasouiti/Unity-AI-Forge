@@ -402,7 +402,7 @@ def create_mcp_server() -> Server:
                 "例: unity_gamekit_actor, unity_gamekit_machinations, unity_transform_batch, unity_character_controller_bundle, unity_gameobject_crud, unity_batch_sequential_execute",
                 "",
                 "---",
-                "Unity-AI-Forge v2.3.0 - 24 Tools, 100+ Operations, 3-Layer Architecture + Batch Processing + Machinations Economics + Physics2D + Sorting Layers",
+                "Unity-AI-Forge v2.3.5 - 24 Tools, 100+ Operations, 3-Layer Architecture + Batch Processing + Machinations Economics + Physics2D + Sorting Layers + CLI Registration",
             ]
         ),
     )
