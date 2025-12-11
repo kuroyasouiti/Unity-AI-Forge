@@ -618,16 +618,6 @@ namespace MCP.Editor.Handlers
             return EditorPrefs.GetString(activeKey, "");
         }
 
-        private GameObject ResolveGameObject(string path)
-        {
-            var go = GameObject.Find(path);
-            if (go == null)
-            {
-                throw new InvalidOperationException($"GameObject not found: {path}");
-            }
-            return go;
-        }
-
         private string BuildGameObjectPath(GameObject go)
         {
             var path = go.name;

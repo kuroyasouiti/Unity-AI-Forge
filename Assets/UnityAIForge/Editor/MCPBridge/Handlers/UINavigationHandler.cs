@@ -327,7 +327,7 @@ namespace MCP.Editor.Handlers
             EditorSceneManager.MarkSceneDirty(rootGo.scene);
 
             // Set first selected if EventSystem exists
-            var eventSystem = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+            var eventSystem = UnityEngine.Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
             if (eventSystem != null && selectables.Count > 0)
             {
                 eventSystem.firstSelectedGameObject = selectables[0].gameObject;
@@ -469,7 +469,7 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException($"GameObject '{gameObjectPath}' does not have a Selectable component.");
             }
 
-            var eventSystem = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+            var eventSystem = UnityEngine.Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
             if (eventSystem == null)
             {
                 throw new InvalidOperationException("No EventSystem found in the scene.");
@@ -638,16 +638,6 @@ namespace MCP.Editor.Handlers
         #endregion
 
         #region Helper Methods
-
-        private GameObject ResolveGameObject(string path)
-        {
-            var go = GameObject.Find(path);
-            if (go == null)
-            {
-                throw new InvalidOperationException($"GameObject not found: {path}");
-            }
-            return go;
-        }
 
         private string BuildGameObjectPath(GameObject go)
         {

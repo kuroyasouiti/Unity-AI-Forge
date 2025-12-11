@@ -1399,16 +1399,6 @@ namespace MCP.Editor.Handlers
             return defaultValue;
         }
 
-        private bool GetBool(Dictionary<string, object> payload, string key, bool defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                if (value is bool b) return b;
-                if (value is string s) return s.ToLowerInvariant() == "true";
-            }
-            return defaultValue;
-        }
-
         private string BuildGameObjectPath(GameObject go)
         {
             var path = go.name;
