@@ -7,8 +7,9 @@ from mcp.server import Server
 
 from bridge.bridge_manager import bridge_manager
 from logger import logger
+from tools.batch_sequential import TOOL as batch_sequential_tool
+from tools.batch_sequential import handle_batch_sequential
 from utils.json_utils import as_pretty_json
-from tools.batch_sequential import TOOL as batch_sequential_tool, handle_batch_sequential
 
 
 def _ensure_bridge_connected() -> None:
@@ -1900,29 +1901,29 @@ unity_ui_navigation({
         if name == "unity_asset_crud":
             # Handle asset CRUD operations
             result = await _call_bridge_tool("assetManage", args)
-            
+
             # Check if we need to wait for compilation (C# script creation/update/deletion)
             operation = args.get("operation")
             asset_path = args.get("assetPath", "")
-            
+
             if operation in ["create", "update", "delete"] and asset_path.lower().endswith(".cs"):
                 logger.info(
                     "C# script %s operation '%s' detected - waiting for compilation to complete...",
                     asset_path,
                     operation,
                 )
-                
+
                 try:
                     # Wait for compilation with extended timeout (60 seconds)
                     compilation_result = await bridge_manager.await_compilation(timeout_seconds=60)
-                    
+
                     logger.info(
                         "Compilation completed: success=%s, errors=%s, elapsed=%ss",
                         compilation_result.get("success"),
                         compilation_result.get("errorCount", 0),
                         compilation_result.get("elapsedSeconds", 0),
                     )
-                    
+
                     # Add compilation result to the response
                     if isinstance(result[0].text, str):
                         import json
@@ -1933,14 +1934,14 @@ unity_ui_navigation({
                         except (json.JSONDecodeError, AttributeError):
                             # If we can't parse the result, just append compilation info
                             result[0].text += f"\n\nCompilation: {as_pretty_json(compilation_result)}"
-                
+
                 except TimeoutError as exc:
                     logger.warning("Compilation wait timed out: %s", exc)
                     # Don't fail the operation, just log the timeout
                 except Exception as exc:
                     logger.warning("Error while waiting for compilation: %s", exc)
                     # Don't fail the operation, just log the error
-            
+
             return result
 
         if name == "unity_scriptableObject_crud":

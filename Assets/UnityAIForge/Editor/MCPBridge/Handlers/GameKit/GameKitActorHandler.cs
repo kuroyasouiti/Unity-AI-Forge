@@ -95,7 +95,14 @@ namespace MCP.Editor.Handlers.GameKit
                     var tileGridType = System.Type.GetType("UnityAIForge.GameKit.TileGridMovement, UnityAIForge.GameKit.Runtime");
                     if (tileGridType != null)
                     {
-                        Undo.AddComponent(go, tileGridType);
+                        var tileGridComponent = Undo.AddComponent(go, tileGridType);
+
+                        // Auto-find Grid and Tilemaps in scene
+                        var autoFindMethod = tileGridType.GetMethod("AutoFindTilemaps");
+                        if (autoFindMethod != null)
+                        {
+                            autoFindMethod.Invoke(tileGridComponent, null);
+                        }
                     }
                     break;
 

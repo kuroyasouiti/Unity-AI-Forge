@@ -170,6 +170,12 @@ async def startup() -> None:
         env.host,
         env.port,
     )
+    logger.info(
+        "Unity Bridge target: %s:%s (token=%s)",
+        env.unity_bridge_host,
+        env.unity_bridge_port,
+        "****" + env.bridge_token[-4:] if env.bridge_token and len(env.bridge_token) > 4 else ("set" if env.bridge_token else "not set"),
+    )
     await editor_log_watcher.start()
     bridge_connector.start()
 
@@ -248,11 +254,35 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=os.environ.get("MCP_SERVER_TRANSPORT", "stdio"),
         help="Transport to expose (defaults to MCP_SERVER_TRANSPORT or 'stdio')",
     )
+    parser.add_argument(
+        "--bridge-token",
+        default=None,
+        help="Authentication token for Unity Bridge connection (overrides env/file)",
+    )
+    parser.add_argument(
+        "--bridge-host",
+        default=None,
+        help="Unity Bridge host address (overrides UNITY_BRIDGE_HOST, default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--bridge-port",
+        type=int,
+        default=None,
+        help="Unity Bridge port (overrides UNITY_BRIDGE_PORT, default: 7070)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
+
+    # Apply CLI argument overrides before accessing env
+    from config.env import apply_cli_overrides
+    apply_cli_overrides(
+        bridge_token=args.bridge_token,
+        bridge_host=args.bridge_host,
+        bridge_port=args.bridge_port,
+    )
 
     if args.transport == "stdio":
         try:

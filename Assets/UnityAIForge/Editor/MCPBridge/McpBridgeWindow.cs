@@ -20,38 +20,39 @@ namespace MCP.Editor
         private bool _showBridgeSection = true;
         private bool _showLogSection = false;
         private bool _showServerManagerSection = true;
-        private bool _showAiToolRegistrationSection = true;
-        private bool _showCustomConfigSection = false;
+        private bool _showProjectRegistrationSection = true;
 
         // Server Manager State
         private ServerStatus _serverStatus;
 
         // AI Tool Registration State
         private Dictionary<AITool, (bool cliAvailable, bool registered)> _aiToolStatus = new();
-#pragma warning disable CS0414 // Field is assigned but its value is never used
-        private bool _serverManagerInitialized;
-#pragma warning restore CS0414
-        
-        // Custom Config State
-        private string _customConfigPath = "";
-        private bool _customConfigExists = false;
-        private bool _customConfigHasServer = false;
 
-        private readonly struct CliRegistration
+        // Project Registration State (CLI-based)
+        private bool _showConfigPreview = false;
+        private McpCliRegistry.RegistrationScope _registrationScope = McpCliRegistry.RegistrationScope.User;
+
+        // GUI Styles (lazy initialized)
+        private static GUIStyle _statusConnectedStyle;
+        private static GUIStyle _statusDisconnectedStyle;
+        private static GUIStyle _statusConnectingStyle;
+
+        private static GUIStyle StatusConnectedStyle => _statusConnectedStyle ??= new GUIStyle(EditorStyles.helpBox)
         {
-            public CliRegistration(string displayName, string cliName, string registerArgs, string unregisterArgs)
-            {
-                DisplayName = displayName;
-                CliName = cliName;
-                RegisterArgs = registerArgs;
-                UnregisterArgs = unregisterArgs;
-            }
+            normal = { textColor = new Color(0.2f, 0.7f, 0.2f) },
+            fontStyle = FontStyle.Bold
+        };
 
-            public string DisplayName { get; }
-            public string CliName { get; }
-            public string RegisterArgs { get; }
-            public string UnregisterArgs { get; }
-        }
+        private static GUIStyle StatusDisconnectedStyle => _statusDisconnectedStyle ??= new GUIStyle(EditorStyles.helpBox)
+        {
+            normal = { textColor = new Color(0.6f, 0.6f, 0.6f) }
+        };
+
+        private static GUIStyle StatusConnectingStyle => _statusConnectingStyle ??= new GUIStyle(EditorStyles.helpBox)
+        {
+            normal = { textColor = new Color(0.9f, 0.7f, 0.2f) },
+            fontStyle = FontStyle.Italic
+        };
 
         [MenuItem("Unity-AI-Forge/MCP Assistant")]
         public static void ShowWindow()
@@ -65,11 +66,16 @@ namespace MCP.Editor
             McpBridgeService.StateChanged += OnStateChanged;
             McpBridgeService.ClientInfoReceived += OnClientInfoReceived;
             UpdateStatus(McpBridgeService.State);
-            
+
             // Initialize Server Manager
             Application.logMessageReceived += OnLogMessageReceived;
+            RefreshAllStatus();
+        }
+
+        private void RefreshAllStatus()
+        {
             RefreshServerManagerStatus();
-            RefreshAiToolStatus();
+            RefreshProjectRegistrationStatus();
         }
 
         private void OnDisable()
@@ -104,10 +110,14 @@ namespace MCP.Editor
         {
             var settings = McpBridgeSettings.Instance;
 
+            // Draw connection status bar at the top
+            DrawConnectionStatusBar();
+
             using (var scroll = new EditorGUILayout.ScrollViewScope(_mainScroll))
             {
                 _mainScroll = scroll.scrollPosition;
 
+                // Bridge Listener Section
                 _showBridgeSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showBridgeSection, "Bridge Listener");
                 if (_showBridgeSection)
                 {
@@ -119,8 +129,9 @@ namespace MCP.Editor
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
 
-                GUILayout.Space(4f);
+                DrawSectionSeparator();
 
+                // MCP Server Manager Section
                 _showServerManagerSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showServerManagerSection, "MCP Server Manager");
                 if (_showServerManagerSection)
                 {
@@ -128,26 +139,19 @@ namespace MCP.Editor
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
 
-                GUILayout.Space(4f);
+                DrawSectionSeparator();
 
-                _showAiToolRegistrationSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showAiToolRegistrationSection, "AI Tool Registration (CLI)");
-                if (_showAiToolRegistrationSection)
+                // Project Registration Section (CLI-based)
+                _showProjectRegistrationSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showProjectRegistrationSection, "Project Registration (CLI)");
+                if (_showProjectRegistrationSection)
                 {
-                    DrawAiToolRegistrationSection();
+                    DrawProjectRegistrationSection();
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
 
-                GUILayout.Space(4f);
+                DrawSectionSeparator();
 
-                _showCustomConfigSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showCustomConfigSection, "Config File Manager (JSON)");
-                if (_showCustomConfigSection)
-                {
-                    DrawCustomConfigSection();
-                }
-                EditorGUILayout.EndFoldoutHeaderGroup();
-
-                GUILayout.Space(4f);
-
+                // Command Output Section
                 _showLogSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showLogSection, "Command Output");
                 if (_showLogSection)
                 {
@@ -155,6 +159,48 @@ namespace MCP.Editor
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
             }
+        }
+
+        private void DrawConnectionStatusBar()
+        {
+            var state = McpBridgeService.State;
+            var style = state switch
+            {
+                McpConnectionState.Connected => StatusConnectedStyle,
+                McpConnectionState.Connecting => StatusConnectingStyle,
+                _ => StatusDisconnectedStyle
+            };
+
+            var icon = state switch
+            {
+                McpConnectionState.Connected => "\u25cf",  // ●
+                McpConnectionState.Connecting => "\u25cb", // ○
+                _ => "\u25cb"                              // ○
+            };
+
+            var statusText = state switch
+            {
+                McpConnectionState.Connected => $"{icon} Connected - Session: {PreviewSessionId()}",
+                McpConnectionState.Connecting => $"{icon} Listening for connections...",
+                _ => $"{icon} Bridge Stopped"
+            };
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(statusText, style);
+
+                if (GUILayout.Button("Refresh All", GUILayout.Width(80)))
+                {
+                    RefreshAllStatus();
+                    AppendLog("All status refreshed");
+                }
+            }
+            GUILayout.Space(2f);
+        }
+
+        private static void DrawSectionSeparator()
+        {
+            GUILayout.Space(6f);
         }
 
         private void DrawBridgeSettings(McpBridgeSettings settings)
@@ -241,38 +287,31 @@ namespace MCP.Editor
         }
 
 
-        private void DrawCliRow(CliRegistration entry)
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.LabelField(entry.DisplayName, GUILayout.Width(160f));
-
-                if (GUILayout.Button("Register", GUILayout.Width(90f)))
-                {
-                    RunRegisterCommand(entry);
-                }
-
-                if (GUILayout.Button("Remove", GUILayout.Width(90f)))
-                {
-                    RunCliCommand(($"{entry.CliName} {entry.UnregisterArgs}").Trim(), $"{entry.DisplayName} remove");
-                }
-            }
-        }
-
         private void DrawCommandLog()
         {
-            EditorGUILayout.LabelField("Command Output", EditorStyles.boldLabel);
-            using (var scroll = new EditorGUILayout.ScrollViewScope(_logScroll, GUILayout.Height(170f)))
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                _logScroll = scroll.scrollPosition;
-                GUI.enabled = false;
-                EditorGUILayout.TextArea(_logBuilder.ToString(), GUILayout.ExpandHeight(true));
-                GUI.enabled = true;
-            }
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Clear", GUILayout.Width(60)))
+                    {
+                        _logBuilder.Clear();
+                    }
+                }
 
-            if (_commandRunning)
-            {
-                EditorGUILayout.HelpBox("Command currently running...", MessageType.None);
+                using (var scroll = new EditorGUILayout.ScrollViewScope(_logScroll, GUILayout.Height(150f)))
+                {
+                    _logScroll = scroll.scrollPosition;
+                    GUI.enabled = false;
+                    EditorGUILayout.TextArea(_logBuilder.ToString(), GUILayout.ExpandHeight(true));
+                    GUI.enabled = true;
+                }
+
+                if (_commandRunning)
+                {
+                    EditorGUILayout.HelpBox("Command currently running...", MessageType.None);
+                }
             }
         }
 
@@ -395,26 +434,6 @@ namespace MCP.Editor
             continuation?.Invoke(result);
         }
 
-        private static string QuoteForCli(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return "\"\"";
-            }
-
-            return $"\"{value.Replace("\"", "\\\"")}\"";
-        }
-
-        private void RunRegisterCommand(CliRegistration entry)
-        {
-            var registerCommand = ($"{entry.CliName} {entry.RegisterArgs}").Trim();
-            RunCliCommand(registerCommand, $"{entry.DisplayName} register", _ =>
-            {
-                var listCommand = ($"{entry.CliName} mcp list").Trim();
-                RunCliCommand(listCommand, $"{entry.DisplayName} list");
-            });
-        }
-
         private static string ResolveProjectDirectory()
         {
             try
@@ -449,19 +468,6 @@ namespace MCP.Editor
             return string.Empty;
         }
 
-        private void HandleRegistrationResult(string clientName, bool success, string message)
-        {
-            AppendLog($"[{clientName}] {message}");
-            if (success)
-            {
-                Debug.Log($"[{clientName}] {message}");
-            }
-            else
-            {
-                Debug.LogWarning($"[{clientName}] {message}");
-            }
-        }
-
         private static string PreviewSessionId()
         {
             var session = McpBridgeService.SessionId;
@@ -480,12 +486,11 @@ namespace MCP.Editor
             try
             {
                 _serverStatus = McpServerManager.GetStatus();
-                _serverManagerInitialized = true;
             }
             catch (Exception ex)
             {
                 AppendLog($"Failed to refresh server manager status: {ex.Message}");
-                _serverManagerInitialized = false;
+                _serverStatus = null;
             }
         }
         
@@ -677,28 +682,43 @@ namespace MCP.Editor
 
                 AppendLog(cleanMessage);
             }
+
+            // Project Registry logs
+            if (message.Contains("[McpProjectRegistry]"))
+            {
+                var cleanMessage = message;
+                if (message.Contains("]"))
+                {
+                    var index = message.IndexOf("]");
+                    cleanMessage = message.Substring(index + 1).Trim();
+                }
+
+                AppendLog(cleanMessage);
+            }
         }
 
         #endregion
 
-        #region AI Tool Registration (CLI)
+        #region Project Registration (CLI)
 
-        private void RefreshAiToolStatus()
+        private void RefreshProjectRegistrationStatus()
         {
             _aiToolStatus.Clear();
 
             // CLI対応のAIツールのみチェック
             var cliTools = new[] { AITool.Cursor, AITool.ClaudeCode, AITool.Cline, AITool.Windsurf };
+            var serverName = McpProjectRegistry.GetProjectServerName();
 
             foreach (var tool in cliTools)
             {
                 var cliAvailable = McpCliRegistry.IsCliAvailable(tool);
-                var registered = McpToolRegistry.IsRegistered(tool);
+                // CLIが利用可能な場合のみ登録状態をチェック
+                var registered = cliAvailable && McpCliRegistry.IsServerRegistered(tool, serverName);
                 _aiToolStatus[tool] = (cliAvailable, registered);
             }
         }
 
-        private void DrawAiToolRegistrationSection()
+        private void DrawProjectRegistrationSection()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
@@ -708,10 +728,39 @@ namespace MCP.Editor
                     return;
                 }
 
-                EditorGUILayout.LabelField("Register MCP Server via CLI", EditorStyles.boldLabel);
+                // Project info
+                EditorGUILayout.LabelField("Project Info", EditorStyles.boldLabel);
+
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    EditorGUILayout.LabelField("Project Name", McpProjectRegistry.GetProjectName());
+                    EditorGUILayout.LabelField("Server Name", McpProjectRegistry.GetProjectServerName());
+
+                    var settings = McpBridgeSettings.Instance;
+                    EditorGUILayout.LabelField("Bridge Port", settings.ServerPort.ToString());
+                    EditorGUILayout.LabelField("Token", settings.BridgeTokenMasked);
+
+                    GUILayout.Space(3f);
+
+                    // Scope selector (for Claude Code)
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField("Scope", GUILayout.Width(80));
+                        _registrationScope = (McpCliRegistry.RegistrationScope)EditorGUILayout.EnumPopup(_registrationScope);
+                    }
+                    EditorGUILayout.LabelField(
+                        _registrationScope == McpCliRegistry.RegistrationScope.User
+                            ? "User: Available in all projects"
+                            : "Local: Only for this project",
+                        EditorStyles.miniLabel);
+                }
+
+                GUILayout.Space(5f);
+
                 EditorGUILayout.HelpBox(
-                    "Use the native CLI commands of each AI tool to register the MCP server.\n" +
-                    "This is the recommended method for tools that support it.",
+                    "Register this project to AI tools via CLI.\n" +
+                    "Each registration includes the bridge token and port.\n" +
+                    "CLI: Command available, MCP: Supports MCP CLI commands (some tools open GUI instead)",
                     MessageType.Info
                 );
 
@@ -722,6 +771,7 @@ namespace MCP.Editor
                 {
                     EditorGUILayout.LabelField("AI Tool", EditorStyles.boldLabel, GUILayout.Width(120));
                     EditorGUILayout.LabelField("CLI", EditorStyles.boldLabel, GUILayout.Width(50));
+                    EditorGUILayout.LabelField("MCP", EditorStyles.boldLabel, GUILayout.Width(50));
                     EditorGUILayout.LabelField("Status", EditorStyles.boldLabel, GUILayout.Width(100));
                     EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
                 }
@@ -729,10 +779,10 @@ namespace MCP.Editor
                 DrawToolDivider();
 
                 // Draw each AI tool row
-                DrawAiToolRow(AITool.Cursor);
-                DrawAiToolRow(AITool.ClaudeCode);
-                DrawAiToolRow(AITool.Cline);
-                DrawAiToolRow(AITool.Windsurf);
+                DrawProjectToolRow(AITool.Cursor);
+                DrawProjectToolRow(AITool.ClaudeCode);
+                DrawProjectToolRow(AITool.Cline);
+                DrawProjectToolRow(AITool.Windsurf);
 
                 GUILayout.Space(5f);
 
@@ -741,23 +791,32 @@ namespace MCP.Editor
                 {
                     GUI.enabled = !_commandRunning;
 
-                    if (GUILayout.Button("Register All (CLI Available)", GUILayout.Height(25)))
+                    if (GUILayout.Button("Register All", GUILayout.Height(25)))
                     {
-                        RegisterAllViaCli();
+                        RegisterProjectToAllViaCli();
                     }
 
-                    if (GUILayout.Button("Unregister All (CLI Available)", GUILayout.Height(25)))
+                    if (GUILayout.Button("Unregister All", GUILayout.Height(25)))
                     {
-                        UnregisterAllViaCli();
+                        UnregisterProjectFromAllViaCli();
                     }
 
                     if (GUILayout.Button("Refresh", GUILayout.Height(25)))
                     {
-                        RefreshAiToolStatus();
-                        AppendLog("AI tool status refreshed");
+                        RefreshProjectRegistrationStatus();
+                        AppendLog("Project registration status refreshed");
                     }
 
                     GUI.enabled = true;
+                }
+
+                GUILayout.Space(5f);
+
+                // Config preview
+                _showConfigPreview = EditorGUILayout.Foldout(_showConfigPreview, "Config Preview");
+                if (_showConfigPreview)
+                {
+                    DrawCliCommandPreview();
                 }
             }
         }
@@ -768,12 +827,14 @@ namespace MCP.Editor
             EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 0.5f));
         }
 
-        private void DrawAiToolRow(AITool tool)
+        private void DrawProjectToolRow(AITool tool)
         {
             if (!_aiToolStatus.TryGetValue(tool, out var status))
             {
                 status = (false, false);
             }
+
+            var mcpSupported = McpCliRegistry.IsMcpCliSupported(tool);
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -781,29 +842,43 @@ namespace MCP.Editor
                 EditorGUILayout.LabelField(McpConfigManager.GetToolDisplayName(tool), GUILayout.Width(120));
 
                 // CLI availability
-                var cliIcon = status.cliAvailable ? "✅" : "❌";
+                var cliIcon = status.cliAvailable ? "\u2713" : "\u2717";
                 EditorGUILayout.LabelField(cliIcon, GUILayout.Width(50));
 
+                // MCP CLI support (some CLIs open GUI app instead of running MCP commands)
+                var mcpIcon = mcpSupported ? "\u2713" : "-";
+                EditorGUILayout.LabelField(mcpIcon, GUILayout.Width(50));
+
                 // Registration status
-                var statusText = status.registered ? "Registered" : "Not Registered";
-                var statusStyle = status.registered ? EditorStyles.boldLabel : EditorStyles.label;
+                string statusText;
+                GUIStyle statusStyle;
+                if (!mcpSupported)
+                {
+                    statusText = "Not Supported";
+                    statusStyle = EditorStyles.miniLabel;
+                }
+                else
+                {
+                    statusText = status.registered ? "Registered" : "Not Registered";
+                    statusStyle = status.registered ? EditorStyles.boldLabel : EditorStyles.label;
+                }
                 EditorGUILayout.LabelField(statusText, statusStyle, GUILayout.Width(100));
 
-                // Actions
-                GUI.enabled = status.cliAvailable && !_commandRunning;
+                // Actions - only enable for tools that support MCP CLI
+                GUI.enabled = status.cliAvailable && mcpSupported && !_commandRunning;
 
                 if (!status.registered)
                 {
                     if (GUILayout.Button("Register", GUILayout.Width(80)))
                     {
-                        RegisterToolViaCli(tool);
+                        RegisterProjectToToolViaCli(tool);
                     }
                 }
                 else
                 {
                     if (GUILayout.Button("Unregister", GUILayout.Width(80)))
                     {
-                        UnregisterToolViaCli(tool);
+                        UnregisterProjectFromToolViaCli(tool);
                     }
                 }
 
@@ -811,26 +886,79 @@ namespace MCP.Editor
             }
         }
 
-        private void RegisterToolViaCli(AITool tool)
+        private void DrawCliCommandPreview()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                var settings = McpBridgeSettings.Instance;
+                var serverName = McpProjectRegistry.GetProjectServerName();
+                var serverPath = McpServerManager.UserInstallPath;
+
+                EditorGUILayout.LabelField("CLI Command Preview:", EditorStyles.boldLabel);
+
+                var command = $"<cli> mcp add {serverName} --directory \"{serverPath}\" -- --bridge-port {settings.ServerPort} --bridge-token {settings.BridgeTokenMasked}";
+
+                GUI.enabled = false;
+                EditorGUILayout.TextArea(command, GUILayout.Height(60));
+                GUI.enabled = true;
+
+                EditorGUILayout.HelpBox(
+                    "Replace <cli> with: cursor, claude, cline, or windsurf",
+                    MessageType.None
+                );
+            }
+        }
+
+        private void RegisterProjectToToolViaCli(AITool tool)
         {
             try
             {
                 _commandRunning = true;
-                AppendLog($"Registering to {McpConfigManager.GetToolDisplayName(tool)} via CLI...");
+                var toolName = McpConfigManager.GetToolDisplayName(tool);
+                AppendLog($"Registering project to {toolName} via CLI...");
 
-                McpToolRegistry.Register(tool);
+                var settings = McpBridgeSettings.Instance;
+                var options = new McpCliRegistry.ProjectRegistrationOptions
+                {
+                    ServerName = McpProjectRegistry.GetProjectServerName(),
+                    ServerPath = McpServerManager.UserInstallPath,
+                    BridgeToken = settings.BridgeToken,
+                    BridgeHost = settings.ServerHost,
+                    BridgePort = settings.ServerPort,
+                    ProjectPath = McpProjectRegistry.GetProjectPath(),
+                    Scope = _registrationScope
+                };
 
-                RefreshAiToolStatus();
-                AppendLog($"✅ Successfully registered to {McpConfigManager.GetToolDisplayName(tool)}");
+                var result = McpCliRegistry.RegisterProject(tool, options);
 
-                EditorUtility.DisplayDialog("Success",
-                    $"Successfully registered to {McpConfigManager.GetToolDisplayName(tool)}!\n\n" +
-                    "Please restart the AI tool for changes to take effect.",
-                    "OK");
+                RefreshProjectRegistrationStatus();
+
+                if (result.Success)
+                {
+                    AppendLog($"Successfully registered to {toolName}");
+                    if (!string.IsNullOrEmpty(result.Output))
+                    {
+                        AppendLog($"Output: {result.Output}");
+                    }
+
+                    EditorUtility.DisplayDialog("Success",
+                        $"Successfully registered to {toolName}!\n\n" +
+                        $"Server: {options.ServerName}\n" +
+                        $"Port: {options.BridgePort}\n\n" +
+                        "Please restart the AI tool for changes to take effect.",
+                        "OK");
+                }
+                else
+                {
+                    AppendLog($"Failed to register to {toolName}: {result.Error}");
+                    EditorUtility.DisplayDialog("Registration Failed",
+                        $"Failed to register to {toolName}.\n\n{result.Error}",
+                        "OK");
+                }
             }
             catch (Exception ex)
             {
-                AppendLog($"❌ Failed to register to {McpConfigManager.GetToolDisplayName(tool)}: {ex.Message}");
+                AppendLog($"Failed to register project: {ex.Message}");
                 EditorUtility.DisplayDialog("Error",
                     $"Failed to register:\n\n{ex.Message}",
                     "OK");
@@ -842,26 +970,43 @@ namespace MCP.Editor
             }
         }
 
-        private void UnregisterToolViaCli(AITool tool)
+        private void UnregisterProjectFromToolViaCli(AITool tool)
         {
             try
             {
                 _commandRunning = true;
-                AppendLog($"Unregistering from {McpConfigManager.GetToolDisplayName(tool)} via CLI...");
+                var toolName = McpConfigManager.GetToolDisplayName(tool);
+                var serverName = McpProjectRegistry.GetProjectServerName();
+                AppendLog($"Unregistering project from {toolName} via CLI (scope: {_registrationScope})...");
 
-                McpToolRegistry.Unregister(tool);
+                var result = McpCliRegistry.UnregisterProject(tool, serverName, _registrationScope);
 
-                RefreshAiToolStatus();
-                AppendLog($"✅ Successfully unregistered from {McpConfigManager.GetToolDisplayName(tool)}");
+                RefreshProjectRegistrationStatus();
 
-                EditorUtility.DisplayDialog("Success",
-                    $"Successfully unregistered from {McpConfigManager.GetToolDisplayName(tool)}!\n\n" +
-                    "Please restart the AI tool for changes to take effect.",
-                    "OK");
+                if (result.Success)
+                {
+                    AppendLog($"Successfully unregistered from {toolName}");
+                    if (!string.IsNullOrEmpty(result.Output))
+                    {
+                        AppendLog($"Output: {result.Output}");
+                    }
+
+                    EditorUtility.DisplayDialog("Success",
+                        $"Successfully unregistered from {toolName}!\n\n" +
+                        "Please restart the AI tool for changes to take effect.",
+                        "OK");
+                }
+                else
+                {
+                    AppendLog($"Failed to unregister from {toolName}: {result.Error}");
+                    EditorUtility.DisplayDialog("Unregistration Failed",
+                        $"Failed to unregister from {toolName}.\n\n{result.Error}",
+                        "OK");
+                }
             }
             catch (Exception ex)
             {
-                AppendLog($"❌ Failed to unregister from {McpConfigManager.GetToolDisplayName(tool)}: {ex.Message}");
+                AppendLog($"Failed to unregister project: {ex.Message}");
                 EditorUtility.DisplayDialog("Error",
                     $"Failed to unregister:\n\n{ex.Message}",
                     "OK");
@@ -873,36 +1018,60 @@ namespace MCP.Editor
             }
         }
 
-        private void RegisterAllViaCli()
+        private void RegisterProjectToAllViaCli()
         {
             var successCount = 0;
             var failCount = 0;
+            var settings = McpBridgeSettings.Instance;
 
             foreach (var kvp in _aiToolStatus)
             {
                 var tool = kvp.Key;
-                var status = kvp.Value;
+                var (cliAvailable, registered) = kvp.Value;
 
-                if (!status.cliAvailable || status.registered)
+                // Skip if CLI not available, already registered, or MCP CLI not supported
+                if (!cliAvailable || registered || !McpCliRegistry.IsMcpCliSupported(tool))
                 {
                     continue;
                 }
 
                 try
                 {
-                    AppendLog($"Registering to {McpConfigManager.GetToolDisplayName(tool)}...");
-                    McpToolRegistry.Register(tool);
-                    successCount++;
-                    AppendLog($"✅ {McpConfigManager.GetToolDisplayName(tool)} registered");
+                    var toolName = McpConfigManager.GetToolDisplayName(tool);
+                    AppendLog($"Registering to {toolName}...");
+
+                    var options = new McpCliRegistry.ProjectRegistrationOptions
+                    {
+                        ServerName = McpProjectRegistry.GetProjectServerName(),
+                        ServerPath = McpServerManager.UserInstallPath,
+                        BridgeToken = settings.BridgeToken,
+                        BridgeHost = settings.ServerHost,
+                        BridgePort = settings.ServerPort,
+                        ProjectPath = McpProjectRegistry.GetProjectPath(),
+                        Scope = _registrationScope
+                    };
+
+                    var result = McpCliRegistry.RegisterProject(tool, options);
+
+                    if (result.Success)
+                    {
+                        successCount++;
+                        AppendLog($"{toolName} registered");
+                    }
+                    else
+                    {
+                        failCount++;
+                        AppendLog($"{toolName} failed: {result.Error}");
+                    }
                 }
                 catch (Exception ex)
                 {
                     failCount++;
-                    AppendLog($"❌ {McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
+                    AppendLog($"{McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
                 }
             }
 
-            RefreshAiToolStatus();
+            RefreshProjectRegistrationStatus();
             AppendLog($"Batch registration completed: {successCount} succeeded, {failCount} failed");
 
             if (successCount > 0)
@@ -914,36 +1083,49 @@ namespace MCP.Editor
             }
         }
 
-        private void UnregisterAllViaCli()
+        private void UnregisterProjectFromAllViaCli()
         {
             var successCount = 0;
             var failCount = 0;
+            var serverName = McpProjectRegistry.GetProjectServerName();
 
             foreach (var kvp in _aiToolStatus)
             {
                 var tool = kvp.Key;
-                var status = kvp.Value;
+                var (cliAvailable, registered) = kvp.Value;
 
-                if (!status.cliAvailable || !status.registered)
+                // Skip if CLI not available, not registered, or MCP CLI not supported
+                if (!cliAvailable || !registered || !McpCliRegistry.IsMcpCliSupported(tool))
                 {
                     continue;
                 }
 
                 try
                 {
-                    AppendLog($"Unregistering from {McpConfigManager.GetToolDisplayName(tool)}...");
-                    McpToolRegistry.Unregister(tool);
-                    successCount++;
-                    AppendLog($"✅ {McpConfigManager.GetToolDisplayName(tool)} unregistered");
+                    var toolName = McpConfigManager.GetToolDisplayName(tool);
+                    AppendLog($"Unregistering from {toolName} (scope: {_registrationScope})...");
+
+                    var result = McpCliRegistry.UnregisterProject(tool, serverName, _registrationScope);
+
+                    if (result.Success)
+                    {
+                        successCount++;
+                        AppendLog($"{toolName} unregistered");
+                    }
+                    else
+                    {
+                        failCount++;
+                        AppendLog($"{toolName} failed: {result.Error}");
+                    }
                 }
                 catch (Exception ex)
                 {
                     failCount++;
-                    AppendLog($"❌ {McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
+                    AppendLog($"{McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
                 }
             }
 
-            RefreshAiToolStatus();
+            RefreshProjectRegistrationStatus();
             AppendLog($"Batch unregistration completed: {successCount} succeeded, {failCount} failed");
 
             if (successCount > 0)
@@ -955,428 +1137,6 @@ namespace MCP.Editor
             }
         }
 
-        #endregion
-        
-        #region Custom Config File
-        
-        private void DrawCustomConfigSection()
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                if (_serverStatus == null || !_serverStatus.IsInstalled)
-                {
-                    EditorGUILayout.HelpBox("Please install the MCP server first.", MessageType.Info);
-                    return;
-                }
-                
-                EditorGUILayout.LabelField("Configuration File Manager", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(
-                    "Specify a configuration file to add or remove MCP server settings.\n" +
-                    "Supports all AI tools and custom configurations.",
-                    MessageType.Info
-                );
-                
-                GUILayout.Space(5f);
-                
-                // File path selection
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                {
-                    EditorGUILayout.LabelField("Config File Path", EditorStyles.boldLabel);
-                    
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        EditorGUI.BeginChangeCheck();
-                        _customConfigPath = EditorGUILayout.TextField(_customConfigPath);
-                        if (EditorGUI.EndChangeCheck())
-                        {
-                            CheckCustomConfigStatus();
-                        }
-                        
-                        if (GUILayout.Button("Browse...", GUILayout.Width(80)))
-                        {
-                            var defaultPath = string.IsNullOrEmpty(_customConfigPath) 
-                                ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                                : Path.GetDirectoryName(_customConfigPath);
-                                
-                            var selectedPath = EditorUtility.OpenFilePanel(
-                                "Select Config File", 
-                                defaultPath, 
-                                "json");
-                                
-                            if (!string.IsNullOrEmpty(selectedPath))
-                            {
-                                _customConfigPath = selectedPath;
-                                CheckCustomConfigStatus();
-                            }
-                        }
-                    }
-                    
-                    // Quick select buttons for common locations
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        if (GUILayout.Button("Cursor", GUILayout.Width(70)))
-                        {
-                            _customConfigPath = McpConfigManager.GetConfigPath(AITool.Cursor);
-                            CheckCustomConfigStatus();
-                        }
-
-                        if (GUILayout.Button("Claude Desktop", GUILayout.Width(100)))
-                        {
-                            _customConfigPath = McpConfigManager.GetConfigPath(AITool.ClaudeDesktop);
-                            CheckCustomConfigStatus();
-                        }
-
-                        if (GUILayout.Button("Claude Code", GUILayout.Width(85)))
-                        {
-                            _customConfigPath = McpConfigManager.GetConfigPath(AITool.ClaudeCode);
-                            CheckCustomConfigStatus();
-                        }
-
-                        if (GUILayout.Button("Cline", GUILayout.Width(55)))
-                        {
-                            _customConfigPath = McpConfigManager.GetConfigPath(AITool.Cline);
-                            CheckCustomConfigStatus();
-                        }
-
-                        if (GUILayout.Button("Windsurf", GUILayout.Width(65)))
-                        {
-                            _customConfigPath = McpConfigManager.GetConfigPath(AITool.Windsurf);
-                            CheckCustomConfigStatus();
-                        }
-                    }
-                }
-                
-                GUILayout.Space(5f);
-                
-                // Status display
-                if (!string.IsNullOrEmpty(_customConfigPath))
-                {
-                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                    {
-                        EditorGUILayout.LabelField("File Status", EditorStyles.boldLabel);
-                        
-                        var existsIcon = _customConfigExists ? "✅" : "❌";
-                        EditorGUILayout.LabelField($"{existsIcon} File Exists", _customConfigExists ? "Yes" : "No");
-                        
-                        if (_customConfigExists)
-                        {
-                            var serverIcon = _customConfigHasServer ? "✅" : "⭕";
-                            EditorGUILayout.LabelField($"{serverIcon} Server Entry", 
-                                _customConfigHasServer ? "Registered" : "Not Registered");
-                        }
-                    }
-                    
-                    GUILayout.Space(5f);
-                    
-                    // Actions
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        GUI.enabled = !string.IsNullOrEmpty(_customConfigPath) && !_commandRunning;
-                        
-                        if (GUILayout.Button("➕ Add Server Entry", GUILayout.Height(30)))
-                        {
-                            AddServerToCustomConfig();
-                        }
-                        
-                        GUI.enabled = _customConfigExists && _customConfigHasServer && !_commandRunning;
-                        
-                        if (GUILayout.Button("➖ Remove Server Entry", GUILayout.Height(30)))
-                        {
-                            RemoveServerFromCustomConfig();
-                        }
-                        
-                        GUI.enabled = true;
-                    }
-                    
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        GUI.enabled = _customConfigExists && !_commandRunning;
-                        
-                        if (GUILayout.Button("📦 Create Backup", GUILayout.Height(25)))
-                        {
-                            CreateCustomConfigBackup();
-                        }
-                        
-                        if (GUILayout.Button("📂 Open File", GUILayout.Height(25)))
-                        {
-                            OpenCustomConfigFile();
-                        }
-                        
-                        if (GUILayout.Button("🔄 Refresh Status", GUILayout.Height(25)))
-                        {
-                            CheckCustomConfigStatus();
-                            AppendLog("Custom config status refreshed");
-                        }
-                        
-                        GUI.enabled = true;
-                    }
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox("Please specify a configuration file path.", MessageType.Warning);
-                }
-            }
-        }
-        
-        private void CheckCustomConfigStatus()
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(_customConfigPath))
-                {
-                    _customConfigExists = false;
-                    _customConfigHasServer = false;
-                    return;
-                }
-                
-                _customConfigExists = File.Exists(_customConfigPath);
-                
-                if (_customConfigExists)
-                {
-                    try
-                    {
-                        var json = File.ReadAllText(_customConfigPath);
-                        var config = Newtonsoft.Json.Linq.JObject.Parse(json);
-                        
-                        if (config.ContainsKey("mcpServers"))
-                        {
-                            var mcpServers = config["mcpServers"] as Newtonsoft.Json.Linq.JObject;
-                            _customConfigHasServer = mcpServers != null && 
-                                                     mcpServers.ContainsKey(McpServerManager.ServerName);
-                        }
-                        else
-                        {
-                            _customConfigHasServer = false;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        AppendLog($"Failed to parse config file: {ex.Message}");
-                        _customConfigHasServer = false;
-                    }
-                }
-                else
-                {
-                    _customConfigHasServer = false;
-                }
-                
-                Repaint();
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"Failed to check custom config status: {ex.Message}");
-                _customConfigExists = false;
-                _customConfigHasServer = false;
-            }
-        }
-        
-        private void AddServerToCustomConfig()
-        {
-            try
-            {
-                _commandRunning = true;
-                AppendLog($"Adding server entry to: {_customConfigPath}");
-                
-                // Create directory if needed
-                var directory = Path.GetDirectoryName(_customConfigPath);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                    AppendLog($"Created directory: {directory}");
-                }
-                
-                // Load or create config
-                Newtonsoft.Json.Linq.JObject config;
-                if (File.Exists(_customConfigPath))
-                {
-                    // Backup first
-                    var backupPath = _customConfigPath + ".backup." + DateTime.Now.ToString("yyyyMMddHHmmss");
-                    File.Copy(_customConfigPath, backupPath, true);
-                    AppendLog($"Backup created: {backupPath}");
-                    
-                    var json = File.ReadAllText(_customConfigPath);
-                    config = Newtonsoft.Json.Linq.JObject.Parse(json);
-                }
-                else
-                {
-                    config = new Newtonsoft.Json.Linq.JObject();
-                    AppendLog("Creating new config file");
-                }
-                
-                // Add mcpServers section if needed
-                if (!config.ContainsKey("mcpServers"))
-                {
-                    config["mcpServers"] = new Newtonsoft.Json.Linq.JObject();
-                }
-                
-                var mcpServers = config["mcpServers"] as Newtonsoft.Json.Linq.JObject;
-                
-                // Check if already exists
-                if (mcpServers.ContainsKey(McpServerManager.ServerName))
-                {
-                    AppendLog($"Server entry '{McpServerManager.ServerName}' already exists. Updating...");
-                }
-                
-                // Add server entry
-                var installPath = McpServerManager.UserInstallPath;
-                mcpServers[McpServerManager.ServerName] = new Newtonsoft.Json.Linq.JObject
-                {
-                    ["command"] = "uv",
-                    ["args"] = new Newtonsoft.Json.Linq.JArray
-                    {
-                        "--directory",
-                        installPath,
-                        "run",
-                        McpServerManager.ServerName
-                    }
-                };
-                
-                // Save
-                var formattedJson = config.ToString(Newtonsoft.Json.Formatting.Indented);
-                File.WriteAllText(_customConfigPath, formattedJson);
-                
-                CheckCustomConfigStatus();
-                AppendLog($"✅ Server entry added successfully to: {_customConfigPath}");
-                EditorUtility.DisplayDialog("Success", 
-                    "Server entry added successfully!\n\nPlease restart your AI tool for changes to take effect.", 
-                    "OK");
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"❌ Failed to add server entry: {ex.Message}");
-                EditorUtility.DisplayDialog("Error", 
-                    $"Failed to add server entry:\n\n{ex.Message}", 
-                    "OK");
-            }
-            finally
-            {
-                _commandRunning = false;
-            }
-        }
-        
-        private void RemoveServerFromCustomConfig()
-        {
-            try
-            {
-                _commandRunning = true;
-                AppendLog($"Removing server entry from: {_customConfigPath}");
-                
-                if (!File.Exists(_customConfigPath))
-                {
-                    AppendLog("Config file not found");
-                    return;
-                }
-                
-                // Backup first
-                var backupPath = _customConfigPath + ".backup." + DateTime.Now.ToString("yyyyMMddHHmmss");
-                File.Copy(_customConfigPath, backupPath, true);
-                AppendLog($"Backup created: {backupPath}");
-                
-                // Load config
-                var json = File.ReadAllText(_customConfigPath);
-                var config = Newtonsoft.Json.Linq.JObject.Parse(json);
-                
-                if (config.ContainsKey("mcpServers"))
-                {
-                    var mcpServers = config["mcpServers"] as Newtonsoft.Json.Linq.JObject;
-                    
-                    if (mcpServers.ContainsKey(McpServerManager.ServerName))
-                    {
-                        mcpServers.Remove(McpServerManager.ServerName);
-                        AppendLog($"Removed server entry: {McpServerManager.ServerName}");
-                    }
-                    else
-                    {
-                        AppendLog($"Server entry '{McpServerManager.ServerName}' not found");
-                    }
-                }
-                
-                // Save
-                var formattedJson = config.ToString(Newtonsoft.Json.Formatting.Indented);
-                File.WriteAllText(_customConfigPath, formattedJson);
-                
-                CheckCustomConfigStatus();
-                AppendLog($"✅ Server entry removed successfully from: {_customConfigPath}");
-                EditorUtility.DisplayDialog("Success", 
-                    "Server entry removed successfully!\n\nPlease restart your AI tool for changes to take effect.", 
-                    "OK");
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"❌ Failed to remove server entry: {ex.Message}");
-                EditorUtility.DisplayDialog("Error", 
-                    $"Failed to remove server entry:\n\n{ex.Message}", 
-                    "OK");
-            }
-            finally
-            {
-                _commandRunning = false;
-            }
-        }
-        
-        private void CreateCustomConfigBackup()
-        {
-            try
-            {
-                if (!File.Exists(_customConfigPath))
-                {
-                    AppendLog("Config file not found");
-                    EditorUtility.DisplayDialog("Error", "Config file not found", "OK");
-                    return;
-                }
-                
-                var backupPath = _customConfigPath + ".backup." + DateTime.Now.ToString("yyyyMMddHHmmss");
-                File.Copy(_customConfigPath, backupPath, true);
-                
-                AppendLog($"✅ Backup created: {backupPath}");
-                EditorUtility.DisplayDialog("Backup Created", 
-                    $"Backup saved to:\n{backupPath}", 
-                    "OK");
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"❌ Failed to create backup: {ex.Message}");
-                EditorUtility.DisplayDialog("Error", 
-                    $"Failed to create backup:\n\n{ex.Message}", 
-                    "OK");
-            }
-        }
-        
-        private void OpenCustomConfigFile()
-        {
-            try
-            {
-                if (File.Exists(_customConfigPath))
-                {
-                    System.Diagnostics.Process.Start(_customConfigPath);
-                    AppendLog($"Opened config file: {_customConfigPath}");
-                }
-                else
-                {
-                    var directory = Path.GetDirectoryName(_customConfigPath);
-                    if (Directory.Exists(directory))
-                    {
-                        System.Diagnostics.Process.Start(directory);
-                        AppendLog($"Opened directory: {directory}");
-                    }
-                    else
-                    {
-                        AppendLog("Config file and directory not found");
-                        EditorUtility.DisplayDialog("Not Found", 
-                            $"Config file not found:\n{_customConfigPath}", 
-                            "OK");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"Failed to open config: {ex.Message}");
-                EditorUtility.DisplayDialog("Error", 
-                    $"Failed to open config file:\n\n{ex.Message}", 
-                    "OK");
-            }
-        }
-        
         #endregion
     }
 }

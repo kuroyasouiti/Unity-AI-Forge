@@ -8,6 +8,7 @@ import os
 import platform
 import sys
 
+from bridge.messages import ClientInfo
 from version import SERVER_NAME, SERVER_VERSION
 
 
@@ -83,25 +84,27 @@ def _is_claude_desktop() -> bool:
     return False
 
 
-def get_client_info() -> dict[str, str | int]:
+def get_client_info() -> ClientInfo:
     """
     Get comprehensive client information.
 
     Returns:
-        Dictionary containing client info:
+        ClientInfo TypedDict containing:
         - clientName: "Claude Desktop", "Claude Code", or "Unknown"
         - serverName: Name of this MCP server
         - serverVersion: Version of this MCP server
         - pythonVersion: Python version string
         - platform: Platform string (Windows/Linux/Darwin)
     """
-    return {
+
+    info: ClientInfo = {
         "clientName": detect_client_name(),
         "serverName": SERVER_NAME,
         "serverVersion": SERVER_VERSION,
         "pythonVersion": _get_python_version(),
         "platform": _get_platform_name(),
     }
+    return info
 
 
 def _get_python_version() -> str:

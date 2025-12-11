@@ -277,6 +277,124 @@ namespace MCP.Editor.ServerManager
                 _ => tool.ToString()
             };
         }
+
+        /// <summary>
+        /// AIツールがプロジェクトベースの設定構造を使用するかチェック
+        /// Claude Codeは projects -> [path] -> mcpServers の構造を使用
+        /// </summary>
+        public static bool UsesProjectBasedConfig(AITool tool)
+        {
+            return tool == AITool.ClaudeCode;
+        }
+
+        /// <summary>
+        /// Claude Code用: 指定されたプロジェクトパスのmcpServersセクションを取得または作成
+        /// </summary>
+        /// <param name="config">ルートの設定オブジェクト</param>
+        /// <param name="projectPath">Unityプロジェクトのパス</param>
+        /// <returns>mcpServersオブジェクト</returns>
+        public static JObject GetOrCreateClaudeCodeMcpServers(JObject config, string projectPath)
+        {
+            // projects セクションを取得または作成
+            if (!config.ContainsKey("projects"))
+            {
+                config["projects"] = new JObject();
+            }
+
+            var projects = config["projects"] as JObject;
+
+            // プロジェクトパスを正規化（バックスラッシュを使用）
+            var normalizedPath = projectPath.Replace("/", "\\");
+
+            // プロジェクトエントリを取得または作成
+            if (!projects.ContainsKey(normalizedPath))
+            {
+                projects[normalizedPath] = new JObject
+                {
+                    ["allowedTools"] = new JArray(),
+                    ["mcpContextUris"] = new JArray(),
+                    ["mcpServers"] = new JObject(),
+                    ["enabledMcpjsonServers"] = new JArray(),
+                    ["disabledMcpjsonServers"] = new JArray(),
+                    ["hasTrustDialogAccepted"] = true
+                };
+            }
+
+            var projectEntry = projects[normalizedPath] as JObject;
+
+            // mcpServers セクションを取得または作成
+            if (!projectEntry.ContainsKey("mcpServers"))
+            {
+                projectEntry["mcpServers"] = new JObject();
+            }
+
+            return projectEntry["mcpServers"] as JObject;
+        }
+
+        /// <summary>
+        /// Claude Code用: 指定されたプロジェクトにサーバーが登録されているかチェック
+        /// </summary>
+        public static bool IsServerRegisteredInClaudeCode(JObject config, string projectPath, string serverName)
+        {
+            if (!config.ContainsKey("projects"))
+            {
+                return false;
+            }
+
+            var projects = config["projects"] as JObject;
+            var normalizedPath = projectPath.Replace("/", "\\");
+
+            if (!projects.ContainsKey(normalizedPath))
+            {
+                return false;
+            }
+
+            var projectEntry = projects[normalizedPath] as JObject;
+
+            if (!projectEntry.ContainsKey("mcpServers"))
+            {
+                return false;
+            }
+
+            var mcpServers = projectEntry["mcpServers"] as JObject;
+            return mcpServers != null && mcpServers.ContainsKey(serverName);
+        }
+
+        /// <summary>
+        /// Claude Code用: 指定されたプロジェクトからサーバーを削除
+        /// </summary>
+        public static bool RemoveServerFromClaudeCode(JObject config, string projectPath, string serverName)
+        {
+            if (!config.ContainsKey("projects"))
+            {
+                return false;
+            }
+
+            var projects = config["projects"] as JObject;
+            var normalizedPath = projectPath.Replace("/", "\\");
+
+            if (!projects.ContainsKey(normalizedPath))
+            {
+                return false;
+            }
+
+            var projectEntry = projects[normalizedPath] as JObject;
+
+            if (!projectEntry.ContainsKey("mcpServers"))
+            {
+                return false;
+            }
+
+            var mcpServers = projectEntry["mcpServers"] as JObject;
+
+            if (mcpServers != null && mcpServers.ContainsKey(serverName))
+            {
+                mcpServers.Remove(serverName);
+                return true;
+            }
+
+            return false;
+        }
     }
 }
 

@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import platform
-import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -27,7 +25,6 @@ from bridge.messages import (
     ServerMessage,
     UnityContextPayload,
 )
-from config.env import env
 from logger import logger
 from utils.client_detector import get_client_info
 
@@ -336,7 +333,7 @@ class BridgeManager:
         # Update session ID if it changed
         if session_id:
             self._session_id = session_id
-        
+
         # Resolve all pending compilation waiters with bridge restarted result
         # This is typically triggered after compilation completes and Unity reloads assemblies
         if self._compilation_waiters:
@@ -344,7 +341,7 @@ class BridgeManager:
                 "Bridge restarted - resolving %d pending compilation waiter(s)",
                 len(self._compilation_waiters),
             )
-            
+
             result = {
                 "success": True,
                 "completed": True,
@@ -352,10 +349,10 @@ class BridgeManager:
                 "reason": reason,
                 "message": f"Unity bridge restarted due to: {reason}",
             }
-            
+
             waiters = self._compilation_waiters[:]
             self._compilation_waiters.clear()
-            
+
             for future in waiters:
                 if not future.done():
                     future.set_result(result)
@@ -373,7 +370,7 @@ class BridgeManager:
         if not _is_socket_open(socket):
             return
 
-        client_info: ClientInfo = get_client_info()  # type: ignore
+        client_info: ClientInfo = get_client_info()
         message: ServerInfoMessage = {
             "type": "server:info",
             "clientInfo": client_info,
