@@ -1386,7 +1386,189 @@ See the detailed Hierarchical Menu Creation section below for complete documenta
 - **`unity_ugui_detectOverlaps`** - Detect overlapping UI elements for debugging
 - **`unity_renderPipeline_manage`** - Manage render pipeline settings (URP/HDRP)
 
-#### 10. GameKit SceneFlow (`unity_gamekit_sceneflow`) ⭐ NEW in v2.3.2
+#### 10. UI Hierarchy (`unity_ui_hierarchy`) ⭐ NEW
+
+**Declarative UI hierarchy management** - Create complex UI structures from single JSON definitions, manage visibility states, configure keyboard/gamepad navigation.
+
+**Operations:**
+- `create` - Build complete UI hierarchy from declarative JSON structure
+- `clone` - Duplicate existing UI hierarchy with optional rename
+- `inspect` - Export UI hierarchy as JSON structure
+- `delete` - Remove UI hierarchy
+- `show/hide/toggle` - Control visibility using CanvasGroup
+- `setNavigation` - Configure keyboard/gamepad navigation
+
+**Example: Create Main Menu**
+```python
+unity_ui_hierarchy({
+    "operation": "create",
+    "parentPath": "Canvas",
+    "hierarchy": {
+        "type": "panel",
+        "name": "MainMenu",
+        "width": 400,
+        "height": 500,
+        "layout": "Vertical",
+        "spacing": 20,
+        "padding": {"left": 30, "right": 30, "top": 50, "bottom": 30},
+        "children": [
+            {"type": "text", "name": "Title", "text": "My Game", "fontSize": 48},
+            {"type": "button", "name": "StartBtn", "text": "Start Game", "width": 200, "height": 50},
+            {"type": "button", "name": "OptionsBtn", "text": "Options", "width": 200, "height": 50},
+            {"type": "button", "name": "QuitBtn", "text": "Quit", "width": 200, "height": 50}
+        ]
+    }
+})
+```
+
+**Supported Element Types:**
+- `panel` - Panel with Image component
+- `button` - Button with Text child
+- `text` - Text element (TMP or legacy)
+- `image` - Image element
+- `inputfield` - Input field with placeholder
+- `scrollview` - Scroll view with viewport/content
+- `toggle` - Toggle with label
+- `slider` - Slider with min/max
+- `dropdown` - Dropdown with options
+
+**Visibility Control:**
+```python
+# Hide UI hierarchy
+unity_ui_hierarchy({
+    "operation": "hide",
+    "gameObjectPath": "Canvas/MainMenu",
+    "interactable": False,
+    "blocksRaycasts": False
+})
+
+# Show with toggle
+unity_ui_hierarchy({
+    "operation": "toggle",
+    "gameObjectPath": "Canvas/MainMenu"
+})
+```
+
+**Navigation Setup:**
+```python
+# Auto vertical navigation for menu
+unity_ui_hierarchy({
+    "operation": "setNavigation",
+    "gameObjectPath": "Canvas/MainMenu",
+    "navigationMode": "auto-vertical",
+    "wrapAround": True
+})
+```
+
+#### 11. UI State Management (`unity_ui_state`) ⭐ NEW
+
+**UI state management** - Define, save, load, and transition between named UI states.
+
+**Operations:**
+- `defineState` - Define a named state with element configurations
+- `applyState` - Apply a saved state to UI elements
+- `saveState` - Capture current UI state
+- `loadState` - Load state definition without applying
+- `listStates` - List all defined states
+- `deleteState` - Remove a state definition
+- `createStateGroup` - Create mutually exclusive state group
+- `transitionTo` - Transition to a state
+- `getActiveState` - Get currently active state
+
+**Example: Dialog States**
+```python
+# Define "open" state for dialog
+unity_ui_state({
+    "operation": "defineState",
+    "stateName": "open",
+    "rootPath": "Canvas/Dialog",
+    "elements": [
+        {"path": "", "active": True, "alpha": 1, "interactable": True},
+        {"path": "Content", "visible": True},
+        {"path": "CloseButton", "interactable": True}
+    ]
+})
+
+# Define "closed" state
+unity_ui_state({
+    "operation": "defineState",
+    "stateName": "closed",
+    "rootPath": "Canvas/Dialog",
+    "elements": [
+        {"path": "", "active": False, "alpha": 0}
+    ]
+})
+
+# Apply state
+unity_ui_state({
+    "operation": "applyState",
+    "stateName": "open",
+    "rootPath": "Canvas/Dialog"
+})
+
+# Save current state snapshot
+unity_ui_state({
+    "operation": "saveState",
+    "stateName": "current_snapshot",
+    "rootPath": "Canvas/Dialog",
+    "includeChildren": True
+})
+```
+
+#### 12. UI Navigation (`unity_ui_navigation`) ⭐ NEW
+
+**UI navigation management** - Configure keyboard/gamepad navigation for Selectable UI elements.
+
+**Operations:**
+- `configure` - Set navigation mode (none/horizontal/vertical/automatic/explicit)
+- `setExplicit` - Set explicit up/down/left/right targets
+- `autoSetup` - Auto-configure navigation for all Selectables
+- `createGroup` - Create isolated navigation group
+- `setFirstSelected` - Set EventSystem first selected
+- `inspect` - View navigation configuration
+- `reset` - Reset to automatic navigation
+- `disable` - Disable navigation
+
+**Example: Menu Navigation**
+```python
+# Auto-setup vertical menu navigation with wrap-around
+unity_ui_navigation({
+    "operation": "autoSetup",
+    "rootPath": "Canvas/MainMenu",
+    "direction": "vertical",
+    "wrapAround": True
+})
+
+# Grid navigation for inventory
+unity_ui_navigation({
+    "operation": "autoSetup",
+    "rootPath": "Canvas/Inventory/Grid",
+    "direction": "grid",
+    "columns": 4,
+    "wrapAround": True
+})
+
+# Create isolated navigation group
+unity_ui_navigation({
+    "operation": "createGroup",
+    "groupName": "DialogButtons",
+    "elements": [
+        "Canvas/Dialog/OKButton",
+        "Canvas/Dialog/CancelButton"
+    ],
+    "direction": "horizontal",
+    "wrapAround": True,
+    "isolate": True
+})
+
+# Set first selected element
+unity_ui_navigation({
+    "operation": "setFirstSelected",
+    "gameObjectPath": "Canvas/MainMenu/StartButton"
+})
+```
+
+#### 13. GameKit SceneFlow (`unity_gamekit_sceneflow`) ⭐ NEW in v2.3.2
 
 **Scene transition management with automatic prefab-based loading:**
 

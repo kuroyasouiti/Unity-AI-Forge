@@ -60,7 +60,8 @@ namespace MCP.Editor.Handlers.GameKit
             if (trigger == GameKitInteraction.TriggerType.Trigger || trigger == GameKitInteraction.TriggerType.Collision)
             {
                 var shapeStr = GetString(payload, "triggerShape") ?? "box";
-                AddCollider(interactionGo, shapeStr, trigger == GameKitInteraction.TriggerType.Trigger, payload);
+                var is2D = GetBoolOrDefault(payload, "is2D", false);
+                AddCollider(interactionGo, shapeStr, trigger == GameKitInteraction.TriggerType.Trigger, is2D, payload);
             }
 
             // Add actions
@@ -96,35 +97,99 @@ namespace MCP.Editor.Handlers.GameKit
             return CreateSuccessResponse(("interactionId", interactionId), ("path", BuildGameObjectPath(interactionGo)));
         }
 
-        private void AddCollider(GameObject go, string shape, bool isTrigger, Dictionary<string, object> payload)
+        private void AddCollider(GameObject go, string shape, bool isTrigger, bool is2D, Dictionary<string, object> payload)
         {
-            switch (shape.ToLowerInvariant())
+            if (is2D)
             {
-                case "box":
-                    var boxCol = Undo.AddComponent<BoxCollider>(go);
-                    boxCol.isTrigger = isTrigger;
-                    if (payload.TryGetValue("triggerSize", out var sizeObj) && sizeObj is Dictionary<string, object> sizeDict)
-                    {
-                        boxCol.size = GetVector3FromDict(sizeDict, Vector3.one);
-                    }
-                    break;
-
-                case "sphere":
-                    var sphereCol = Undo.AddComponent<SphereCollider>(go);
-                    sphereCol.isTrigger = isTrigger;
-                    if (payload.TryGetValue("triggerSize", out var radiusObj) && radiusObj is Dictionary<string, object> radiusDict)
-                    {
-                        if (radiusDict.TryGetValue("x", out var xObj))
+                // 2D Colliders
+                switch (shape.ToLowerInvariant())
+                {
+                    case "box":
+                        var boxCol2D = Undo.AddComponent<BoxCollider2D>(go);
+                        boxCol2D.isTrigger = isTrigger;
+                        if (payload.TryGetValue("triggerSize", out var sizeObj2D) && sizeObj2D is Dictionary<string, object> sizeDict2D)
                         {
-                            sphereCol.radius = Convert.ToSingle(xObj);
+                            boxCol2D.size = GetVector2FromDict(sizeDict2D, Vector2.one);
                         }
-                    }
-                    break;
+                        break;
 
-                case "capsule":
-                    var capsuleCol = Undo.AddComponent<CapsuleCollider>(go);
-                    capsuleCol.isTrigger = isTrigger;
-                    break;
+                    case "circle":
+                    case "sphere":
+                        var circleCol = Undo.AddComponent<CircleCollider2D>(go);
+                        circleCol.isTrigger = isTrigger;
+                        if (payload.TryGetValue("triggerSize", out var radiusObj2D) && radiusObj2D is Dictionary<string, object> radiusDict2D)
+                        {
+                            if (radiusDict2D.TryGetValue("x", out var xObj2D))
+                            {
+                                circleCol.radius = Convert.ToSingle(xObj2D);
+                            }
+                        }
+                        break;
+
+                    case "capsule":
+                        var capsuleCol2D = Undo.AddComponent<CapsuleCollider2D>(go);
+                        capsuleCol2D.isTrigger = isTrigger;
+                        if (payload.TryGetValue("triggerSize", out var capsuleSizeObj) && capsuleSizeObj is Dictionary<string, object> capsuleSizeDict)
+                        {
+                            capsuleCol2D.size = GetVector2FromDict(capsuleSizeDict, new Vector2(1f, 2f));
+                        }
+                        break;
+
+                    case "polygon":
+                        var polyCol = Undo.AddComponent<PolygonCollider2D>(go);
+                        polyCol.isTrigger = isTrigger;
+                        break;
+
+                    default:
+                        // Default to box for 2D
+                        var defaultBoxCol2D = Undo.AddComponent<BoxCollider2D>(go);
+                        defaultBoxCol2D.isTrigger = isTrigger;
+                        break;
+                }
+            }
+            else
+            {
+                // 3D Colliders
+                switch (shape.ToLowerInvariant())
+                {
+                    case "box":
+                        var boxCol = Undo.AddComponent<BoxCollider>(go);
+                        boxCol.isTrigger = isTrigger;
+                        if (payload.TryGetValue("triggerSize", out var sizeObj) && sizeObj is Dictionary<string, object> sizeDict)
+                        {
+                            boxCol.size = GetVector3FromDict(sizeDict, Vector3.one);
+                        }
+                        break;
+
+                    case "sphere":
+                    case "circle":
+                        var sphereCol = Undo.AddComponent<SphereCollider>(go);
+                        sphereCol.isTrigger = isTrigger;
+                        if (payload.TryGetValue("triggerSize", out var radiusObj) && radiusObj is Dictionary<string, object> radiusDict)
+                        {
+                            if (radiusDict.TryGetValue("x", out var xObj))
+                            {
+                                sphereCol.radius = Convert.ToSingle(xObj);
+                            }
+                        }
+                        break;
+
+                    case "capsule":
+                        var capsuleCol = Undo.AddComponent<CapsuleCollider>(go);
+                        capsuleCol.isTrigger = isTrigger;
+                        break;
+
+                    case "mesh":
+                        var meshCol = Undo.AddComponent<MeshCollider>(go);
+                        meshCol.convex = isTrigger; // Triggers require convex
+                        break;
+
+                    default:
+                        // Default to box for 3D
+                        var defaultBoxCol = Undo.AddComponent<BoxCollider>(go);
+                        defaultBoxCol.isTrigger = isTrigger;
+                        break;
+                }
             }
         }
 
@@ -301,6 +366,23 @@ namespace MCP.Editor.Handlers.GameKit
             float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
             float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
             return new Vector3(x, y, z);
+        }
+
+        private Vector2 GetVector2FromDict(Dictionary<string, object> dict, Vector2 fallback)
+        {
+            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
+            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
+            return new Vector2(x, y);
+        }
+
+        private bool GetBoolOrDefault(Dictionary<string, object> dict, string key, bool defaultValue)
+        {
+            if (dict.TryGetValue(key, out var value))
+            {
+                if (value is bool boolVal) return boolVal;
+                if (value is string strVal && bool.TryParse(strVal, out var parsed)) return parsed;
+            }
+            return defaultValue;
         }
 
         private string BuildGameObjectPath(GameObject go)

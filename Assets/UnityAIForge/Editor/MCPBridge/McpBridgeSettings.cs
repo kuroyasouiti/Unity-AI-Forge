@@ -130,8 +130,15 @@ namespace MCP.Editor
         {
             get
             {
-                // Token authentication removed; keep API surface but return empty.
-                return Array.Empty<string>();
+                // Check environment variable first
+                var envToken = Environment.GetEnvironmentVariable("MCP_BRIDGE_TOKEN");
+                if (!string.IsNullOrWhiteSpace(envToken))
+                {
+                    return new[] { envToken.Trim() };
+                }
+
+                // Load from file
+                return LoadTokensFromFile().AsReadOnly();
             }
         }
 
@@ -144,11 +151,27 @@ namespace MCP.Editor
         {
             get
             {
-                return string.Empty;
+                var tokens = BridgeTokens;
+                return tokens.Count > 0 ? tokens[0] : string.Empty;
             }
             set
             {
-                // no-op: token authentication disabled
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return;
+                }
+
+                var tokens = LoadTokensFromFile();
+                var trimmed = value.Trim();
+                if (tokens.Count > 0)
+                {
+                    tokens[0] = trimmed;
+                }
+                else
+                {
+                    tokens.Add(trimmed);
+                }
+                SaveTokensToFile(tokens);
             }
         }
 
@@ -158,7 +181,21 @@ namespace MCP.Editor
         /// <returns>True if token was added, false if it already exists.</returns>
         public bool AddToken(string token)
         {
-            return false;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return false;
+            }
+
+            var tokens = LoadTokensFromFile();
+            var trimmed = token.Trim();
+            if (tokens.Contains(trimmed))
+            {
+                return false;
+            }
+
+            tokens.Add(trimmed);
+            SaveTokensToFile(tokens);
+            return true;
         }
 
         /// <summary>
@@ -167,7 +204,20 @@ namespace MCP.Editor
         /// <returns>True if token was removed, false if it was not found.</returns>
         public bool RemoveToken(string token)
         {
-            return false;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return false;
+            }
+
+            var tokens = LoadTokensFromFile();
+            var trimmed = token.Trim();
+            if (!tokens.Remove(trimmed))
+            {
+                return false;
+            }
+
+            SaveTokensToFile(tokens);
+            return true;
         }
 
         /// <summary>
@@ -176,20 +226,30 @@ namespace MCP.Editor
         /// <returns>The newly generated token.</returns>
         public string GenerateAndAddToken()
         {
-            return string.Empty;
+            var token = Guid.NewGuid().ToString("N");
+            var tokens = LoadTokensFromFile();
+            tokens.Add(token);
+            SaveTokensToFile(tokens);
+            return token;
         }
 
         /// <summary>
         /// Gets the number of configured tokens.
         /// </summary>
-        public int TokenCount => 0;
+        public int TokenCount => BridgeTokens.Count;
 
         /// <summary>
         /// Checks if a given token is valid (exists in the token list).
         /// </summary>
         public bool IsValidToken(string token)
         {
-            return true;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return false;
+            }
+
+            var tokens = BridgeTokens;
+            return tokens.Contains(token.Trim());
         }
 
         /// <summary>
@@ -200,7 +260,7 @@ namespace MCP.Editor
         {
             get
             {
-                return Array.Empty<string>();
+                return BridgeTokens.Select(MaskToken).ToList().AsReadOnly();
             }
         }
 
@@ -212,7 +272,8 @@ namespace MCP.Editor
         {
             get
             {
-                return string.Empty;
+                var token = BridgeToken;
+                return string.IsNullOrEmpty(token) ? string.Empty : MaskToken(token);
             }
         }
 
@@ -234,7 +295,7 @@ namespace MCP.Editor
         /// <summary>
         /// Checks if token is loaded from environment variable.
         /// </summary>
-        public bool IsTokenFromEnvironment => false;
+        public bool IsTokenFromEnvironment => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("MCP_BRIDGE_TOKEN"));
 
         public bool AutoConnectOnLoad
         {

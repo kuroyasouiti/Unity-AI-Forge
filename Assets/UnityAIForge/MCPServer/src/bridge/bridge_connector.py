@@ -72,6 +72,12 @@ class BridgeConnector:
         url = _build_ws_url(env.unity_bridge_host, env.unity_bridge_port, "/bridge")
         logger.info("Attempting connection to Unity bridge at %s", url)
 
+        # Build authentication headers
+        extra_headers: dict[str, str] = {}
+        if env.bridge_token:
+            extra_headers["Authorization"] = f"Bearer {env.bridge_token}"
+            logger.debug("Using authentication token for bridge connection")
+
         try:
             # Connect with compatible settings for Unity's custom WebSocket implementation
             async with websockets.connect(
@@ -82,6 +88,7 @@ class BridgeConnector:
                 compression=None,  # Disable compression for compatibility
                 ping_interval=None,  # Disable automatic ping (we handle it manually)
                 ping_timeout=None,
+                additional_headers=extra_headers if extra_headers else None,
             ) as socket:
                 logger.debug("WebSocket connection established, waiting for authentication...")
                 # Attach with auth headers

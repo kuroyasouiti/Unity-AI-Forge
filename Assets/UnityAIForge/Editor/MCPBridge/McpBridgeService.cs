@@ -667,9 +667,67 @@ namespace MCP.Editor
 
         private static bool ValidateToken(HttpRequestData request, out string reason)
         {
-            // Token-based authentication removed; always allow connections.
-            reason = null;
-            return true;
+            var settings = McpBridgeSettings.Instance;
+            var validTokens = settings.BridgeTokens;
+
+            // If no tokens are configured, allow all connections (backward compatibility)
+            if (validTokens.Count == 0)
+            {
+                reason = null;
+                return true;
+            }
+
+            // Check Authorization header (Bearer token)
+            if (request.Headers.TryGetValue("authorization", out var authHeader))
+            {
+                var parts = authHeader.Split(' ');
+                if (parts.Length == 2 && parts[0].Equals("Bearer", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = parts[1].Trim();
+                    if (settings.IsValidToken(token))
+                    {
+                        reason = null;
+                        return true;
+                    }
+                }
+            }
+
+            // Check X-MCP-Bridge-Token header (legacy support)
+            if (request.Headers.TryGetValue("x-mcp-bridge-token", out var bridgeToken))
+            {
+                if (settings.IsValidToken(bridgeToken))
+                {
+                    reason = null;
+                    return true;
+                }
+            }
+
+            // Check query parameter (for WebSocket clients that can't set headers)
+            if (!string.IsNullOrEmpty(request.RawPath))
+            {
+                var queryStart = request.RawPath.IndexOf('?');
+                if (queryStart >= 0)
+                {
+                    var query = request.RawPath.Substring(queryStart + 1);
+                    var pairs = query.Split('&');
+                    foreach (var pair in pairs)
+                    {
+                        var kv = pair.Split('=');
+                        if (kv.Length == 2 && kv[0].Equals("token", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var token = Uri.UnescapeDataString(kv[1]);
+                            if (settings.IsValidToken(token))
+                            {
+                                reason = null;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            reason = "Invalid or missing authentication token";
+            return false;
         }
 
         private static void LogRejectedRequest(HttpRequestData request, string reason)

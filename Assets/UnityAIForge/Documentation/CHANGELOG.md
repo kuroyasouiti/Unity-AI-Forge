@@ -9,6 +9,128 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.1] - 2025-12-11
+
+### 追加
+
+- **UIHierarchyHandler (Mid-Level 宣言的UI階層管理)**
+  - 操作: create, clone, inspect, delete, show, hide, toggle, setNavigation
+  - **create**: JSON構造から複雑なUI階層を一括作成
+    - 対応要素タイプ: panel, button, text, image, inputfield, scrollview, toggle, slider, dropdown
+    - レイアウトグループ自動設定（Horizontal, Vertical, Grid）
+    - アンカープリセット対応（topLeft, middleCenter, bottomRight等）
+    - TextMeshPro 動的検出（フォールバック: レガシー Text）
+  - **clone**: 既存UI階層の複製（リネーム対応）
+  - **inspect**: UI階層をJSON構造として出力
+  - **delete**: UI階層の削除
+  - **show/hide/toggle**: CanvasGroup による可視性制御（alpha, interactable, blocksRaycasts）
+  - **setNavigation**: キーボード/ゲームパッドナビゲーション設定
+    - モード: none, auto-vertical, auto-horizontal, explicit
+    - ラップアラウンドサポート
+
+- **UIStateHandler (Mid-Level UIステート管理)**
+  - 操作: defineState, applyState, saveState, loadState, listStates, deleteState, createStateGroup, transitionTo, getActiveState
+  - **defineState**: 名前付きUIステートを定義（各要素のactive, visible, interactable, alpha, position, size）
+  - **applyState**: 保存したステートをUI要素に適用
+  - **saveState**: 現在のUIステートをキャプチャ（子要素含む）
+  - **loadState**: ステート定義を読み込み（適用せず）
+  - **listStates**: 定義済みステート一覧
+  - **deleteState**: ステート定義の削除
+  - **createStateGroup**: 相互排他的なステートグループ作成
+  - **transitionTo**: ステートへの遷移（applyStateのエイリアス）
+  - **getActiveState**: 現在アクティブなステート名を取得
+  - EditorPrefsによるステート永続化
+
+- **UINavigationHandler (Mid-Level UIナビゲーション管理)**
+  - 操作: configure, setExplicit, autoSetup, createGroup, setFirstSelected, inspect, reset, disable
+  - **configure**: 単一Selectableのナビゲーションモード設定（none/horizontal/vertical/automatic/explicit）
+  - **setExplicit**: 明示的なup/down/left/rightターゲット設定
+  - **autoSetup**: ルート以下の全Selectableを自動設定（vertical/horizontal/grid対応）
+  - **createGroup**: 分離されたナビゲーショングループ作成
+  - **setFirstSelected**: EventSystemの最初の選択要素設定
+  - **inspect**: 現在のナビゲーション設定を表示
+  - **reset**: 自動ナビゲーションにリセット
+  - **disable**: ナビゲーション無効化
+  - グリッドナビゲーション時の自動カラム検出
+  - ラップアラウンドサポート
+
+- **GameKitInteractionHandler 2Dコライダー対応**
+  - 新パラメータ: `is2D` (boolean, デフォルト: false)
+  - 2Dコライダー: BoxCollider2D, CircleCollider2D, CapsuleCollider2D, PolygonCollider2D
+  - 3Dコライダー: BoxCollider, SphereCollider, CapsuleCollider, MeshCollider
+  - triggerShape enum拡張: box, sphere, circle, capsule, polygon, mesh
+
+### 技術詳細
+
+- ツール総数: 26 → 29（UIHierarchy, UIState, UINavigation 追加）
+- `CommandHandlerInitializer.cs`: uiHierarchy, uiState, uiNavigation ハンドラーを Mid-Level ツールとして登録
+- `register_tools.py`: ui_hierarchy_schema, ui_state_schema, ui_navigation_schema とハンドラーマッピングを追加
+- `CLAUDE.md`: 「10. UI Hierarchy」「11. UI State Management」「12. UI Navigation」セクションを追加
+
+### ドキュメント
+
+- CLAUDE.md に unity_ui_hierarchy, unity_ui_state, unity_ui_navigation ツールのドキュメントを追加
+- CHANGELOG.md を v2.4.1 に更新
+
+## [2.4.0] - 2025-12-11
+
+### 追加
+
+- **WebSocket認証機能の復活**
+  - `McpBridgeSettings.cs`: トークン管理メソッド（BridgeTokens, AddToken, RemoveToken, GenerateAndAddToken, IsValidToken）を復活
+  - `McpBridgeService.cs`: ValidateToken メソッドを復活（Authorization ヘッダー、X-MCP-Bridge-Token ヘッダー、クエリパラメータ対応）
+  - Python側: `env.py` に bridge_token 設定、`bridge_connector.py` に認証ヘッダー送信機能を追加
+  - 複数プロジェクトでのMCPサーバー共有を安全にサポート
+
+- **Sprite2DBundleHandler (Mid-Level 2Dスプライト管理)**
+  - 操作: createSprite, updateSprite, inspect, updateMultiple, setSortingLayer, setColor, sliceSpriteSheet, createSpriteAtlas
+  - SpriteRenderer の作成・更新、ソートレイヤー設定、色変更
+  - スプライトシートのスライス（グリッド/自動モード）
+  - SpriteAtlas アセット作成
+  - バッチ操作（パターンマッチング対応）
+
+- **Animation2DBundleHandler (Mid-Level 2Dアニメーション管理)**
+  - 操作: setupAnimator, updateAnimator, inspectAnimator, createController, addState, addTransition, addParameter, inspectController, createClipFromSprites, updateClip, inspectClip
+  - Animator コンポーネントの設定・検査
+  - AnimatorController の作成・ステート追加・遷移追加
+  - スプライトシーケンスからの AnimationClip 作成
+  - パラメータ管理（Bool/Float/Int/Trigger）
+  - 遷移条件設定（If/IfNot/Greater/Less/Equals/NotEqual）
+
+- **UIFoundationHandler 機能拡張（階層的UI設計サポート）**
+  - 新操作: createScrollView, addLayoutGroup, updateLayoutGroup, removeLayoutGroup, createFromTemplate
+  - **ScrollView 作成**: Viewport, Content, 水平/垂直スクロールバー対応
+    - MovementType（Unrestricted/Elastic/Clamped）、慣性、減速率の設定
+  - **LayoutGroup 管理**: Horizontal, Vertical, Grid レイアウト
+    - padding, spacing, childAlignment, childControl*, childForceExpand* 等の完全設定
+    - Grid専用: startCorner, startAxis, cellSize, constraint, constraintCount
+  - **ContentSizeFitter 統合**: horizontalFit, verticalFit オプション
+  - **UIテンプレート機能** (createFromTemplate):
+    - `dialog`: タイトル、メッセージ、OK/Cancelボタン付きダイアログ
+    - `hud`: 左上HP/右上スコア/下部ミニマップ付きHUD
+    - `menu`: 垂直レイアウトのメニューパネル
+    - `statusBar`: 上部または下部の情報バー
+    - `inventoryGrid`: グリッドレイアウトのインベントリ
+
+- **MCPサーバープロンプトに UI優先設計原則を追加**
+  - 人間が操作・確認できるUIから優先的に実装する設計指針
+  - 推奨実装順序: UI/フィードバック → ゲームロジック → 演出
+  - デバッグUI作成の推奨パターン
+
+### 技術詳細
+
+- ツール総数: 24 → 26（Sprite2DBundle, Animation2DBundle 追加）
+- `CommandHandlerInitializer.cs`: 新しいハンドラーを Mid-Level ツールとして登録
+- `register_tools.py`: Python スキーマとハンドラーマッピングを追加
+- 非推奨API警告を pragma で抑制（usedByComposite, TextureImporter.spritesheet）
+- UnityEditor.U2D 名前空間を使用した SpriteAtlas API 対応
+- UIFoundationHandler: 12操作に拡張（createCanvas, createPanel, createButton, createText, createImage, createInputField, createScrollView, addLayoutGroup, updateLayoutGroup, removeLayoutGroup, createFromTemplate, inspect）
+
+### ドキュメント
+
+- CHANGELOG.md を v2.4.0 に更新
+- MCPサーバープロンプトに UI優先設計原則セクションを追加
+
 ## [2.3.5] - 2025-12-09
 
 ### 追加

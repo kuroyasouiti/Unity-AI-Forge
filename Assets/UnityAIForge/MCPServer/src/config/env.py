@@ -77,9 +77,44 @@ class ServerEnv:
     unity_bridge_host: str
     unity_bridge_port: int
     bridge_reconnect_ms: int
+    bridge_token: str | None
 
 
 _project_root = _resolve_path(os.environ.get("UNITY_PROJECT_ROOT"), Path.cwd())
+
+def _load_bridge_token() -> str | None:
+    """Load bridge token from environment variable or token file."""
+    # 1. Environment variable has highest priority
+    env_token = os.environ.get("MCP_BRIDGE_TOKEN")
+    if env_token and env_token.strip():
+        return env_token.strip()
+
+    # 2. Try to load from token file in project root
+    token_file = _project_root / ".mcp_bridge_tokens.json"
+    if token_file.exists():
+        try:
+            import json
+
+            with open(token_file, encoding="utf-8") as f:
+                data = json.load(f)
+                tokens = data.get("tokens", [])
+                if tokens and isinstance(tokens, list) and len(tokens) > 0:
+                    return str(tokens[0]).strip()
+        except Exception:
+            pass
+
+    # 3. Legacy single-token file
+    legacy_file = _project_root / ".mcp_bridge_token"
+    if legacy_file.exists():
+        try:
+            token = legacy_file.read_text(encoding="utf-8").strip()
+            if token:
+                return token
+        except Exception:
+            pass
+
+    return None
+
 
 env = ServerEnv(
     port=_parse_int(os.environ.get("MCP_SERVER_PORT"), default=6007, minimum=1, maximum=65535),
@@ -97,4 +132,5 @@ env = ServerEnv(
     bridge_reconnect_ms=_parse_int(
         os.environ.get("MCP_BRIDGE_RECONNECT_MS"), default=5000, minimum=0
     ),
+    bridge_token=_load_bridge_token(),
 )

@@ -672,7 +672,12 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["createCanvas", "createPanel", "createButton", "createText", "createImage", "createInputField", "inspect"],
+                    "enum": [
+                        "createCanvas", "createPanel", "createButton", "createText",
+                        "createImage", "createInputField", "createScrollView",
+                        "addLayoutGroup", "updateLayoutGroup", "removeLayoutGroup",
+                        "createFromTemplate", "inspect",
+                    ],
                 },
                 "parentPath": {"type": "string", "description": "Parent GameObject path."},
                 "name": {"type": "string", "description": "UI element name."},
@@ -708,6 +713,107 @@ def register_tools(server: Server) -> None:
                 "height": {"type": "number", "description": "Height of UI element."},
                 "spritePath": {"type": "string", "description": "Sprite asset path for Image/Button."},
                 "placeholder": {"type": "string", "description": "Placeholder text for InputField."},
+                # ScrollView parameters
+                "horizontal": {"type": "boolean", "description": "Enable horizontal scrolling (default: false)."},
+                "vertical": {"type": "boolean", "description": "Enable vertical scrolling (default: true)."},
+                "horizontalScrollbar": {"type": "boolean", "description": "Show horizontal scrollbar (default: false)."},
+                "verticalScrollbar": {"type": "boolean", "description": "Show vertical scrollbar (default: true)."},
+                "movementType": {
+                    "type": "string",
+                    "enum": ["Unrestricted", "Elastic", "Clamped"],
+                    "description": "ScrollView movement type (default: Elastic).",
+                },
+                "elasticity": {"type": "number", "description": "Elasticity amount for Elastic movement (default: 0.1)."},
+                "inertia": {"type": "boolean", "description": "Enable inertia (default: true)."},
+                "decelerationRate": {"type": "number", "description": "Deceleration rate for inertia (default: 0.135)."},
+                "scrollSensitivity": {"type": "number", "description": "Scroll sensitivity (default: 1)."},
+                "viewportSize": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Viewport size (width, height).",
+                },
+                # LayoutGroup parameters
+                "layoutType": {
+                    "type": "string",
+                    "enum": ["Horizontal", "Vertical", "Grid"],
+                    "description": "LayoutGroup type for addLayoutGroup operation.",
+                },
+                "padding": {
+                    "type": "object",
+                    "properties": {
+                        "left": {"type": "integer"},
+                        "right": {"type": "integer"},
+                        "top": {"type": "integer"},
+                        "bottom": {"type": "integer"},
+                    },
+                    "description": "LayoutGroup padding (default: 0 for all).",
+                },
+                "spacing": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Spacing between elements (x for Horizontal/Grid, y for Vertical/Grid).",
+                },
+                "childAlignment": {
+                    "type": "string",
+                    "enum": [
+                        "UpperLeft", "UpperCenter", "UpperRight",
+                        "MiddleLeft", "MiddleCenter", "MiddleRight",
+                        "LowerLeft", "LowerCenter", "LowerRight",
+                    ],
+                    "description": "Child alignment within the layout (default: UpperLeft).",
+                },
+                "childControlWidth": {"type": "boolean", "description": "Control child width (default: true)."},
+                "childControlHeight": {"type": "boolean", "description": "Control child height (default: true)."},
+                "childScaleWidth": {"type": "boolean", "description": "Use child scale for width (default: false)."},
+                "childScaleHeight": {"type": "boolean", "description": "Use child scale for height (default: false)."},
+                "childForceExpandWidth": {"type": "boolean", "description": "Force expand width (default: true)."},
+                "childForceExpandHeight": {"type": "boolean", "description": "Force expand height (default: true)."},
+                "reverseArrangement": {"type": "boolean", "description": "Reverse child arrangement (default: false)."},
+                # Grid-specific parameters
+                "startCorner": {
+                    "type": "string",
+                    "enum": ["UpperLeft", "UpperRight", "LowerLeft", "LowerRight"],
+                    "description": "Grid start corner (default: UpperLeft).",
+                },
+                "startAxis": {
+                    "type": "string",
+                    "enum": ["Horizontal", "Vertical"],
+                    "description": "Grid start axis (default: Horizontal).",
+                },
+                "cellSize": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Grid cell size (default: 100x100).",
+                },
+                "constraint": {
+                    "type": "string",
+                    "enum": ["Flexible", "FixedColumnCount", "FixedRowCount"],
+                    "description": "Grid constraint mode (default: Flexible).",
+                },
+                "constraintCount": {"type": "integer", "description": "Number of rows/columns when using fixed constraint."},
+                # ContentSizeFitter parameters
+                "addContentSizeFitter": {"type": "boolean", "description": "Add ContentSizeFitter to target (default: false)."},
+                "horizontalFit": {
+                    "type": "string",
+                    "enum": ["Unconstrained", "MinSize", "PreferredSize"],
+                    "description": "ContentSizeFitter horizontal fit mode.",
+                },
+                "verticalFit": {
+                    "type": "string",
+                    "enum": ["Unconstrained", "MinSize", "PreferredSize"],
+                    "description": "ContentSizeFitter vertical fit mode.",
+                },
+                # Template parameters
+                "templateType": {
+                    "type": "string",
+                    "enum": ["dialog", "hud", "menu", "statusBar", "inventoryGrid"],
+                    "description": "UI template type for createFromTemplate operation.",
+                },
+                "templateOptions": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "Template-specific options (varies by template type).",
+                },
             },
         },
         ["operation"],
@@ -815,6 +921,107 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    tilemap_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "createTilemap", "inspect",
+                        "setTile", "getTile", "setTiles",
+                        "clearTile", "clearTiles", "clearAllTiles",
+                        "fillArea", "boxFill",
+                        "worldToCell", "cellToWorld",
+                        "updateRenderer", "updateCollider", "addCollider",
+                        "createTile", "createRuleTile", "inspectTile", "updateTile",
+                    ],
+                    "description": "Tilemap operation.",
+                },
+                "name": {"type": "string", "description": "Tilemap GameObject name (for createTilemap)."},
+                "tilemapPath": {"type": "string", "description": "Tilemap GameObject hierarchy path."},
+                "parentPath": {"type": "string", "description": "Parent GameObject path (for createTilemap)."},
+                "cellLayout": {
+                    "type": "string",
+                    "enum": ["Rectangle", "Hexagon", "Isometric", "IsometricZAsY"],
+                    "description": "Grid cell layout type.",
+                },
+                "cellSize": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Grid cell size.",
+                },
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+                    "description": "Tile position (grid coordinates, integers).",
+                },
+                "positions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+                    },
+                    "description": "Multiple tile positions for setTiles.",
+                },
+                "worldPosition": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "World position for worldToCell conversion.",
+                },
+                "cellPosition": {
+                    "type": "object",
+                    "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+                    "description": "Cell position for cellToWorld conversion.",
+                },
+                "bounds": {
+                    "type": "object",
+                    "properties": {
+                        "xMin": {"type": "integer"}, "yMin": {"type": "integer"}, "zMin": {"type": "integer"},
+                        "xMax": {"type": "integer"}, "yMax": {"type": "integer"}, "zMax": {"type": "integer"},
+                    },
+                    "description": "Bounding box for area operations (fillArea, clearTiles, boxFill).",
+                },
+                "tileAssetPath": {"type": "string", "description": "Tile asset path (.asset file)."},
+                "spritePath": {"type": "string", "description": "Sprite asset path for createTile."},
+                "defaultSprite": {"type": "string", "description": "Default sprite path for createRuleTile."},
+                "colliderType": {
+                    "type": "string",
+                    "enum": ["None", "Sprite", "Grid"],
+                    "description": "Tile collider type for createTile.",
+                },
+                "color": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Tile color (RGBA 0-1).",
+                },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sprites": {"type": "array", "items": {"type": "string"}, "description": "Sprite paths for this rule."},
+                            "neighbors": {"type": "object", "description": "Neighbor constraints."},
+                        },
+                    },
+                    "description": "RuleTile tiling rules (requires 2D Tilemap Extras package).",
+                },
+                "sortingLayerName": {"type": "string", "description": "Sorting layer name for TilemapRenderer."},
+                "sortingOrder": {"type": "integer", "description": "Sorting order for TilemapRenderer."},
+                "mode": {
+                    "type": "string",
+                    "enum": ["Chunk", "Individual"],
+                    "description": "TilemapRenderer mode.",
+                },
+                "usedByComposite": {"type": "boolean", "description": "Whether TilemapCollider2D is used by CompositeCollider2D."},
+                "usedByEffector": {"type": "boolean", "description": "Whether TilemapCollider2D is used by effector."},
+                "isTrigger": {"type": "boolean", "description": "Whether TilemapCollider2D is a trigger."},
+                "includeAllTiles": {"type": "boolean", "description": "Include all tile data in inspect response."},
+            },
+        },
+        ["operation"],
+    )
+
     gamekit_actor_schema = _schema_with_required(
         {
             "type": "object",
@@ -915,13 +1122,17 @@ def register_tools(server: Server) -> None:
                 },
                 "triggerShape": {
                     "type": "string",
-                    "enum": ["box", "sphere", "capsule"],
-                    "description": "Collider shape for collision/trigger types (ignored for other types).",
+                    "enum": ["box", "sphere", "circle", "capsule", "polygon", "mesh"],
+                    "description": "Collider shape. 2D: box/circle/capsule/polygon. 3D: box/sphere/capsule/mesh.",
                 },
                 "triggerSize": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
-                    "description": "Collider size/radius (Vector3 for box/capsule, x for sphere radius).",
+                    "description": "Collider size/radius (Vector3 for box/capsule, x for sphere/circle radius).",
+                },
+                "is2D": {
+                    "type": "boolean",
+                    "description": "Use 2D colliders (BoxCollider2D, CircleCollider2D, etc.) instead of 3D. Default: false.",
                 },
                 "actions": {
                     "type": "array",
@@ -1113,6 +1324,283 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    sprite2d_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["createSprite", "updateSprite", "inspect", "updateMultiple", "setSortingLayer", "setColor", "sliceSpriteSheet", "createSpriteAtlas"],
+                    "description": "Sprite2D bundle operation.",
+                },
+                "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId."},
+                "gameObjectPaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Multiple target GameObject paths for batch operations.",
+                },
+                "pattern": {"type": "string", "description": "Pattern for matching GameObjects."},
+                "useRegex": {"type": "boolean", "description": "Use regex pattern matching."},
+                "maxResults": {"type": "integer", "description": "Maximum results for batch operations."},
+                "name": {"type": "string", "description": "Name for new sprite GameObject."},
+                "parentPath": {"type": "string", "description": "Parent GameObject path."},
+                "spritePath": {"type": "string", "description": "Sprite asset path."},
+                "sortingLayerName": {"type": "string", "description": "Sorting layer name (default: 'Default')."},
+                "sortingOrder": {"type": "integer", "description": "Sorting order within layer."},
+                "color": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Sprite color (RGBA 0-1).",
+                },
+                "flipX": {"type": "boolean", "description": "Flip sprite horizontally."},
+                "flipY": {"type": "boolean", "description": "Flip sprite vertically."},
+                "drawMode": {
+                    "type": "string",
+                    "enum": ["simple", "sliced", "tiled"],
+                    "description": "Sprite draw mode.",
+                },
+                "size": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Sprite size (for sliced/tiled modes).",
+                },
+                "maskInteraction": {
+                    "type": "string",
+                    "enum": ["none", "visibleInsideMask", "visibleOutsideMask"],
+                    "description": "Sprite mask interaction mode.",
+                },
+                "materialPath": {"type": "string", "description": "Material asset path."},
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Initial position for new sprite.",
+                },
+                "texturePath": {"type": "string", "description": "Texture path for slicing."},
+                "sliceMode": {
+                    "type": "string",
+                    "enum": ["grid", "automatic"],
+                    "description": "Sprite sheet slicing mode.",
+                },
+                "cellSizeX": {"type": "integer", "description": "Grid cell width in pixels."},
+                "cellSizeY": {"type": "integer", "description": "Grid cell height in pixels."},
+                "pivot": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Sprite pivot point (0-1).",
+                },
+                "pixelsPerUnit": {"type": "number", "description": "Pixels per unit for sprite import."},
+                "atlasPath": {"type": "string", "description": "Output path for sprite atlas."},
+                "spritePaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Sprite paths to include in atlas.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    ui_hierarchy_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "clone", "inspect", "delete", "show", "hide", "toggle", "setNavigation"],
+                    "description": "UI hierarchy operation.",
+                },
+                "parentPath": {"type": "string", "description": "Parent GameObject path (usually Canvas or Panel)."},
+                "gameObjectPath": {"type": "string", "description": "Target UI hierarchy root path for inspect/delete/show/hide/toggle/clone/setNavigation."},
+                "hierarchyId": {"type": "string", "description": "Optional identifier for the UI hierarchy (used for referencing)."},
+                "hierarchy": {
+                    "type": "object",
+                    "description": "Declarative UI hierarchy definition (recursive structure).",
+                    "additionalProperties": True,
+                },
+                "recursive": {"type": "boolean", "description": "Apply visibility/navigation recursively to children (default: true)."},
+                "interactable": {"type": "boolean", "description": "Set interactable state when showing/hiding."},
+                "blocksRaycasts": {"type": "boolean", "description": "Set blocksRaycasts state when showing/hiding."},
+                "navigationMode": {
+                    "type": "string",
+                    "enum": ["none", "auto-vertical", "auto-horizontal", "explicit"],
+                    "description": "Navigation mode for setNavigation operation.",
+                },
+                "selectables": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of selectable element paths for explicit navigation setup.",
+                },
+                "wrapAround": {"type": "boolean", "description": "Enable wrap-around navigation (last→first, first→last)."},
+                "newName": {"type": "string", "description": "New name for cloned hierarchy root."},
+            },
+        },
+        ["operation"],
+    )
+
+    ui_state_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["defineState", "applyState", "saveState", "loadState", "listStates", "deleteState", "createStateGroup", "transitionTo", "getActiveState"],
+                    "description": "UI state operation.",
+                },
+                "stateName": {"type": "string", "description": "Name of the UI state."},
+                "rootPath": {"type": "string", "description": "Root GameObject path for the UI state."},
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string", "description": "Relative path from root (empty for root itself)."},
+                            "active": {"type": "boolean", "description": "GameObject active state."},
+                            "visible": {"type": "boolean", "description": "Visible (alpha > 0)."},
+                            "interactable": {"type": "boolean", "description": "CanvasGroup interactable."},
+                            "alpha": {"type": "number", "description": "CanvasGroup alpha (0-1)."},
+                            "blocksRaycasts": {"type": "boolean", "description": "CanvasGroup blocksRaycasts."},
+                            "anchoredPosition": {
+                                "type": "object",
+                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                            },
+                            "sizeDelta": {
+                                "type": "object",
+                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                            },
+                        },
+                    },
+                    "description": "Element states for defineState operation.",
+                },
+                "includeChildren": {"type": "boolean", "description": "Include children when saving state (default: true)."},
+                "maxDepth": {"type": "integer", "description": "Maximum depth for saveState (default: 10)."},
+                "groupName": {"type": "string", "description": "Name for state group."},
+                "states": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of state names for createStateGroup.",
+                },
+                "defaultState": {"type": "string", "description": "Default state for state group."},
+            },
+        },
+        ["operation"],
+    )
+
+    ui_navigation_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["configure", "setExplicit", "autoSetup", "createGroup", "setFirstSelected", "inspect", "reset", "disable"],
+                    "description": "UI navigation operation.",
+                },
+                "gameObjectPath": {"type": "string", "description": "Target Selectable GameObject path."},
+                "rootPath": {"type": "string", "description": "Root path for autoSetup operation."},
+                "mode": {
+                    "type": "string",
+                    "enum": ["none", "horizontal", "vertical", "automatic", "explicit"],
+                    "description": "Navigation mode.",
+                },
+                "wrapAround": {"type": "boolean", "description": "Enable wrap-around navigation."},
+                "direction": {
+                    "type": "string",
+                    "enum": ["vertical", "horizontal", "grid", "both"],
+                    "description": "Navigation direction for autoSetup/createGroup.",
+                },
+                "columns": {"type": "integer", "description": "Number of columns for grid navigation."},
+                "includeDisabled": {"type": "boolean", "description": "Include disabled Selectables in autoSetup."},
+                "up": {"type": "string", "description": "Path for selectOnUp (explicit)."},
+                "down": {"type": "string", "description": "Path for selectOnDown (explicit)."},
+                "left": {"type": "string", "description": "Path for selectOnLeft (explicit)."},
+                "right": {"type": "string", "description": "Path for selectOnRight (explicit)."},
+                "groupName": {"type": "string", "description": "Name for navigation group."},
+                "elements": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of element paths for createGroup.",
+                },
+                "isolate": {"type": "boolean", "description": "Isolate group navigation (default: true)."},
+                "recursive": {"type": "boolean", "description": "Apply recursively for reset/disable."},
+            },
+        },
+        ["operation"],
+    )
+
+    animation2d_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["setupAnimator", "updateAnimator", "inspectAnimator", "createController", "addState", "addTransition", "addParameter", "inspectController", "createClipFromSprites", "updateClip", "inspectClip"],
+                    "description": "Animation2D bundle operation.",
+                },
+                "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId."},
+                "controllerPath": {"type": "string", "description": "AnimatorController asset path."},
+                "clipPath": {"type": "string", "description": "AnimationClip asset path."},
+                "applyRootMotion": {"type": "boolean", "description": "Enable root motion."},
+                "updateMode": {
+                    "type": "string",
+                    "enum": ["Normal", "AnimatePhysics", "UnscaledTime"],
+                    "description": "Animator update mode.",
+                },
+                "cullingMode": {
+                    "type": "string",
+                    "enum": ["AlwaysAnimate", "CullCompletely", "CullUpdateTransforms"],
+                    "description": "Animator culling mode.",
+                },
+                "speed": {"type": "number", "description": "Animator playback speed."},
+                "parameters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "type": {"type": "string", "enum": ["Bool", "Float", "Int", "Trigger"]},
+                        },
+                    },
+                    "description": "Animator parameters to add.",
+                },
+                "stateName": {"type": "string", "description": "Animation state name."},
+                "layerIndex": {"type": "integer", "description": "Animator layer index (default: 0)."},
+                "isDefault": {"type": "boolean", "description": "Set as default state."},
+                "fromState": {"type": "string", "description": "Source state for transition ('Any' for AnyState)."},
+                "toState": {"type": "string", "description": "Destination state for transition."},
+                "hasExitTime": {"type": "boolean", "description": "Transition has exit time."},
+                "exitTime": {"type": "number", "description": "Exit time (0-1)."},
+                "duration": {"type": "number", "description": "Transition duration in seconds."},
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "parameter": {"type": "string"},
+                            "mode": {"type": "string", "enum": ["If", "IfNot", "Greater", "Less", "Equals", "NotEqual"]},
+                            "threshold": {"type": "number"},
+                        },
+                    },
+                    "description": "Transition conditions.",
+                },
+                "parameterName": {"type": "string", "description": "Parameter name."},
+                "parameterType": {
+                    "type": "string",
+                    "enum": ["Bool", "Float", "Int", "Trigger"],
+                    "description": "Parameter type.",
+                },
+                "spritePaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Sprite paths for animation clip creation.",
+                },
+                "frameRate": {"type": "number", "description": "Animation frame rate (default: 12)."},
+                "loop": {"type": "boolean", "description": "Loop animation."},
+            },
+        },
+        ["operation"],
+    )
+
     tool_definitions = [
         types.Tool(
             name="unity_ping",
@@ -1195,7 +1683,7 @@ Essential for configuring GameObject behavior and wiring up component references
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder). Supports render modes (screenSpaceOverlay/screenSpaceCamera/worldSpace), anchor presets (topLeft/middleCenter/stretchAll, etc.), automatic sizing, and color configuration. Perfect for rapid UI prototyping. Use for basic UI setup, then customize with unity_component_crud if needed.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports LayoutGroups (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). Supports render modes (screenSpaceOverlay/screenSpaceCamera/worldSpace), anchor presets (topLeft/middleCenter/stretchAll, etc.), automatic sizing, and color configuration. Perfect for rapid UI prototyping and hierarchical UI design. Use for basic UI setup, then customize with unity_component_crud if needed.",
             inputSchema=ui_foundation_schema,
         ),
         types.Tool(
@@ -1214,6 +1702,11 @@ Essential for configuring GameObject behavior and wiring up component references
             inputSchema=character_controller_bundle_schema,
         ),
         types.Tool(
+            name="unity_tilemap_bundle",
+            description="Mid-level Tilemap management: create Tilemaps with Grid parent, set/get/clear individual tiles, fill rectangular areas, create Tile and RuleTile assets from sprites. Operations: createTilemap (auto-creates Grid), setTile/getTile/setTiles (place tiles at positions), clearTile/clearTiles/clearAllTiles (remove tiles), fillArea/boxFill (batch placement), worldToCell/cellToWorld (coordinate conversion), updateRenderer/updateCollider/addCollider (component settings), createTile/createRuleTile/inspectTile/updateTile (tile asset management). Supports Rectangle/Hexagon/Isometric layouts, sorting layers, TilemapCollider2D with CompositeCollider2D support. RuleTile requires 2D Tilemap Extras package. Essential for 2D level design, roguelikes, platformers, and procedural map generation.",
+            inputSchema=tilemap_bundle_schema,
+        ),
+        types.Tool(
             name="unity_gamekit_actor",
             description="High-level GameKit Actor: create game actors with controller-behavior separation. Choose from 8 behavior profiles (2dLinear/2dPhysics/2dTileGrid/graphNode/splineMovement/3dCharacterController/3dPhysics/3dNavMesh) and 4 control modes (directController for player input via New Input System or legacy, aiAutonomous for AI patrol/follow/wander, uiCommand for UI button control, scriptTriggerOnly for event-driven). Actors relay input to behaviors via UnityEvents (OnMoveInput/OnJumpInput/OnActionInput/OnLookInput). Perfect for players, NPCs, enemies, and interactive characters.",
             inputSchema=gamekit_actor_schema,
@@ -1225,7 +1718,7 @@ Essential for configuring GameObject behavior and wiring up component references
         ),
         types.Tool(
             name="unity_gamekit_interaction",
-            description="High-level GameKit Interaction: create trigger-based interactions with declarative actions. Choose from 5 trigger types (collision/trigger/raycast/proximity/input) and 5 action types (spawnPrefab/destroyObject/playSound/sendMessage/changeScene). Add conditions (tag/layer/distance/custom) for filtering. Perfect for collectibles, doors, switches, treasure chests, and interactive objects. No scripting required - define complete interactions declaratively.",
+            description="High-level GameKit Interaction: create trigger-based interactions with declarative actions. Choose from 5 trigger types (collision/trigger/raycast/proximity/input) and 5 action types (spawnPrefab/destroyObject/playSound/sendMessage/changeScene). Add conditions (tag/layer/distance/custom) for filtering. Supports both 2D (BoxCollider2D, CircleCollider2D, CapsuleCollider2D, PolygonCollider2D) and 3D (BoxCollider, SphereCollider, CapsuleCollider, MeshCollider) colliders via is2D parameter. Perfect for collectibles, doors, switches, treasure chests, and interactive objects. No scripting required - define complete interactions declaratively.",
             inputSchema=gamekit_interaction_schema,
         ),
         types.Tool(
@@ -1242,6 +1735,132 @@ Essential for configuring GameObject behavior and wiring up component references
             name="unity_gamekit_sceneflow",
             description="High-level GameKit SceneFlow: manage scene transitions with granular control. Use 'create' to initialize, then 'addScene' to add individual scenes with load modes and shared scenes. Use 'addTransition' to define state machine transitions between scenes. Use 'removeScene'/'removeTransition' to modify flow. Each scene can have its own transitions - same trigger can lead to different destinations per scene. Perfect for level progression, menu systems, and complex scene workflows.",
             inputSchema=gamekit_sceneflow_schema,
+        ),
+        types.Tool(
+            name="unity_sprite2d_bundle",
+            description="Mid-level 2D sprite management: create/update SpriteRenderer GameObjects, batch update sprites, set sorting layers and colors, slice sprite sheets into multiple sprites, create SpriteAtlas assets. Operations: createSprite (new GameObject with SpriteRenderer), updateSprite (modify sprite/color/flip/sortingLayer), inspect (view sprite properties), updateMultiple/setSortingLayer/setColor (batch operations with pattern matching), sliceSpriteSheet (grid/automatic slicing), createSpriteAtlas (pack sprites). Perfect for 2D game sprite setup, sprite sheet management, and batch sprite configuration.",
+            inputSchema=sprite2d_bundle_schema,
+        ),
+        types.Tool(
+            name="unity_animation2d_bundle",
+            description="Mid-level 2D animation setup: manage Animator components, create AnimatorControllers, add states and transitions, create AnimationClips from sprite sequences. Operations: setupAnimator/updateAnimator/inspectAnimator (Animator component), createController/addState/addTransition/addParameter/inspectController (AnimatorController), createClipFromSprites/updateClip/inspectClip (AnimationClip). Supports transition conditions (If/Greater/Less), animation parameters (Bool/Float/Int/Trigger), and sprite-based animation creation. Essential for 2D character animation, state machines, and procedural animation setup.",
+            inputSchema=animation2d_bundle_schema,
+        ),
+        types.Tool(
+            name="unity_ui_hierarchy",
+            description="""Mid-level declarative UI hierarchy management: create complex UI structures from single JSON definitions, manage visibility states, configure keyboard/gamepad navigation.
+
+**Operations:**
+- create: Build complete UI hierarchy from declarative JSON structure (panels, buttons, text, images, inputs, scrollviews, toggles, sliders, dropdowns)
+- clone: Duplicate existing UI hierarchy with optional rename
+- inspect: Export UI hierarchy as JSON structure
+- delete: Remove UI hierarchy
+- show/hide/toggle: Control visibility using CanvasGroup (alpha, interactable, blocksRaycasts)
+- setNavigation: Configure keyboard/gamepad navigation (none/auto-vertical/auto-horizontal/explicit)
+
+**Hierarchy Structure Example:**
+```json
+{
+  "type": "panel",
+  "name": "MainMenu",
+  "children": [
+    {"type": "text", "name": "Title", "text": "Game Title", "fontSize": 48},
+    {"type": "button", "name": "StartBtn", "text": "Start Game"},
+    {"type": "button", "name": "OptionsBtn", "text": "Options"}
+  ],
+  "layout": "Vertical",
+  "spacing": 20
+}
+```
+
+**Supported Element Types:** panel, button, text, image, inputfield, scrollview, toggle, slider, dropdown
+
+Perfect for rapid UI prototyping, menu systems, dialog boxes, and complex UI structures without multiple API calls.""",
+            inputSchema=ui_hierarchy_schema,
+        ),
+        types.Tool(
+            name="unity_ui_state",
+            description="""Mid-level UI state management: define, save, load, and transition between UI states.
+
+**Operations:**
+- defineState: Define a named UI state with element configurations (active, visible, interactable, alpha, position, size)
+- applyState: Apply a saved state to UI elements
+- saveState: Capture current UI state (including children)
+- loadState: Load state definition without applying
+- listStates: List all defined states for a root
+- deleteState: Remove a state definition
+- createStateGroup: Create a group of mutually exclusive states
+- transitionTo: Transition to a state (alias for applyState)
+- getActiveState: Get currently active state name
+
+**Use Cases:**
+- Menu screens (main menu, pause menu, settings)
+- Dialog states (open, closed, minimized)
+- HUD states (combat, exploration, cutscene)
+- Form validation states (valid, invalid, loading)
+
+**Example:**
+```python
+# Define a "hidden" state for dialog
+unity_ui_state({
+    "operation": "defineState",
+    "stateName": "hidden",
+    "rootPath": "Canvas/Dialog",
+    "elements": [
+        {"path": "", "active": False, "alpha": 0}
+    ]
+})
+
+# Apply the state
+unity_ui_state({
+    "operation": "applyState",
+    "stateName": "hidden",
+    "rootPath": "Canvas/Dialog"
+})
+```""",
+            inputSchema=ui_state_schema,
+        ),
+        types.Tool(
+            name="unity_ui_navigation",
+            description="""Mid-level UI navigation management: configure keyboard/gamepad navigation for UI elements.
+
+**Operations:**
+- configure: Set navigation mode for a single Selectable (none/horizontal/vertical/automatic/explicit)
+- setExplicit: Set explicit up/down/left/right navigation targets
+- autoSetup: Automatically configure navigation for all Selectables under a root (vertical/horizontal/grid)
+- createGroup: Create a navigation group with isolated navigation
+- setFirstSelected: Set the first selected element for EventSystem
+- inspect: View current navigation configuration
+- reset: Reset navigation to automatic mode
+- disable: Disable navigation (mode=none)
+
+**Direction Options:**
+- vertical: Up/Down navigation in order
+- horizontal: Left/Right navigation in order
+- grid: Full 2D navigation with automatic column detection
+- both: Combine vertical and horizontal
+
+**Example:**
+```python
+# Auto-setup vertical menu navigation
+unity_ui_navigation({
+    "operation": "autoSetup",
+    "rootPath": "Canvas/MainMenu",
+    "direction": "vertical",
+    "wrapAround": True
+})
+
+# Create isolated navigation group
+unity_ui_navigation({
+    "operation": "createGroup",
+    "groupName": "InventorySlots",
+    "elements": ["Canvas/Inventory/Slot1", "Canvas/Inventory/Slot2", "Canvas/Inventory/Slot3"],
+    "direction": "horizontal",
+    "wrapAround": True,
+    "isolate": True
+})
+```""",
+            inputSchema=ui_navigation_schema,
         ),
     ]
 
@@ -1360,6 +1979,9 @@ Essential for configuring GameObject behavior and wiring up component references
         if name == "unity_character_controller_bundle":
             return await _call_bridge_tool("characterControllerBundle", args)
 
+        if name == "unity_tilemap_bundle":
+            return await _call_bridge_tool("tilemapBundle", args)
+
         if name == "unity_gamekit_actor":
             return await _call_bridge_tool("gamekitActor", args)
 
@@ -1377,6 +1999,21 @@ Essential for configuring GameObject behavior and wiring up component references
 
         if name == "unity_gamekit_sceneflow":
             return await _call_bridge_tool("gamekitSceneFlow", args)
+
+        if name == "unity_sprite2d_bundle":
+            return await _call_bridge_tool("sprite2DBundle", args)
+
+        if name == "unity_animation2d_bundle":
+            return await _call_bridge_tool("animation2DBundle", args)
+
+        if name == "unity_ui_hierarchy":
+            return await _call_bridge_tool("uiHierarchy", args)
+
+        if name == "unity_ui_state":
+            return await _call_bridge_tool("uiState", args)
+
+        if name == "unity_ui_navigation":
+            return await _call_bridge_tool("uiNavigation", args)
 
         if name == "unity_batch_sequential_execute":
             # Special handling for batch sequential tool (doesn't use bridge directly)
