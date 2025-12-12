@@ -72,7 +72,9 @@ namespace MCP.Editor.ServerManager
             { AITool.Cursor, ("cursor", "Cursor") },
             { AITool.ClaudeCode, ("claude", "Claude Code") },
             { AITool.Cline, ("cline", "Cline") },
-            { AITool.Windsurf, ("windsurf", "Windsurf") }
+            { AITool.Windsurf, ("windsurf", "Windsurf") },
+            { AITool.CodexCli, ("codex", "Codex CLI") },
+            { AITool.GeminiCli, ("gemini", "Gemini CLI") }
         };
 
         /// <summary>
@@ -154,8 +156,8 @@ namespace MCP.Editor.ServerManager
             var argsBuilder = new StringBuilder();
             argsBuilder.Append("mcp add --transport stdio");
 
-            // スコープオプション（Claude Code用）
-            if (tool == AITool.ClaudeCode)
+            // スコープオプション（Claude Code, Codex CLI, Gemini CLI用）
+            if (tool == AITool.ClaudeCode || tool == AITool.CodexCli || tool == AITool.GeminiCli)
             {
                 var scope = options.Scope switch
                 {
@@ -168,8 +170,11 @@ namespace MCP.Editor.ServerManager
 
             argsBuilder.Append($" {options.ServerName}");
 
-            // トークンを環境変数として設定（Claude Code -e オプション、サーバー名の後、--の前）
-            if (tool == AITool.ClaudeCode && !string.IsNullOrEmpty(options.BridgeToken))
+            // トークンを環境変数として設定（-e オプション、サーバー名の後、--の前）
+            // 注意: project スコープではトークンを含めない（設定ファイルに保存されgitにコミットされる危険があるため）
+            // project スコープの場合、ユーザーはシステム環境変数として MCP_BRIDGE_TOKEN を設定する必要がある
+            var supportsScopeToken = tool == AITool.ClaudeCode || tool == AITool.CodexCli || tool == AITool.GeminiCli;
+            if (supportsScopeToken && !string.IsNullOrEmpty(options.BridgeToken) && options.Scope != RegistrationScope.Project)
             {
                 argsBuilder.Append($" -e MCP_BRIDGE_TOKEN={options.BridgeToken}");
             }
@@ -212,9 +217,9 @@ namespace MCP.Editor.ServerManager
                 };
             }
 
-            // スコープオプション（Claude Code用）
+            // スコープオプション（Claude Code, Codex CLI, Gemini CLI用）
             var args = $"mcp remove {serverName}";
-            if (tool == AITool.ClaudeCode)
+            if (tool == AITool.ClaudeCode || tool == AITool.CodexCli || tool == AITool.GeminiCli)
             {
                 var scopeStr = scope switch
                 {
@@ -280,6 +285,14 @@ namespace MCP.Editor.ServerManager
         }
 
         /// <summary>
+        /// 指定されたAIツールがスコープ（User/Local/Project）をサポートしているかチェック
+        /// </summary>
+        public static bool SupportsScope(AITool tool)
+        {
+            return tool == AITool.ClaudeCode || tool == AITool.CodexCli || tool == AITool.GeminiCli;
+        }
+
+        /// <summary>
         /// CLIコマンドが利用可能かチェック
         /// Windowsでは where コマンドで存在確認（アプリ起動を防ぐ）
         /// </summary>
@@ -337,7 +350,9 @@ namespace MCP.Editor.ServerManager
         /// <summary>
         /// 登録済みMCPサーバー一覧を取得
         /// </summary>
-        public static CliResult ListServers(AITool tool)
+        /// <param name="tool">AIツール</param>
+        /// <param name="scope">スコープ（Claude Code用、nullの場合は全スコープ）</param>
+        public static CliResult ListServers(AITool tool, RegistrationScope? scope = null)
         {
             if (!CliCommands.TryGetValue(tool, out var cliInfo))
             {
@@ -360,14 +375,31 @@ namespace MCP.Editor.ServerManager
                 };
             }
 
-            return ExecuteCliCommand(cliInfo.command, "mcp list", cliInfo.displayName);
+            // スコープオプションを構築（Claude Code, Codex CLI, Gemini CLI用）
+            var args = "mcp list";
+            var supportsScope = tool == AITool.ClaudeCode || tool == AITool.CodexCli || tool == AITool.GeminiCli;
+            if (supportsScope && scope.HasValue)
+            {
+                var scopeStr = scope.Value switch
+                {
+                    RegistrationScope.Local => "local",
+                    RegistrationScope.Project => "project",
+                    _ => "user"
+                };
+                args = $"mcp list --scope {scopeStr}";
+            }
+
+            return ExecuteCliCommand(cliInfo.command, args, cliInfo.displayName);
         }
 
         /// <summary>
         /// 指定されたサーバーが登録済みかチェック
         /// CLIが利用不可な場合はfalseを返す
         /// </summary>
-        public static bool IsServerRegistered(AITool tool, string serverName)
+        /// <param name="tool">AIツール</param>
+        /// <param name="serverName">サーバー名</param>
+        /// <param name="scope">スコープ（Claude Code用、nullの場合は全スコープ）</param>
+        public static bool IsServerRegistered(AITool tool, string serverName, RegistrationScope? scope = null)
         {
             // CLIが利用可能かまずチェック
             if (!IsCliAvailable(tool))
@@ -381,14 +413,19 @@ namespace MCP.Editor.ServerManager
                 return false;
             }
 
-            var result = ListServers(tool);
+            var result = ListServers(tool, scope);
             if (!result.Success)
             {
                 return false;
             }
 
-            // 出力からサーバー名を検索
-            return result.Output?.Contains(serverName, StringComparison.OrdinalIgnoreCase) ?? false;
+            // 出力からサーバー名を検索（標準出力と標準エラー両方をチェック）
+            // claude mcp list は出力先がバージョンによって異なる場合がある
+            var output = result.Output ?? "";
+            var error = result.Error ?? "";
+            var combinedOutput = output + "\n" + error;
+
+            return combinedOutput.Contains(serverName, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -403,6 +440,8 @@ namespace MCP.Editor.ServerManager
             return tool switch
             {
                 AITool.ClaudeCode => true,  // claude mcp add/list/remove をサポート
+                AITool.CodexCli => true,    // codex mcp add/list/remove をサポート
+                AITool.GeminiCli => true,   // gemini mcp add/list/remove をサポート
                 // AITool.Cursor => true,   // TODO: Cursor MCP CLIが安定したら有効化
                 // AITool.Cline => true,    // TODO: Cline MCP CLIが確認できたら有効化
                 // AITool.Windsurf => true, // TODO: Windsurf MCP CLIが確認できたら有効化

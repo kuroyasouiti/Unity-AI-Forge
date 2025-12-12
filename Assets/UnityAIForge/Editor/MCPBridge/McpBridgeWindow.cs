@@ -28,9 +28,24 @@ namespace MCP.Editor
         // AI Tool Registration State
         private Dictionary<AITool, (bool cliAvailable, bool registered)> _aiToolStatus = new();
 
+        // Per-tool scope-specific registration status (for tools that support scopes)
+        private Dictionary<(AITool tool, McpCliRegistry.RegistrationScope scope), bool> _toolScopeStatus = new();
+
         // Project Registration State (CLI-based)
         private bool _showConfigPreview = false;
         private McpCliRegistry.RegistrationScope _registrationScope = McpCliRegistry.RegistrationScope.User;
+
+        // Tab-based registration UI
+        private int _selectedClientTab = 0;
+        private int _selectedScopeTab = 0;
+        private static readonly AITool[] SupportedClients = { AITool.ClaudeCode, AITool.CodexCli, AITool.GeminiCli };
+        private static readonly string[] ClientTabNames = { "Claude Code", "Codex CLI", "Gemini CLI" };
+        private static readonly string[] ScopeTabNames = { "User", "Local", "Project" };
+        private static readonly string[] ScopeDescriptions = {
+            "User: Available in all projects - Token stored safely",
+            "Local: This machine only - Token stored safely",
+            "Project: Shared with team - Token NOT included (security)"
+        };
 
         // GUI Styles (lazy initialized)
         private static GUIStyle _statusConnectedStyle;
@@ -704,17 +719,36 @@ namespace MCP.Editor
         private void RefreshProjectRegistrationStatus()
         {
             _aiToolStatus.Clear();
+            _toolScopeStatus.Clear();
 
-            // CLI対応のAIツールのみチェック
-            var cliTools = new[] { AITool.Cursor, AITool.ClaudeCode, AITool.Cline, AITool.Windsurf };
+            // サポート対象のAIツールのみチェック
             var serverName = McpProjectRegistry.GetProjectServerName();
 
-            foreach (var tool in cliTools)
+            foreach (var tool in SupportedClients)
             {
                 var cliAvailable = McpCliRegistry.IsCliAvailable(tool);
-                // CLIが利用可能な場合のみ登録状態をチェック
-                var registered = cliAvailable && McpCliRegistry.IsServerRegistered(tool, serverName);
-                _aiToolStatus[tool] = (cliAvailable, registered);
+                var supportsScope = McpCliRegistry.SupportsScope(tool);
+
+                if (supportsScope && cliAvailable)
+                {
+                    // スコープをサポートするツールの場合、各スコープごとにチェック
+                    foreach (McpCliRegistry.RegistrationScope scope in Enum.GetValues(typeof(McpCliRegistry.RegistrationScope)))
+                    {
+                        var registered = McpCliRegistry.IsServerRegistered(tool, serverName, scope);
+                        // ツールとスコープのペアで状態を保存
+                        _toolScopeStatus[(tool, scope)] = registered;
+                    }
+
+                    // 現在選択中のスコープの登録状態を使用
+                    var currentScopeRegistered = _toolScopeStatus.TryGetValue((tool, _registrationScope), out var reg) && reg;
+                    _aiToolStatus[tool] = (cliAvailable, currentScopeRegistered);
+                }
+                else
+                {
+                    // スコープ非対応ツールは従来通り
+                    var registered = cliAvailable && McpCliRegistry.IsServerRegistered(tool, serverName);
+                    _aiToolStatus[tool] = (cliAvailable, registered);
+                }
             }
         }
 
@@ -728,196 +762,341 @@ namespace MCP.Editor
                     return;
                 }
 
-                // Project info
-                EditorGUILayout.LabelField("Project Info", EditorStyles.boldLabel);
-
+                // Project info (collapsible)
                 using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                 {
-                    EditorGUILayout.LabelField("Project Name", McpProjectRegistry.GetProjectName());
-                    EditorGUILayout.LabelField("Server Name", McpProjectRegistry.GetProjectServerName());
-
                     var settings = McpBridgeSettings.Instance;
-                    EditorGUILayout.LabelField("Bridge Port", settings.ServerPort.ToString());
-                    EditorGUILayout.LabelField("Token", settings.BridgeTokenMasked);
-
-                    GUILayout.Space(3f);
-
-                    // Scope selector (for Claude Code)
                     using (new EditorGUILayout.HorizontalScope())
                     {
-                        EditorGUILayout.LabelField("Scope", GUILayout.Width(80));
-                        _registrationScope = (McpCliRegistry.RegistrationScope)EditorGUILayout.EnumPopup(_registrationScope);
+                        EditorGUILayout.LabelField("Server:", GUILayout.Width(50));
+                        EditorGUILayout.LabelField(McpProjectRegistry.GetProjectServerName(), EditorStyles.boldLabel);
+                        GUILayout.FlexibleSpace();
+                        EditorGUILayout.LabelField($"Port: {settings.ServerPort}", GUILayout.Width(80));
                     }
-                    var scopeDescription = _registrationScope switch
-                    {
-                        McpCliRegistry.RegistrationScope.User => "User: Available in all projects (~/.claude.json)",
-                        McpCliRegistry.RegistrationScope.Local => "Local: This machine only (.claude.json)",
-                        McpCliRegistry.RegistrationScope.Project => "Project: Shared with team (.claude/settings.json)",
-                        _ => ""
-                    };
-                    EditorGUILayout.LabelField(scopeDescription, EditorStyles.miniLabel);
                 }
 
                 GUILayout.Space(5f);
 
-                EditorGUILayout.HelpBox(
-                    "Register this project to AI tools via CLI.\n" +
-                    "Each registration includes the bridge token and port.\n" +
-                    "CLI: Command available, MCP: Supports MCP CLI commands (some tools open GUI instead)",
-                    MessageType.Info
-                );
-
-                GUILayout.Space(5f);
-
-                // Tool table header
-                using (new EditorGUILayout.HorizontalScope())
+                // AI Client Tabs
+                EditorGUILayout.LabelField("Select AI Client", EditorStyles.boldLabel);
+                var newClientTab = GUILayout.Toolbar(_selectedClientTab, ClientTabNames);
+                if (newClientTab != _selectedClientTab)
                 {
-                    EditorGUILayout.LabelField("AI Tool", EditorStyles.boldLabel, GUILayout.Width(120));
-                    EditorGUILayout.LabelField("CLI", EditorStyles.boldLabel, GUILayout.Width(50));
-                    EditorGUILayout.LabelField("MCP", EditorStyles.boldLabel, GUILayout.Width(50));
-                    EditorGUILayout.LabelField("Status", EditorStyles.boldLabel, GUILayout.Width(100));
-                    EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+                    _selectedClientTab = newClientTab;
+                    RefreshProjectRegistrationStatus();
                 }
 
-                DrawToolDivider();
-
-                // Draw each AI tool row
-                DrawProjectToolRow(AITool.Cursor);
-                DrawProjectToolRow(AITool.ClaudeCode);
-                DrawProjectToolRow(AITool.Cline);
-                DrawProjectToolRow(AITool.Windsurf);
+                var selectedClient = SupportedClients[_selectedClientTab];
 
                 GUILayout.Space(5f);
 
-                // Batch operations
+                // Scope Tabs (for tools that support scope)
+                if (McpCliRegistry.SupportsScope(selectedClient))
+                {
+                    DrawScopeTabs(selectedClient);
+                }
+
+                GUILayout.Space(5f);
+
+                // Draw client-specific registration panel
+                DrawClientRegistrationPanel(selectedClient);
+
+                GUILayout.Space(5f);
+
+                // Config preview (collapsed by default)
+                _showConfigPreview = EditorGUILayout.Foldout(_showConfigPreview, "CLI Command Preview");
+                if (_showConfigPreview)
+                {
+                    DrawCliCommandPreviewForClient(selectedClient);
+                }
+
+                GUILayout.Space(5f);
+
+                // Refresh button
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUI.enabled = !_commandRunning;
-
-                    if (GUILayout.Button("Register All", GUILayout.Height(25)))
-                    {
-                        RegisterProjectToAllViaCli();
-                    }
-
-                    if (GUILayout.Button("Unregister All", GUILayout.Height(25)))
-                    {
-                        UnregisterProjectFromAllViaCli();
-                    }
-
-                    if (GUILayout.Button("Refresh", GUILayout.Height(25)))
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Refresh Status", GUILayout.Width(120)))
                     {
                         RefreshProjectRegistrationStatus();
                         AppendLog("Project registration status refreshed");
                     }
-
-                    GUI.enabled = true;
                 }
+            }
+        }
 
-                GUILayout.Space(5f);
+        private void DrawScopeTabs(AITool client)
+        {
+            EditorGUILayout.LabelField("Registration Scope", EditorStyles.boldLabel);
 
-                // Config preview
-                _showConfigPreview = EditorGUILayout.Foldout(_showConfigPreview, "Config Preview");
-                if (_showConfigPreview)
+            // スコープタブにステータスアイコンを追加
+            var scopeTabLabels = new string[ScopeTabNames.Length];
+            for (int i = 0; i < ScopeTabNames.Length; i++)
+            {
+                var scope = (McpCliRegistry.RegistrationScope)i;
+                var isRegistered = _toolScopeStatus.TryGetValue((client, scope), out var reg) && reg;
+                var icon = isRegistered ? "\u2713 " : "";
+                scopeTabLabels[i] = $"{icon}{ScopeTabNames[i]}";
+            }
+
+            var newScopeTab = GUILayout.Toolbar(_selectedScopeTab, scopeTabLabels);
+            if (newScopeTab != _selectedScopeTab)
+            {
+                _selectedScopeTab = newScopeTab;
+                _registrationScope = (McpCliRegistry.RegistrationScope)_selectedScopeTab;
+                Repaint(); // UIを即座に更新
+            }
+
+            // Scope description
+            EditorGUILayout.HelpBox(ScopeDescriptions[_selectedScopeTab], MessageType.None);
+
+            // Project scope warning and environment variable guide
+            if (_registrationScope == McpCliRegistry.RegistrationScope.Project)
+            {
+                EditorGUILayout.HelpBox(
+                    "Project scope stores config in a shared settings file which may be committed to git.\n" +
+                    "Token is NOT included to prevent accidental exposure.\n\n" +
+                    "You must set MCP_BRIDGE_TOKEN as a system environment variable.",
+                    MessageType.Warning
+                );
+
+                DrawEnvironmentVariableGuide();
+            }
+        }
+
+        private void DrawEnvironmentVariableGuide()
+        {
+            var settings = McpBridgeSettings.Instance;
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("Environment Variable Setup", EditorStyles.boldLabel);
+
+                var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
+
+                if (isWindows)
                 {
-                    DrawCliCommandPreview();
+                    EditorGUILayout.LabelField("Windows (PowerShell - permanent):", EditorStyles.miniLabel);
+                    var psCommand = $"[Environment]::SetEnvironmentVariable('MCP_BRIDGE_TOKEN', '{settings.BridgeToken}', 'User')";
+                    GUI.enabled = false;
+                    EditorGUILayout.TextField(psCommand);
+                    GUI.enabled = true;
+
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button("Copy", GUILayout.Width(60)))
+                        {
+                            GUIUtility.systemCopyBuffer = psCommand;
+                            AppendLog("PowerShell command copied");
+                        }
+                    }
                 }
+                else
+                {
+                    EditorGUILayout.LabelField("macOS/Linux (add to ~/.bashrc or ~/.zshrc):", EditorStyles.miniLabel);
+                    var shellCommand = $"export MCP_BRIDGE_TOKEN=\"{settings.BridgeToken}\"";
+                    GUI.enabled = false;
+                    EditorGUILayout.TextField(shellCommand);
+                    GUI.enabled = true;
+
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button("Copy", GUILayout.Width(60)))
+                        {
+                            GUIUtility.systemCopyBuffer = shellCommand;
+                            AppendLog("Shell command copied");
+                        }
+                    }
+                }
+
+                EditorGUILayout.HelpBox("Restart your terminal/IDE after setting the environment variable.", MessageType.Info);
             }
         }
 
-        private void DrawToolDivider()
+        private void DrawClientRegistrationPanel(AITool client)
         {
-            var rect = EditorGUILayout.GetControlRect(false, 1);
-            EditorGUI.DrawRect(rect, new Color(0.5f, 0.5f, 0.5f, 0.5f));
-        }
-
-        private void DrawProjectToolRow(AITool tool)
-        {
-            if (!_aiToolStatus.TryGetValue(tool, out var status))
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                status = (false, false);
-            }
+                var clientName = McpConfigManager.GetToolDisplayName(client);
 
-            var mcpSupported = McpCliRegistry.IsMcpCliSupported(tool);
+                // Get status for this client
+                bool cliAvailable;
+                bool registered;
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                // Tool name
-                EditorGUILayout.LabelField(McpConfigManager.GetToolDisplayName(tool), GUILayout.Width(120));
+                if (McpCliRegistry.SupportsScope(client))
+                {
+                    // スコープ対応ツールの場合、現在選択中のスコープの登録状態を使用
+                    cliAvailable = _aiToolStatus.TryGetValue(client, out var s) && s.cliAvailable;
+                    registered = _toolScopeStatus.TryGetValue((client, _registrationScope), out var reg) && reg;
+                }
+                else
+                {
+                    if (_aiToolStatus.TryGetValue(client, out var s))
+                    {
+                        cliAvailable = s.cliAvailable;
+                        registered = s.registered;
+                    }
+                    else
+                    {
+                        cliAvailable = false;
+                        registered = false;
+                    }
+                }
 
-                // CLI availability
-                var cliIcon = status.cliAvailable ? "\u2713" : "\u2717";
-                EditorGUILayout.LabelField(cliIcon, GUILayout.Width(50));
+                var status = (cliAvailable, registered);
+                var mcpSupported = McpCliRegistry.IsMcpCliSupported(client);
 
-                // MCP CLI support (some CLIs open GUI app instead of running MCP commands)
-                var mcpIcon = mcpSupported ? "\u2713" : "-";
-                EditorGUILayout.LabelField(mcpIcon, GUILayout.Width(50));
+                // Status display
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField("CLI Available:", GUILayout.Width(100));
+                    var cliIcon = status.cliAvailable ? "\u2713 Yes" : "\u2717 No";
+                    var cliStyle = status.cliAvailable ? EditorStyles.boldLabel : EditorStyles.label;
+                    EditorGUILayout.LabelField(cliIcon, cliStyle);
+                }
 
-                // Registration status
-                string statusText;
-                GUIStyle statusStyle;
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField("MCP CLI Support:", GUILayout.Width(100));
+                    var mcpIcon = mcpSupported ? "\u2713 Yes" : "\u2717 No";
+                    var mcpStyle = mcpSupported ? EditorStyles.boldLabel : EditorStyles.label;
+                    EditorGUILayout.LabelField(mcpIcon, mcpStyle);
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField("Status:", GUILayout.Width(100));
+                    string statusText;
+                    GUIStyle statusStyle;
+                    if (!mcpSupported)
+                    {
+                        statusText = "Not Supported";
+                        statusStyle = EditorStyles.miniLabel;
+                    }
+                    else if (!status.cliAvailable)
+                    {
+                        statusText = "CLI Not Found";
+                        statusStyle = EditorStyles.miniLabel;
+                    }
+                    else
+                    {
+                        statusText = status.registered ? "\u2713 Registered" : "\u2717 Not Registered";
+                        statusStyle = status.registered ? EditorStyles.boldLabel : EditorStyles.label;
+                    }
+                    EditorGUILayout.LabelField(statusText, statusStyle);
+                }
+
+                GUILayout.Space(10f);
+
+                // Action buttons
                 if (!mcpSupported)
                 {
-                    statusText = "Not Supported";
-                    statusStyle = EditorStyles.miniLabel;
+                    EditorGUILayout.HelpBox(
+                        $"{clientName} does not support MCP CLI commands yet.\n" +
+                        "Please configure manually or wait for MCP CLI support.",
+                        MessageType.Warning
+                    );
+                }
+                else if (!status.cliAvailable)
+                {
+                    EditorGUILayout.HelpBox(
+                        $"{clientName} CLI is not available.\n" +
+                        "Please install the CLI or add it to your PATH.",
+                        MessageType.Warning
+                    );
                 }
                 else
                 {
-                    statusText = status.registered ? "Registered" : "Not Registered";
-                    statusStyle = status.registered ? EditorStyles.boldLabel : EditorStyles.label;
-                }
-                EditorGUILayout.LabelField(statusText, statusStyle, GUILayout.Width(100));
-
-                // Actions - only enable for tools that support MCP CLI
-                GUI.enabled = status.cliAvailable && mcpSupported && !_commandRunning;
-
-                if (!status.registered)
-                {
-                    if (GUILayout.Button("Register", GUILayout.Width(80)))
+                    // Registration/Unregistration buttons
+                    using (new EditorGUILayout.HorizontalScope())
                     {
-                        RegisterProjectToToolViaCli(tool);
+                        GUI.enabled = !_commandRunning && !status.registered;
+                        if (GUILayout.Button("Register", GUILayout.Height(30)))
+                        {
+                            RegisterProjectToToolViaCli(client);
+                        }
+
+                        GUI.enabled = !_commandRunning && status.registered;
+                        if (GUILayout.Button("Unregister", GUILayout.Height(30)))
+                        {
+                            UnregisterProjectFromToolViaCli(client);
+                        }
+
+                        GUI.enabled = true;
+                    }
+
+                    if (McpCliRegistry.SupportsScope(client))
+                    {
+                        GUILayout.Space(5f);
+                        EditorGUILayout.HelpBox(
+                            "Note: Registration scope affects where the configuration is stored.\n" +
+                            "User scope is recommended for personal use.",
+                            MessageType.Info
+                        );
                     }
                 }
-                else
-                {
-                    if (GUILayout.Button("Unregister", GUILayout.Width(80)))
-                    {
-                        UnregisterProjectFromToolViaCli(tool);
-                    }
-                }
-
-                GUI.enabled = true;
             }
         }
 
-        private void DrawCliCommandPreview()
+        private void DrawCliCommandPreviewForClient(AITool client)
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 var settings = McpBridgeSettings.Instance;
                 var serverName = McpProjectRegistry.GetProjectServerName();
                 var serverPath = McpServerManager.UserInstallPath;
+                var clientName = McpConfigManager.GetToolDisplayName(client);
 
-                EditorGUILayout.LabelField("CLI Command Preview:", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"CLI Command for {clientName}:", EditorStyles.boldLabel);
 
-                var scopeStr = _registrationScope switch
-                {
-                    McpCliRegistry.RegistrationScope.Local => "local",
-                    McpCliRegistry.RegistrationScope.Project => "project",
-                    _ => "user"
-                };
-                var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
-                var uvCommand = isWindows ? "cmd /c uv" : "uv";
-                var command = $"claude mcp add --scope {scopeStr} {serverName} -e MCP_BRIDGE_TOKEN={settings.BridgeTokenMasked} -- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
+                var command = GenerateCliCommand(client, serverName, serverPath, settings);
 
                 GUI.enabled = false;
-                EditorGUILayout.TextArea(command, GUILayout.Height(60));
+                EditorGUILayout.TextArea(command, GUILayout.Height(80));
                 GUI.enabled = true;
 
-                EditorGUILayout.HelpBox(
-                    "Note: --scope option is Claude Code specific (user/local/project)",
-                    MessageType.None
-                );
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Copy to Clipboard", GUILayout.Width(130)))
+                    {
+                        GUIUtility.systemCopyBuffer = command;
+                        AppendLog("Command copied to clipboard");
+                    }
+                }
             }
+        }
+
+        private string GenerateCliCommand(AITool client, string serverName, string serverPath, McpBridgeSettings settings)
+        {
+            var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
+            var uvCommand = isWindows ? "cmd /c uv" : "uv";
+            var scope = ScopeTabNames[_selectedScopeTab].ToLower();
+            var isProjectScope = _registrationScope == McpCliRegistry.RegistrationScope.Project;
+
+            // スコープ対応CLIコマンドの共通フォーマット
+            string GenerateScopedCliCommand(string cliCommand)
+            {
+                if (isProjectScope)
+                {
+                    return $"# Token NOT included (Project scope - use system environment variable)\n" +
+                           $"{cliCommand} mcp add --scope {scope} {serverName} " +
+                           $"-- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
+                }
+                return $"{cliCommand} mcp add --scope {scope} {serverName} " +
+                       $"-e MCP_BRIDGE_TOKEN={settings.BridgeTokenMasked} " +
+                       $"-- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
+            }
+
+            return client switch
+            {
+                AITool.ClaudeCode => GenerateScopedCliCommand("claude"),
+                AITool.CodexCli => GenerateScopedCliCommand("codex"),
+                AITool.GeminiCli => GenerateScopedCliCommand("gemini"),
+                _ => $"# {McpConfigManager.GetToolDisplayName(client)}: Configuration not available"
+            };
         }
 
         private void RegisterProjectToToolViaCli(AITool tool)
@@ -942,6 +1121,10 @@ namespace MCP.Editor
 
                 var result = McpCliRegistry.RegisterProject(tool, options);
 
+                // 「already exists」エラーは既に登録済みとして成功扱い
+                var alreadyExists = !string.IsNullOrEmpty(result.Error) &&
+                    result.Error.Contains("already exists", StringComparison.OrdinalIgnoreCase);
+
                 RefreshProjectRegistrationStatus();
 
                 if (result.Success)
@@ -957,6 +1140,14 @@ namespace MCP.Editor
                         $"Server: {options.ServerName}\n" +
                         $"Port: {options.BridgePort}\n\n" +
                         "Please restart the AI tool for changes to take effect.",
+                        "OK");
+                }
+                else if (alreadyExists)
+                {
+                    AppendLog($"Server already registered to {toolName}");
+                    EditorUtility.DisplayDialog("Already Registered",
+                        $"Server is already registered to {toolName}.\n\n" +
+                        "If you want to update the configuration, please unregister first.",
                         "OK");
                 }
                 else
@@ -1026,125 +1217,6 @@ namespace MCP.Editor
             {
                 _commandRunning = false;
                 Repaint();
-            }
-        }
-
-        private void RegisterProjectToAllViaCli()
-        {
-            var successCount = 0;
-            var failCount = 0;
-            var settings = McpBridgeSettings.Instance;
-
-            foreach (var kvp in _aiToolStatus)
-            {
-                var tool = kvp.Key;
-                var (cliAvailable, registered) = kvp.Value;
-
-                // Skip if CLI not available, already registered, or MCP CLI not supported
-                if (!cliAvailable || registered || !McpCliRegistry.IsMcpCliSupported(tool))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var toolName = McpConfigManager.GetToolDisplayName(tool);
-                    AppendLog($"Registering to {toolName}...");
-
-                    var options = new McpCliRegistry.ProjectRegistrationOptions
-                    {
-                        ServerName = McpProjectRegistry.GetProjectServerName(),
-                        ServerPath = McpServerManager.UserInstallPath,
-                        BridgeToken = settings.BridgeToken,
-                        BridgeHost = settings.ServerHost,
-                        BridgePort = settings.ServerPort,
-                        ProjectPath = McpProjectRegistry.GetProjectPath(),
-                        Scope = _registrationScope
-                    };
-
-                    var result = McpCliRegistry.RegisterProject(tool, options);
-
-                    if (result.Success)
-                    {
-                        successCount++;
-                        AppendLog($"{toolName} registered");
-                    }
-                    else
-                    {
-                        failCount++;
-                        AppendLog($"{toolName} failed: {result.Error}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failCount++;
-                    AppendLog($"{McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
-                }
-            }
-
-            RefreshProjectRegistrationStatus();
-            AppendLog($"Batch registration completed: {successCount} succeeded, {failCount} failed");
-
-            if (successCount > 0)
-            {
-                EditorUtility.DisplayDialog("Batch Registration Complete",
-                    $"Registered to {successCount} AI tool(s).\n\n" +
-                    "Please restart the AI tools for changes to take effect.",
-                    "OK");
-            }
-        }
-
-        private void UnregisterProjectFromAllViaCli()
-        {
-            var successCount = 0;
-            var failCount = 0;
-            var serverName = McpProjectRegistry.GetProjectServerName();
-
-            foreach (var kvp in _aiToolStatus)
-            {
-                var tool = kvp.Key;
-                var (cliAvailable, registered) = kvp.Value;
-
-                // Skip if CLI not available, not registered, or MCP CLI not supported
-                if (!cliAvailable || !registered || !McpCliRegistry.IsMcpCliSupported(tool))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var toolName = McpConfigManager.GetToolDisplayName(tool);
-                    AppendLog($"Unregistering from {toolName} (scope: {_registrationScope})...");
-
-                    var result = McpCliRegistry.UnregisterProject(tool, serverName, _registrationScope);
-
-                    if (result.Success)
-                    {
-                        successCount++;
-                        AppendLog($"{toolName} unregistered");
-                    }
-                    else
-                    {
-                        failCount++;
-                        AppendLog($"{toolName} failed: {result.Error}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failCount++;
-                    AppendLog($"{McpConfigManager.GetToolDisplayName(tool)} failed: {ex.Message}");
-                }
-            }
-
-            RefreshProjectRegistrationStatus();
-            AppendLog($"Batch unregistration completed: {successCount} succeeded, {failCount} failed");
-
-            if (successCount > 0)
-            {
-                EditorUtility.DisplayDialog("Batch Unregistration Complete",
-                    $"Unregistered from {successCount} AI tool(s).\n\n" +
-                    "Please restart the AI tools for changes to take effect.",
-                    "OK");
             }
         }
 

@@ -15,7 +15,9 @@ namespace MCP.Editor.ServerManager
         ClaudeDesktop,
         ClaudeCode,
         Cline,
-        Windsurf
+        Windsurf,
+        CodexCli,
+        GeminiCli
     }
     
     /// <summary>
@@ -274,6 +276,8 @@ namespace MCP.Editor.ServerManager
                 AITool.ClaudeCode => "Claude Code",
                 AITool.Cline => "Cline (VS Code)",
                 AITool.Windsurf => "Windsurf",
+                AITool.CodexCli => "Codex CLI",
+                AITool.GeminiCli => "Gemini CLI",
                 _ => tool.ToString()
             };
         }
