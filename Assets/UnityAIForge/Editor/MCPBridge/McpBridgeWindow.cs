@@ -907,7 +907,7 @@ namespace MCP.Editor
                 };
                 var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
                 var uvCommand = isWindows ? "cmd /c uv" : "uv";
-                var command = $"claude mcp add --scope {scopeStr} -e MCP_BRIDGE_TOKEN={settings.BridgeTokenMasked} {serverName} -- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
+                var command = $"claude mcp add --scope {scopeStr} {serverName} -e MCP_BRIDGE_TOKEN={settings.BridgeTokenMasked} -- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
 
                 GUI.enabled = false;
                 EditorGUILayout.TextArea(command, GUILayout.Height(60));

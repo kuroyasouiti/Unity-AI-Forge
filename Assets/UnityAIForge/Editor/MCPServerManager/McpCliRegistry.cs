@@ -164,15 +164,16 @@ namespace MCP.Editor.ServerManager
                     _ => "user"
                 };
                 argsBuilder.Append($" --scope {scope}");
-
-                // トークンを環境変数として設定（Claude Code -e オプション）
-                if (!string.IsNullOrEmpty(options.BridgeToken))
-                {
-                    argsBuilder.Append($" -e MCP_BRIDGE_TOKEN={options.BridgeToken}");
-                }
             }
 
             argsBuilder.Append($" {options.ServerName}");
+
+            // トークンを環境変数として設定（Claude Code -e オプション、サーバー名の後、--の前）
+            if (tool == AITool.ClaudeCode && !string.IsNullOrEmpty(options.BridgeToken))
+            {
+                argsBuilder.Append($" -e MCP_BRIDGE_TOKEN={options.BridgeToken}");
+            }
+
             argsBuilder.Append($" -- {uvCommand} --directory \"{options.ServerPath}\" run unity-ai-forge {serverArgsBuilder}");
 
             // 環境変数でプロジェクトパスを渡す場合（一部ツールで有効）
