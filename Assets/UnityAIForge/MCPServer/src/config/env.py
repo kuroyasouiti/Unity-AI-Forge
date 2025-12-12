@@ -142,74 +142,25 @@ def _find_unity_project_root() -> Path:
 _project_root = _find_unity_project_root()
 
 def _load_bridge_token() -> str | None:
-    """Load bridge token from environment variable or token file.
+    """Load bridge token from environment variable.
 
     Priority order:
-    1. Environment variable (MCP_BRIDGE_TOKEN)
-    2. Token file (.mcp_bridge_tokens.json)
-    3. Legacy token file (.mcp_bridge_token)
+    1. CLI argument (--bridge-token) - handled by apply_cli_overrides
+    2. Environment variable (MCP_BRIDGE_TOKEN)
+
+    Note: Token files are no longer searched. Use --bridge-token CLI argument
+    or MCP_BRIDGE_TOKEN environment variable instead.
 
     Returns:
         Token string if found, None otherwise.
     """
-    # 1. Environment variable has highest priority
     env_token = os.environ.get("MCP_BRIDGE_TOKEN")
     if env_token and env_token.strip():
         _config_logger.debug("Bridge token loaded from MCP_BRIDGE_TOKEN environment variable")
         return env_token.strip()
 
-    # 2. Try to load from token file in project root
-    token_file = _project_root / ".mcp_bridge_tokens.json"
-    if token_file.exists():
-        try:
-            import json
-
-            with open(token_file, encoding="utf-8") as f:
-                data = json.load(f)
-                tokens = data.get("tokens", [])
-                if tokens and isinstance(tokens, list) and len(tokens) > 0:
-                    _config_logger.debug("Bridge token loaded from %s", token_file)
-                    return str(tokens[0]).strip()
-                else:
-                    _config_logger.debug(
-                        "Token file %s exists but contains no tokens", token_file
-                    )
-        except json.JSONDecodeError as exc:
-            _config_logger.warning(
-                "Failed to parse token file %s: %s", token_file, exc
-            )
-        except PermissionError as exc:
-            _config_logger.warning(
-                "Permission denied reading token file %s: %s", token_file, exc
-            )
-        except OSError as exc:
-            _config_logger.warning(
-                "Failed to read token file %s: %s", token_file, exc
-            )
-
-    # 3. Legacy single-token file
-    legacy_file = _project_root / ".mcp_bridge_token"
-    if legacy_file.exists():
-        try:
-            token = legacy_file.read_text(encoding="utf-8").strip()
-            if token:
-                _config_logger.debug("Bridge token loaded from legacy file %s", legacy_file)
-                return token
-            else:
-                _config_logger.debug("Legacy token file %s is empty", legacy_file)
-        except PermissionError as exc:
-            _config_logger.warning(
-                "Permission denied reading legacy token file %s: %s", legacy_file, exc
-            )
-        except OSError as exc:
-            _config_logger.warning(
-                "Failed to read legacy token file %s: %s", legacy_file, exc
-            )
-
     _config_logger.debug(
-        "No bridge token found (checked: env var, %s, %s)",
-        token_file,
-        legacy_file,
+        "No bridge token found. Use --bridge-token CLI argument or MCP_BRIDGE_TOKEN env var."
     )
     return None
 

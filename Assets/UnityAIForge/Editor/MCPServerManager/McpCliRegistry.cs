@@ -99,7 +99,10 @@ namespace MCP.Editor.ServerManager
                 };
             }
 
-            var args = $"mcp add {McpServerManager.ServerName} --directory \"{serverPath}\"";
+            // Claude Code: claude mcp add --transport stdio <name> -- uv --directory <path> run unity-ai-forge
+            var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
+            var uvCommand = isWindows ? "cmd /c uv" : "uv";
+            var args = $"mcp add --transport stdio {McpServerManager.ServerName} -- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge";
             return ExecuteCliCommand(cliInfo.command, args, cliInfo.displayName);
         }
 
@@ -131,7 +134,7 @@ namespace MCP.Editor.ServerManager
             }
 
             // サーバー実行引数を構築
-            // 形式: uv --directory {path} run unity-ai-forge --bridge-token {token} --bridge-port {port}
+            // 形式: unity-ai-forge --bridge-token {token} --bridge-port {port}
             var serverArgsBuilder = new StringBuilder();
             serverArgsBuilder.Append($"--bridge-port {options.BridgePort}");
 
@@ -145,18 +148,23 @@ namespace MCP.Editor.ServerManager
                 serverArgsBuilder.Append($" --bridge-host {options.BridgeHost}");
             }
 
-            // CLI引数を構築
+            // Claude Code CLI引数を構築
+            // 形式: claude mcp add --transport stdio [--scope <scope>] <name> -- uv --directory <path> run unity-ai-forge <args>
+            var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
+            var uvCommand = isWindows ? "cmd /c uv" : "uv";
+
             var argsBuilder = new StringBuilder();
-            argsBuilder.Append($"mcp add {options.ServerName}");
+            argsBuilder.Append("mcp add --transport stdio");
 
             // スコープオプション（Claude Code用）
             if (tool == AITool.ClaudeCode)
             {
                 var scope = options.Scope == RegistrationScope.Local ? "local" : "user";
-                argsBuilder.Append($" -s {scope}");
+                argsBuilder.Append($" --scope {scope}");
             }
 
-            argsBuilder.Append($" --directory \"{options.ServerPath}\" -- {serverArgsBuilder}");
+            argsBuilder.Append($" {options.ServerName}");
+            argsBuilder.Append($" -- {uvCommand} --directory \"{options.ServerPath}\" run unity-ai-forge {serverArgsBuilder}");
 
             // 環境変数でプロジェクトパスを渡す場合（一部ツールで有効）
             var envVars = new Dictionary<string, string>();
@@ -199,7 +207,7 @@ namespace MCP.Editor.ServerManager
             if (tool == AITool.ClaudeCode)
             {
                 var scopeStr = scope == RegistrationScope.Local ? "local" : "user";
-                args = $"mcp remove {serverName} -s {scopeStr}";
+                args = $"mcp remove --scope {scopeStr} {serverName}";
             }
 
             return ExecuteCliCommand(cliInfo.command, args, cliInfo.displayName);

@@ -23,8 +23,9 @@ namespace MCP.Editor
         [SerializeField] private float contextPushIntervalSeconds = 5f;
         [SerializeField] private string serverInstallPath = string.Empty;
 
-        // Cached tokens loaded from file
+        // Cached tokens loaded from file (thread-safe access via lock)
         private List<string> _cachedTokens;
+        private readonly object _tokenLock = new object();
 
         static McpBridgeSettings()
         {
@@ -161,17 +162,21 @@ namespace MCP.Editor
                     return;
                 }
 
-                var tokens = LoadTokensFromFile();
-                var trimmed = value.Trim();
-                if (tokens.Count > 0)
+                lock (_tokenLock)
                 {
-                    tokens[0] = trimmed;
+                    var tokens = LoadTokensFromFileUnlocked();
+                    var trimmed = value.Trim();
+                    if (tokens.Count > 0)
+                    {
+                        tokens[0] = trimmed;
+                    }
+                    else
+                    {
+                        tokens.Add(trimmed);
+                    }
+                    var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                    SaveTokensToFileInternal(tokens, projectRoot);
                 }
-                else
-                {
-                    tokens.Add(trimmed);
-                }
-                SaveTokensToFile(tokens);
             }
         }
 
@@ -186,16 +191,20 @@ namespace MCP.Editor
                 return false;
             }
 
-            var tokens = LoadTokensFromFile();
-            var trimmed = token.Trim();
-            if (tokens.Contains(trimmed))
+            lock (_tokenLock)
             {
-                return false;
-            }
+                var tokens = LoadTokensFromFileUnlocked();
+                var trimmed = token.Trim();
+                if (tokens.Contains(trimmed))
+                {
+                    return false;
+                }
 
-            tokens.Add(trimmed);
-            SaveTokensToFile(tokens);
-            return true;
+                tokens.Add(trimmed);
+                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                SaveTokensToFileInternal(tokens, projectRoot);
+                return true;
+            }
         }
 
         /// <summary>
@@ -209,15 +218,19 @@ namespace MCP.Editor
                 return false;
             }
 
-            var tokens = LoadTokensFromFile();
-            var trimmed = token.Trim();
-            if (!tokens.Remove(trimmed))
+            lock (_tokenLock)
             {
-                return false;
-            }
+                var tokens = LoadTokensFromFileUnlocked();
+                var trimmed = token.Trim();
+                if (!tokens.Remove(trimmed))
+                {
+                    return false;
+                }
 
-            SaveTokensToFile(tokens);
-            return true;
+                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                SaveTokensToFileInternal(tokens, projectRoot);
+                return true;
+            }
         }
 
         /// <summary>
@@ -226,11 +239,15 @@ namespace MCP.Editor
         /// <returns>The newly generated token.</returns>
         public string GenerateAndAddToken()
         {
-            var token = Guid.NewGuid().ToString("N");
-            var tokens = LoadTokensFromFile();
-            tokens.Add(token);
-            SaveTokensToFile(tokens);
-            return token;
+            lock (_tokenLock)
+            {
+                var token = Guid.NewGuid().ToString("N");
+                var tokens = LoadTokensFromFileUnlocked();
+                tokens.Add(token);
+                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                SaveTokensToFileInternal(tokens, projectRoot);
+                return token;
+            }
         }
 
         /// <summary>
@@ -349,6 +366,18 @@ namespace MCP.Editor
 
         private List<string> LoadTokensFromFile()
         {
+            lock (_tokenLock)
+            {
+                return LoadTokensFromFileUnlocked();
+            }
+        }
+
+        /// <summary>
+        /// Internal method for loading tokens without acquiring lock.
+        /// Caller must hold _tokenLock before calling this method.
+        /// </summary>
+        private List<string> LoadTokensFromFileUnlocked()
+        {
             if (_cachedTokens != null)
             {
                 return new List<string>(_cachedTokens);
@@ -380,7 +409,7 @@ namespace MCP.Editor
                     if (tokens.Count > 0)
                     {
                         _cachedTokens = new List<string>(tokens);
-                        return tokens;
+                        return new List<string>(tokens);
                     }
                 }
 
@@ -393,15 +422,15 @@ namespace MCP.Editor
                     {
                         tokens.Add(content);
                         // Migrate to new format
-                        SaveTokensToFile(tokens);
+                        SaveTokensToFileInternal(tokens, projectRoot);
                         _cachedTokens = new List<string>(tokens);
-                        return tokens;
+                        return new List<string>(tokens);
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // ignore and fallback
+                Debug.LogWarning($"[McpBridgeSettings] Failed to load tokens from file: {ex.Message}");
             }
 
             // Auto-create if no tokens found
@@ -411,23 +440,37 @@ namespace MCP.Editor
                 {
                     var token = Guid.NewGuid().ToString("N");
                     tokens.Add(token);
-                    SaveTokensToFile(tokens);
+                    SaveTokensToFileInternal(tokens, projectRoot);
                     _cachedTokens = new List<string>(tokens);
+                    Debug.Log($"[McpBridgeSettings] Auto-generated new bridge token: {MaskToken(token)}");
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // ignore
+                    Debug.LogError($"[McpBridgeSettings] Failed to auto-generate token: {ex.Message}");
+                    // Return empty list - ValidateToken will reject connection
                 }
             }
 
-            return tokens;
+            return new List<string>(tokens);
         }
 
         private void SaveTokensToFile(List<string> tokens)
         {
-            try
+            lock (_tokenLock)
             {
                 var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                SaveTokensToFileInternal(tokens, projectRoot);
+            }
+        }
+
+        /// <summary>
+        /// Internal method for saving tokens without acquiring lock.
+        /// Called from LoadTokensFromFile which already holds the lock.
+        /// </summary>
+        private void SaveTokensToFileInternal(List<string> tokens, string projectRoot)
+        {
+            try
+            {
                 var jsonPath = Path.Combine(projectRoot, TokenFileName);
 
                 var data = new Dictionary<string, object>
@@ -452,6 +495,7 @@ namespace MCP.Editor
             catch (Exception ex)
             {
                 Debug.LogWarning($"[McpBridgeSettings] Failed to save tokens: {ex.Message}");
+                throw; // Re-throw to allow caller to handle
             }
         }
 
@@ -460,7 +504,10 @@ namespace MCP.Editor
         /// </summary>
         public void InvalidateTokenCache()
         {
-            _cachedTokens = null;
+            lock (_tokenLock)
+            {
+                _cachedTokens = null;
+            }
         }
 
         /// <summary>
