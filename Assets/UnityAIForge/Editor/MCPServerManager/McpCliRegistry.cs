@@ -29,10 +29,12 @@ namespace MCP.Editor.ServerManager
         /// </summary>
         public enum RegistrationScope
         {
-            /// <summary>ユーザー設定（すべてのプロジェクトで利用可能）</summary>
+            /// <summary>ユーザー設定（すべてのプロジェクトで利用可能、~/.claude.json）</summary>
             User,
-            /// <summary>ローカル設定（このプロジェクトのみ）</summary>
-            Local
+            /// <summary>ローカル設定（このマシンのみ、.claude.json）</summary>
+            Local,
+            /// <summary>プロジェクト設定（チーム共有、.claude/settings.json）</summary>
+            Project
         }
 
         /// <summary>
@@ -101,7 +103,7 @@ namespace MCP.Editor.ServerManager
 
             // Claude Code: claude mcp add --transport stdio <name> -- uv --directory <path> run unity-ai-forge
             var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
-            var uvCommand = isWindows ? "cmd /c uv" : "uv";
+            var uvCommand = "uv";
             var args = $"mcp add --transport stdio {McpServerManager.ServerName} -- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge";
             return ExecuteCliCommand(cliInfo.command, args, cliInfo.displayName);
         }
@@ -159,7 +161,12 @@ namespace MCP.Editor.ServerManager
             // スコープオプション（Claude Code用）
             if (tool == AITool.ClaudeCode)
             {
-                var scope = options.Scope == RegistrationScope.Local ? "local" : "user";
+                var scope = options.Scope switch
+                {
+                    RegistrationScope.Local => "local",
+                    RegistrationScope.Project => "project",
+                    _ => "user"
+                };
                 argsBuilder.Append($" --scope {scope}");
             }
 
@@ -206,7 +213,12 @@ namespace MCP.Editor.ServerManager
             var args = $"mcp remove {serverName}";
             if (tool == AITool.ClaudeCode)
             {
-                var scopeStr = scope == RegistrationScope.Local ? "local" : "user";
+                var scopeStr = scope switch
+                {
+                    RegistrationScope.Local => "local",
+                    RegistrationScope.Project => "project",
+                    _ => "user"
+                };
                 args = $"mcp remove --scope {scopeStr} {serverName}";
             }
 

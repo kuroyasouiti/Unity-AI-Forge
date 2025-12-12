@@ -27,6 +27,73 @@ logger = logging.getLogger(__name__)
 # State file to persist queue
 STATE_FILE = Path(__file__).parent.parent.parent / ".batch_queue_state.json"
 
+# MCP tool name to internal bridge tool name mapping
+# Users can use either the MCP name (e.g., "unity_gameobject_crud")
+# or the internal name (e.g., "gameObjectManage")
+TOOL_NAME_MAPPING: dict[str, str] = {
+    # Low-Level CRUD
+    "unity_scene_crud": "sceneManage",
+    "unity_gameobject_crud": "gameObjectManage",
+    "unity_component_crud": "componentManage",
+    "unity_asset_crud": "assetManage",
+    "unity_scriptableObject_crud": "scriptableObjectManage",
+    "unity_prefab_crud": "prefabManage",
+    "unity_vector_sprite_convert": "vectorSpriteConvert",
+    "unity_projectSettings_crud": "projectSettingsManage",
+    # Mid-Level Batch
+    "unity_transform_batch": "transformBatch",
+    "unity_rectTransform_batch": "rectTransformBatch",
+    "unity_physics_bundle": "physicsBundle",
+    "unity_camera_rig": "cameraRig",
+    "unity_ui_foundation": "uiFoundation",
+    "unity_audio_source_bundle": "audioSourceBundle",
+    "unity_input_profile": "inputProfile",
+    "unity_character_controller_bundle": "characterControllerBundle",
+    "unity_tilemap_bundle": "tilemapBundle",
+    "unity_sprite2d_bundle": "sprite2DBundle",
+    "unity_animation2d_bundle": "animation2DBundle",
+    # High-Level GameKit
+    "unity_gamekit_actor": "gamekitActor",
+    "unity_gamekit_manager": "gamekitManager",
+    "unity_gamekit_interaction": "gamekitInteraction",
+    "unity_gamekit_ui_command": "gamekitUICommand",
+    "unity_gamekit_machinations": "gamekitMachinations",
+    "unity_gamekit_sceneflow": "gamekitSceneFlow",
+    # UI Management
+    "unity_ui_hierarchy": "uiHierarchy",
+    "unity_ui_state": "uiState",
+    "unity_ui_navigation": "uiNavigation",
+}
+
+
+def resolve_tool_name(tool_name: str) -> str:
+    """Resolve MCP tool name to internal bridge tool name.
+
+    Args:
+        tool_name: Either MCP name (e.g., "unity_gameobject_crud")
+                   or internal name (e.g., "gameObjectManage")
+
+    Returns:
+        Internal bridge tool name
+
+    Raises:
+        ValueError: If tool name is not recognized
+    """
+    # Check if it's an MCP name that needs mapping
+    if tool_name in TOOL_NAME_MAPPING:
+        return TOOL_NAME_MAPPING[tool_name]
+
+    # Check if it's already an internal name (exists as a value in mapping)
+    if tool_name in TOOL_NAME_MAPPING.values():
+        return tool_name
+
+    # Unknown tool name
+    raise ValueError(
+        f"Unsupported tool name: {tool_name}. "
+        f"Use MCP names (e.g., 'unity_gameobject_crud') or internal names (e.g., 'gameObjectManage'). "
+        f"Available tools: {', '.join(sorted(TOOL_NAME_MAPPING.keys()))}"
+    )
+
 class BatchQueueState:
     """Manages the state of the batch queue.
 
@@ -233,13 +300,47 @@ async def execute_batch_sequential(
             idx = state.current_index
             operation = state.operations[idx]
 
-            tool_name = operation.get("tool")
+            original_tool_name = operation.get("tool")
             arguments = operation.get("arguments", {})
 
+            # Resolve MCP tool name to internal bridge tool name
+            try:
+                tool_name = resolve_tool_name(original_tool_name)
+            except ValueError as exc:
+                error_msg = str(exc)
+                errors.append(
+                    {
+                        "index": idx,
+                        "tool": original_tool_name,
+                        "error": error_msg,
+                        "exception": True,
+                    }
+                )
+                state.last_error = error_msg
+                state.last_error_index = idx
+                logger.error("Tool name resolution failed for operation %d: %s", idx + 1, error_msg)
+
+                if stop_on_error:
+                    _batch_manager.save()
+                    return {
+                        "success": False,
+                        "stopped_at_index": idx,
+                        "completed": results,
+                        "errors": errors,
+                        "remaining_operations": len(state.operations) - state.current_index,
+                        "message": f"Execution stopped at operation {idx + 1} due to invalid tool name.",
+                        "last_error": error_msg,
+                    }
+                # Continue to next operation if not stopping on error
+                state.current_index += 1
+                _batch_manager.save()
+                continue
+
             logger.info(
-                "Executing operation %d/%d: %s",
+                "Executing operation %d/%d: %s (resolved: %s)",
                 idx + 1,
                 len(state.operations),
+                original_tool_name,
                 tool_name,
             )
 
@@ -251,7 +352,7 @@ async def execute_batch_sequential(
                     results.append(
                         {
                             "index": idx,
-                            "tool": tool_name,
+                            "tool": original_tool_name,
                             "success": True,
                             "result": response.get("result"),
                         }
@@ -263,7 +364,7 @@ async def execute_batch_sequential(
                     errors.append(
                         {
                             "index": idx,
-                            "tool": tool_name,
+                            "tool": original_tool_name,
                             "error": error_msg,
                         }
                     )
@@ -289,7 +390,7 @@ async def execute_batch_sequential(
                 errors.append(
                     {
                         "index": idx,
-                        "tool": tool_name,
+                        "tool": original_tool_name,
                         "error": error_msg,
                         "exception": True,
                     }

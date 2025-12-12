@@ -967,13 +967,12 @@ namespace MCP.Editor
         private static bool ValidateToken(HttpRequestData request, out string reason)
         {
             var settings = McpBridgeSettings.Instance;
-            var validTokens = settings.BridgeTokens;
 
-            if (validTokens.Count == 0)
+            if (!settings.HasToken)
             {
-                reason = "No authentication tokens configured. Generate a token in the MCP Bridge settings.";
-                Debug.LogWarning("MCP Bridge: Connection rejected - no tokens configured. " +
-                                 "Please configure at least one token in the MCP Bridge settings window.");
+                reason = "No authentication token configured. Generate a token in the MCP Bridge settings.";
+                Debug.LogWarning("MCP Bridge: Connection rejected - no token configured. " +
+                                 "Please configure a token in the MCP Bridge settings window.");
                 return false;
             }
 

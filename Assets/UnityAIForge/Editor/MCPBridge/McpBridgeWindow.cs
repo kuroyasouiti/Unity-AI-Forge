@@ -748,11 +748,14 @@ namespace MCP.Editor
                         EditorGUILayout.LabelField("Scope", GUILayout.Width(80));
                         _registrationScope = (McpCliRegistry.RegistrationScope)EditorGUILayout.EnumPopup(_registrationScope);
                     }
-                    EditorGUILayout.LabelField(
-                        _registrationScope == McpCliRegistry.RegistrationScope.User
-                            ? "User: Available in all projects"
-                            : "Local: Only for this project",
-                        EditorStyles.miniLabel);
+                    var scopeDescription = _registrationScope switch
+                    {
+                        McpCliRegistry.RegistrationScope.User => "User: Available in all projects (~/.claude.json)",
+                        McpCliRegistry.RegistrationScope.Local => "Local: This machine only (.claude.json)",
+                        McpCliRegistry.RegistrationScope.Project => "Project: Shared with team (.claude/settings.json)",
+                        _ => ""
+                    };
+                    EditorGUILayout.LabelField(scopeDescription, EditorStyles.miniLabel);
                 }
 
                 GUILayout.Space(5f);
@@ -896,14 +899,20 @@ namespace MCP.Editor
 
                 EditorGUILayout.LabelField("CLI Command Preview:", EditorStyles.boldLabel);
 
-                var command = $"<cli> mcp add {serverName} --directory \"{serverPath}\" -- --bridge-port {settings.ServerPort} --bridge-token {settings.BridgeTokenMasked}";
+                var scopeStr = _registrationScope switch
+                {
+                    McpCliRegistry.RegistrationScope.Local => "local",
+                    McpCliRegistry.RegistrationScope.Project => "project",
+                    _ => "user"
+                };
+                var command = $"claude mcp add --scope {scopeStr} {serverName} --directory \"{serverPath}\" -- --bridge-port {settings.ServerPort} --bridge-token {settings.BridgeTokenMasked}";
 
                 GUI.enabled = false;
                 EditorGUILayout.TextArea(command, GUILayout.Height(60));
                 GUI.enabled = true;
 
                 EditorGUILayout.HelpBox(
-                    "Replace <cli> with: cursor, claude, cline, or windsurf",
+                    "Note: --scope option is Claude Code specific (user/local/project)",
                     MessageType.None
                 );
             }

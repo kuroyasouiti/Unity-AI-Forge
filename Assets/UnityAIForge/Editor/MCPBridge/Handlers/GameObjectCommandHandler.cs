@@ -99,16 +99,27 @@ namespace MCP.Editor.Handlers
                 parent = ResolveGameObject(parentPath);
             }
 
-            // Create from template (prefab) or create new
+            // Create from template (primitive or prefab) or create new
             if (!string.IsNullOrEmpty(template))
             {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(template);
-                if (prefab == null)
+                // Check if template is a primitive type
+                var primitiveType = GetPrimitiveType(template);
+                if (primitiveType.HasValue)
                 {
-                    throw new InvalidOperationException($"Prefab not found: {template}");
+                    instance = GameObject.CreatePrimitive(primitiveType.Value);
+                    instance.name = name;
                 }
+                else
+                {
+                    // Try to load as prefab
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(template);
+                    if (prefab == null)
+                    {
+                        throw new InvalidOperationException($"Prefab not found: {template}. Supported primitives: Cube, Sphere, Capsule, Cylinder, Plane, Quad");
+                    }
 
-                instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                    instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                }
             }
             else
             {
@@ -556,6 +567,34 @@ namespace MCP.Editor.Handlers
                 ["y"] = vector.y,
                 ["z"] = vector.z
             };
+        }
+
+        /// <summary>
+        /// Gets the PrimitiveType from a template name (case-insensitive).
+        /// Returns null if the template is not a recognized primitive.
+        /// </summary>
+        private PrimitiveType? GetPrimitiveType(string template)
+        {
+            if (string.IsNullOrEmpty(template))
+                return null;
+
+            switch (template.ToLowerInvariant())
+            {
+                case "cube":
+                    return PrimitiveType.Cube;
+                case "sphere":
+                    return PrimitiveType.Sphere;
+                case "capsule":
+                    return PrimitiveType.Capsule;
+                case "cylinder":
+                    return PrimitiveType.Cylinder;
+                case "plane":
+                    return PrimitiveType.Plane;
+                case "quad":
+                    return PrimitiveType.Quad;
+                default:
+                    return null;
+            }
         }
 
         #endregion

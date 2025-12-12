@@ -9,6 +9,29 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.2] - 2025-12-13
+
+### 修正
+
+- **GameObjectテンプレートプリミティブサポート**
+  - `unity_gameobject_crud` の `template` パラメータでUnity組み込みプリミティブをサポート
+  - 対応プリミティブ: Cube, Sphere, Capsule, Cylinder, Plane, Quad
+  - 大文字小文字を区別しない（"cube", "CUBE", "Cube" すべて動作）
+  - `GameObject.CreatePrimitive()` を使用して高速生成
+  - プレファブパスも引き続きサポート（プリミティブ名でない場合）
+
+- **バッチ順次処理ツール名マッピング**
+  - `unity_batch_sequential_execute` でMCPツール名を使用可能に
+  - 例: `unity_gameobject_crud` → 内部名 `gameObjectManage` への自動変換
+  - 全26ツールのマッピングを追加（Low/Mid/High-Level + UI Management）
+  - MCP名と内部名の両方をサポート（後方互換性維持）
+  - 不明なツール名に対する詳細なエラーメッセージ
+
+### 技術詳細
+
+- `GameObjectCommandHandler.cs`: `GetPrimitiveType()` ヘルパーメソッド追加、`CreateGameObject()` でプリミティブ判定ロジック追加
+- `batch_sequential.py`: `TOOL_NAME_MAPPING` 辞書と `resolve_tool_name()` 関数を追加、操作実行前にツール名を解決
+
 ## [2.4.1] - 2025-12-11
 
 ### 追加
