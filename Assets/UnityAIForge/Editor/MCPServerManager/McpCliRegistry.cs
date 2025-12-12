@@ -136,14 +136,10 @@ namespace MCP.Editor.ServerManager
             }
 
             // サーバー実行引数を構築
-            // 形式: unity-ai-forge --bridge-token {token} --bridge-port {port}
+            // 形式: unity-ai-forge --bridge-port {port} [--bridge-host {host}]
+            // トークンは環境変数 MCP_BRIDGE_TOKEN で渡す（セキュリティ向上）
             var serverArgsBuilder = new StringBuilder();
             serverArgsBuilder.Append($"--bridge-port {options.BridgePort}");
-
-            if (!string.IsNullOrEmpty(options.BridgeToken))
-            {
-                serverArgsBuilder.Append($" --bridge-token {options.BridgeToken}");
-            }
 
             if (!string.IsNullOrEmpty(options.BridgeHost) && options.BridgeHost != "127.0.0.1")
             {
@@ -151,7 +147,7 @@ namespace MCP.Editor.ServerManager
             }
 
             // Claude Code CLI引数を構築
-            // 形式: claude mcp add --transport stdio [--scope <scope>] <name> -- uv --directory <path> run unity-ai-forge <args>
+            // 形式: claude mcp add --transport stdio [--scope <scope>] [-e KEY=VALUE] <name> -- uv --directory <path> run unity-ai-forge <args>
             var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
             var uvCommand = isWindows ? "cmd /c uv" : "uv";
 
@@ -168,6 +164,12 @@ namespace MCP.Editor.ServerManager
                     _ => "user"
                 };
                 argsBuilder.Append($" --scope {scope}");
+
+                // トークンを環境変数として設定（Claude Code -e オプション）
+                if (!string.IsNullOrEmpty(options.BridgeToken))
+                {
+                    argsBuilder.Append($" -e MCP_BRIDGE_TOKEN={options.BridgeToken}");
+                }
             }
 
             argsBuilder.Append($" {options.ServerName}");
