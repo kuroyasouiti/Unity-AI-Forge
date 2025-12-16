@@ -466,15 +466,20 @@ namespace MCP.Editor.ServerManager
                         if (json.TryGetValue("projects", out var projects) &&
                             projects is Newtonsoft.Json.Linq.JObject projectsObj)
                         {
-                            var projectPath = McpProjectRegistry.GetProjectPath().Replace("/", "\\");
+                            var projectPath = NormalizePath(McpProjectRegistry.GetProjectPath());
 
-                            if (projectsObj.TryGetValue(projectPath, out var projectEntry) &&
-                                projectEntry is Newtonsoft.Json.Linq.JObject projectObj)
+                            // projectsObj内の各キーを正規化して比較
+                            foreach (var property in projectsObj.Properties())
                             {
-                                if (projectObj.TryGetValue("mcpServers", out var localMcpServers) &&
-                                    localMcpServers is Newtonsoft.Json.Linq.JObject localServers)
+                                var keyPath = NormalizePath(property.Name);
+                                if (ArePathsEqual(projectPath, keyPath))
                                 {
-                                    return localServers.ContainsKey(serverName);
+                                    if (property.Value is Newtonsoft.Json.Linq.JObject projectObj &&
+                                        projectObj.TryGetValue("mcpServers", out var localMcpServers) &&
+                                        localMcpServers is Newtonsoft.Json.Linq.JObject localServers)
+                                    {
+                                        return localServers.ContainsKey(serverName);
+                                    }
                                 }
                             }
                         }
@@ -498,6 +503,39 @@ namespace MCP.Editor.ServerManager
                 // JSONパース失敗時は文字列検索にフォールバック
                 return content.Contains($"\"{serverName}\"", StringComparison.OrdinalIgnoreCase);
             }
+        }
+
+        /// <summary>
+        /// パスを正規化（セパレータを統一、末尾のセパレータを除去）
+        /// </summary>
+        private static string NormalizePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return string.Empty;
+            }
+
+            // セパレータをスラッシュに統一
+            var normalized = path.Replace('\\', '/');
+
+            // 末尾のセパレータを除去
+            return normalized.TrimEnd('/');
+        }
+
+        /// <summary>
+        /// 2つのパスが同じかどうかを比較（大文字小文字を区別しない、Windowsの場合）
+        /// </summary>
+        private static bool ArePathsEqual(string path1, string path2)
+        {
+            var normalized1 = NormalizePath(path1);
+            var normalized2 = NormalizePath(path2);
+
+            // Windowsでは大文字小文字を区別しない
+            var comparison = Application.platform == RuntimePlatform.WindowsEditor
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            return string.Equals(normalized1, normalized2, comparison);
         }
 
         /// <summary>
