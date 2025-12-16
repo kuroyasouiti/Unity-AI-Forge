@@ -870,7 +870,7 @@ namespace MCP.Editor
             var isProjectScope = _registrationScope == McpCliRegistry.RegistrationScope.Project;
 
             // スコープ対応CLIコマンドの共通フォーマット
-            // オプション(-e, --scope)はサーバー名（位置引数）の前に配置
+            // --env オプションはサーバー名の後に配置（CLIの仕様）
             string GenerateScopedCliCommand(string cliCommand)
             {
                 if (isProjectScope)
@@ -879,7 +879,7 @@ namespace MCP.Editor
                            $"{cliCommand} mcp add --scope {scope} {serverName} " +
                            $"-- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
                 }
-                return $"{cliCommand} mcp add --scope {scope} -e MCP_BRIDGE_TOKEN={settings.BridgeTokenMasked} {serverName} " +
+                return $"{cliCommand} mcp add --scope {scope} {serverName} --env MCP_BRIDGE_TOKEN={settings.BridgeTokenMasked} " +
                        $"-- {uvCommand} --directory \"{serverPath}\" run unity-ai-forge --bridge-port {settings.ServerPort}";
             }
 
