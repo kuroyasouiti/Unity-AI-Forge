@@ -9,6 +9,40 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.3] - 2025-12-16
+
+### 追加
+
+- **配列・リスト型コンポーネント変数サポート**
+  - `ArrayValueConverter` を追加し、配列および `List<T>` 型のコンポーネントプロパティ操作が可能に
+  - Priority: 250（UnityObjectReferenceConverter: 300 と UnityStructValueConverter: 200 の間）
+  - 要素の変換は `ValueConverterManager` を通じて適切な型に自動変換
+  - 単一の値を1要素の配列として自動変換する機能も搭載
+
+- **コンパイル結果取得API**
+  - `McpCommandProcessor.GetCompilationResult()` メソッドを追加
+  - コンパイル後のエラー数、警告数、メッセージ一覧を取得可能
+  - `GetConsoleLogEntries()` ヘルパーメソッドでUnityコンソールログを取得
+  - リフレクションを使用してUnity内部の `LogEntries` にアクセス
+
+### 改善
+
+- **MCP登録状況チェックのパフォーマンス大幅改善**
+  - `McpCliRegistry.IsServerRegistered()` を JSON ファイル直接読み込みに変更
+  - `mcp list` CLI コマンド（重い処理）を使用しなくなった
+  - Claude Code の設定ファイル構造に対応:
+    - User スコープ: `~/.claude.json` → `mcpServers` セクション
+    - Local スコープ: `~/.claude.json` → `projects.[projectPath].mcpServers` セクション
+    - Project スコープ: `[projectDir]/.claude/settings.json` → `mcpServers` セクション
+  - 各AIツール固有のスコープ別パス解決ロジックを実装
+
+### 技術詳細
+
+- `ArrayValueConverter.cs`: 新規ファイル作成、`IValueConverter` インターフェース実装
+- `ValueConverterManager.cs`: `ArrayValueConverter` を Priority 250 で登録
+- `McpCommandProcessor.cs`: `GetCompilationResult()` および `GetConsoleLogEntries()` メソッド追加
+- `McpCliRegistry.cs`: `GetScopedConfigPath()` および `IsServerRegisteredInClaudeCodeConfig()` メソッド追加
+
 ## [2.4.2] - 2025-12-13
 
 ### 修正

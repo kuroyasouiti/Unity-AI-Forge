@@ -19,11 +19,7 @@ namespace MCP.Editor
         private Action<CommandResult> _pendingCommandContinuation;
         private bool _showBridgeSection = true;
         private bool _showLogSection = false;
-        private bool _showServerManagerSection = true;
         private bool _showProjectRegistrationSection = true;
-
-        // Server Manager State
-        private ServerStatus _serverStatus;
 
         // AI Tool Registration State
         private Dictionary<AITool, (bool cliAvailable, bool registered)> _aiToolStatus = new();
@@ -89,7 +85,6 @@ namespace MCP.Editor
 
         private void RefreshAllStatus()
         {
-            RefreshServerManagerStatus();
             RefreshProjectRegistrationStatus();
         }
 
@@ -141,16 +136,6 @@ namespace MCP.Editor
                     DrawBridgeControls();
                     GUILayout.Space(4f);
                     DrawStatusSection(settings);
-                }
-                EditorGUILayout.EndFoldoutHeaderGroup();
-
-                DrawSectionSeparator();
-
-                // MCP Server Manager Section
-                _showServerManagerSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showServerManagerSection, "MCP Server Manager");
-                if (_showServerManagerSection)
-                {
-                    DrawServerManagerSection();
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
 
@@ -493,191 +478,7 @@ namespace MCP.Editor
 
             return session.Length <= 8 ? session : session.Substring(0, 8);
         }
-        
-        #region Server Manager Integration
-        
-        private void RefreshServerManagerStatus()
-        {
-            try
-            {
-                _serverStatus = McpServerManager.GetStatus();
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"Failed to refresh server manager status: {ex.Message}");
-                _serverStatus = null;
-            }
-        }
-        
-        private void DrawServerManagerSection()
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                // Server Status
-                EditorGUILayout.LabelField("Server Status", EditorStyles.boldLabel);
-                
-                if (_serverStatus == null)
-                {
-                    EditorGUILayout.HelpBox("Server manager not initialized", MessageType.Warning);
-                    if (GUILayout.Button("Refresh"))
-                    {
-                        RefreshServerManagerStatus();
-                    }
-                    return;
-                }
-                
-                var statusIcon = _serverStatus.IsInstalled ? "✅" : "❌";
-                EditorGUILayout.LabelField($"{statusIcon} Status", _serverStatus.IsInstalled ? "Installed" : "Not Installed");
-                
-                if (_serverStatus.IsInstalled)
-                {
-                    EditorGUILayout.LabelField("Install Path", _serverStatus.InstallPath, EditorStyles.wordWrappedLabel);
-                    EditorGUILayout.LabelField("Version", _serverStatus.Version);
-                    EditorGUILayout.LabelField("Python", _serverStatus.PythonAvailable ? "✅ Available" : "❌ Not Found");
-                    EditorGUILayout.LabelField("UV", _serverStatus.UvAvailable ? "✅ Available" : "❌ Not Found");
-                }
-                else
-                {
-                    EditorGUILayout.LabelField("Source Path", _serverStatus.SourcePath, EditorStyles.wordWrappedLabel);
-                }
-                
-                GUILayout.Space(5f);
-                
-                // Install Path Settings
-                var settings = McpBridgeSettings.Instance;
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                {
-                    EditorGUILayout.LabelField("Install Path Settings", EditorStyles.boldLabel);
-                    
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        EditorGUILayout.LabelField("Install To:", GUILayout.Width(80));
-                        
-                        EditorGUI.BeginChangeCheck();
-                        var newPath = EditorGUILayout.TextField(settings.ServerInstallPath);
-                        if (EditorGUI.EndChangeCheck())
-                        {
-                            settings.ServerInstallPath = newPath;
-                            RefreshServerManagerStatus();
-                        }
-                    }
-                    
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        if (GUILayout.Button("Default", GUILayout.Width(70)))
-                        {
-                            settings.UseDefaultServerInstallPath();
-                            RefreshServerManagerStatus();
-                            AppendLog($"Reset to default path: {settings.ServerInstallPath}");
-                        }
-                        
-                        if (GUILayout.Button("Browse...", GUILayout.Width(70)))
-                        {
-                            var selected = EditorUtility.OpenFolderPanel("Select Install Directory", 
-                                Path.GetDirectoryName(settings.ServerInstallPath) ?? "", "");
-                            if (!string.IsNullOrEmpty(selected))
-                            {
-                                settings.ServerInstallPath = Path.Combine(selected, "Unity-AI-Forge");
-                                RefreshServerManagerStatus();
-                                AppendLog($"Install path changed to: {settings.ServerInstallPath}");
-                            }
-                        }
-                        
-                        GUILayout.FlexibleSpace();
-                        
-                        EditorGUILayout.LabelField($"Default: {settings.DefaultServerInstallPath}", 
-                            EditorStyles.miniLabel);
-                    }
-                }
-                
-                GUILayout.Space(5f);
-                
-                // Server Operations
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    GUI.enabled = !_serverStatus.IsInstalled && !_commandRunning;
-                    if (GUILayout.Button("Install Server", GUILayout.Height(30)))
-                    {
-                        ExecuteServerManagerAction(() =>
-                        {
-                            McpServerManager.Install();
-                            RefreshServerManagerStatus();
-                            AppendLog("Server installed successfully!");
-                        });
-                    }
-                    GUI.enabled = true;
-                    
-                    GUI.enabled = _serverStatus.IsInstalled && !_commandRunning;
-                    if (GUILayout.Button("Uninstall Server", GUILayout.Height(30)))
-                    {
-                        if (EditorUtility.DisplayDialog("Confirm Uninstall",
-                            "Are you sure you want to uninstall the MCP server?",
-                            "Yes", "No"))
-                        {
-                            ExecuteServerManagerAction(() =>
-                            {
-                                McpServerManager.Uninstall();
-                                RefreshServerManagerStatus();
-                                AppendLog("Server uninstalled successfully!");
-                            });
-                        }
-                    }
-                    GUI.enabled = true;
-                }
-                
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    GUI.enabled = _serverStatus.IsInstalled && !_commandRunning;
-                    if (GUILayout.Button("Reinstall Server", GUILayout.Height(30)))
-                    {
-                        ExecuteServerManagerAction(() =>
-                        {
-                            McpServerManager.Reinstall();
-                            RefreshServerManagerStatus();
-                            AppendLog("Server reinstalled successfully!");
-                        });
-                    }
-                    GUI.enabled = true;
-                    
-                    if (GUILayout.Button("Refresh Status", GUILayout.Height(30)))
-                    {
-                        RefreshServerManagerStatus();
-                        AppendLog("Status refreshed");
-                    }
-                }
-                
-                GUILayout.Space(5f);
-                
-                // Quick Actions
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button("Open Install Folder"))
-                    {
-                        McpServerManager.OpenInstallFolder();
-                    }
-                    
-                    if (GUILayout.Button("Open Source Folder"))
-                    {
-                        McpServerManager.OpenSourceFolder();
-                    }
-                }
-            }
-        }
-        
-        private void ExecuteServerManagerAction(Action action)
-        {
-            try
-            {
-                action();
-                Repaint();
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"Error: {ex.Message}");
-                EditorUtility.DisplayDialog("Error", ex.Message, "OK");
-            }
-        }
-        
+
         private void OnLogMessageReceived(string message, string stackTrace, LogType type)
         {
             // Filter Server Manager logs
@@ -711,8 +512,6 @@ namespace MCP.Editor
                 AppendLog(cleanMessage);
             }
         }
-
-        #endregion
 
         #region Project Registration (CLI)
 
@@ -756,12 +555,6 @@ namespace MCP.Editor
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                if (_serverStatus == null || !_serverStatus.IsInstalled)
-                {
-                    EditorGUILayout.HelpBox("Please install the MCP server first.", MessageType.Info);
-                    return;
-                }
-
                 // Project info (collapsible)
                 using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                 {
@@ -1046,7 +839,7 @@ namespace MCP.Editor
             {
                 var settings = McpBridgeSettings.Instance;
                 var serverName = McpProjectRegistry.GetProjectServerName();
-                var serverPath = McpServerManager.UserInstallPath;
+                var serverPath = McpServerManager.SourcePath;
                 var clientName = McpConfigManager.GetToolDisplayName(client);
 
                 EditorGUILayout.LabelField($"CLI Command for {clientName}:", EditorStyles.boldLabel);
@@ -1111,7 +904,7 @@ namespace MCP.Editor
                 var options = new McpCliRegistry.ProjectRegistrationOptions
                 {
                     ServerName = McpProjectRegistry.GetProjectServerName(),
-                    ServerPath = McpServerManager.UserInstallPath,
+                    ServerPath = McpServerManager.SourcePath,
                     BridgeToken = settings.BridgeToken,
                     BridgeHost = settings.ServerHost,
                     BridgePort = settings.ServerPort,

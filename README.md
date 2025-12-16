@@ -18,15 +18,16 @@ Unity × AI で、ゲーム開発を革新的に効率化
 
 ## 🚀 Quick Start
 
-```bash
-# 1. Clone
-git clone https://github.com/kuroyasouiti/Unity-AI-Forge.git
+**Unity Package Manager からインストール（推奨）**
 
-# 2. Open in Unity (2022.3+)
-# Unity Hub > Add > Select folder
-
-# 3. Start Creating!
-```
+1. Unity Editor を開く
+2. **Window > Package Manager** を開く
+3. **+** ボタン → **Add package from git URL...**
+4. 以下を入力:
+   ```
+   https://github.com/kuroyasouiti/Unity-AI-Forge.git?path=/Assets/UnityAIForge
+   ```
+5. **Add** をクリック
 
 📖 **[Getting Started Guide →](Assets/UnityAIForge/Documentation/GETTING_STARTED.md)**
 

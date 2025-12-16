@@ -39,6 +39,7 @@ namespace MCP.Editor.Base
             _converters = new List<IValueConverter>
             {
                 new UnityObjectReferenceConverter(),  // Priority: 300
+                new ArrayValueConverter(),             // Priority: 250
                 new UnityStructValueConverter(),       // Priority: 200
                 new EnumValueConverter(),              // Priority: 150
                 new PrimitiveValueConverter()          // Priority: 100

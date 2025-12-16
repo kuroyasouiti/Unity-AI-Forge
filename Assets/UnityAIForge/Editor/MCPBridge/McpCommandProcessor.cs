@@ -58,36 +58,12 @@ namespace MCP.Editor
         
         /// <summary>
         /// Executes legacy partial class methods for backward compatibility.
+        /// All handlers have been migrated to the new CommandHandlerFactory system.
         /// </summary>
         private static object ExecuteLegacy(McpIncomingCommand command)
         {
-            return command.ToolName switch
-            {
-                "pingUnityEditor" => HandlePing(),
-                "sceneManage" => HandleSceneManage(command.Payload),
-                "gameObjectManage" => HandleGameObjectManage(command.Payload),
-                "componentManage" => HandleComponentManage(command.Payload),
-                "assetManage" => HandleAssetManage(command.Payload),
-                "uguiRectAdjust" => HandleUguiRectAdjust(command.Payload),
-                "uguiAnchorManage" => HandleUguiAnchorManage(command.Payload),
-                "uguiManage" => HandleUguiManage(command.Payload),
-                "uguiCreateFromTemplate" => HandleUguiCreateFromTemplate(command.Payload),
-                "uguiLayoutManage" => HandleUguiLayoutManage(command.Payload),
-                "uguiDetectOverlaps" => HandleUguiDetectOverlaps(command.Payload),
-                "sceneQuickSetup" => HandleSceneQuickSetup(command.Payload),
-                "gameObjectCreateFromTemplate" => HandleGameObjectCreateFromTemplate(command.Payload),
-                "tagLayerManage" => HandleTagLayerManage(command.Payload),
-                "prefabManage" => HandlePrefabManage(command.Payload),
-                "scriptableObjectManage" => HandleScriptableObjectManage(command.Payload),
-                "projectSettingsManage" => HandleProjectSettingsManage(command.Payload),
-                "renderPipelineManage" => HandleRenderPipelineManage(command.Payload),
-                "constantConvert" => HandleConstantConvert(command.Payload),
-                "designPatternGenerate" => HandleDesignPatternGenerate(command.Payload),
-                "scriptTemplateGenerate" => HandleScriptTemplateGenerate(command.Payload),
-                "templateManage" => HandleTemplateManage(command.Payload),
-                "menuHierarchyCreate" => HandleMenuHierarchyCreate(command.Payload),
-                _ => throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}"),
-            };
+            // All handlers have been migrated to new handler system
+            throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}. Handler not registered in CommandHandlerFactory.");
         }
         
         /// <summary>
@@ -103,77 +79,132 @@ namespace MCP.Editor
         }
 
         /// <summary>
-        /// Handles ping requests to verify Unity Editor connectivity.
+        /// Gets compilation result including errors, warnings, and console logs.
         /// </summary>
-        /// <returns>Dictionary containing Unity version, project name, and current timestamp.</returns>
-        private static object HandlePing()
+        /// <returns>Dictionary containing compilation result data.</returns>
+        public static Dictionary<string, object> GetCompilationResult()
         {
+            var errorMessages = new List<string>();
+            var warningMessages = new List<string>();
+            var consoleEntries = new List<Dictionary<string, object>>();
+
+            // Parse console logs for errors and warnings
+            var logEntries = GetConsoleLogEntries(limit: 200);
+
+            foreach (var entry in logEntries)
+            {
+                if (!entry.ContainsKey("type") || !entry.ContainsKey("message"))
+                {
+                    continue;
+                }
+
+                var message = entry["message"].ToString();
+                var entryType = entry["type"].ToString();
+
+                consoleEntries.Add(new Dictionary<string, object>
+                {
+                    ["type"] = entryType,
+                    ["message"] = message,
+                });
+
+                if (entryType == "Error")
+                {
+                    errorMessages.Add(message);
+                }
+                else if (entryType == "Warning")
+                {
+                    warningMessages.Add(message);
+                }
+            }
+
             return new Dictionary<string, object>
             {
-                ["editor"] = Application.unityVersion,
-                ["project"] = Application.productName,
-                ["time"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                ["success"] = errorMessages.Count == 0,
+                ["errorCount"] = errorMessages.Count,
+                ["warningCount"] = warningMessages.Count,
+                ["errors"] = errorMessages,
+                ["warnings"] = warningMessages,
+                ["consoleLogs"] = consoleEntries,
             };
         }
 
-        /// <summary>
-        /// Handles scene management operations (create, load, save, delete, duplicate).
-        /// </summary>
-        /// <param name="payload">Operation parameters including 'operation' type and scene path.</param>
-        /// <returns>Result dictionary with operation-specific data.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when operation is invalid or missing.</exception>
-        // NOTE: Scene management operations have been moved to Scene/McpCommandProcessor.Scene.cs
-        // This includes: HandleSceneManage, CreateScene, LoadScene, SaveScenes, DeleteScene,
-        // DuplicateScene, InspectScene, and all build settings operations.
+        private static List<Dictionary<string, object>> GetConsoleLogEntries(int limit = 100)
+        {
+            var logEntries = new List<Dictionary<string, object>>();
 
+            try
+            {
+                // Use reflection to access Unity's internal LogEntries
+                var logEntriesType = Type.GetType("UnityEditor.LogEntries, UnityEditor");
+                if (logEntriesType == null)
+                {
+                    return logEntries;
+                }
 
-        /// <summary>
-        /// Handles GameObject management operations (create, delete, move, rename, duplicate).
-        /// </summary>
-        /// <param name="payload">Operation parameters including 'operation' type and GameObject path.</param>
-        /// <returns>Result dictionary with GameObject hierarchy path and instance ID.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when operation or required parameters are invalid.</exception>
+                var getCountMethod = logEntriesType.GetMethod("GetCount", BindingFlags.Static | BindingFlags.Public);
+                var startGettingEntriesMethod = logEntriesType.GetMethod("StartGettingEntries", BindingFlags.Static | BindingFlags.Public);
+                var getEntryInternalMethod = logEntriesType.GetMethod("GetEntryInternal", BindingFlags.Static | BindingFlags.Public);
+                var endGettingEntriesMethod = logEntriesType.GetMethod("EndGettingEntries", BindingFlags.Static | BindingFlags.Public);
 
-        // NOTE: GameObject management operations have been moved to GameObject/McpCommandProcessor.GameObject.cs
-        // This includes: HandleGameObjectManage, CreateGameObject, DeleteGameObject, MoveGameObject, RenameGameObject,
-        // UpdateGameObject, DuplicateGameObject, InspectGameObject, FindMultipleGameObjects, DeleteMultipleGameObjects,
-        // and InspectMultipleGameObjects.
+                if (getCountMethod == null || startGettingEntriesMethod == null ||
+                    getEntryInternalMethod == null || endGettingEntriesMethod == null)
+                {
+                    return logEntries;
+                }
 
-        /// <summary>
-        /// Handles component management operations (add, remove, update, inspect).
-        /// Uses reflection to set component properties from the payload.
-        /// Monitors compilation status and returns whether compilation was triggered.
-        /// </summary>
-        /// <param name="payload">Operation parameters including 'operation', 'gameObjectPath', 'componentType', and optional 'propertyChanges'.</param>
-        /// <returns>Result dictionary with component type, GameObject path, and compilation status.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when GameObject or component type is not found.</exception>
+                var count = (int)getCountMethod.Invoke(null, null);
+                startGettingEntriesMethod.Invoke(null, null);
 
-        // NOTE: Component management operations have been moved to Component/McpCommandProcessor.Component.cs
-        // This includes: HandleComponentManage, AddComponent, RemoveComponent, UpdateComponent, InspectComponent,
-        // AddMultipleComponents, RemoveMultipleComponents, UpdateMultipleComponents, and InspectMultipleComponents.
+                var logEntryType = Type.GetType("UnityEditor.LogEntry, UnityEditor");
+                if (logEntryType == null)
+                {
+                    endGettingEntriesMethod.Invoke(null, null);
+                    return logEntries;
+                }
 
+                for (int i = 0; i < Math.Min(count, limit); i++)
+                {
+                    var logEntry = Activator.CreateInstance(logEntryType);
+                    var parameters = new object[] { i, logEntry };
+                    var success = (bool)getEntryInternalMethod.Invoke(null, parameters);
 
-        // NOTE: Asset management operations have been moved to Asset/McpCommandProcessor.Asset.cs
-        // This includes: HandleAssetManage, CreateTextAsset, UpdateTextAsset, UpdateAssetImporter,
-        // UpdateAsset, DeleteAsset, RenameAsset, DuplicateAsset, InspectAsset,
-        // FindMultipleAssets, DeleteMultipleAssets, and InspectMultipleAssets.
+                    if (success)
+                    {
+                        var messageField = logEntryType.GetField("message");
+                        var modeField = logEntryType.GetField("mode");
 
+                        if (messageField != null && modeField != null)
+                        {
+                            var message = messageField.GetValue(logEntry)?.ToString() ?? "";
+                            var mode = (int)modeField.GetValue(logEntry);
 
+                            var entryType = mode switch
+                            {
+                                0 => "Log",
+                                1 => "Warning",
+                                2 => "Error",
+                                _ => "Unknown"
+                            };
 
-        // NOTE: UI (UGUI) management operations have been moved to UI/McpCommandProcessor.UI.cs
-        // This includes: HandleUguiRectAdjust, HandleUguiAnchorManage, HandleUguiManage,
-        // HandleUguiCreateFromTemplate, HandleUguiLayoutManage, HandleUguiDetectOverlaps,
-        // and all related UI helper methods (DetectRectOverlap, etc.).
+                            logEntries.Add(new Dictionary<string, object>
+                            {
+                                ["message"] = message,
+                                ["type"] = entryType,
+                            });
+                        }
+                    }
+                }
 
-        // NOTE: Template operations have been moved to Template/McpCommandProcessor.Template.cs
-        // This includes: HandleSceneQuickSetup, HandleGameObjectCreateFromTemplate, HandleDesignPatternGenerate,
-        // HandleScriptTemplateGenerate, HandleTemplateManage, HandleMenuHierarchyCreate, and all related template methods.
+                endGettingEntriesMethod.Invoke(null, null);
+            }
+            catch (Exception)
+            {
+                // Silently fail if we can't access log entries
+            }
 
-        // NOTE: Context inspection and compilation management utilities have been moved to Utilities/McpCommandProcessor.Utilities.cs
+            return logEntries;
+        }
 
-        // NOTE: Settings management operations have been moved to Settings/McpCommandProcessor.Settings.cs
-        // This includes: HandleTagLayerManage, HandleProjectSettingsManage, HandleRenderPipelineManage,
-        // HandleConstantConvert, and all related settings management methods.
     }
 }
 

@@ -394,38 +394,150 @@ namespace MCP.Editor.ServerManager
 
         /// <summary>
         /// 指定されたサーバーが登録済みかチェック
-        /// CLIが利用不可な場合はfalseを返す
+        /// JSONファイルの存在確認＋ファイル内容から登録状態を判定（CLIコマンドより高速）
         /// </summary>
         /// <param name="tool">AIツール</param>
         /// <param name="serverName">サーバー名</param>
-        /// <param name="scope">スコープ（Claude Code用、nullの場合は全スコープ）</param>
+        /// <param name="scope">スコープ（nullの場合はUser）</param>
         public static bool IsServerRegistered(AITool tool, string serverName, RegistrationScope? scope = null)
         {
-            // CLIが利用可能かまずチェック
-            if (!IsCliAvailable(tool))
+            try
             {
+                var actualScope = scope ?? RegistrationScope.User;
+
+                // スコープに応じた設定ファイルパスを取得
+                var configPath = GetScopedConfigPath(tool, actualScope);
+
+                if (string.IsNullOrEmpty(configPath))
+                {
+                    return false;
+                }
+
+                // ファイルが存在しない場合は未登録
+                if (!System.IO.File.Exists(configPath))
+                {
+                    return false;
+                }
+
+                // ファイル内容を読み込んでサーバー名が含まれているかチェック
+                var content = System.IO.File.ReadAllText(configPath);
+
+                // Claude Codeの場合、スコープによってJSON内のセクションが異なる
+                if (tool == AITool.ClaudeCode)
+                {
+                    return IsServerRegisteredInClaudeCodeConfig(content, serverName, actualScope);
+                }
+
+                // その他のツールは単純な文字列検索
+                return content.Contains($"\"{serverName}\"", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[McpCliRegistry] Failed to check registration status: {ex.Message}");
                 return false;
             }
+        }
 
-            // MCP CLIをサポートしているかチェック（GUIアプリが起動するのを防ぐ）
-            if (!SupportsMcpCli(tool))
+        /// <summary>
+        /// Claude Codeの設定ファイル内でサーバーが登録されているかチェック
+        /// - User: ~/.claude.json の mcpServers セクション
+        /// - Local: ~/.claude.json の projects.[projectPath].mcpServers セクション
+        /// - Project: [projectDir]/.claude/settings.json の mcpServers セクション
+        /// </summary>
+        private static bool IsServerRegisteredInClaudeCodeConfig(string content, string serverName, RegistrationScope scope)
+        {
+            try
             {
-                return false;
-            }
+                var json = Newtonsoft.Json.Linq.JObject.Parse(content);
 
-            var result = ListServers(tool, scope);
-            if (!result.Success)
+                switch (scope)
+                {
+                    case RegistrationScope.User:
+                        // User scope: ルートレベルの mcpServers セクション
+                        if (json.TryGetValue("mcpServers", out var userMcpServers) &&
+                            userMcpServers is Newtonsoft.Json.Linq.JObject userServers)
+                        {
+                            return userServers.ContainsKey(serverName);
+                        }
+                        return false;
+
+                    case RegistrationScope.Local:
+                        // Local scope: projects -> [projectPath] -> mcpServers セクション
+                        if (json.TryGetValue("projects", out var projects) &&
+                            projects is Newtonsoft.Json.Linq.JObject projectsObj)
+                        {
+                            var projectPath = McpProjectRegistry.GetProjectPath().Replace("/", "\\");
+
+                            if (projectsObj.TryGetValue(projectPath, out var projectEntry) &&
+                                projectEntry is Newtonsoft.Json.Linq.JObject projectObj)
+                            {
+                                if (projectObj.TryGetValue("mcpServers", out var localMcpServers) &&
+                                    localMcpServers is Newtonsoft.Json.Linq.JObject localServers)
+                                {
+                                    return localServers.ContainsKey(serverName);
+                                }
+                            }
+                        }
+                        return false;
+
+                    case RegistrationScope.Project:
+                        // Project scope: .claude/settings.json の mcpServers セクション
+                        if (json.TryGetValue("mcpServers", out var projectMcpServers) &&
+                            projectMcpServers is Newtonsoft.Json.Linq.JObject projectServers)
+                        {
+                            return projectServers.ContainsKey(serverName);
+                        }
+                        return false;
+
+                    default:
+                        return false;
+                }
+            }
+            catch
             {
-                return false;
+                // JSONパース失敗時は文字列検索にフォールバック
+                return content.Contains($"\"{serverName}\"", StringComparison.OrdinalIgnoreCase);
             }
+        }
 
-            // 出力からサーバー名を検索（標準出力と標準エラー両方をチェック）
-            // claude mcp list は出力先がバージョンによって異なる場合がある
-            var output = result.Output ?? "";
-            var error = result.Error ?? "";
-            var combinedOutput = output + "\n" + error;
+        /// <summary>
+        /// スコープに応じた設定ファイルパスを取得
+        /// Claude Code: User/Localは同じファイル（セクションが異なる）、Projectは別ファイル
+        /// </summary>
+        /// <param name="tool">AIツール</param>
+        /// <param name="scope">登録スコープ</param>
+        /// <returns>設定ファイルパス（存在しない場合も返す）</returns>
+        public static string GetScopedConfigPath(AITool tool, RegistrationScope scope)
+        {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var projectDir = McpProjectRegistry.GetProjectPath();
 
-            return combinedOutput.Contains(serverName, StringComparison.OrdinalIgnoreCase);
+            return tool switch
+            {
+                // Claude Code: User/Localは同じ ~/.claude.json（セクションが異なる）
+                AITool.ClaudeCode => scope switch
+                {
+                    RegistrationScope.User => System.IO.Path.Combine(userProfile, ".claude.json"),
+                    RegistrationScope.Local => System.IO.Path.Combine(userProfile, ".claude.json"),
+                    RegistrationScope.Project => System.IO.Path.Combine(projectDir, ".claude", "settings.json"),
+                    _ => null
+                },
+                AITool.CodexCli => scope switch
+                {
+                    RegistrationScope.User => System.IO.Path.Combine(userProfile, ".codex", "config.json"),
+                    RegistrationScope.Local => System.IO.Path.Combine(projectDir, ".codex.json"),
+                    RegistrationScope.Project => System.IO.Path.Combine(projectDir, ".codex", "settings.json"),
+                    _ => null
+                },
+                AITool.GeminiCli => scope switch
+                {
+                    RegistrationScope.User => System.IO.Path.Combine(userProfile, ".gemini", "config.json"),
+                    RegistrationScope.Local => System.IO.Path.Combine(projectDir, ".gemini.json"),
+                    RegistrationScope.Project => System.IO.Path.Combine(projectDir, ".gemini", "settings.json"),
+                    _ => null
+                },
+                _ => null
+            };
         }
 
         /// <summary>
