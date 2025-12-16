@@ -168,9 +168,7 @@ namespace MCP.Editor.ServerManager
                 argsBuilder.Append($" --scope {scope}");
             }
 
-            argsBuilder.Append($" {options.ServerName}");
-
-            // トークンを環境変数として設定（-e オプション、サーバー名の後、--の前）
+            // トークンを環境変数として設定（-e オプション、サーバー名の前に配置）
             // 注意: project スコープではトークンを含めない（設定ファイルに保存されgitにコミットされる危険があるため）
             // project スコープの場合、ユーザーはシステム環境変数として MCP_BRIDGE_TOKEN を設定する必要がある
             var supportsScopeToken = tool == AITool.ClaudeCode || tool == AITool.CodexCli || tool == AITool.GeminiCli;
@@ -178,6 +176,9 @@ namespace MCP.Editor.ServerManager
             {
                 argsBuilder.Append($" -e MCP_BRIDGE_TOKEN={options.BridgeToken}");
             }
+
+            // サーバー名（位置引数なのでオプションの後に配置）
+            argsBuilder.Append($" {options.ServerName}");
 
             argsBuilder.Append($" -- {uvCommand} --directory \"{options.ServerPath}\" run unity-ai-forge {serverArgsBuilder}");
 
