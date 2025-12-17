@@ -65,11 +65,14 @@ The bridge enables WebSocket communication between AI clients and Unity Editor:
 
 Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, each handler processes specific MCP tool commands:
 
-- `SceneCommandHandler.cs` - Scene management (create, load, save)
+- `PingHandler.cs` - Bridge connectivity check (unity_ping)
+- `CompilationAwaitHandler.cs` - Compilation status monitoring
+- `SceneCommandHandler.cs` - Scene management (create, load, save, delete, duplicate, inspect)
 - `GameObjectCommandHandler.cs` - GameObject operations (create, find, modify, delete)
 - `ComponentCommandHandler.cs` - Component manipulation (add, configure, remove)
 - `AssetCommandHandler.cs` - Asset management
 - `PrefabCommandHandler.cs` - Prefab operations
+- `ProjectSettingsManageHandler.cs` - Project settings and build settings management
 - `PhysicsBundleHandler.cs` - Physics2D/3D setup
 - `TransformBatchHandler.cs` - Batch transform operations
 - `UIFoundationHandler.cs` - UI element creation
@@ -112,7 +115,7 @@ Located in `Assets/UnityAIForge/GameKit/Runtime/`:
 
 1. Add tool definition in `Assets/UnityAIForge/MCPServer/src/tools/register_tools.py`
 2. Create or extend a handler in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`
-3. Register the handler in `McpCommandProcessor.cs`
+3. Register the handler in `Assets/UnityAIForge/Editor/MCPBridge/Base/CommandHandlerInitializer.cs`
 
 ### Component Reference Formats
 
