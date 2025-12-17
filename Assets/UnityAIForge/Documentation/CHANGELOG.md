@@ -9,6 +9,35 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.4] - 2025-12-17
+
+### 修正
+
+- **Build Settings操作の重複を解消**
+  - `SceneCommandHandler` からビルド設定操作（`listBuildSettings`, `addToBuildSettings`, `removeFromBuildSettings`, `reorderBuildSettings`, `setBuildSettingsEnabled`）を削除
+  - ビルド設定操作は `ProjectSettingsManageHandler` (`unity_projectSettings_crud`) に一元化
+  - Python MCP サーバーの `scene_manage_schema` からもビルド設定操作を削除
+  - `unity_scene_crud` のツール説明を更新し、ビルド設定操作は `unity_projectSettings_crud` を使用するよう案内
+
+- **未登録ハンドラーの登録**
+  - `PingHandler` を新規作成し、`pingUnityEditor` コマンドを処理可能に
+  - `CompilationAwaitHandler` を `CommandHandlerInitializer` に登録
+  - ブリッジ接続確認（`unity_ping`）が正常に動作するように
+
+### 技術詳細
+
+- `SceneCommandHandler.cs`: ビルド設定関連の183行を削除
+- `PingHandler.cs`: 新規ファイル作成（76行）、`operation` パラメータ不要で `pong` レスポンスを返す
+- `CommandHandlerInitializer.cs`: `pingUnityEditor` と `compilationAwait` ハンドラーを Phase3 に登録
+- `register_tools.py`: `scene_manage_schema` を6操作に簡素化
+
+### ドキュメント
+
+- CHANGELOG.md を v2.4.4 に更新
+- package.json バージョンを 2.4.4 に更新
+- pyproject.toml バージョンを 2.4.4 に更新
+- CLAUDE.md のハンドラー登録手順を更新
+
 ## [2.4.3] - 2025-12-16
 
 ### 追加

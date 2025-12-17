@@ -27,12 +27,7 @@ namespace MCP.Editor.Handlers
             "save",
             "delete",
             "duplicate",
-            "inspect",
-            "listBuildSettings",
-            "addToBuildSettings",
-            "removeFromBuildSettings",
-            "reorderBuildSettings",
-            "setBuildSettingsEnabled"
+            "inspect"
         };
         
         #endregion
@@ -41,8 +36,8 @@ namespace MCP.Editor.Handlers
         
         protected override bool RequiresCompilationWait(string operation)
         {
-            // inspect と listBuildSettings は読み取り専用
-            return operation != "inspect" && operation != "listBuildSettings";
+            // inspect は読み取り専用
+            return operation != "inspect";
         }
         
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
@@ -55,12 +50,7 @@ namespace MCP.Editor.Handlers
                 "delete" => DeleteScene(payload),
                 "duplicate" => DuplicateScene(payload),
                 "inspect" => InspectScene(payload),
-                "listBuildSettings" => ListBuildSettings(payload),
-                "addToBuildSettings" => AddToBuildSettings(payload),
-                "removeFromBuildSettings" => RemoveFromBuildSettings(payload),
-                "reorderBuildSettings" => ReorderBuildSettings(payload),
-                "setBuildSettingsEnabled" => SetBuildSettingsEnabled(payload),
-                _ => throw new InvalidOperationException($"Unknown scene operation: {operation}")
+                _ => throw new InvalidOperationException($"Unknown scene operation: {operation}. Build settings operations have been moved to unity_projectSettings_crud tool.")
             };
         }
         
@@ -343,190 +333,7 @@ namespace MCP.Editor.Handlers
         }
         
         #endregion
-        
-        #region Build Settings Operations
-        
-        /// <summary>
-        /// Lists all scenes in build settings.
-        /// </summary>
-        private object ListBuildSettings(Dictionary<string, object> payload)
-        {
-            var scenes = EditorBuildSettings.scenes;
-            var sceneList = scenes.Select((scene, index) => new Dictionary<string, object>
-            {
-                ["path"] = scene.path,
-                ["enabled"] = scene.enabled,
-                ["guid"] = scene.guid.ToString(),
-                ["index"] = index
-            }).ToList();
-            
-            return CreateSuccessResponse(
-                ("scenes", sceneList),
-                ("count", scenes.Length)
-            );
-        }
-        
-        /// <summary>
-        /// Adds a scene to build settings.
-        /// </summary>
-        private object AddToBuildSettings(Dictionary<string, object> payload)
-        {
-            var scenePath = GetString(payload, "scenePath");
-            if (string.IsNullOrEmpty(scenePath))
-            {
-                throw new InvalidOperationException("scenePath is required");
-            }
-            
-            ValidateScenePath(scenePath);
-            
-            var index = GetInt(payload, "index", -1);
-            var enabled = GetBool(payload, "enabled", true);
-            
-            var scenes = EditorBuildSettings.scenes.ToList();
-            
-            // Check if scene already exists
-            if (scenes.Any(s => s.path == scenePath))
-            {
-                throw new InvalidOperationException($"Scene already in build settings: {scenePath}");
-            }
-            
-            var newScene = new EditorBuildSettingsScene(scenePath, enabled);
-            
-            if (index >= 0 && index <= scenes.Count)
-            {
-                scenes.Insert(index, newScene);
-            }
-            else
-            {
-                scenes.Add(newScene);
-            }
-            
-            EditorBuildSettings.scenes = scenes.ToArray();
-            
-            return CreateSuccessResponse(
-                ("scenePath", scenePath),
-                ("index", index >= 0 ? index : scenes.Count - 1),
-                ("enabled", enabled)
-            );
-        }
-        
-        /// <summary>
-        /// Removes a scene from build settings.
-        /// </summary>
-        private object RemoveFromBuildSettings(Dictionary<string, object> payload)
-        {
-            var scenePath = GetString(payload, "scenePath");
-            var index = GetInt(payload, "index", -1);
-            
-            var scenes = EditorBuildSettings.scenes.ToList();
-            
-            if (!string.IsNullOrEmpty(scenePath))
-            {
-                var removed = scenes.RemoveAll(s => s.path == scenePath);
-                if (removed == 0)
-                {
-                    throw new InvalidOperationException($"Scene not found in build settings: {scenePath}");
-                }
-            }
-            else if (index >= 0 && index < scenes.Count)
-            {
-                scenePath = scenes[index].path;
-                scenes.RemoveAt(index);
-            }
-            else
-            {
-                throw new InvalidOperationException("Either scenePath or valid index is required");
-            }
-            
-            EditorBuildSettings.scenes = scenes.ToArray();
-            
-            return CreateSuccessResponse(
-                ("scenePath", scenePath),
-                ("message", "Scene removed from build settings")
-            );
-        }
-        
-        /// <summary>
-        /// Reorders scenes in build settings.
-        /// </summary>
-        private object ReorderBuildSettings(Dictionary<string, object> payload)
-        {
-            var fromIndex = GetInt(payload, "fromIndex", -1);
-            var toIndex = GetInt(payload, "toIndex", -1);
-            
-            if (fromIndex < 0 || toIndex < 0)
-            {
-                throw new InvalidOperationException("Both fromIndex and toIndex are required");
-            }
-            
-            var scenes = EditorBuildSettings.scenes.ToList();
-            
-            if (fromIndex >= scenes.Count)
-            {
-                throw new InvalidOperationException($"fromIndex {fromIndex} is out of range (max: {scenes.Count - 1})");
-            }
-            
-            if (toIndex > scenes.Count)
-            {
-                throw new InvalidOperationException($"toIndex {toIndex} is out of range (max: {scenes.Count})");
-            }
-            
-            var scene = scenes[fromIndex];
-            scenes.RemoveAt(fromIndex);
-            scenes.Insert(toIndex, scene);
-            
-            EditorBuildSettings.scenes = scenes.ToArray();
-            
-            return CreateSuccessResponse(
-                ("fromIndex", fromIndex),
-                ("toIndex", toIndex),
-                ("scenePath", scene.path)
-            );
-        }
-        
-        /// <summary>
-        /// Enables or disables a scene in build settings.
-        /// </summary>
-        private object SetBuildSettingsEnabled(Dictionary<string, object> payload)
-        {
-            var scenePath = GetString(payload, "scenePath");
-            var index = GetInt(payload, "index", -1);
-            var enabled = GetBool(payload, "enabled", true);
-            
-            var scenes = EditorBuildSettings.scenes.ToList();
-            
-            int targetIndex = -1;
-            
-            if (!string.IsNullOrEmpty(scenePath))
-            {
-                targetIndex = scenes.FindIndex(s => s.path == scenePath);
-                if (targetIndex < 0)
-                {
-                    throw new InvalidOperationException($"Scene not found in build settings: {scenePath}");
-                }
-            }
-            else if (index >= 0 && index < scenes.Count)
-            {
-                targetIndex = index;
-                scenePath = scenes[index].path;
-            }
-            else
-            {
-                throw new InvalidOperationException("Either scenePath or valid index is required");
-            }
-            
-            scenes[targetIndex] = new EditorBuildSettingsScene(scenes[targetIndex].path, enabled);
-            EditorBuildSettings.scenes = scenes.ToArray();
-            
-            return CreateSuccessResponse(
-                ("scenePath", scenePath),
-                ("index", targetIndex),
-                ("enabled", enabled)
-            );
-        }
-        
-        #endregion
-        
+
         #region Helper Methods
         
         /// <summary>

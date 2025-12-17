@@ -63,11 +63,6 @@ def register_tools(server: Server) -> None:
                         "delete",
                         "duplicate",
                         "inspect",
-                        "listBuildSettings",
-                        "addToBuildSettings",
-                        "removeFromBuildSettings",
-                        "reorderBuildSettings",
-                        "setBuildSettingsEnabled",
                     ],
                 },
                 "scenePath": {"type": "string"},
@@ -77,10 +72,6 @@ def register_tools(server: Server) -> None:
                 "includeHierarchy": {"type": "boolean"},
                 "includeComponents": {"type": "boolean"},
                 "filter": {"type": "string"},
-                "enabled": {"type": "boolean"},
-                "index": {"type": "integer"},
-                "fromIndex": {"type": "integer"},
-                "toIndex": {"type": "integer"},
             },
         },
         ["operation"],
@@ -1611,7 +1602,7 @@ def register_tools(server: Server) -> None:
         batch_sequential_tool,  # Sequential batch execution with resume capability
         types.Tool(
             name="unity_scene_crud",
-            description="Comprehensive Unity scene management: create/load/save/delete/duplicate scenes, inspect scene hierarchy with optional component filtering, manage build settings (add/remove/reorder scenes). Use 'inspect' operation with 'includeHierarchy=true' to get scene context before making changes. Supports additive scene loading and build configuration operations.",
+            description="Unity scene management: create/load/save/delete/duplicate scenes, inspect scene hierarchy with optional component filtering. Use 'inspect' operation with 'includeHierarchy=true' to get scene context before making changes. Supports additive scene loading. For build settings operations (add/remove/reorder scenes), use unity_projectSettings_crud tool instead.",
             inputSchema=scene_manage_schema,
         ),
         types.Tool(

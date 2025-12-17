@@ -70,15 +70,19 @@ namespace MCP.Editor.Base
         /// </summary>
         private static void RegisterPhase3Handlers()
         {
+            // Utility Handlers
+            CommandHandlerFactory.Register("pingUnityEditor", new PingHandler());
+            CommandHandlerFactory.Register("compilationAwait", new CompilationAwaitHandler());
+
             // Scene Handler
             CommandHandlerFactory.Register("sceneManage", new SceneCommandHandler());
-            
+
             // GameObject Handler
             CommandHandlerFactory.Register("gameObjectManage", new GameObjectCommandHandler());
-            
+
             // Component Handler
             CommandHandlerFactory.Register("componentManage", new ComponentCommandHandler());
-            
+
             // Asset Handler
             CommandHandlerFactory.Register("assetManage", new AssetCommandHandler());
         }
