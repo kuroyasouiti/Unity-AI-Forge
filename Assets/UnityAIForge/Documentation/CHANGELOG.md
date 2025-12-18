@@ -9,6 +9,50 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.5] - 2025-12-19
+
+### 追加
+
+- **ScriptableObject配列/List型変数の操作サポート**
+  - `ScriptableObjectCommandHandler` で配列および `List<T>` 型プロパティの操作が可能に
+  - `ValueConverterManager` を使用した統一的な型変換処理
+  - 配列/Listの作成、更新、検査（inspect）操作をサポート
+  - Unity Object参照を含む配列も適切にシリアライズ
+
+### 改善
+
+- **`ScriptableObjectCommandHandler` のリファクタリング**
+  - `ConvertPropertyValue` メソッドを `ValueConverterManager.Instance.Convert()` を使用するように変更
+  - `SerializePropertyValue` メソッドを拡張し、以下の型のシリアライズに対応:
+    - 配列および `IList` 型（再帰的にシリアライズ）
+    - Unity Object参照（アセットパスとGUIDを含む辞書形式）
+    - Vector4、Rect、Bounds
+    - 列挙型（enum）
+    - プリミティブ型（int, float, string, bool）
+
+### テスト
+
+- **`ArrayValueConverterTests.cs`** - 30以上の単体テストを追加
+  - CanConvert テスト（配列、List、非配列型）
+  - 配列変換テスト（int[], string[], float[]）
+  - List変換テスト（List<int>, List<string>, List<float>）
+  - Unity型変換テスト（Vector3[], Color[], List<Vector2>）
+  - null/空配列処理テスト
+  - 単一値のラップテスト
+  - ValueConverterManager統合テスト
+
+- **`ScriptableObjectArrayTests.cs`** - ScriptableObject配列操作の統合テスト
+  - 配列プロパティの作成テスト
+  - 配列プロパティの更新テスト
+  - 配列プロパティの検査テスト
+  - 複数配列型の同時操作テスト
+
+### 技術詳細
+
+- `ScriptableObjectCommandHandler.cs`: `ConvertPropertyValue` と `SerializePropertyValue` メソッドを大幅改善
+- `ArrayValueConverterTests.cs`: 新規ファイル作成（357行）
+- `ScriptableObjectArrayTests.cs`: 新規ファイル作成（テストクラスとテスト用ScriptableObject定義を含む）
+
 ## [2.4.4] - 2025-12-17
 
 ### 修正

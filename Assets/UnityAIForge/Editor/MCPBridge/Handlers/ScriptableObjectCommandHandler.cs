@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -573,69 +574,85 @@ namespace MCP.Editor.Handlers
         {
             if (value == null)
                 return null;
-            
+
+            // Handle arrays and lists
+            if (value is IList list)
+            {
+                var serializedList = new List<object>();
+                foreach (var item in list)
+                {
+                    serializedList.Add(SerializePropertyValue(item));
+                }
+                return serializedList;
+            }
+
+            // Handle Unity Object references
+            if (value is UnityEngine.Object unityObj)
+            {
+                if (unityObj == null)
+                    return null;
+
+                var assetPath = AssetDatabase.GetAssetPath(unityObj);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    return new Dictionary<string, object>
+                    {
+                        ["name"] = unityObj.name,
+                        ["type"] = unityObj.GetType().Name,
+                        ["assetPath"] = assetPath,
+                        ["guid"] = AssetDatabase.AssetPathToGUID(assetPath)
+                    };
+                }
+                return new Dictionary<string, object>
+                {
+                    ["name"] = unityObj.name,
+                    ["type"] = unityObj.GetType().Name
+                };
+            }
+
             if (value is Vector3 v3)
-                return new { x = v3.x, y = v3.y, z = v3.z };
-            
+                return new Dictionary<string, object> { ["x"] = v3.x, ["y"] = v3.y, ["z"] = v3.z };
+
             if (value is Vector2 v2)
-                return new { x = v2.x, y = v2.y };
-            
+                return new Dictionary<string, object> { ["x"] = v2.x, ["y"] = v2.y };
+
+            if (value is Vector4 v4)
+                return new Dictionary<string, object> { ["x"] = v4.x, ["y"] = v4.y, ["z"] = v4.z, ["w"] = v4.w };
+
             if (value is Color color)
-                return new { r = color.r, g = color.g, b = color.b, a = color.a };
-            
+                return new Dictionary<string, object> { ["r"] = color.r, ["g"] = color.g, ["b"] = color.b, ["a"] = color.a };
+
             if (value is Quaternion quat)
-                return new { x = quat.x, y = quat.y, z = quat.z, w = quat.w };
-            
+                return new Dictionary<string, object> { ["x"] = quat.x, ["y"] = quat.y, ["z"] = quat.z, ["w"] = quat.w };
+
+            if (value is Rect rect)
+                return new Dictionary<string, object> { ["x"] = rect.x, ["y"] = rect.y, ["width"] = rect.width, ["height"] = rect.height };
+
+            if (value is Bounds bounds)
+                return new Dictionary<string, object>
+                {
+                    ["center"] = SerializePropertyValue(bounds.center),
+                    ["size"] = SerializePropertyValue(bounds.size)
+                };
+
+            // Handle enums
+            if (value.GetType().IsEnum)
+                return value.ToString();
+
+            // Handle primitive types
+            if (value is string || value is bool || value is int || value is long || value is float || value is double)
+                return value;
+
+            // Default: convert to string
             return value.ToString();
         }
         
         /// <summary>
-        /// Converts a value to the target type.
+        /// Converts a value to the target type using ValueConverterManager.
         /// </summary>
         private object ConvertPropertyValue(object value, Type targetType)
         {
-            if (value == null)
-                return null;
-            
-            if (targetType.IsInstanceOfType(value))
-                return value;
-            
-            // Handle basic types
-            if (targetType == typeof(float) && value is double d)
-                return (float)d;
-            
-            if (targetType == typeof(int) && value is long l)
-                return (int)l;
-            
-            // Handle Unity types
-            if (targetType == typeof(Vector3) && value is Dictionary<string, object> v3Dict)
-            {
-                return new Vector3(
-                    Convert.ToSingle(v3Dict["x"]),
-                    Convert.ToSingle(v3Dict["y"]),
-                    Convert.ToSingle(v3Dict["z"])
-                );
-            }
-            
-            if (targetType == typeof(Vector2) && value is Dictionary<string, object> v2Dict)
-            {
-                return new Vector2(
-                    Convert.ToSingle(v2Dict["x"]),
-                    Convert.ToSingle(v2Dict["y"])
-                );
-            }
-            
-            if (targetType == typeof(Color) && value is Dictionary<string, object> colorDict)
-            {
-                return new Color(
-                    Convert.ToSingle(colorDict["r"]),
-                    Convert.ToSingle(colorDict["g"]),
-                    Convert.ToSingle(colorDict["b"]),
-                    colorDict.ContainsKey("a") ? Convert.ToSingle(colorDict["a"]) : 1f
-                );
-            }
-            
-            return Convert.ChangeType(value, targetType);
+            return ValueConverterManager.Instance.Convert(value, targetType);
         }
         
         #endregion
