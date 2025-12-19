@@ -42,10 +42,18 @@ namespace MCP.Editor.Base.ValueConverters
             if (UnityBuiltInTypes.Contains(targetType))
                 return false;
 
-            // 値型（struct）かつ[Serializable]属性を持つ場合に処理
+            // 値型（struct）かつプリミティブでもenumでもない場合に処理
+            // [Serializable]属性の有無に関わらず、パブリックフィールドを持つ構造体を処理
+            // （Unityではネストされた構造体が自動的にシリアライズされる場合がある）
             if (targetType.IsValueType && !targetType.IsPrimitive && !targetType.IsEnum)
             {
-                return targetType.IsDefined(typeof(SerializableAttribute), false);
+                // [Serializable]属性がある、またはパブリックフィールドを持つ場合
+                if (targetType.IsDefined(typeof(SerializableAttribute), false))
+                    return true;
+
+                // パブリックフィールドを持つ構造体も対象とする
+                var fields = targetType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                return fields.Length > 0;
             }
 
             return false;
