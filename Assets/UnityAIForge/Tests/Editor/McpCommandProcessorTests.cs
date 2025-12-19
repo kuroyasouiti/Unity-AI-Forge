@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using MCP.Editor.Base;
+using MCP.Editor.Handlers;
 
 namespace MCP.Editor.Tests
 {
@@ -20,6 +21,8 @@ namespace MCP.Editor.Tests
         {
             _createdObjects = new List<GameObject>();
             CommandHandlerFactory.Clear();
+            // ハンドラーを再初期化
+            CommandHandlerInitializer.InitializeHandlers();
         }
 
         [TearDown]
@@ -61,10 +64,11 @@ namespace MCP.Editor.Tests
 
             // Assert
             Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("editor"));
-            Assert.IsTrue(result.ContainsKey("project"));
-            Assert.IsTrue(result.ContainsKey("time"));
-            Assert.AreEqual(Application.unityVersion, result["editor"]);
+            Assert.IsTrue((bool)result["success"]);
+            Assert.IsTrue(result.ContainsKey("unityVersion"));
+            Assert.IsTrue(result.ContainsKey("productName"));
+            Assert.IsTrue(result.ContainsKey("timestamp"));
+            Assert.AreEqual(Application.unityVersion, result["unityVersion"]);
         }
 
         [Test]
@@ -89,8 +93,8 @@ namespace MCP.Editor.Tests
         [Test]
         public void GetHandlerMode_UnregisteredTool_ShouldReturnLegacy()
         {
-            // Act
-            var mode = McpCommandProcessor.GetHandlerMode("sceneManage");
+            // Act - use a tool name that is not registered
+            var mode = McpCommandProcessor.GetHandlerMode("nonExistentTool");
 
             // Assert
             Assert.AreEqual("Legacy", mode);

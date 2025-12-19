@@ -38,11 +38,12 @@ namespace MCP.Editor.Base
         {
             _converters = new List<IValueConverter>
             {
-                new UnityObjectReferenceConverter(),  // Priority: 300
-                new ArrayValueConverter(),             // Priority: 250
-                new UnityStructValueConverter(),       // Priority: 200
-                new EnumValueConverter(),              // Priority: 150
-                new PrimitiveValueConverter()          // Priority: 100
+                new UnityObjectReferenceConverter(),    // Priority: 300
+                new ArrayValueConverter(),              // Priority: 250
+                new UnityStructValueConverter(),        // Priority: 200
+                new EnumValueConverter(),               // Priority: 150
+                new SerializableStructValueConverter(), // Priority: 150 (user-defined [Serializable] structs)
+                new PrimitiveValueConverter()           // Priority: 100
             };
 
             // 優先度の高い順にソート

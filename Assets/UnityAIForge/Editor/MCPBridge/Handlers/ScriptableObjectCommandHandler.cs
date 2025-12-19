@@ -643,8 +643,40 @@ namespace MCP.Editor.Handlers
             if (value is string || value is bool || value is int || value is long || value is float || value is double)
                 return value;
 
+            // Handle user-defined [Serializable] structs
+            var valueType = value.GetType();
+            if (valueType.IsValueType && !valueType.IsPrimitive && !valueType.IsEnum &&
+                valueType.IsDefined(typeof(SerializableAttribute), false))
+            {
+                return SerializeStructToDict(value, valueType);
+            }
+
             // Default: convert to string
             return value.ToString();
+        }
+
+        /// <summary>
+        /// Serializes a user-defined struct to a dictionary.
+        /// </summary>
+        private Dictionary<string, object> SerializeStructToDict(object structValue, Type structType)
+        {
+            var dict = new Dictionary<string, object>();
+            var fields = structType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+            foreach (var field in fields)
+            {
+                try
+                {
+                    var fieldValue = field.GetValue(structValue);
+                    dict[field.Name] = SerializePropertyValue(fieldValue);
+                }
+                catch
+                {
+                    // Skip fields that throw on access
+                }
+            }
+
+            return dict;
         }
         
         /// <summary>

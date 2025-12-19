@@ -9,6 +9,57 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.6] - 2025-12-19
+
+### 追加
+
+- **ユーザー定義構造体の配列/List型サポート**
+  - `SerializableStructValueConverter` を新規作成
+  - `[Serializable]` 属性を持つカスタム構造体の辞書からの変換をサポート
+  - 配列およびListプロパティでのユーザー定義構造体の完全サポート
+  - ネストした構造体（Vector3、Color等のUnity型を含む）もサポート
+
+- **ScriptableObject inspect操作の拡張**
+  - `[Serializable]` 属性を持つカスタム構造体を辞書形式でシリアライズ
+  - `SerializeStructToDict` メソッドを追加してユーザー定義構造体を再帰的に辞書化
+
+### テスト
+
+- **ユーザー定義型配列テストを追加** (`ScriptableObjectArrayTests.cs`)
+  - `Create_WithCustomStructArray_Success` - カスタム構造体配列の作成
+  - `Create_WithCustomStructList_Success` - カスタム構造体Listの作成
+  - `Create_WithEnumArray_Success` - Enum配列の作成
+  - `Create_WithEnumList_Success` - EnumListの作成
+  - `Update_CustomStructArray_Success` - カスタム構造体配列の更新
+  - `Update_EnumArray_Success` - Enum配列の更新
+  - `Inspect_WithCustomStructArray_ReturnsStructDictionaries` - カスタム構造体配列の検査
+  - `Inspect_WithEnumArray_ReturnsEnumStrings` - Enum配列の検査
+  - `Create_WithNestedStructArray_Success` - ネスト構造体配列の作成
+
+- **テスト用型定義を追加**
+  - `TestCustomStruct` - id, name, value フィールドを持つカスタム構造体
+  - `TestNestedStruct` - label, position(Vector3), color(Color) を持つネスト構造体
+  - `TestActionType` - Attack, Defend, Heal, Special を持つenum
+  - `TestCharacterState` - Idle, Running, Jumping, Falling, Dead を持つenum
+
+### 修正
+
+- **McpCommandProcessorTests.cs**
+  - `SetUp` メソッドで `CommandHandlerInitializer.InitializeHandlers()` を呼び出すよう修正
+  - `Execute_PingUnityEditor_ShouldReturnEditorInfo` テストをPingHandlerの実際のレスポンスに合わせて修正
+  - `GetHandlerMode_UnregisteredTool_ShouldReturnLegacy` テストを未登録のツール名を使うよう修正
+
+- **SceneCommandHandlerTests.cs**
+  - ビルド設定オペレーション（listBuildSettings等）が `ProjectSettingsManageHandler` に移動されたことを反映
+  - `SupportedOperations_ShouldContainExpectedOperations` からビルド設定関連のアサーションを削除
+  - `Execute_ListBuildSettings_ShouldReturnSceneList` テストを削除
+
+### 技術詳細
+
+- `SerializableStructValueConverter.cs`: 新規ファイル（130行）
+- `ValueConverterManager.cs`: `SerializableStructValueConverter` をPriority 150で登録
+- `ScriptableObjectCommandHandler.cs`: `SerializeStructToDict` メソッドを追加
+
 ## [2.4.5] - 2025-12-19
 
 ### 追加

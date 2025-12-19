@@ -92,18 +92,15 @@ namespace MCP.Editor.Tests
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
             var operations = _handler.SupportedOperations.ToList();
-            
+
             Assert.Contains("create", operations);
             Assert.Contains("load", operations);
             Assert.Contains("save", operations);
             Assert.Contains("delete", operations);
             Assert.Contains("duplicate", operations);
             Assert.Contains("inspect", operations);
-            Assert.Contains("listBuildSettings", operations);
-            Assert.Contains("addToBuildSettings", operations);
-            Assert.Contains("removeFromBuildSettings", operations);
-            Assert.Contains("reorderBuildSettings", operations);
-            Assert.Contains("setBuildSettingsEnabled", operations);
+            // Note: Build settings operations (listBuildSettings, addToBuildSettings, etc.)
+            // have been moved to ProjectSettingsManageHandler
         }
 
         #endregion
@@ -268,28 +265,8 @@ namespace MCP.Editor.Tests
 
         #endregion
 
-        #region ListBuildSettings Tests
-
-        [Test]
-        public void Execute_ListBuildSettings_ShouldReturnSceneList()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "listBuildSettings"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsTrue(result.ContainsKey("scenes"));
-            Assert.IsTrue(result.ContainsKey("count"));
-        }
-
-        #endregion
+        // Note: ListBuildSettings tests have been moved to ProjectSettingsManageHandlerTests
+        // as build settings operations are now handled by that handler.
 
         #region Validation Tests
 
