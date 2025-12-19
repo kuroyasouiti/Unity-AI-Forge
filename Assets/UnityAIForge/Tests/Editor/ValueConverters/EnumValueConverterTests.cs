@@ -201,5 +201,147 @@ namespace MCP.Editor.Tests.ValueConverters
         }
 
         #endregion
+
+        #region Dictionary Representation Tests
+
+        [Test]
+        public void Convert_DictionaryWithValueKey_ReturnsEnum()
+        {
+            var dict = new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "value", "First" }
+            };
+
+            var result = _converter.Convert(dict, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.First, result);
+        }
+
+        [Test]
+        public void Convert_DictionaryWithNameKey_ReturnsEnum()
+        {
+            var dict = new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "name", "Second" }
+            };
+
+            var result = _converter.Convert(dict, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.Second, result);
+        }
+
+        [Test]
+        public void Convert_DictionaryWithIntValue_ReturnsEnum()
+        {
+            var dict = new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "value", 3 }
+            };
+
+            var result = _converter.Convert(dict, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.Third, result);
+        }
+
+        #endregion
+
+        #region ToString Fallback Tests
+
+        [Test]
+        public void Convert_ObjectWithToString_ReturnsEnum()
+        {
+            // Custom object whose ToString returns an enum name
+            var customObj = new CustomEnumObject("First");
+
+            var result = _converter.Convert(customObj, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.First, result);
+        }
+
+        [Test]
+        public void Convert_ObjectWithIntToString_ReturnsEnum()
+        {
+            // Custom object whose ToString returns an integer
+            var customObj = new CustomEnumObject("2");
+
+            var result = _converter.Convert(customObj, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.Second, result);
+        }
+
+        [Test]
+        public void Convert_NonConvertibleObject_ThrowsInvalidOperationException()
+        {
+            // Custom object that doesn't produce a valid enum representation
+            var customObj = new CustomEnumObject("InvalidEnumName");
+
+            Assert.Throws<InvalidOperationException>(() =>
+            {
+                _converter.Convert(customObj, typeof(TestEnum));
+            });
+        }
+
+        // Helper class for testing ToString fallback
+        private class CustomEnumObject
+        {
+            private readonly string _value;
+
+            public CustomEnumObject(string value)
+            {
+                _value = value;
+            }
+
+            public override string ToString()
+            {
+                return _value;
+            }
+        }
+
+        #endregion
+
+        #region Numeric Type Tests
+
+        [Test]
+        public void Convert_FloatToEnum_Success()
+        {
+            var result = _converter.Convert(1.0f, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.First, result);
+        }
+
+        [Test]
+        public void Convert_DoubleToEnum_Success()
+        {
+            var result = _converter.Convert(2.0d, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.Second, result);
+        }
+
+        [Test]
+        public void Convert_ShortToEnum_Success()
+        {
+            var result = _converter.Convert((short)3, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.Third, result);
+        }
+
+        [Test]
+        public void Convert_ByteToEnum_Success()
+        {
+            var result = _converter.Convert((byte)1, typeof(TestEnum));
+
+            Assert.IsInstanceOf<TestEnum>(result);
+            Assert.AreEqual(TestEnum.First, result);
+        }
+
+        #endregion
     }
 }
