@@ -50,6 +50,24 @@ def register_tools(server: Server) -> None:
         "additionalProperties": False,
     }
 
+    compilation_await_schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "operation": {
+                "type": "string",
+                "enum": ["await"],
+                "description": "Operation to perform. Currently only 'await' is supported.",
+            },
+            "timeoutSeconds": {
+                "type": "integer",
+                "description": "Maximum time to wait for compilation to complete (default: 60 seconds).",
+                "default": 60,
+            },
+        },
+        "required": ["operation"],
+        "additionalProperties": False,
+    }
+
     scene_manage_schema = _schema_with_required(
         {
             "type": "object",
@@ -1599,6 +1617,11 @@ def register_tools(server: Server) -> None:
             description="Verify bridge connectivity and return the latest heartbeat information.",
             inputSchema=ping_schema,
         ),
+        types.Tool(
+            name="unity_compilation_await",
+            description="Wait for Unity's script compilation to complete. Use this after creating or modifying C# scripts to ensure the code is compiled before using new types or components. Returns compilation status including any errors or warnings. Supports configurable timeout (default 60 seconds).",
+            inputSchema=compilation_await_schema,
+        ),
         batch_sequential_tool,  # Sequential batch execution with resume capability
         types.Tool(
             name="unity_scene_crud",
@@ -1879,6 +1902,9 @@ unity_ui_navigation({
                 "bridgeResponse": bridge_response,
             }
             return [types.TextContent(type="text", text=as_pretty_json(payload))]
+
+        if name == "unity_compilation_await":
+            return await _call_bridge_tool("compilationAwait", args)
 
         if name == "unity_scene_crud":
             return await _call_bridge_tool("sceneManage", args)

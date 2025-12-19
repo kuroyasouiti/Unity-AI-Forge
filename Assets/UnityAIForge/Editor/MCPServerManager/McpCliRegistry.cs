@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -600,6 +603,297 @@ namespace MCP.Editor.ServerManager
                 _ => false
             };
         }
+
+        #region JSON Direct Registration (Newtonsoft.Json)
+
+        /// <summary>
+        /// JSONファイルを直接編集してMCPサーバーを登録（CLIを使用しない）
+        /// トークンを確実に登録するために使用
+        /// </summary>
+        public static CliResult RegisterProjectViaJson(AITool tool, ProjectRegistrationOptions options)
+        {
+            try
+            {
+                Debug.Log($"[McpCliRegistry] Registering via JSON: {options.ServerName} (scope: {options.Scope})");
+
+                var configPath = GetScopedConfigPath(tool, options.Scope);
+                if (string.IsNullOrEmpty(configPath))
+                {
+                    return new CliResult
+                    {
+                        Success = false,
+                        Error = $"No config path available for {tool} with scope {options.Scope}",
+                        ExitCode = -1
+                    };
+                }
+
+                // 設定ファイルの親ディレクトリを作成
+                var configDir = Path.GetDirectoryName(configPath);
+                if (!string.IsNullOrEmpty(configDir) && !Directory.Exists(configDir))
+                {
+                    Directory.CreateDirectory(configDir);
+                }
+
+                // 既存の設定を読み込み、または新規作成
+                JObject config;
+                if (File.Exists(configPath))
+                {
+                    var content = File.ReadAllText(configPath);
+                    config = string.IsNullOrWhiteSpace(content) ? new JObject() : JObject.Parse(content);
+                }
+                else
+                {
+                    config = new JObject();
+                }
+
+                // サーバーエントリを作成
+                var serverEntry = CreateServerEntry(options);
+
+                // スコープに応じて適切な場所に登録
+                switch (options.Scope)
+                {
+                    case RegistrationScope.User:
+                    case RegistrationScope.Project:
+                        // User/Project scope: ルートレベルの mcpServers に追加
+                        if (!config.ContainsKey("mcpServers"))
+                        {
+                            config["mcpServers"] = new JObject();
+                        }
+                        ((JObject)config["mcpServers"])[options.ServerName] = serverEntry;
+                        break;
+
+                    case RegistrationScope.Local:
+                        // Local scope: projects -> [projectPath] -> mcpServers に追加
+                        if (!config.ContainsKey("projects"))
+                        {
+                            config["projects"] = new JObject();
+                        }
+                        var projects = (JObject)config["projects"];
+
+                        // パスを正規化（既存エントリとの一致のため）
+                        var normalizedProjectPath = NormalizePath(options.ProjectPath);
+
+                        // 既存のエントリを検索（正規化して比較）
+                        string existingKey = null;
+                        foreach (var property in projects.Properties())
+                        {
+                            if (ArePathsEqual(property.Name, normalizedProjectPath))
+                            {
+                                existingKey = property.Name;
+                                break;
+                            }
+                        }
+
+                        // 既存エントリがあればそれを使用、なければ正規化されたパスで新規作成
+                        var projectKey = existingKey ?? normalizedProjectPath;
+                        if (!projects.ContainsKey(projectKey))
+                        {
+                            projects[projectKey] = new JObject();
+                        }
+                        var projectConfig = (JObject)projects[projectKey];
+
+                        if (!projectConfig.ContainsKey("mcpServers"))
+                        {
+                            projectConfig["mcpServers"] = new JObject();
+                        }
+                        ((JObject)projectConfig["mcpServers"])[options.ServerName] = serverEntry;
+                        break;
+                }
+
+                // 保存
+                var json = config.ToString(Formatting.Indented);
+                File.WriteAllText(configPath, json);
+
+                Debug.Log($"[McpCliRegistry] Successfully registered via JSON: {configPath}");
+
+                return new CliResult
+                {
+                    Success = true,
+                    Output = $"Registered {options.ServerName} to {configPath}",
+                    ExitCode = 0
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[McpCliRegistry] Failed to register via JSON: {ex.Message}");
+                return new CliResult
+                {
+                    Success = false,
+                    Error = ex.Message,
+                    ExitCode = -1
+                };
+            }
+        }
+
+        /// <summary>
+        /// JSONファイルを直接編集してMCPサーバーを解除（CLIを使用しない）
+        /// </summary>
+        public static CliResult UnregisterProjectViaJson(AITool tool, string serverName, RegistrationScope scope, string projectPath = null)
+        {
+            try
+            {
+                Debug.Log($"[McpCliRegistry] Unregistering via JSON: {serverName} (scope: {scope})");
+
+                var configPath = GetScopedConfigPath(tool, scope);
+                if (string.IsNullOrEmpty(configPath))
+                {
+                    return new CliResult
+                    {
+                        Success = false,
+                        Error = $"No config path available for {tool} with scope {scope}",
+                        ExitCode = -1
+                    };
+                }
+
+                if (!File.Exists(configPath))
+                {
+                    return new CliResult
+                    {
+                        Success = false,
+                        Error = $"Config file not found: {configPath}",
+                        ExitCode = -1
+                    };
+                }
+
+                var content = File.ReadAllText(configPath);
+                var config = JObject.Parse(content);
+
+                bool removed = false;
+
+                switch (scope)
+                {
+                    case RegistrationScope.User:
+                    case RegistrationScope.Project:
+                        // User/Project scope: ルートレベルの mcpServers から削除
+                        if (config.TryGetValue("mcpServers", out var mcpServers) &&
+                            mcpServers is JObject servers &&
+                            servers.ContainsKey(serverName))
+                        {
+                            servers.Remove(serverName);
+                            removed = true;
+                        }
+                        break;
+
+                    case RegistrationScope.Local:
+                        // Local scope: projects -> [projectPath] -> mcpServers から削除
+                        if (config.TryGetValue("projects", out var projectsToken) &&
+                            projectsToken is JObject projects)
+                        {
+                            var targetProjectPath = projectPath ?? McpProjectRegistry.GetProjectPath();
+                            var normalizedTargetPath = NormalizePath(targetProjectPath);
+
+                            foreach (var property in projects.Properties())
+                            {
+                                var keyPath = NormalizePath(property.Name);
+                                if (ArePathsEqual(normalizedTargetPath, keyPath))
+                                {
+                                    if (property.Value is JObject projectConfig &&
+                                        projectConfig.TryGetValue("mcpServers", out var localMcpServers) &&
+                                        localMcpServers is JObject localServers &&
+                                        localServers.ContainsKey(serverName))
+                                    {
+                                        localServers.Remove(serverName);
+                                        removed = true;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                }
+
+                if (!removed)
+                {
+                    return new CliResult
+                    {
+                        Success = false,
+                        Error = $"Server '{serverName}' not found in config",
+                        ExitCode = -1
+                    };
+                }
+
+                // 保存
+                var json = config.ToString(Formatting.Indented);
+                File.WriteAllText(configPath, json);
+
+                Debug.Log($"[McpCliRegistry] Successfully unregistered via JSON: {configPath}");
+
+                return new CliResult
+                {
+                    Success = true,
+                    Output = $"Unregistered {serverName} from {configPath}",
+                    ExitCode = 0
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[McpCliRegistry] Failed to unregister via JSON: {ex.Message}");
+                return new CliResult
+                {
+                    Success = false,
+                    Error = ex.Message,
+                    ExitCode = -1
+                };
+            }
+        }
+
+        /// <summary>
+        /// MCPサーバーエントリを作成
+        /// </summary>
+        private static JObject CreateServerEntry(ProjectRegistrationOptions options)
+        {
+            var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
+
+            // uv コマンドの引数を構築
+            var args = new JArray();
+
+            // Windowsでは cmd /c 経由で実行
+            if (isWindows)
+            {
+                args.Add("/c");
+                args.Add("uv");
+            }
+
+            args.Add("--directory");
+            args.Add(options.ServerPath);
+            args.Add("run");
+            args.Add("unity-ai-forge");
+            args.Add("--bridge-port");
+            args.Add(options.BridgePort.ToString());
+
+            if (!string.IsNullOrEmpty(options.BridgeHost) && options.BridgeHost != "127.0.0.1")
+            {
+                args.Add("--bridge-host");
+                args.Add(options.BridgeHost);
+            }
+
+            var entry = new JObject
+            {
+                ["command"] = isWindows ? "cmd" : "uv",
+                ["args"] = args
+            };
+
+            // 環境変数を追加（トークンを含む）
+            // Project スコープの場合はトークンを含めない（セキュリティ上の理由）
+            if (options.Scope != RegistrationScope.Project)
+            {
+                var env = new JObject();
+
+                if (!string.IsNullOrEmpty(options.BridgeToken))
+                {
+                    env["MCP_BRIDGE_TOKEN"] = options.BridgeToken;
+                }
+
+                if (env.Count > 0)
+                {
+                    entry["env"] = env;
+                }
+            }
+
+            return entry;
+        }
+
+        #endregion
 
         #region Helper Methods
 

@@ -345,20 +345,88 @@ namespace MCP.Editor.ServerManager
             try
             {
                 Debug.Log("[McpServerManager] Starting reinstallation...");
-                
+
                 if (IsInstalled())
                 {
                     Uninstall();
                 }
-                
+
                 Install();
-                
+
+                // パッケージ更新後はPythonキャッシュをクリア
+                ClearPythonCache();
+
                 Debug.Log("[McpServerManager] Reinstallation completed successfully!");
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[McpServerManager] Reinstallation failed: {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Pythonキャッシュをクリア（__pycache__ディレクトリと.pycファイルを削除）
+        /// パッケージ更新後に呼び出すことで、古いバイトコードキャッシュの問題を防止
+        /// </summary>
+        public static void ClearPythonCache()
+        {
+            var paths = new[] { SourcePath, UserInstallPath };
+            var totalCleared = 0;
+
+            foreach (var basePath in paths)
+            {
+                if (string.IsNullOrEmpty(basePath) || !Directory.Exists(basePath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // __pycache__ ディレクトリを削除
+                    var pycacheDirs = Directory.GetDirectories(basePath, "__pycache__", SearchOption.AllDirectories);
+                    foreach (var dir in pycacheDirs)
+                    {
+                        try
+                        {
+                            Directory.Delete(dir, true);
+                            totalCleared++;
+                            Debug.Log($"[McpServerManager] Deleted cache directory: {dir}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogWarning($"[McpServerManager] Failed to delete {dir}: {ex.Message}");
+                        }
+                    }
+
+                    // .pyc ファイルを削除（__pycache__外にある場合）
+                    var pycFiles = Directory.GetFiles(basePath, "*.pyc", SearchOption.AllDirectories);
+                    foreach (var file in pycFiles)
+                    {
+                        try
+                        {
+                            File.Delete(file);
+                            totalCleared++;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogWarning($"[McpServerManager] Failed to delete {file}: {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[McpServerManager] Failed to clear cache in {basePath}: {ex.Message}");
+                }
+            }
+
+            if (totalCleared > 0)
+            {
+                Debug.Log($"[McpServerManager] Cleared {totalCleared} Python cache item(s)");
+            }
+            else
+            {
+                Debug.Log("[McpServerManager] No Python cache to clear");
             }
         }
         

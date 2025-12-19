@@ -9,6 +9,59 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.7] - 2025-12-20
+
+### 追加
+
+- **`unity_compilation_await` ツールを新規追加**
+  - C#スクリプトの作成・更新後にコンパイル完了を待機するための専用ツール
+  - `operation: 'await'` でコンパイル完了を待機
+  - `timeoutSeconds` パラメータで待機時間を設定可能（デフォルト: 60秒）
+  - コンパイル結果（成功/失敗、エラー数、警告数）を返す
+
+- **JSON直接編集によるMCPサーバー登録機能**
+  - `McpCliRegistry.RegisterProjectViaJson()` メソッドを追加
+  - CLIを使用せずNewtonsoft.Jsonで設定ファイルを直接編集
+  - トークン付きサーバー登録をより確実に実行
+  - スコープ別の登録に対応（User, Local, Project）
+  - パス正規化による既存エントリとの一致判定
+  - `UnregisterProjectViaJson()` メソッドで登録解除も可能
+
+- **複合型テストスイートの追加**
+  - `CombinedTypesScriptableObjectTests.cs` - Unity型とユーザー定義型を組み合わせたテスト
+  - `TestCombinedTypes.cs` - 複合型テスト用の型定義
+  - `TestCombinedTypesScriptableObject.cs` - テスト用ScriptableObject
+
+### 改善
+
+- **McpBridgeWindow UIの大幅改善**
+  - AIツール登録セクションのレイアウトを改善
+  - 登録状態表示の視認性向上
+  - エラーハンドリングの強化
+
+- **ValueConverterManager の型変換強化**
+  - Unity構造体の配列/List変換の改善
+  - ユーザー定義構造体との複合型サポート強化
+  - 文字列定数からのUnity型変換の拡張
+
+- **UnityStructValueConverter の機能拡張**
+  - ネスト構造体の変換処理を最適化
+  - 辞書形式からの変換精度向上
+
+### テスト
+
+- **ValueConverterManagerTests.cs の拡張**
+  - 複合型変換テストを追加
+  - エッジケースのテストを追加
+  - Unity型とカスタム型の組み合わせテストを追加
+
+### 技術詳細
+
+- `register_tools.py`: `compilation_await_schema` と `unity_compilation_await` ツール定義を追加
+- `McpCliRegistry.cs`: JSON登録機能として約300行の新規実装
+- `McpBridgeWindow.cs`: UI改善のため126行追加、80行削除
+- `ValueConverterManager.cs`: 型変換ロジックの大幅改善
+
 ## [2.4.6] - 2025-12-19
 
 ### 追加

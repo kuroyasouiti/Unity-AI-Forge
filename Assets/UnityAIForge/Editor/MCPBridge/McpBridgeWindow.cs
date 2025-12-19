@@ -141,8 +141,8 @@ namespace MCP.Editor
 
                 DrawSectionSeparator();
 
-                // Project Registration Section (CLI-based)
-                _showProjectRegistrationSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showProjectRegistrationSection, "Project Registration (CLI)");
+                // Project Registration Section (JSON-based)
+                _showProjectRegistrationSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showProjectRegistrationSection, "Project Registration");
                 if (_showProjectRegistrationSection)
                 {
                     DrawProjectRegistrationSection();
@@ -258,6 +258,17 @@ namespace MCP.Editor
                 }
             }
             GUI.enabled = true;
+
+            // Advanced operations
+            GUILayout.Space(4f);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Clear Python Cache", GUILayout.Height(20)))
+                {
+                    McpServerManager.ClearPythonCache();
+                    AppendLog("Python cache cleared");
+                }
+            }
         }
 
         private void DrawStatusSection(McpBridgeSettings settings)
@@ -525,12 +536,11 @@ namespace MCP.Editor
 
             foreach (var tool in SupportedClients)
             {
-                var cliAvailable = McpCliRegistry.IsCliAvailable(tool);
                 var supportsScope = McpCliRegistry.SupportsScope(tool);
 
-                if (supportsScope && cliAvailable)
+                if (supportsScope)
                 {
-                    // スコープをサポートするツールの場合、各スコープごとにチェック
+                    // スコープをサポートするツールの場合、各スコープごとにチェック（JSON直接登録）
                     foreach (McpCliRegistry.RegistrationScope scope in Enum.GetValues(typeof(McpCliRegistry.RegistrationScope)))
                     {
                         var registered = McpCliRegistry.IsServerRegistered(tool, serverName, scope);
@@ -540,11 +550,12 @@ namespace MCP.Editor
 
                     // 現在選択中のスコープの登録状態を使用
                     var currentScopeRegistered = _toolScopeStatus.TryGetValue((tool, _registrationScope), out var reg) && reg;
-                    _aiToolStatus[tool] = (cliAvailable, currentScopeRegistered);
+                    _aiToolStatus[tool] = (true, currentScopeRegistered);
                 }
                 else
                 {
                     // スコープ非対応ツールは従来通り
+                    var cliAvailable = McpCliRegistry.IsCliAvailable(tool);
                     var registered = cliAvailable && McpCliRegistry.IsServerRegistered(tool, serverName);
                     _aiToolStatus[tool] = (cliAvailable, registered);
                 }
@@ -597,10 +608,10 @@ namespace MCP.Editor
                 GUILayout.Space(5f);
 
                 // Config preview (collapsed by default)
-                _showConfigPreview = EditorGUILayout.Foldout(_showConfigPreview, "CLI Command Preview");
+                _showConfigPreview = EditorGUILayout.Foldout(_showConfigPreview, "JSON Config Preview");
                 if (_showConfigPreview)
                 {
-                    DrawCliCommandPreviewForClient(selectedClient);
+                    DrawJsonConfigPreviewForClient(selectedClient);
                 }
 
                 GUILayout.Space(5f);
@@ -714,48 +725,27 @@ namespace MCP.Editor
             {
                 var clientName = McpConfigManager.GetToolDisplayName(client);
 
-                // Get status for this client
-                bool cliAvailable;
+                // Get registration status for this client
                 bool registered;
 
                 if (McpCliRegistry.SupportsScope(client))
                 {
                     // スコープ対応ツールの場合、現在選択中のスコープの登録状態を使用
-                    cliAvailable = _aiToolStatus.TryGetValue(client, out var s) && s.cliAvailable;
                     registered = _toolScopeStatus.TryGetValue((client, _registrationScope), out var reg) && reg;
                 }
                 else
                 {
-                    if (_aiToolStatus.TryGetValue(client, out var s))
-                    {
-                        cliAvailable = s.cliAvailable;
-                        registered = s.registered;
-                    }
-                    else
-                    {
-                        cliAvailable = false;
-                        registered = false;
-                    }
+                    registered = _aiToolStatus.TryGetValue(client, out var s) && s.registered;
                 }
 
-                var status = (cliAvailable, registered);
-                var mcpSupported = McpCliRegistry.IsMcpCliSupported(client);
+                var jsonSupported = McpCliRegistry.SupportsScope(client); // JSON登録サポート対象
 
                 // Status display
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField("CLI Available:", GUILayout.Width(100));
-                    var cliIcon = status.cliAvailable ? "\u2713 Yes" : "\u2717 No";
-                    var cliStyle = status.cliAvailable ? EditorStyles.boldLabel : EditorStyles.label;
-                    EditorGUILayout.LabelField(cliIcon, cliStyle);
-                }
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField("MCP CLI Support:", GUILayout.Width(100));
-                    var mcpIcon = mcpSupported ? "\u2713 Yes" : "\u2717 No";
-                    var mcpStyle = mcpSupported ? EditorStyles.boldLabel : EditorStyles.label;
-                    EditorGUILayout.LabelField(mcpIcon, mcpStyle);
+                    EditorGUILayout.LabelField("Config Path:", GUILayout.Width(100));
+                    var configPath = McpCliRegistry.GetScopedConfigPath(client, _registrationScope);
+                    EditorGUILayout.LabelField(configPath ?? "N/A", EditorStyles.miniLabel);
                 }
 
                 using (new EditorGUILayout.HorizontalScope())
@@ -763,20 +753,15 @@ namespace MCP.Editor
                     EditorGUILayout.LabelField("Status:", GUILayout.Width(100));
                     string statusText;
                     GUIStyle statusStyle;
-                    if (!mcpSupported)
+                    if (!jsonSupported)
                     {
                         statusText = "Not Supported";
                         statusStyle = EditorStyles.miniLabel;
                     }
-                    else if (!status.cliAvailable)
-                    {
-                        statusText = "CLI Not Found";
-                        statusStyle = EditorStyles.miniLabel;
-                    }
                     else
                     {
-                        statusText = status.registered ? "\u2713 Registered" : "\u2717 Not Registered";
-                        statusStyle = status.registered ? EditorStyles.boldLabel : EditorStyles.label;
+                        statusText = registered ? "\u2713 Registered" : "\u2717 Not Registered";
+                        statusStyle = registered ? EditorStyles.boldLabel : EditorStyles.label;
                     }
                     EditorGUILayout.LabelField(statusText, statusStyle);
                 }
@@ -784,19 +769,11 @@ namespace MCP.Editor
                 GUILayout.Space(10f);
 
                 // Action buttons
-                if (!mcpSupported)
+                if (!jsonSupported)
                 {
                     EditorGUILayout.HelpBox(
-                        $"{clientName} does not support MCP CLI commands yet.\n" +
-                        "Please configure manually or wait for MCP CLI support.",
-                        MessageType.Warning
-                    );
-                }
-                else if (!status.cliAvailable)
-                {
-                    EditorGUILayout.HelpBox(
-                        $"{clientName} CLI is not available.\n" +
-                        "Please install the CLI or add it to your PATH.",
+                        $"{clientName} does not support JSON registration yet.\n" +
+                        "Please configure manually.",
                         MessageType.Warning
                     );
                 }
@@ -805,13 +782,13 @@ namespace MCP.Editor
                     // Registration/Unregistration buttons
                     using (new EditorGUILayout.HorizontalScope())
                     {
-                        GUI.enabled = !_commandRunning && !status.registered;
+                        GUI.enabled = !_commandRunning && !registered;
                         if (GUILayout.Button("Register", GUILayout.Height(30)))
                         {
                             RegisterProjectToToolViaCli(client);
                         }
 
-                        GUI.enabled = !_commandRunning && status.registered;
+                        GUI.enabled = !_commandRunning && registered;
                         if (GUILayout.Button("Unregister", GUILayout.Height(30)))
                         {
                             UnregisterProjectFromToolViaCli(client);
@@ -833,21 +810,20 @@ namespace MCP.Editor
             }
         }
 
-        private void DrawCliCommandPreviewForClient(AITool client)
+        private void DrawJsonConfigPreviewForClient(AITool client)
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 var settings = McpBridgeSettings.Instance;
                 var serverName = McpProjectRegistry.GetProjectServerName();
-                var serverPath = McpServerManager.SourcePath;
                 var clientName = McpConfigManager.GetToolDisplayName(client);
 
-                EditorGUILayout.LabelField($"CLI Command for {clientName}:", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"JSON Config for {clientName}:", EditorStyles.boldLabel);
 
-                var command = GenerateCliCommand(client, serverName, serverPath, settings);
+                var configPreview = GenerateJsonConfigPreview(client, serverName, settings);
 
                 GUI.enabled = false;
-                EditorGUILayout.TextArea(command, GUILayout.Height(80));
+                EditorGUILayout.TextArea(configPreview, GUILayout.Height(120));
                 GUI.enabled = true;
 
                 using (new EditorGUILayout.HorizontalScope())
@@ -855,11 +831,88 @@ namespace MCP.Editor
                     GUILayout.FlexibleSpace();
                     if (GUILayout.Button("Copy to Clipboard", GUILayout.Width(130)))
                     {
-                        GUIUtility.systemCopyBuffer = command;
-                        AppendLog("Command copied to clipboard");
+                        GUIUtility.systemCopyBuffer = configPreview;
+                        AppendLog("JSON config copied to clipboard");
                     }
                 }
             }
+        }
+
+        private string GenerateJsonConfigPreview(AITool client, string serverName, McpBridgeSettings settings)
+        {
+            var options = new McpCliRegistry.ProjectRegistrationOptions
+            {
+                ServerName = serverName,
+                ServerPath = McpServerManager.SourcePath,
+                BridgeToken = settings.BridgeToken,
+                BridgeHost = settings.ServerHost,
+                BridgePort = settings.ServerPort,
+                ProjectPath = McpProjectRegistry.GetProjectPath(),
+                Scope = _registrationScope
+            };
+
+            var isWindows = Application.platform == RuntimePlatform.WindowsEditor;
+            var args = new Newtonsoft.Json.Linq.JArray();
+
+            if (isWindows)
+            {
+                args.Add("/c");
+                args.Add("uv");
+            }
+
+            args.Add("--directory");
+            args.Add(options.ServerPath);
+            args.Add("run");
+            args.Add("unity-ai-forge");
+            args.Add("--bridge-port");
+            args.Add(options.BridgePort.ToString());
+
+            var entry = new Newtonsoft.Json.Linq.JObject
+            {
+                ["command"] = isWindows ? "cmd" : "uv",
+                ["args"] = args
+            };
+
+            // Project スコープ以外はトークンを含める
+            if (_registrationScope != McpCliRegistry.RegistrationScope.Project && !string.IsNullOrEmpty(options.BridgeToken))
+            {
+                entry["env"] = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["MCP_BRIDGE_TOKEN"] = options.BridgeToken
+                };
+            }
+
+            // スコープに応じたプレビュー形式
+            Newtonsoft.Json.Linq.JObject preview;
+            switch (_registrationScope)
+            {
+                case McpCliRegistry.RegistrationScope.Local:
+                    preview = new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["projects"] = new Newtonsoft.Json.Linq.JObject
+                        {
+                            [options.ProjectPath] = new Newtonsoft.Json.Linq.JObject
+                            {
+                                ["mcpServers"] = new Newtonsoft.Json.Linq.JObject
+                                {
+                                    [serverName] = entry
+                                }
+                            }
+                        }
+                    };
+                    break;
+                default:
+                    preview = new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["mcpServers"] = new Newtonsoft.Json.Linq.JObject
+                        {
+                            [serverName] = entry
+                        }
+                    };
+                    break;
+            }
+
+            return preview.ToString(Newtonsoft.Json.Formatting.Indented);
         }
 
         private string GenerateCliCommand(AITool client, string serverName, string serverPath, McpBridgeSettings settings)
@@ -898,7 +951,7 @@ namespace MCP.Editor
             {
                 _commandRunning = true;
                 var toolName = McpConfigManager.GetToolDisplayName(tool);
-                AppendLog($"Registering project to {toolName} via CLI...");
+                AppendLog($"Registering project to {toolName} via JSON...");
 
                 var settings = McpBridgeSettings.Instance;
                 var options = new McpCliRegistry.ProjectRegistrationOptions
@@ -912,11 +965,8 @@ namespace MCP.Editor
                     Scope = _registrationScope
                 };
 
-                var result = McpCliRegistry.RegisterProject(tool, options);
-
-                // 「already exists」エラーは既に登録済みとして成功扱い
-                var alreadyExists = !string.IsNullOrEmpty(result.Error) &&
-                    result.Error.Contains("already exists", StringComparison.OrdinalIgnoreCase);
+                // JSON直接書き込みを使用（CLIではなく）
+                var result = McpCliRegistry.RegisterProjectViaJson(tool, options);
 
                 RefreshProjectRegistrationStatus();
 
@@ -928,19 +978,13 @@ namespace MCP.Editor
                         AppendLog($"Output: {result.Output}");
                     }
 
+                    var configPath = McpCliRegistry.GetScopedConfigPath(tool, _registrationScope);
                     EditorUtility.DisplayDialog("Success",
                         $"Successfully registered to {toolName}!\n\n" +
                         $"Server: {options.ServerName}\n" +
-                        $"Port: {options.BridgePort}\n\n" +
+                        $"Port: {options.BridgePort}\n" +
+                        $"Config: {configPath}\n\n" +
                         "Please restart the AI tool for changes to take effect.",
-                        "OK");
-                }
-                else if (alreadyExists)
-                {
-                    AppendLog($"Server already registered to {toolName}");
-                    EditorUtility.DisplayDialog("Already Registered",
-                        $"Server is already registered to {toolName}.\n\n" +
-                        "If you want to update the configuration, please unregister first.",
                         "OK");
                 }
                 else
@@ -972,9 +1016,11 @@ namespace MCP.Editor
                 _commandRunning = true;
                 var toolName = McpConfigManager.GetToolDisplayName(tool);
                 var serverName = McpProjectRegistry.GetProjectServerName();
-                AppendLog($"Unregistering project from {toolName} via CLI (scope: {_registrationScope})...");
+                AppendLog($"Unregistering project from {toolName} via JSON (scope: {_registrationScope})...");
 
-                var result = McpCliRegistry.UnregisterProject(tool, serverName, _registrationScope);
+                // JSON直接編集を使用（CLIではなく）
+                var projectPath = McpProjectRegistry.GetProjectPath();
+                var result = McpCliRegistry.UnregisterProjectViaJson(tool, serverName, _registrationScope, projectPath);
 
                 RefreshProjectRegistrationStatus();
 

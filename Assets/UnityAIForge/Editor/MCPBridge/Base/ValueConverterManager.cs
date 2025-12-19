@@ -1,20 +1,22 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using MCP.Editor.Base.ValueConverters;
-using MCP.Editor.Interfaces;
+using MCP.Editor.Base.JsonConverters;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace MCP.Editor.Base
 {
     /// <summary>
-    /// 複数のIValueConverterを管理し、適切なコンバーターを選択して値変換を行うマネージャー。
-    /// Compositeパターンを使用して、複数の変換戦略を統合します。
+    /// Newtonsoft.Jsonを使用して値変換を行うマネージャー。
+    /// Unity型、ユーザー定義型、プリミティブ型の変換をサポートします。
     /// </summary>
     public class ValueConverterManager
     {
         private static ValueConverterManager _instance;
-        private readonly List<IValueConverter> _converters;
+        private readonly JsonSerializer _serializer;
 
         /// <summary>
         /// シングルトンインスタンスを取得します。
@@ -31,36 +33,9 @@ namespace MCP.Editor.Base
             }
         }
 
-        /// <summary>
-        /// デフォルトのコンバーターを登録してマネージャーを初期化します。
-        /// </summary>
         private ValueConverterManager()
         {
-            _converters = new List<IValueConverter>
-            {
-                new UnityObjectReferenceConverter(),    // Priority: 300
-                new ArrayValueConverter(),              // Priority: 250
-                new UnityStructValueConverter(),        // Priority: 200
-                new EnumValueConverter(),               // Priority: 150
-                new SerializableStructValueConverter(), // Priority: 150 (user-defined [Serializable] structs)
-                new PrimitiveValueConverter()           // Priority: 100
-            };
-
-            // 優先度の高い順にソート
-            _converters.Sort((a, b) => b.Priority.CompareTo(a.Priority));
-        }
-
-        /// <summary>
-        /// カスタムコンバーターを登録します。
-        /// </summary>
-        /// <param name="converter">追加するコンバーター</param>
-        public void RegisterConverter(IValueConverter converter)
-        {
-            if (converter == null)
-                throw new ArgumentNullException(nameof(converter));
-
-            _converters.Add(converter);
-            _converters.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            _serializer = UnityJsonSettings.Serializer;
         }
 
         /// <summary>
@@ -81,52 +56,64 @@ namespace MCP.Editor.Base
                 return value;
             }
 
-            // 適切なコンバーターを探して変換
-            foreach (var converter in _converters)
+            try
             {
-                if (converter.CanConvert(targetType))
+                // UnityEngine.Object参照の特殊処理
+                if (typeof(UnityEngine.Object).IsAssignableFrom(targetType))
                 {
-                    try
-                    {
-                        return converter.Convert(value, targetType);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogWarning($"Converter {converter.GetType().Name} failed: {ex.Message}");
-                        // 次のコンバーターを試す
-                    }
+                    return ConvertToUnityObject(value, targetType);
                 }
-            }
 
-            // フォールバック: サポートされていない型
-            return HandleUnsupportedType(value, targetType);
+                // JTokenからの変換
+                if (value is JToken jToken)
+                {
+                    return jToken.ToObject(targetType, _serializer);
+                }
+
+                // Dictionary<string, object>からの変換
+                if (value is Dictionary<string, object> dict)
+                {
+                    return ConvertFromDictionary(dict, targetType);
+                }
+
+                // IList（配列/List）の変換
+                if (value is IList list && (targetType.IsArray || IsGenericList(targetType)))
+                {
+                    return ConvertList(list, targetType);
+                }
+
+                // プリミティブ型の変換
+                if (targetType.IsPrimitive || targetType == typeof(string) || targetType == typeof(decimal))
+                {
+                    return ConvertPrimitive(value, targetType);
+                }
+
+                // Enumの変換
+                if (targetType.IsEnum)
+                {
+                    return ConvertToEnum(value, targetType);
+                }
+
+                // その他: JSON経由で変換
+                var json = JsonConvert.SerializeObject(value, UnityJsonSettings.Settings);
+                return JsonConvert.DeserializeObject(json, targetType, UnityJsonSettings.Settings);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"ValueConverterManager: Failed to convert {value?.GetType().Name} to {targetType.Name}: {ex.Message}");
+                return GetDefaultValue(targetType);
+            }
         }
 
         /// <summary>
-        /// 値を指定された型に変換を試みます。失敗した場合はdefault値を返します。
+        /// 値を指定された型に変換を試みます。
         /// </summary>
-        /// <param name="value">変換元の値</param>
-        /// <param name="targetType">変換先の型</param>
-        /// <param name="result">変換結果</param>
-        /// <returns>変換に成功した場合はtrue</returns>
         public bool TryConvert(object value, Type targetType, out object result)
         {
             try
             {
                 result = Convert(value, targetType);
-                // 変換が成功したかどうかは、結果がnullでないかで判定
-                // ただし元の値がnullの場合はnullが正当な結果
-                if (value == null)
-                {
-                    return true;
-                }
-                // nullが返された場合は変換失敗（値型の場合も含む）
-                // Convert()がnullを返すのは変換に失敗した場合のみ
-                if (result == null)
-                {
-                    return false;
-                }
-                return true;
+                return result != null || value == null;
             }
             catch
             {
@@ -136,8 +123,219 @@ namespace MCP.Editor.Base
         }
 
         /// <summary>
-        /// 型のデフォルト値を取得します。
+        /// オブジェクトをシリアライズ可能な形式に変換します。
         /// </summary>
+        public object Serialize(object value)
+        {
+            if (value == null)
+                return null;
+
+            try
+            {
+                // JTokenに変換してからDictionary/Listに変換
+                var jToken = JToken.FromObject(value, _serializer);
+                return ConvertJTokenToObject(jToken);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"ValueConverterManager: Failed to serialize {value.GetType().Name}: {ex.Message}");
+                return value?.ToString();
+            }
+        }
+
+        #region Private Methods
+
+        private object ConvertFromDictionary(Dictionary<string, object> dict, Type targetType)
+        {
+            // DictionaryをJObjectに変換
+            var jObject = new JObject();
+            foreach (var kvp in dict)
+            {
+                jObject[kvp.Key] = kvp.Value != null ? JToken.FromObject(kvp.Value, _serializer) : JValue.CreateNull();
+            }
+            return jObject.ToObject(targetType, _serializer);
+        }
+
+        private object ConvertList(IList sourceList, Type targetType)
+        {
+            Type elementType = GetElementType(targetType);
+            if (elementType == null)
+            {
+                return CreateEmptyCollection(targetType);
+            }
+
+            if (targetType.IsArray)
+            {
+                var array = Array.CreateInstance(elementType, sourceList.Count);
+                for (int i = 0; i < sourceList.Count; i++)
+                {
+                    array.SetValue(Convert(sourceList[i], elementType), i);
+                }
+                return array;
+            }
+
+            if (IsGenericList(targetType))
+            {
+                var list = (IList)Activator.CreateInstance(targetType);
+                foreach (var item in sourceList)
+                {
+                    list.Add(Convert(item, elementType));
+                }
+                return list;
+            }
+
+            return CreateEmptyCollection(targetType);
+        }
+
+        private object ConvertPrimitive(object value, Type targetType)
+        {
+            if (value is JValue jValue)
+            {
+                value = jValue.Value;
+            }
+
+            if (targetType == typeof(string))
+            {
+                return value?.ToString();
+            }
+
+            return System.Convert.ChangeType(value, targetType);
+        }
+
+        private object ConvertToEnum(object value, Type targetType)
+        {
+            if (value is JValue jValue)
+            {
+                value = jValue.Value;
+            }
+
+            if (value is string enumStr)
+            {
+                return Enum.Parse(targetType, enumStr, ignoreCase: true);
+            }
+
+            if (value is int || value is long || value is short || value is byte)
+            {
+                return Enum.ToObject(targetType, System.Convert.ToInt32(value));
+            }
+
+            return Enum.Parse(targetType, value.ToString(), ignoreCase: true);
+        }
+
+        private object ConvertToUnityObject(object value, Type targetType)
+        {
+            string assetPath = null;
+            string guid = null;
+
+            if (value is Dictionary<string, object> dict)
+            {
+                if (dict.TryGetValue("assetPath", out var pathObj))
+                    assetPath = pathObj?.ToString();
+                if (dict.TryGetValue("guid", out var guidObj))
+                    guid = guidObj?.ToString();
+            }
+            else if (value is JObject jObj)
+            {
+                assetPath = jObj.Value<string>("assetPath");
+                guid = jObj.Value<string>("guid");
+            }
+            else if (value is string str)
+            {
+                assetPath = str;
+            }
+
+            if (!string.IsNullOrEmpty(guid))
+            {
+                assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            }
+
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                return AssetDatabase.LoadAssetAtPath(assetPath, targetType);
+            }
+
+            return null;
+        }
+
+        private object ConvertJTokenToObject(JToken token)
+        {
+            switch (token.Type)
+            {
+                case JTokenType.Object:
+                    var dict = new Dictionary<string, object>();
+                    foreach (var prop in ((JObject)token).Properties())
+                    {
+                        dict[prop.Name] = ConvertJTokenToObject(prop.Value);
+                    }
+                    return dict;
+
+                case JTokenType.Array:
+                    var list = new List<object>();
+                    foreach (var item in (JArray)token)
+                    {
+                        list.Add(ConvertJTokenToObject(item));
+                    }
+                    return list;
+
+                case JTokenType.Integer:
+                    return token.Value<long>();
+
+                case JTokenType.Float:
+                    return token.Value<double>();
+
+                case JTokenType.String:
+                    return token.Value<string>();
+
+                case JTokenType.Boolean:
+                    return token.Value<bool>();
+
+                case JTokenType.Null:
+                    return null;
+
+                default:
+                    return token.ToString();
+            }
+        }
+
+        private Type GetElementType(Type collectionType)
+        {
+            if (collectionType.IsArray)
+            {
+                return collectionType.GetElementType();
+            }
+
+            if (collectionType.IsGenericType)
+            {
+                var genericArgs = collectionType.GetGenericArguments();
+                if (genericArgs.Length > 0)
+                {
+                    return genericArgs[0];
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsGenericList(Type type)
+        {
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>);
+        }
+
+        private object CreateEmptyCollection(Type targetType)
+        {
+            if (targetType.IsArray)
+            {
+                return Array.CreateInstance(targetType.GetElementType(), 0);
+            }
+
+            if (IsGenericList(targetType))
+            {
+                return Activator.CreateInstance(targetType);
+            }
+
+            return null;
+        }
+
         private object GetDefaultValue(Type type)
         {
             if (type == null || !type.IsValueType)
@@ -146,29 +344,7 @@ namespace MCP.Editor.Base
             return Activator.CreateInstance(type);
         }
 
-        /// <summary>
-        /// サポートされていない型の変換を処理します。
-        /// </summary>
-        private object HandleUnsupportedType(object value, Type targetType)
-        {
-            // Unity固有の構造体は変換をスキップ
-            if (targetType.IsValueType && !targetType.IsPrimitive && !targetType.IsEnum)
-            {
-                Debug.LogWarning($"Cannot convert value to unsupported Unity struct type: {targetType.Name}");
-                return null;
-            }
-
-            // 最後の手段として Convert.ChangeType を試す
-            try
-            {
-                return System.Convert.ChangeType(value, targetType);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"Failed to convert value to {targetType.Name}: {ex.Message}");
-                return null;
-            }
-        }
+        #endregion
 
         /// <summary>
         /// テスト用: インスタンスをリセットします。
@@ -176,6 +352,7 @@ namespace MCP.Editor.Base
         internal static void ResetInstance()
         {
             _instance = null;
+            UnityJsonSettings.Reset();
         }
     }
 }

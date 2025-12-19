@@ -317,10 +317,14 @@ namespace MCP.Editor
         {
             lock (_tokenLock)
             {
-                if (_cachedToken != null)
+                // 空文字列もキャッシュミスとして扱う
+                if (!string.IsNullOrEmpty(_cachedToken))
                 {
                     return _cachedToken;
                 }
+
+                // キャッシュをクリア（空文字列が残っている場合）
+                _cachedToken = null;
 
                 var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
 

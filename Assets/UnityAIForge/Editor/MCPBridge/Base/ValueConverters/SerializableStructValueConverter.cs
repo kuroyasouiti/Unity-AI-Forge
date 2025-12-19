@@ -7,7 +7,7 @@ using UnityEngine;
 namespace MCP.Editor.Base.ValueConverters
 {
     /// <summary>
-    /// [Serializable]属性を持つユーザー定義構造体の変換を担当するコンバーター。
+    /// [Serializable]属性を持つユーザー定義構造体およびクラスの変換を担当するコンバーター。
     /// Unity組み込み構造体（Vector3, Color等）はUnityStructValueConverterが処理するため、
     /// このコンバーターは優先度を低く設定しています。
     /// </summary>
@@ -30,7 +30,8 @@ namespace MCP.Editor.Base.ValueConverters
             typeof(Vector2Int),
             typeof(Vector3Int),
             typeof(RectInt),
-            typeof(BoundsInt)
+            typeof(BoundsInt),
+            typeof(LayerMask)
         };
 
         public bool CanConvert(Type targetType)
@@ -54,6 +55,18 @@ namespace MCP.Editor.Base.ValueConverters
                 // パブリックフィールドを持つ構造体も対象とする
                 var fields = targetType.GetFields(BindingFlags.Public | BindingFlags.Instance);
                 return fields.Length > 0;
+            }
+
+            // クラス型（参照型）で[Serializable]属性を持つ場合も処理
+            // UnityEngine.Object派生型は除外（別のコンバーターで処理）
+            if (targetType.IsClass && !typeof(UnityEngine.Object).IsAssignableFrom(targetType))
+            {
+                if (targetType.IsDefined(typeof(SerializableAttribute), false))
+                {
+                    // パブリックフィールドを持つ場合のみ
+                    var fields = targetType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                    return fields.Length > 0;
+                }
             }
 
             return false;

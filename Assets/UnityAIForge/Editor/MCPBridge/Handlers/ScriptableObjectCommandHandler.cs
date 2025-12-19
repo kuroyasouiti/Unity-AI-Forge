@@ -569,24 +569,14 @@ namespace MCP.Editor.Handlers
         
         /// <summary>
         /// Serializes a property value to a JSON-compatible type.
+        /// Uses ValueConverterManager for consistent serialization.
         /// </summary>
         private object SerializePropertyValue(object value)
         {
             if (value == null)
                 return null;
 
-            // Handle arrays and lists
-            if (value is IList list)
-            {
-                var serializedList = new List<object>();
-                foreach (var item in list)
-                {
-                    serializedList.Add(SerializePropertyValue(item));
-                }
-                return serializedList;
-            }
-
-            // Handle Unity Object references
+            // Handle Unity Object references specially (need asset path/guid)
             if (value is UnityEngine.Object unityObj)
             {
                 if (unityObj == null)
@@ -610,75 +600,10 @@ namespace MCP.Editor.Handlers
                 };
             }
 
-            if (value is Vector3 v3)
-                return new Dictionary<string, object> { ["x"] = v3.x, ["y"] = v3.y, ["z"] = v3.z };
-
-            if (value is Vector2 v2)
-                return new Dictionary<string, object> { ["x"] = v2.x, ["y"] = v2.y };
-
-            if (value is Vector4 v4)
-                return new Dictionary<string, object> { ["x"] = v4.x, ["y"] = v4.y, ["z"] = v4.z, ["w"] = v4.w };
-
-            if (value is Color color)
-                return new Dictionary<string, object> { ["r"] = color.r, ["g"] = color.g, ["b"] = color.b, ["a"] = color.a };
-
-            if (value is Quaternion quat)
-                return new Dictionary<string, object> { ["x"] = quat.x, ["y"] = quat.y, ["z"] = quat.z, ["w"] = quat.w };
-
-            if (value is Rect rect)
-                return new Dictionary<string, object> { ["x"] = rect.x, ["y"] = rect.y, ["width"] = rect.width, ["height"] = rect.height };
-
-            if (value is Bounds bounds)
-                return new Dictionary<string, object>
-                {
-                    ["center"] = SerializePropertyValue(bounds.center),
-                    ["size"] = SerializePropertyValue(bounds.size)
-                };
-
-            // Handle enums
-            if (value.GetType().IsEnum)
-                return value.ToString();
-
-            // Handle primitive types
-            if (value is string || value is bool || value is int || value is long || value is float || value is double)
-                return value;
-
-            // Handle user-defined [Serializable] structs
-            var valueType = value.GetType();
-            if (valueType.IsValueType && !valueType.IsPrimitive && !valueType.IsEnum &&
-                valueType.IsDefined(typeof(SerializableAttribute), false))
-            {
-                return SerializeStructToDict(value, valueType);
-            }
-
-            // Default: convert to string
-            return value.ToString();
+            // Use ValueConverterManager for all other types
+            return ValueConverterManager.Instance.Serialize(value);
         }
 
-        /// <summary>
-        /// Serializes a user-defined struct to a dictionary.
-        /// </summary>
-        private Dictionary<string, object> SerializeStructToDict(object structValue, Type structType)
-        {
-            var dict = new Dictionary<string, object>();
-            var fields = structType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-
-            foreach (var field in fields)
-            {
-                try
-                {
-                    var fieldValue = field.GetValue(structValue);
-                    dict[field.Name] = SerializePropertyValue(fieldValue);
-                }
-                catch
-                {
-                    // Skip fields that throw on access
-                }
-            }
-
-            return dict;
-        }
-        
         /// <summary>
         /// Converts a value to the target type using ValueConverterManager.
         /// </summary>

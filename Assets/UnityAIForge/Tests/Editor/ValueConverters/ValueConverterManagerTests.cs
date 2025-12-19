@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using MCP.Editor.Interfaces;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -9,6 +8,7 @@ namespace MCP.Editor.Tests.ValueConverters
 {
     /// <summary>
     /// ValueConverterManagerのテストクラス。
+    /// Newtonsoft.Jsonベースの新しい実装をテストします。
     /// </summary>
     [TestFixture]
     public class ValueConverterManagerTests
@@ -60,7 +60,7 @@ namespace MCP.Editor.Tests.ValueConverters
             var result = _manager.Convert(3.14, typeof(float));
 
             Assert.IsInstanceOf<float>(result);
-            Assert.AreEqual(3.14f, result);
+            Assert.AreEqual(3.14f, (float)result, 0.001f);
         }
 
         [Test]
@@ -79,6 +79,15 @@ namespace MCP.Editor.Tests.ValueConverters
 
             Assert.IsInstanceOf<bool>(result);
             Assert.AreEqual(true, result);
+        }
+
+        [Test]
+        public void Convert_LongToInt_Success()
+        {
+            var result = _manager.Convert(42L, typeof(int));
+
+            Assert.IsInstanceOf<int>(result);
+            Assert.AreEqual(42, result);
         }
 
         #endregion
@@ -103,6 +112,22 @@ namespace MCP.Editor.Tests.ValueConverters
         }
 
         [Test]
+        public void Convert_DictionaryToVector2_Success()
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["x"] = 1.0,
+                ["y"] = 2.0
+            };
+
+            var result = _manager.Convert(dict, typeof(Vector2));
+
+            Assert.IsInstanceOf<Vector2>(result);
+            var vector = (Vector2)result;
+            Assert.AreEqual(new Vector2(1f, 2f), vector);
+        }
+
+        [Test]
         public void Convert_DictionaryToColor_Success()
         {
             var dict = new Dictionary<string, object>
@@ -120,6 +145,77 @@ namespace MCP.Editor.Tests.ValueConverters
             Assert.AreEqual(1f, color.r, 0.001f);
             Assert.AreEqual(0.5f, color.g, 0.001f);
             Assert.AreEqual(0f, color.b, 0.001f);
+        }
+
+        [Test]
+        public void Convert_StringConstantToColor_Success()
+        {
+            var result = _manager.Convert("red", typeof(Color));
+
+            Assert.IsInstanceOf<Color>(result);
+            Assert.AreEqual(Color.red, result);
+        }
+
+        [Test]
+        public void Convert_StringConstantToVector3_Success()
+        {
+            var result = _manager.Convert("up", typeof(Vector3));
+
+            Assert.IsInstanceOf<Vector3>(result);
+            Assert.AreEqual(Vector3.up, result);
+        }
+
+        [Test]
+        public void Convert_DictionaryToQuaternion_Success()
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["x"] = 0.0,
+                ["y"] = 0.0,
+                ["z"] = 0.0,
+                ["w"] = 1.0
+            };
+
+            var result = _manager.Convert(dict, typeof(Quaternion));
+
+            Assert.IsInstanceOf<Quaternion>(result);
+            Assert.AreEqual(Quaternion.identity, result);
+        }
+
+        #endregion
+
+        #region Convert LayerMask Tests
+
+        [Test]
+        public void Convert_IntToLayerMask_Success()
+        {
+            var result = _manager.Convert(33, typeof(LayerMask));
+
+            Assert.IsInstanceOf<LayerMask>(result);
+            Assert.AreEqual(33, ((LayerMask)result).value);
+        }
+
+        [Test]
+        public void Convert_StringToLayerMask_Success()
+        {
+            var result = _manager.Convert("Everything", typeof(LayerMask));
+
+            Assert.IsInstanceOf<LayerMask>(result);
+            Assert.AreEqual(~0, ((LayerMask)result).value);
+        }
+
+        [Test]
+        public void Convert_DictionaryToLayerMask_Success()
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["value"] = 255
+            };
+
+            var result = _manager.Convert(dict, typeof(LayerMask));
+
+            Assert.IsInstanceOf<LayerMask>(result);
+            Assert.AreEqual(255, ((LayerMask)result).value);
         }
 
         #endregion
@@ -142,6 +238,15 @@ namespace MCP.Editor.Tests.ValueConverters
 
             Assert.IsInstanceOf<RigidbodyType2D>(result);
             Assert.AreEqual(RigidbodyType2D.Kinematic, result);
+        }
+
+        [Test]
+        public void Convert_StringCaseInsensitiveToEnum_Success()
+        {
+            var result = _manager.Convert("dynamic", typeof(RigidbodyType2D));
+
+            Assert.IsInstanceOf<RigidbodyType2D>(result);
+            Assert.AreEqual(RigidbodyType2D.Dynamic, result);
         }
 
         #endregion
@@ -203,81 +308,12 @@ namespace MCP.Editor.Tests.ValueConverters
             var success = _manager.TryConvert(3.14, typeof(float), out var result);
 
             Assert.IsTrue(success);
-            Assert.AreEqual(3.14f, result);
+            Assert.AreEqual(3.14f, (float)result, 0.001f);
         }
 
         [Test]
-        public void TryConvert_InvalidConversion_ReturnsFalse()
+        public void TryConvert_DictionaryToVector3_ReturnsTrue()
         {
-            // 非対応の複雑な型への変換を試みる
-            var success = _manager.TryConvert("invalid", typeof(LayerMask), out var result);
-
-            Assert.IsFalse(success);
-        }
-
-        #endregion
-
-        #region Unsupported Type Tests
-
-        [Test]
-        public void Convert_UnsupportedUnityStruct_ReturnsNull()
-        {
-            // LayerMaskはサポートされていない
-            var result = _manager.Convert(123, typeof(LayerMask));
-
-            Assert.IsNull(result);
-        }
-
-        #endregion
-
-        #region Custom Converter Tests
-
-        [Test]
-        public void RegisterConverter_CustomConverter_IsUsed()
-        {
-            // カスタムコンバーターを作成
-            var customConverter = new TestCustomConverter();
-            _manager.RegisterConverter(customConverter);
-
-            // カスタムコンバーターが処理する型を変換
-            var result = _manager.Convert("custom_input", typeof(TestCustomType));
-
-            Assert.IsNotNull(result);
-            Assert.IsInstanceOf<TestCustomType>(result);
-            Assert.AreEqual("converted", ((TestCustomType)result).Value);
-        }
-
-        // テスト用のカスタム型
-        private class TestCustomType
-        {
-            public string Value { get; set; }
-        }
-
-        // テスト用のカスタムコンバーター
-        private class TestCustomConverter : IValueConverter
-        {
-            public int Priority => 1000; // 最高優先度
-
-            public bool CanConvert(Type targetType)
-            {
-                return targetType == typeof(TestCustomType);
-            }
-
-            public object Convert(object value, Type targetType)
-            {
-                return new TestCustomType { Value = "converted" };
-            }
-        }
-
-        #endregion
-
-        #region Priority Tests
-
-        [Test]
-        public void Convert_HigherPriorityConverterIsUsedFirst()
-        {
-            // UnityObjectReferenceConverter (300) > UnityStructConverter (200) > EnumConverter (150) > PrimitiveConverter (100)
-            // Vector3はUnityStructConverterが処理
             var dict = new Dictionary<string, object>
             {
                 ["x"] = 1.0,
@@ -285,9 +321,129 @@ namespace MCP.Editor.Tests.ValueConverters
                 ["z"] = 3.0
             };
 
-            var result = _manager.Convert(dict, typeof(Vector3));
+            var success = _manager.TryConvert(dict, typeof(Vector3), out var result);
 
-            Assert.IsInstanceOf<Vector3>(result);
+            Assert.IsTrue(success);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), result);
+        }
+
+        #endregion
+
+        #region Serialize Tests
+
+        [Test]
+        public void Serialize_Vector3_ReturnsDictionary()
+        {
+            var vector = new Vector3(1, 2, 3);
+
+            var result = _manager.Serialize(vector);
+
+            Assert.IsInstanceOf<Dictionary<string, object>>(result);
+            var dict = (Dictionary<string, object>)result;
+            Assert.AreEqual(1.0, Convert.ToDouble(dict["x"]), 0.001);
+            Assert.AreEqual(2.0, Convert.ToDouble(dict["y"]), 0.001);
+            Assert.AreEqual(3.0, Convert.ToDouble(dict["z"]), 0.001);
+        }
+
+        [Test]
+        public void Serialize_Color_ReturnsDictionary()
+        {
+            var color = new Color(1f, 0.5f, 0f, 1f);
+
+            var result = _manager.Serialize(color);
+
+            Assert.IsInstanceOf<Dictionary<string, object>>(result);
+            var dict = (Dictionary<string, object>)result;
+            Assert.AreEqual(1.0, Convert.ToDouble(dict["r"]), 0.001);
+            Assert.AreEqual(0.5, Convert.ToDouble(dict["g"]), 0.001);
+            Assert.AreEqual(0.0, Convert.ToDouble(dict["b"]), 0.001);
+        }
+
+        [Test]
+        public void Serialize_LayerMask_ReturnsDictionaryWithValueAndLayers()
+        {
+            LayerMask mask = 33; // Default + UI
+
+            var result = _manager.Serialize(mask);
+
+            Assert.IsInstanceOf<Dictionary<string, object>>(result);
+            var dict = (Dictionary<string, object>)result;
+            Assert.AreEqual(33, Convert.ToInt32(dict["value"]));
+            Assert.IsTrue(dict.ContainsKey("layers"));
+        }
+
+        [Test]
+        public void Serialize_Null_ReturnsNull()
+        {
+            var result = _manager.Serialize(null);
+
+            Assert.IsNull(result);
+        }
+
+        [Test]
+        public void Serialize_PrimitiveInt_ReturnsLong()
+        {
+            var result = _manager.Serialize(42);
+
+            // Newtonsoft.Json returns long for integers
+            Assert.AreEqual(42L, result);
+        }
+
+        [Test]
+        public void Serialize_String_ReturnsString()
+        {
+            var result = _manager.Serialize("hello");
+
+            Assert.AreEqual("hello", result);
+        }
+
+        #endregion
+
+        #region Array/List Tests
+
+        [Test]
+        public void Convert_ListToIntArray_Success()
+        {
+            var list = new List<object> { 1, 2, 3, 4, 5 };
+
+            var result = _manager.Convert(list, typeof(int[]));
+
+            Assert.IsInstanceOf<int[]>(result);
+            var array = (int[])result;
+            Assert.AreEqual(5, array.Length);
+            Assert.AreEqual(1, array[0]);
+            Assert.AreEqual(5, array[4]);
+        }
+
+        [Test]
+        public void Convert_ListToVector3Array_Success()
+        {
+            var list = new List<object>
+            {
+                new Dictionary<string, object> { ["x"] = 1.0, ["y"] = 2.0, ["z"] = 3.0 },
+                new Dictionary<string, object> { ["x"] = 4.0, ["y"] = 5.0, ["z"] = 6.0 }
+            };
+
+            var result = _manager.Convert(list, typeof(Vector3[]));
+
+            Assert.IsInstanceOf<Vector3[]>(result);
+            var array = (Vector3[])result;
+            Assert.AreEqual(2, array.Length);
+            Assert.AreEqual(new Vector3(1, 2, 3), array[0]);
+            Assert.AreEqual(new Vector3(4, 5, 6), array[1]);
+        }
+
+        [Test]
+        public void Convert_ListToStringList_Success()
+        {
+            var list = new List<object> { "a", "b", "c" };
+
+            var result = _manager.Convert(list, typeof(List<string>));
+
+            Assert.IsInstanceOf<List<string>>(result);
+            var stringList = (List<string>)result;
+            Assert.AreEqual(3, stringList.Count);
+            Assert.AreEqual("a", stringList[0]);
         }
 
         #endregion

@@ -72,6 +72,18 @@ namespace MCP.Editor.Base.ValueConverters
             { "identity", Quaternion.identity }
         };
 
+        // LayerMask定数マッピング
+        private static readonly Dictionary<string, int> LayerMaskConstants = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "nothing", 0 },
+            { "everything", ~0 },
+            { "default", 1 << 0 },
+            { "transparentfx", 1 << 1 },
+            { "ignoreraycast", 1 << 2 },
+            { "water", 1 << 4 },
+            { "ui", 1 << 5 }
+        };
+
         public bool CanConvert(Type targetType)
         {
             return targetType == typeof(Vector2)
@@ -81,7 +93,8 @@ namespace MCP.Editor.Base.ValueConverters
                 || targetType == typeof(Color32)
                 || targetType == typeof(Quaternion)
                 || targetType == typeof(Rect)
-                || targetType == typeof(Bounds);
+                || targetType == typeof(Bounds)
+                || targetType == typeof(LayerMask);
         }
 
         public object Convert(object value, Type targetType)
@@ -92,9 +105,35 @@ namespace MCP.Editor.Base.ValueConverters
             if (targetType.IsInstanceOfType(value))
                 return value;
 
+            // LayerMaskの場合は整数値から直接変換可能
+            if (targetType == typeof(LayerMask))
+            {
+                if (value is int intVal)
+                    return (LayerMask)intVal;
+                if (value is long longVal)
+                    return (LayerMask)(int)longVal;
+                if (value is float floatVal)
+                    return (LayerMask)(int)floatVal;
+                if (value is double doubleVal)
+                    return (LayerMask)(int)doubleVal;
+            }
+
             // 文字列定数のサポート
             if (value is string stringValue)
             {
+                // LayerMaskの場合、カンマ区切りのレイヤー名リストをサポート
+                if (targetType == typeof(LayerMask))
+                {
+                    // カンマ区切りで複数レイヤーを指定できる
+                    var layerNames = stringValue.Split(',');
+                    int mask = 0;
+                    foreach (var layerName in layerNames)
+                    {
+                        mask |= ConvertLayerNameToMask(layerName);
+                    }
+                    return (LayerMask)mask;
+                }
+
                 var result = TryConvertFromConstant(stringValue, targetType);
                 if (result != null)
                     return result;
@@ -202,6 +241,26 @@ namespace MCP.Editor.Base.ValueConverters
                 return new Bounds(center, size);
             }
 
+            if (targetType == typeof(LayerMask))
+            {
+                // Dictionary with "value" key
+                if (dict.TryGetValue("value", out var maskValue))
+                {
+                    return (LayerMask)GetInt(dict, "value");
+                }
+                // Dictionary with "layers" key (array of layer names)
+                if (dict.TryGetValue("layers", out var layersObj) && layersObj is IList<object> layersList)
+                {
+                    int mask = 0;
+                    foreach (var layer in layersList)
+                    {
+                        mask |= ConvertLayerNameToMask(layer.ToString());
+                    }
+                    return (LayerMask)mask;
+                }
+                throw new InvalidOperationException("LayerMask dictionary must have 'value' or 'layers' key.");
+            }
+
             throw new InvalidOperationException($"Cannot convert to {targetType.Name}");
         }
 
@@ -228,6 +287,44 @@ namespace MCP.Editor.Base.ValueConverters
             if (value is long l) return (byte)l;
 
             return System.Convert.ToByte(value);
+        }
+
+        private static int GetInt(Dictionary<string, object> dict, string key, int defaultValue = 0)
+        {
+            if (!dict.TryGetValue(key, out var value))
+                return defaultValue;
+
+            if (value is int i) return i;
+            if (value is long l) return (int)l;
+            if (value is float f) return (int)f;
+            if (value is double d) return (int)d;
+
+            return System.Convert.ToInt32(value);
+        }
+
+        /// <summary>
+        /// レイヤー名をLayerMaskのビットマスク値に変換します。
+        /// </summary>
+        private static int ConvertLayerNameToMask(string layerName)
+        {
+            if (string.IsNullOrEmpty(layerName))
+                return 0;
+
+            // 定数名チェック
+            if (LayerMaskConstants.TryGetValue(layerName.Trim(), out var constantMask))
+                return constantMask;
+
+            // Unityのレイヤー名からマスクを取得
+            int layerIndex = LayerMask.NameToLayer(layerName.Trim());
+            if (layerIndex >= 0)
+                return 1 << layerIndex;
+
+            // 数値として解析を試みる
+            if (int.TryParse(layerName.Trim(), out var numericValue))
+                return numericValue;
+
+            Debug.LogWarning($"Unknown layer name: {layerName}");
+            return 0;
         }
 
         /// <summary>
@@ -302,6 +399,10 @@ namespace MCP.Editor.Base.ValueConverters
             else if (targetType == typeof(Quaternion))
             {
                 return new List<string>(QuaternionConstants.Keys).ToArray();
+            }
+            else if (targetType == typeof(LayerMask))
+            {
+                return new List<string>(LayerMaskConstants.Keys).ToArray();
             }
 
             return Array.Empty<string>();

@@ -1,6 +1,6 @@
 [project]
 name = "unity-ai-forge"
-version = "2.4.5"
+version = "2.4.7"
 description = "AI-powered Unity development toolkit - MCP integration with GameKit framework (actors, managers, Machinations economics, UI commands, scene flow, declarative UI hierarchy, UI state management, UI navigation, Physics2D, 2D sprite/animation management, sorting layers, character controller, batch sequential execution)"
 authors = [
     {name = "Unity-AI-Forge Team"}
