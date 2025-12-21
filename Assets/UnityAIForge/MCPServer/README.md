@@ -26,13 +26,18 @@ For manual installation and detailed documentation, see:
 - Material and shader control
 - Project settings configuration
 
-### GameKit Framework (24 Tools Total)
+### GameKit Framework (30 Tools Total)
 - **GameKitActor**: Player/NPC controllers with 8 behavior profiles and 4 control modes
 - **GameKitManager**: Resource/State/Turn/Event management with persistence
 - **GameKitUICommand**: UI button → Actor/Manager command bridge (11 command types)
 - **GameKitMachinations**: Economic system assets with flows/converters/triggers
 - **GameKitSceneFlow**: State machine-based scene transitions
 - **GameKitInteraction**: Trigger-based interactions with declarative actions
+
+### Declarative UI System
+- **UIHierarchy**: Create complex UI structures from JSON definitions
+- **UIState**: Define, save, and transition between UI states
+- **UINavigation**: Configure keyboard/gamepad navigation for UI elements
 
 ### Advanced Features
 - State persistence (save/load system)
@@ -41,6 +46,8 @@ For manual installation and detailed documentation, see:
 - Design pattern generation (Singleton, ObjectPool, StateMachine, etc.)
 - Physics presets and camera rigs
 - Input system integration
+- Scene separation best practices
+- Compilation await for C# script operations
 
 ## Requirements
 

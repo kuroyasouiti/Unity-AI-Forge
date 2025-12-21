@@ -9,6 +9,49 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.8] - 2025-12-21
+
+### 追加
+
+- **MCPサーバープロンプトに「シーン分割原則」セクションを追加**
+  - シーン分割のメリット（並行開発、メモリ効率、テスト容易性、再利用性、ビルド最適化）
+  - 推奨シーン構成（Boot、Title、MainMenu、Loading、GameUI、AudioManager、Levels）
+  - GameKitSceneFlowを使用した実装例
+  - シーンタイプ別ガイド（loadMode、用途）
+
+- **未記載ツールのドキュメントをプロンプトに追加**
+  - `unity_compilation_await` - コンパイル待機ユーティリティ
+  - `unity_ui_hierarchy` - 宣言的UI階層構築
+  - `unity_ui_state` - UI状態管理
+  - `unity_ui_navigation` - UIナビゲーション設定
+
+### 改善
+
+- **MCPサーバープロンプトのバージョン情報を動的化**
+  - ハードコードされた `v2.4.0` を `version.py` から動的取得に変更
+  - ヘッダーとフッターの両方で動的バージョン表示
+
+- **ツールスキーマのdescription追加**
+  - `transform_batch_schema`: `center`, `radius`, `startAngle`, `clockwise`, `plane`, `localSpace`, `startPosition`, `endPosition`, `spacing`, `baseName`, `startIndex`, `padding`, `names`, `parentPath`, `prefabPath`, `axis`, `offset`
+  - `game_object_manage_schema`: `layer` プロパティに説明追加
+  - `project_settings_manage_schema`: `category`, `property`, `value` に説明追加
+
+- **ツール数カウントの修正**
+  - Mid-Level Batch: 10 → 14ツール
+  - Utility: 1 → 2ツール
+  - 合計: 26 → 30ツール
+
+### 修正
+
+- **プロンプト内の重複記載を削除**
+  - 「レンダリングレイヤー追加」の重複行を削除
+
+### 技術詳細
+
+- `create_mcp_server.py`: シーン分割セクション追加（約70行）、バージョン動的化、UIツールドキュメント追加
+- `register_tools.py`: 15以上のプロパティにdescription追加
+- `version.py`: 2.4.7 → 2.4.8
+
 ## [2.4.7] - 2025-12-20
 
 ### 追加

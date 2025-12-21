@@ -35,12 +35,13 @@ Unity × AI で、ゲーム開発を革新的に効率化
 
 ## ✨ Features
 
-### 🤖 AI Integration (24 Tools)
+### 🤖 AI Integration (30 Tools)
 Model Context Protocol で Unity を AI から操作
 - Scene/GameObject/Component の完全制御
 - 自然言語でのゲーム開発
 - バッチ操作とパターンマッチング
 - レジューム機能付き逐次処理
+- 宣言的UIシステム (Hierarchy/State/Navigation)
 
 ### 🎮 GameKit Framework
 ゲーム開発を加速する統合フレームワーク
@@ -66,7 +67,7 @@ Model Context Protocol で Unity を AI から操作
 | [**🚀 Getting Started**](Assets/UnityAIForge/Documentation/GETTING_STARTED.md) | 初心者ガイド |
 | [**⚙️ Installation**](Assets/UnityAIForge/Documentation/Installation/QUICKSTART.md) | インストール手順 |
 | [**🎮 GameKit Guide**](Assets/UnityAIForge/Documentation/MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
-| [**🔧 MCP Tools**](Assets/UnityAIForge/Documentation/MCPServer/SKILL.md) | 全22ツール解説 |
+| [**🔧 MCP Tools**](Assets/UnityAIForge/Documentation/MCPServer/SKILL.md) | 全30ツール解説 |
 | [**📝 Examples**](Assets/UnityAIForge/Documentation/Examples/README.md) | 使用例集 |
 
 ---
