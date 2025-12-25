@@ -226,17 +226,29 @@ namespace MCP.Editor.Base
         {
             string assetPath = null;
             string guid = null;
+            string gameObjectPath = null;
 
             if (value is Dictionary<string, object> dict)
             {
-                if (dict.TryGetValue("assetPath", out var pathObj))
+                // Support $ref format (recommended)
+                if (dict.TryGetValue("$ref", out var refObj))
+                    assetPath = refObj?.ToString();
+                // Support assetPath format
+                else if (dict.TryGetValue("assetPath", out var pathObj))
                     assetPath = pathObj?.ToString();
+                // Support _gameObjectPath format for scene object references
+                if (dict.TryGetValue("_gameObjectPath", out var goPathObj))
+                    gameObjectPath = goPathObj?.ToString();
                 if (dict.TryGetValue("guid", out var guidObj))
                     guid = guidObj?.ToString();
             }
             else if (value is JObject jObj)
             {
-                assetPath = jObj.Value<string>("assetPath");
+                // Support $ref format (recommended)
+                assetPath = jObj.Value<string>("$ref");
+                if (string.IsNullOrEmpty(assetPath))
+                    assetPath = jObj.Value<string>("assetPath");
+                gameObjectPath = jObj.Value<string>("_gameObjectPath");
                 guid = jObj.Value<string>("guid");
             }
             else if (value is string str)
@@ -244,14 +256,39 @@ namespace MCP.Editor.Base
                 assetPath = str;
             }
 
+            // Resolve GUID to asset path
             if (!string.IsNullOrEmpty(guid))
             {
                 assetPath = AssetDatabase.GUIDToAssetPath(guid);
             }
 
+            // Try to load from asset path
             if (!string.IsNullOrEmpty(assetPath))
             {
-                return AssetDatabase.LoadAssetAtPath(assetPath, targetType);
+                var asset = AssetDatabase.LoadAssetAtPath(assetPath, targetType);
+                if (asset != null)
+                    return asset;
+
+                // If direct load failed, try loading as main asset and finding sub-asset
+                var mainAsset = AssetDatabase.LoadMainAssetAtPath(assetPath);
+                if (mainAsset != null && targetType.IsInstanceOfType(mainAsset))
+                    return mainAsset;
+
+                // Log warning if asset not found
+                Debug.LogWarning($"ValueConverterManager: Asset not found at path '{assetPath}' for type {targetType.Name}");
+            }
+
+            // Try to find scene object by path (for Component references)
+            if (!string.IsNullOrEmpty(gameObjectPath))
+            {
+                var go = GameObject.Find(gameObjectPath);
+                if (go != null)
+                {
+                    if (typeof(GameObject).IsAssignableFrom(targetType))
+                        return go;
+                    if (typeof(Component).IsAssignableFrom(targetType))
+                        return go.GetComponent(targetType);
+                }
             }
 
             return null;

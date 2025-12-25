@@ -6,6 +6,7 @@ using MCP.Editor.Base;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace MCP.Editor.Handlers
@@ -102,8 +103,41 @@ namespace MCP.Editor.Handlers
                 canvasGo.transform.SetParent(parent.transform, false);
             }
 
+            // Create EventSystem if it doesn't exist in the scene
+            var eventSystemPath = EnsureEventSystem();
+
             EditorSceneManager.MarkSceneDirty(canvasGo.scene);
-            return CreateSuccessResponse(("path", BuildGameObjectPath(canvasGo)));
+
+            var response = CreateSuccessResponse(("path", BuildGameObjectPath(canvasGo)));
+            if (!string.IsNullOrEmpty(eventSystemPath))
+            {
+                response["eventSystemCreated"] = true;
+                response["eventSystemPath"] = eventSystemPath;
+            }
+            return response;
+        }
+
+        /// <summary>
+        /// Ensures an EventSystem exists in the scene. Creates one if it doesn't exist.
+        /// </summary>
+        /// <returns>The path to the created EventSystem, or null if one already existed.</returns>
+        private string EnsureEventSystem()
+        {
+            // Check if EventSystem already exists
+            var existingEventSystem = UnityEngine.Object.FindFirstObjectByType<EventSystem>();
+            if (existingEventSystem != null)
+            {
+                return null; // EventSystem already exists
+            }
+
+            // Create EventSystem
+            var eventSystemGo = new GameObject("EventSystem");
+            Undo.RegisterCreatedObjectUndo(eventSystemGo, "Create EventSystem");
+
+            Undo.AddComponent<EventSystem>(eventSystemGo);
+            Undo.AddComponent<StandaloneInputModule>(eventSystemGo);
+
+            return BuildGameObjectPath(eventSystemGo);
         }
 
         #endregion

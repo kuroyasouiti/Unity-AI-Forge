@@ -1908,7 +1908,46 @@ unity_ui_navigation({
             return [types.TextContent(type="text", text=as_pretty_json(payload))]
 
         if name == "unity_compilation_await":
-            return await _call_bridge_tool("compilationAwait", args)
+            # Use async compilation waiting instead of blocking command
+            _ensure_bridge_connected()
+            timeout_seconds = args.get("timeoutSeconds", 60)
+
+            # Check if compilation is currently in progress
+            if not bridge_manager.is_compiling():
+                # No compilation in progress - return immediately
+                result = {
+                    "wasCompiling": False,
+                    "compilationCompleted": True,
+                    "waitTimeSeconds": 0.0,
+                    "success": True,
+                    "errorCount": 0,
+                    "message": "No compilation in progress",
+                }
+                return [types.TextContent(type="text", text=as_pretty_json(result))]
+
+            # Compilation is in progress - wait for completion
+            logger.info(
+                "Compilation in progress - waiting for completion (timeout: %ds)...",
+                timeout_seconds,
+            )
+
+            try:
+                compilation_result = await bridge_manager.await_compilation(timeout_seconds)
+                # Add wasCompiling flag for consistency with original API
+                compilation_result["wasCompiling"] = True
+                compilation_result["compilationCompleted"] = compilation_result.get("completed", True)
+                return [types.TextContent(type="text", text=as_pretty_json(compilation_result))]
+            except TimeoutError as exc:
+                result = {
+                    "wasCompiling": True,
+                    "compilationCompleted": False,
+                    "waitTimeSeconds": float(timeout_seconds),
+                    "success": False,
+                    "errorCount": 0,
+                    "timedOut": True,
+                    "message": str(exc),
+                }
+                return [types.TextContent(type="text", text=as_pretty_json(result))]
 
         if name == "unity_scene_crud":
             return await _call_bridge_tool("sceneManage", args)

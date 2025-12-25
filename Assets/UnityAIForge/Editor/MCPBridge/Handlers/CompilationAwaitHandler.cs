@@ -8,121 +8,91 @@ using UnityEngine;
 namespace MCP.Editor.Handlers
 {
     /// <summary>
-    /// コンパイル完了待機のコマンドハンドラー。
-    /// 進行中のコンパイルを待機し、結果を返します。
+    /// コンパイル状態確認のコマンドハンドラー。
+    /// 現在のコンパイル状態を返します。
+    ///
+    /// NOTE: コンパイル待機はPython (MCP Server) 側で非同期メッセージ
+    /// (compilation:complete, bridge:restarted) を使用して行われます。
+    /// このハンドラーはブロッキング待機を行いません。
     /// </summary>
     public class CompilationAwaitHandler : BaseCommandHandler
     {
         public override string Category => "compilationAwait";
-        
+
         public override IEnumerable<string> SupportedOperations => new[]
         {
             "await",
+            "status",
         };
-        
+
         public CompilationAwaitHandler() : base()
         {
         }
-        
+
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
             return operation switch
             {
-                "await" => AwaitCompilation(payload),
+                "await" => GetCompilationStatus(payload),
+                "status" => GetCompilationStatus(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
         }
-        
+
         protected override bool RequiresCompilationWait(string operation)
         {
-            // This handler itself manages compilation waiting
+            // This handler itself manages compilation status
             return false;
         }
-        
+
         #region Operations
-        
-        private object AwaitCompilation(Dictionary<string, object> payload)
+
+        /// <summary>
+        /// 現在のコンパイル状態を返します。
+        /// ブロッキング待機は行いません。
+        /// Python側で非同期メッセージを使用して待機を行います。
+        /// </summary>
+        private object GetCompilationStatus(Dictionary<string, object> payload)
         {
-            var timeoutSeconds = GetInt(payload, "timeoutSeconds", 60);
-            
-            if (!EditorApplication.isCompiling)
+            var isCompiling = EditorApplication.isCompiling;
+
+            if (!isCompiling)
             {
-                // Not compiling, return immediately with success
+                // コンパイル中でない場合、最新のコンパイル結果を返す
+                var compilationResult = GetCompilationResult();
                 return new Dictionary<string, object>
                 {
+                    ["isCompiling"] = false,
                     ["wasCompiling"] = false,
                     ["compilationCompleted"] = true,
                     ["waitTimeSeconds"] = 0f,
                     ["success"] = true,
-                    ["errorCount"] = 0,
+                    ["errorCount"] = compilationResult["errorCount"],
+                    ["warningCount"] = compilationResult["warningCount"],
+                    ["errors"] = compilationResult["errors"],
+                    ["warnings"] = compilationResult["warnings"],
                     ["message"] = "No compilation in progress",
                 };
             }
-            
-            Debug.Log($"[CompilationAwait] Waiting for compilation to complete (timeout: {timeoutSeconds}s)...");
-            var startTime = EditorApplication.timeSinceStartup;
-            var completed = WaitForCompilationToComplete(timeoutSeconds);
-            var elapsedSeconds = EditorApplication.timeSinceStartup - startTime;
-            
-            var result = new Dictionary<string, object>
+
+            // コンパイル中の場合、Python側で非同期待機するよう状態を返す
+            Debug.Log("[CompilationAwait] Compilation in progress - Python side will wait for async completion message");
+            return new Dictionary<string, object>
             {
+                ["isCompiling"] = true,
                 ["wasCompiling"] = true,
-                ["compilationCompleted"] = completed,
-                ["waitTimeSeconds"] = (float)Math.Round(elapsedSeconds, 2),
-                ["success"] = completed,
+                ["compilationCompleted"] = false,
+                ["waitTimeSeconds"] = 0f,
+                ["success"] = false,
+                ["errorCount"] = 0,
+                ["message"] = "Compilation in progress - waiting for async completion",
             };
-            
-            if (!completed)
-            {
-                result["message"] = $"Compilation did not complete within {timeoutSeconds}s";
-                result["errorCount"] = 0;
-                return result;
-            }
-            
-            // Get compilation result
-            var compilationResult = GetCompilationResult();
-            result["errorCount"] = compilationResult["errorCount"];
-            result["warningCount"] = compilationResult["warningCount"];
-            result["errors"] = compilationResult["errors"];
-            result["warnings"] = compilationResult["warnings"];
-            result["consoleLogs"] = compilationResult["consoleLogs"];
-            
-            var hasErrors = (int)compilationResult["errorCount"] > 0;
-            result["success"] = !hasErrors;
-            result["message"] = hasErrors
-                ? $"Compilation completed with {compilationResult["errorCount"]} error(s)"
-                : $"Compilation completed successfully after {elapsedSeconds:F1}s";
-            
-            return result;
         }
-        
+
         #endregion
-        
+
         #region Helper Methods
-        
-        private bool WaitForCompilationToComplete(float maxWaitSeconds)
-        {
-            if (!EditorApplication.isCompiling)
-            {
-                return true;
-            }
-            
-            var startTime = EditorApplication.timeSinceStartup;
-            var checkInterval = 0.2f; // Check every 200ms
-            
-            while ((EditorApplication.timeSinceStartup - startTime) < maxWaitSeconds)
-            {
-                if (!EditorApplication.isCompiling)
-                {
-                    return true;
-                }
-                
-                System.Threading.Thread.Sleep((int)(checkInterval * 1000));
-            }
-            
-            return false;
-        }
-        
+
         private Dictionary<string, object> GetCompilationResult()
         {
             var errorMessages = new List<string>();

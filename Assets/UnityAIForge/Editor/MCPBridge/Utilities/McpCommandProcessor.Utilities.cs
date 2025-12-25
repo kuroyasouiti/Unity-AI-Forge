@@ -136,102 +136,69 @@ namespace MCP.Editor
         #region Compilation Management
 
         /// <summary>
-        /// Detects if compilation has started after script operations.
-        /// Waits for a short period and checks if EditorApplication.isCompiling becomes true.
+        /// コンパイルが開始されたかどうかを確認します。
+        /// ブロッキング待機は行いません。Python側で非同期メッセージを使用して待機します。
         /// </summary>
-        /// <param name="wasCompilingBefore">Whether compilation was already running before operations.</param>
-        /// <param name="maxWaitSeconds">Maximum time to wait for compilation to start.</param>
-        /// <returns>True if compilation started, false otherwise.</returns>
-        private static bool DetectCompilationStart(bool wasCompilingBefore, float maxWaitSeconds = 1.5f)
+        /// <param name="wasCompilingBefore">操作前にコンパイル中だったかどうか。</param>
+        /// <returns>コンパイル中の場合はtrue、そうでない場合はfalse。</returns>
+        private static bool DetectCompilationStart(bool wasCompilingBefore)
         {
-            // If already compiling, compilation was triggered
-            if (wasCompilingBefore)
+            // 既にコンパイル中だった場合、または現在コンパイル中の場合
+            if (wasCompilingBefore || EditorApplication.isCompiling)
             {
+                Debug.Log("MCP Bridge: Compilation detected - Python side will handle async waiting");
                 return true;
             }
 
-            // Wait and check if compilation starts
-            var startTime = EditorApplication.timeSinceStartup;
-            var checkInterval = 0.1f; // Check every 100ms
-
-            while ((EditorApplication.timeSinceStartup - startTime) < maxWaitSeconds)
-            {
-                if (EditorApplication.isCompiling)
-                {
-                    Debug.Log("MCP Bridge: Compilation detected after script operations");
-                    return true;
-                }
-
-                // Small delay before next check
-                System.Threading.Thread.Sleep((int)(checkInterval * 1000));
-            }
-
-            Debug.Log("MCP Bridge: No compilation detected after script operations");
+            // コンパイルが検出されなかった
+            // NOTE: Unity の AssetDatabase.Refresh() 後、コンパイルは非同期で開始される
+            // Python側で compilation:started メッセージを受信して状態を追跡する
             return false;
         }
 
         /// <summary>
-        /// Waits for ongoing compilation to complete.
-        /// Returns immediately if not compiling.
+        /// 現在のコンパイル状態を確認します。
+        /// ブロッキング待機は行いません。
         /// </summary>
-        /// <param name="maxWaitSeconds">Maximum time to wait for compilation to complete.</param>
-        /// <returns>True if compilation completed successfully, false if timeout or still compiling.</returns>
-        private static bool WaitForCompilationComplete(float maxWaitSeconds = 30f)
+        /// <returns>コンパイル中でない場合はtrue、コンパイル中の場合はfalse。</returns>
+        private static bool IsCompilationComplete()
         {
-            if (!EditorApplication.isCompiling)
-            {
-                return true; // Not compiling, return immediately
-            }
-
-            Debug.Log($"MCP Bridge: Waiting for ongoing compilation to complete (max {maxWaitSeconds}s)...");
-            var startTime = EditorApplication.timeSinceStartup;
-            var checkInterval = 0.2f; // Check every 200ms
-
-            while ((EditorApplication.timeSinceStartup - startTime) < maxWaitSeconds)
-            {
-                if (!EditorApplication.isCompiling)
-                {
-                    var elapsedSeconds = EditorApplication.timeSinceStartup - startTime;
-                    Debug.Log($"MCP Bridge: Compilation completed after {elapsedSeconds:F1}s");
-                    return true;
-                }
-
-                // Small delay before next check
-                System.Threading.Thread.Sleep((int)(checkInterval * 1000));
-            }
-
-            Debug.LogWarning($"MCP Bridge: Compilation did not complete within {maxWaitSeconds}s");
-            return false;
+            return !EditorApplication.isCompiling;
         }
 
         /// <summary>
-        /// Ensures no compilation is in progress before executing a tool operation.
-        /// If compilation is in progress, waits for it to complete.
+        /// コンパイルが進行中かどうかを確認します。
+        /// ブロッキング待機は行いません。Python側で非同期メッセージを使用して待機します。
         /// </summary>
-        /// <param name="toolName">Name of the tool being executed (for logging).</param>
-        /// <param name="maxWaitSeconds">Maximum time to wait for compilation to complete.</param>
-        /// <returns>Dictionary with status information if waiting occurred, null if no wait was needed.</returns>
-        private static Dictionary<string, object> EnsureNoCompilationInProgress(string toolName, float maxWaitSeconds = 30f)
+        /// <param name="toolName">実行中のツール名（ログ用）。</param>
+        /// <returns>コンパイル中の場合は状態情報を含む辞書、そうでない場合はnull。</returns>
+        private static Dictionary<string, object> CheckCompilationInProgress(string toolName)
         {
             if (!EditorApplication.isCompiling)
             {
-                return null; // No compilation in progress
+                return null; // コンパイル中ではない
             }
 
-            Debug.Log($"MCP Bridge: Tool '{toolName}' called during compilation, waiting for completion...");
-            var startTime = EditorApplication.timeSinceStartup;
-            var completed = WaitForCompilationComplete(maxWaitSeconds);
-            var elapsedSeconds = EditorApplication.timeSinceStartup - startTime;
-
+            Debug.Log($"MCP Bridge: Tool '{toolName}' called during compilation - Python side will handle async waiting");
             return new Dictionary<string, object>
             {
-                ["waitedForCompilation"] = true,
-                ["compilationCompleted"] = completed,
-                ["waitTimeSeconds"] = (float)Math.Round(elapsedSeconds, 2),
-                ["message"] = completed
-                    ? $"Waited {elapsedSeconds:F1}s for ongoing compilation to complete"
-                    : $"Compilation did not complete within {maxWaitSeconds}s"
+                ["isCompiling"] = true,
+                ["waitedForCompilation"] = false,
+                ["compilationCompleted"] = false,
+                ["message"] = "Compilation in progress - Python side will handle async waiting"
             };
+        }
+
+        // 後方互換性のためのエイリアス
+        private static Dictionary<string, object> EnsureNoCompilationInProgress(string toolName, float maxWaitSeconds = 30f)
+        {
+            return CheckCompilationInProgress(toolName);
+        }
+
+        // 後方互換性のためのエイリアス
+        private static bool WaitForCompilationComplete(float maxWaitSeconds = 30f)
+        {
+            return IsCompilationComplete();
         }
 
         #endregion

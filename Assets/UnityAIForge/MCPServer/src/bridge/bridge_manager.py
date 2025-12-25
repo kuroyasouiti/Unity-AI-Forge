@@ -44,6 +44,8 @@ class BridgeManager:
         self._context: UnityContextPayload | None = None
         self._pending_commands: dict[str, PendingCommand] = {}
         self._compilation_waiters: list[asyncio.Future[dict[str, Any]]] = []
+        self._is_compiling: bool = False
+        self._compilation_start_time: float | None = None
         self._listeners: dict[str, list[Callable[..., None]]] = {
             "connected": [],
             "disconnected": [],
@@ -74,6 +76,16 @@ class BridgeManager:
 
     def get_last_heartbeat(self) -> int | None:
         return self._last_heartbeat_at
+
+    def is_compiling(self) -> bool:
+        """Check if Unity is currently compiling scripts."""
+        return self._is_compiling
+
+    def get_compilation_elapsed_seconds(self) -> float:
+        """Get elapsed seconds since compilation started."""
+        if self._compilation_start_time is None:
+            return 0.0
+        return time.time() - self._compilation_start_time
 
     async def await_compilation(self, timeout_seconds: int = 60) -> dict[str, Any]:
         """
@@ -282,6 +294,8 @@ class BridgeManager:
     def _handle_compilation_started(self, message: dict[str, Any]) -> None:
         """Handle compilation:started message from Unity bridge."""
         timestamp = message.get("timestamp", 0)
+        self._is_compiling = True
+        self._compilation_start_time = time.time()
         logger.info("Compilation started at timestamp %d", timestamp)
 
     def _handle_compilation_progress(self, message: dict[str, Any]) -> None:
@@ -306,6 +320,11 @@ class BridgeManager:
         """Handle compilation:complete message from Unity bridge."""
         result = message.get("result", {})
         elapsed = result.get("elapsedSeconds", 0)
+
+        # Reset compilation state
+        self._is_compiling = False
+        self._compilation_start_time = None
+
         logger.info(
             "Compilation complete: success=%s, errors=%s, elapsed=%ds",
             result.get("success"),
@@ -333,6 +352,10 @@ class BridgeManager:
         # Update session ID if it changed
         if session_id:
             self._session_id = session_id
+
+        # Reset compilation state (compilation completed via domain reload)
+        self._is_compiling = False
+        self._compilation_start_time = None
 
         # Resolve all pending compilation waiters with bridge restarted result
         # This is typically triggered after compilation completes and Unity reloads assemblies

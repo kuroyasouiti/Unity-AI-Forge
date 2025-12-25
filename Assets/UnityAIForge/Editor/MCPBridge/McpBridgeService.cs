@@ -106,6 +106,10 @@ namespace MCP.Editor
             public Dictionary<string, object> Message { get; set; }
             public int RetryCount { get; set; }
             public DateTime EnqueuedAt { get; set; }
+            /// <summary>
+            /// リトライの場合、このタイムスタンプ以降に送信可能になる。
+            /// </summary>
+            public DateTime ReadyAt { get; set; } = DateTime.MinValue;
         }
 
         /// <summary>
@@ -310,6 +314,8 @@ namespace MCP.Editor
                 Message = message,
                 RetryCount = currentRetryCount + 1,
                 EnqueuedAt = DateTime.UtcNow,
+                // リトライ遅延を設定（Thread.Sleepの代わりに次フレームで処理）
+                ReadyAt = DateTime.UtcNow.AddMilliseconds(SendRetryDelayMs),
             });
         }
 
@@ -322,22 +328,32 @@ namespace MCP.Editor
 
             const int maxMessagesPerFrame = 10;
             var processed = 0;
+            var deferredMessages = new List<PendingSendMessage>();
 
             while (processed < maxMessagesPerFrame && PendingSendMessages.TryDequeue(out var pending))
             {
+                // 古すぎるメッセージは破棄
                 if (DateTime.UtcNow - pending.EnqueuedAt > TimeSpan.FromSeconds(30))
                 {
                     Debug.LogWarning("MCP bridge: Dropping stale pending message.");
                     continue;
                 }
 
-                if (pending.RetryCount > 0)
+                // リトライ遅延中のメッセージは後で再キュー
+                if (pending.ReadyAt > DateTime.UtcNow)
                 {
-                    Thread.Sleep(SendRetryDelayMs);
+                    deferredMessages.Add(pending);
+                    continue;
                 }
 
                 SendInternal(pending.Message, pending.RetryCount);
                 processed++;
+            }
+
+            // 遅延中のメッセージを再キュー
+            foreach (var deferred in deferredMessages)
+            {
+                PendingSendMessages.Enqueue(deferred);
             }
         }
 
