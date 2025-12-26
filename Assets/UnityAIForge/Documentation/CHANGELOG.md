@@ -9,6 +9,58 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.10] - 2025-12-26
+
+### 削除
+
+- **IValueConverter インターフェースと6つの実装を削除**
+  - `IValueConverter.cs` - 未使用のインターフェース
+  - `ArrayValueConverter.cs` - 配列/List変換（ValueConverterManagerに統合済み）
+  - `EnumValueConverter.cs` - Enum変換（ValueConverterManagerに統合済み）
+  - `PrimitiveValueConverter.cs` - プリミティブ型変換（ValueConverterManagerに統合済み）
+  - `SerializableStructValueConverter.cs` - Serializable構造体変換（ValueConverterManagerに統合済み）
+  - `UnityObjectReferenceConverter.cs` - UnityObject参照変換（ValueConverterManagerに統合済み）
+  - `UnityStructValueConverter.cs` - Unity構造体変換（ValueConverterManagerに統合済み）
+  - 対応するテストファイル5件も削除
+
+### 改善
+
+- **ValueConverterManager のリファクタリング**
+  - `ConvertToUnityObject` メソッドを4つの小さなメソッドに分割
+    - `ExtractPaths()` - 参照オブジェクトからパス情報を抽出
+    - `GetStringValue()` - Dictionaryから文字列値を取得
+    - `LoadAssetAtPath()` - AssetDatabaseからアセットをロード
+    - `FindSceneObject()` - シーン内のGameObjectを検索
+  - **パス自動検出機能を追加**
+    - `Assets/` プレフィックスがあればAssetDatabaseから読み込み
+    - それ以外のパスはシーン内のGameObjectとして検索
+    - 文字列パスでの参照がより直感的に
+
+- **MCPサーバードキュメントの簡素化**
+  - Unity Object参照形式のドキュメントを更新
+  - 3形式から2形式に簡素化（`$ref` 形式と文字列形式）
+  - パス自動検出の説明を追加
+
+### 技術詳細
+
+- `ValueConverterManager.cs`: 約70行のリファクタリング（メソッド分割とパス自動検出）
+- `register_tools.py`: Unity Object References ドキュメント更新
+- 削除ファイル: 12ファイル（コンバーター7件 + テスト5件）+ .metaファイル
+
+## [2.4.9] - 2025-12-22
+
+### 改善
+
+- **コンパイル待機の非同期メッセージング対応**
+  - `Thread.Sleep()` による同期待機を削除
+  - 非同期メッセージングベースのコンパイル待機に変更
+  - Unity Editorのフリーズを防止
+
+### 技術詳細
+
+- コンパイル待機処理のアーキテクチャ変更
+- MCPブリッジの応答性向上
+
 ## [2.4.8] - 2025-12-21
 
 ### 追加

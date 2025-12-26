@@ -224,37 +224,7 @@ namespace MCP.Editor.Base
 
         private object ConvertToUnityObject(object value, Type targetType)
         {
-            string assetPath = null;
-            string guid = null;
-            string gameObjectPath = null;
-
-            if (value is Dictionary<string, object> dict)
-            {
-                // Support $ref format (recommended)
-                if (dict.TryGetValue("$ref", out var refObj))
-                    assetPath = refObj?.ToString();
-                // Support assetPath format
-                else if (dict.TryGetValue("assetPath", out var pathObj))
-                    assetPath = pathObj?.ToString();
-                // Support _gameObjectPath format for scene object references
-                if (dict.TryGetValue("_gameObjectPath", out var goPathObj))
-                    gameObjectPath = goPathObj?.ToString();
-                if (dict.TryGetValue("guid", out var guidObj))
-                    guid = guidObj?.ToString();
-            }
-            else if (value is JObject jObj)
-            {
-                // Support $ref format (recommended)
-                assetPath = jObj.Value<string>("$ref");
-                if (string.IsNullOrEmpty(assetPath))
-                    assetPath = jObj.Value<string>("assetPath");
-                gameObjectPath = jObj.Value<string>("_gameObjectPath");
-                guid = jObj.Value<string>("guid");
-            }
-            else if (value is string str)
-            {
-                assetPath = str;
-            }
+            var (assetPath, gameObjectPath, guid) = ExtractPaths(value);
 
             // Resolve GUID to asset path
             if (!string.IsNullOrEmpty(guid))
@@ -262,34 +232,84 @@ namespace MCP.Editor.Base
                 assetPath = AssetDatabase.GUIDToAssetPath(guid);
             }
 
+            // Auto-detect: string without "Assets/" prefix is a scene object path
+            if (!string.IsNullOrEmpty(assetPath) && !assetPath.StartsWith("Assets/") && string.IsNullOrEmpty(gameObjectPath))
+            {
+                gameObjectPath = assetPath;
+                assetPath = null;
+            }
+
             // Try to load from asset path
             if (!string.IsNullOrEmpty(assetPath))
             {
-                var asset = AssetDatabase.LoadAssetAtPath(assetPath, targetType);
+                var asset = LoadAssetAtPath(assetPath, targetType);
                 if (asset != null)
                     return asset;
-
-                // If direct load failed, try loading as main asset and finding sub-asset
-                var mainAsset = AssetDatabase.LoadMainAssetAtPath(assetPath);
-                if (mainAsset != null && targetType.IsInstanceOfType(mainAsset))
-                    return mainAsset;
-
-                // Log warning if asset not found
-                Debug.LogWarning($"ValueConverterManager: Asset not found at path '{assetPath}' for type {targetType.Name}");
             }
 
-            // Try to find scene object by path (for Component references)
+            // Try to find scene object
             if (!string.IsNullOrEmpty(gameObjectPath))
             {
-                var go = GameObject.Find(gameObjectPath);
-                if (go != null)
-                {
-                    if (typeof(GameObject).IsAssignableFrom(targetType))
-                        return go;
-                    if (typeof(Component).IsAssignableFrom(targetType))
-                        return go.GetComponent(targetType);
-                }
+                return FindSceneObject(gameObjectPath, targetType);
             }
+
+            return null;
+        }
+
+        private (string assetPath, string gameObjectPath, string guid) ExtractPaths(object value)
+        {
+            if (value is string str)
+            {
+                return (str, null, null);
+            }
+
+            string assetPath = null, gameObjectPath = null, guid = null;
+
+            if (value is Dictionary<string, object> dict)
+            {
+                assetPath = GetStringValue(dict, "$ref") ?? GetStringValue(dict, "assetPath");
+                gameObjectPath = GetStringValue(dict, "_gameObjectPath");
+                guid = GetStringValue(dict, "guid");
+            }
+            else if (value is JObject jObj)
+            {
+                assetPath = jObj.Value<string>("$ref") ?? jObj.Value<string>("assetPath");
+                gameObjectPath = jObj.Value<string>("_gameObjectPath");
+                guid = jObj.Value<string>("guid");
+            }
+
+            return (assetPath, gameObjectPath, guid);
+        }
+
+        private string GetStringValue(Dictionary<string, object> dict, string key)
+        {
+            return dict.TryGetValue(key, out var val) ? val?.ToString() : null;
+        }
+
+        private UnityEngine.Object LoadAssetAtPath(string path, Type targetType)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath(path, targetType);
+            if (asset != null)
+                return asset;
+
+            var mainAsset = AssetDatabase.LoadMainAssetAtPath(path);
+            if (mainAsset != null && targetType.IsInstanceOfType(mainAsset))
+                return mainAsset;
+
+            Debug.LogWarning($"ValueConverterManager: Asset not found at path '{path}' for type {targetType.Name}");
+            return null;
+        }
+
+        private UnityEngine.Object FindSceneObject(string path, Type targetType)
+        {
+            var go = GameObject.Find(path);
+            if (go == null)
+                return null;
+
+            if (typeof(GameObject).IsAssignableFrom(targetType))
+                return go;
+            if (typeof(Component).IsAssignableFrom(targetType))
+                return go.GetComponent(targetType);
 
             return null;
         }

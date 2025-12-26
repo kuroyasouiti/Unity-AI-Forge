@@ -1643,10 +1643,11 @@ def register_tools(server: Server) -> None:
 
 **Property Changes:** Supports complex property changes including nested objects and asset references.
 
-**Unity Object References:** For properties that expect Unity Object references (TMP_Text, Button, InputField, etc.), use one of these formats:
-- `{ "$ref": "Canvas/Panel/Text" }` - Recommended format
-- `{ "_gameObjectPath": "Canvas/Panel/Text" }` - Alternative format
-- `"Canvas/Panel/Text"` - Simple string (only when target type is UnityEngine.Object)
+**Unity Object References:** For properties that expect Unity Object references, use:
+- `{ "$ref": "path" }` - Object reference format (recommended)
+- `"path"` - Simple string (for UnityEngine.Object types)
+
+Path is auto-detected: "Assets/..." loads from AssetDatabase, other paths find scene objects via hierarchy.
 
 **Property Filtering:** Inspect supports fast existence checks (includeProperties=false, 10x faster) and property filtering for specific fields.
 
