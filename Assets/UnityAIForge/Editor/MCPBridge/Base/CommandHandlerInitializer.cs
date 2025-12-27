@@ -11,24 +11,41 @@ namespace MCP.Editor.Base
     [InitializeOnLoad]
     public static class CommandHandlerInitializer
     {
+        private static bool _isInitializing = false;
+        private static bool _hasInitialized = false;
+
         /// <summary>
         /// 静的コンストラクタ。Unity起動時に自動実行されます。
         /// </summary>
         static CommandHandlerInitializer()
         {
-            // コンパイル完了後に初期化
-            EditorApplication.delayCall += InitializeHandlers;
+            // コンパイル完了後に初期化（delayCallはUnity再コンパイル時用）
+            EditorApplication.delayCall += () =>
+            {
+                // delayCall経由の場合は強制再初期化（再コンパイル対応）
+                _hasInitialized = false;
+                InitializeHandlers();
+            };
         }
-        
+
         /// <summary>
         /// 全てのコマンドハンドラーを初期化して登録します。
+        /// 重複呼び出しは無視されます。
         /// </summary>
         public static void InitializeHandlers()
         {
+            // 重複初期化防止
+            if (_hasInitialized || _isInitializing)
+            {
+                return;
+            }
+
+            _isInitializing = true;
+
             try
             {
                 Debug.Log("[CommandHandlerInitializer] Initializing command handlers...");
-                
+
                 // 既存のハンドラーをクリア（再初期化時）
                 CommandHandlerFactory.Clear();
                 
@@ -57,11 +74,17 @@ namespace MCP.Editor.Base
                 {
                     Debug.Log($"  - {handlerInfo["toolName"]}: {handlerInfo["category"]} (v{handlerInfo["version"]})");
                 }
+
+                _hasInitialized = true;
             }
             catch (System.Exception ex)
             {
                 Debug.LogError($"[CommandHandlerInitializer] Failed to initialize handlers: {ex.Message}");
                 Debug.LogException(ex);
+            }
+            finally
+            {
+                _isInitializing = false;
             }
         }
         

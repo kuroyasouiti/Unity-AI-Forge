@@ -1006,7 +1006,7 @@ wheels = [
 
 [[package]]
 name = "unity-ai-forge"
-version = "2.4.11"
+version = "2.4.12"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },

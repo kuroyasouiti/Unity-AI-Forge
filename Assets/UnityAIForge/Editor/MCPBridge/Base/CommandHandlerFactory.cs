@@ -16,35 +16,26 @@ namespace MCP.Editor.Base
         
         /// <summary>
         /// ファクトリーを初期化します。
+        /// ハンドラーが未登録の場合、CommandHandlerInitializerを呼び出して登録します。
         /// </summary>
         public static void Initialize()
         {
-            if (_initialized)
+            if (_initialized && _handlers.Count > 0)
             {
                 return;
             }
-            
+
             lock (_lock)
             {
-                if (_initialized)
+                if (_initialized && _handlers.Count > 0)
                 {
                     return;
                 }
-                
-                // 将来的に各ハンドラーを登録
-                // 現時点では既存の実装を維持するため、登録は行いません
-                
-                /*
-                // 例: ハンドラーの登録
-                Register("sceneManage", new SceneCommandHandler());
-                Register("gameObjectManage", new GameObjectCommandHandler());
-                Register("componentManage", new ComponentCommandHandler());
-                Register("assetManage", new AssetCommandHandler());
-                Register("scriptableObjectManage", new ScriptableObjectCommandHandler());
-                Register("prefabManage", new PrefabCommandHandler());
-                Register("projectSettingsManage", new ProjectSettingsCommandHandler());
-                */
-                
+
+                // CommandHandlerInitializerを呼び出してハンドラーを登録
+                // delayCallより前にTryGetHandlerが呼ばれた場合でも確実に初期化される
+                CommandHandlerInitializer.InitializeHandlers();
+
                 _initialized = true;
             }
         }
