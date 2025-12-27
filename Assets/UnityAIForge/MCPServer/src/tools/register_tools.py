@@ -168,7 +168,7 @@ def register_tools(server: Server) -> None:
                 "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
                 "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId (alternative to path)."},
                 "componentType": {"type": "string", "description": "Full component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.UI.Button')."},
-                "propertyChanges": {"type": "object", "additionalProperties": True, "description": "Property values to set. Use {'$ref': 'path'} for asset references."},
+                "propertyChanges": {"type": "object", "additionalProperties": True, "description": "Property values to set. Use {'$ref': 'path'} for references: 'Assets/...' for assets, 'Canvas/Panel/Button' for scene objects (including inactive)."},
                 "applyDefaults": {"type": "boolean", "description": "Apply default property values when adding component."},
                 "pattern": {"type": "string", "description": "GameObject name pattern for batch operations."},
                 "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of wildcard."},
@@ -1665,7 +1665,14 @@ def register_tools(server: Server) -> None:
 - `{ "$ref": "path" }` - Object reference format (recommended)
 - `"path"` - Simple string (for UnityEngine.Object types)
 
-Path is auto-detected: "Assets/..." loads from AssetDatabase, other paths find scene objects via hierarchy.
+Path auto-detection:
+- "Assets/..." or "Packages/..." → Load from AssetDatabase
+- Other paths (e.g., "Canvas/Panel/Button") → Find scene objects by hierarchy path
+
+Scene object search features:
+- Finds inactive GameObjects (SetActive=false)
+- Searches all loaded scenes
+- Supports hierarchy paths: "Parent/Child/GrandChild"
 
 **Property Filtering:** Inspect supports fast existence checks (includeProperties=false, 10x faster) and property filtering for specific fields.
 

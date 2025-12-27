@@ -29,6 +29,13 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - `Convert_InactiveNestedObject_FindsObject` - 非アクティブな子オブジェクトの検索
   - `Convert_RefFormat_HierarchyPath_FindsNestedObject` - `$ref`形式での階層パス検索
 
+### ドキュメント
+
+- **MCP スキーマとプロンプトを更新**
+  - `propertyChanges` の description にシーンオブジェクト参照を追記
+  - `unity_component_crud` の説明にシーンオブジェクト検索機能を追加
+  - MCPサーバープロンプトに「Unity Object参照」セクションを追加
+
 ### 技術詳細
 
 - `ValueConverterManager.cs`:
@@ -36,6 +43,8 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - `FindSceneObject()` - 非アクティブオブジェクト検索をサポート
   - `FindGameObjectIncludingInactive()` - 全シーンのルートオブジェクトから階層検索
   - `FindChildByName()` - 非アクティブな子オブジェクトも検索
+- `register_tools.py`: スキーマとツール説明を更新
+- `create_mcp_server.py`: プロンプトにUnity Object参照の使用例を追加
 
 ## [2.4.11] - 2025-12-27
 
