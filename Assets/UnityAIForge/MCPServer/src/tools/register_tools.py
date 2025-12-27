@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import Any
 
 import mcp.types as types
@@ -82,14 +84,15 @@ def register_tools(server: Server) -> None:
                         "duplicate",
                         "inspect",
                     ],
+                    "description": "Scene operation to perform.",
                 },
-                "scenePath": {"type": "string"},
-                "newSceneName": {"type": "string"},
-                "additive": {"type": "boolean"},
-                "includeOpenScenes": {"type": "boolean"},
-                "includeHierarchy": {"type": "boolean"},
-                "includeComponents": {"type": "boolean"},
-                "filter": {"type": "string"},
+                "scenePath": {"type": "string", "description": "Path to scene file (e.g., 'Assets/Scenes/Level1.unity')."},
+                "newSceneName": {"type": "string", "description": "New name for duplicate operation."},
+                "additive": {"type": "boolean", "description": "Load scene additively (keep existing scenes loaded)."},
+                "includeOpenScenes": {"type": "boolean", "description": "Include currently open scenes in inspect response."},
+                "includeHierarchy": {"type": "boolean", "description": "Include scene hierarchy (GameObjects) in inspect response."},
+                "includeComponents": {"type": "boolean", "description": "Include component details for each GameObject in hierarchy."},
+                "filter": {"type": "string", "description": "Filter GameObjects by name pattern (e.g., 'Player*', '*Enemy*')."},
             },
         },
         ["operation"],
@@ -113,19 +116,20 @@ def register_tools(server: Server) -> None:
                         "deleteMultiple",
                         "inspectMultiple",
                     ],
+                    "description": "GameObject operation to perform.",
                 },
-                "gameObjectPath": {"type": "string"},
-                "parentPath": {"type": "string"},
-                "template": {"type": "string"},
-                "name": {"type": "string"},
-                "tag": {"type": "string"},
+                "gameObjectPath": {"type": "string", "description": "Hierarchy path to target GameObject (e.g., 'Canvas/Panel/Button')."},
+                "parentPath": {"type": "string", "description": "Parent GameObject path for create/move operations."},
+                "template": {"type": "string", "description": "Primitive template for create (e.g., 'Cube', 'Sphere', 'Capsule', 'Cylinder', 'Plane', 'Quad')."},
+                "name": {"type": "string", "description": "Name for new GameObject or rename operation."},
+                "tag": {"type": "string", "description": "Tag to assign (e.g., 'Player', 'Enemy'). Must exist in project settings."},
                 "layer": {"oneOf": [{"type": "integer"}, {"type": "string"}], "description": "Layer by number (0-31) or name (e.g., 'UI', 'Player'). Use unity_projectSettings_crud to add custom layers."},
-                "active": {"type": "boolean"},
-                "static": {"type": "boolean"},
-                "pattern": {"type": "string"},
-                "useRegex": {"type": "boolean"},
-                "includeComponents": {"type": "boolean"},
-                "maxResults": {"type": "integer"},
+                "active": {"type": "boolean", "description": "Set GameObject active/inactive state."},
+                "static": {"type": "boolean", "description": "Mark GameObject as static for optimization."},
+                "pattern": {"type": "string", "description": "Name pattern for batch operations (e.g., 'Enemy*', '*_LOD0')."},
+                "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of wildcard."},
+                "includeComponents": {"type": "boolean", "description": "Include component details in inspect response."},
+                "maxResults": {"type": "integer", "description": "Maximum number of results for batch operations (default: 1000)."},
                 "components": {
                     "type": "array",
                     "items": {
@@ -159,18 +163,19 @@ def register_tools(server: Server) -> None:
                         "updateMultiple",
                         "inspectMultiple",
                     ],
+                    "description": "Component operation to perform.",
                 },
-                "gameObjectPath": {"type": "string"},
-                "gameObjectGlobalObjectId": {"type": "string"},
-                "componentType": {"type": "string"},
-                "propertyChanges": {"type": "object", "additionalProperties": True},
-                "applyDefaults": {"type": "boolean"},
-                "pattern": {"type": "string"},
-                "useRegex": {"type": "boolean"},
-                "includeProperties": {"type": "boolean"},
-                "propertyFilter": {"type": "array", "items": {"type": "string"}},
-                "maxResults": {"type": "integer"},
-                "stopOnError": {"type": "boolean"},
+                "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId (alternative to path)."},
+                "componentType": {"type": "string", "description": "Full component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.UI.Button')."},
+                "propertyChanges": {"type": "object", "additionalProperties": True, "description": "Property values to set. Use {'$ref': 'path'} for asset references."},
+                "applyDefaults": {"type": "boolean", "description": "Apply default property values when adding component."},
+                "pattern": {"type": "string", "description": "GameObject name pattern for batch operations."},
+                "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of wildcard."},
+                "includeProperties": {"type": "boolean", "description": "Include property values in inspect response (default: true)."},
+                "propertyFilter": {"type": "array", "items": {"type": "string"}, "description": "Filter specific properties to include in response."},
+                "maxResults": {"type": "integer", "description": "Maximum results for batch operations (default: 1000)."},
+                "stopOnError": {"type": "boolean", "description": "Stop batch operation on first error (default: true)."},
             },
         },
         ["operation", "componentType"],
@@ -194,16 +199,17 @@ def register_tools(server: Server) -> None:
                         "deleteMultiple",
                         "inspectMultiple",
                     ],
+                    "description": "Asset operation to perform.",
                 },
-                "assetPath": {"type": "string"},
-                "assetGuid": {"type": "string"},
-                "content": {"type": "string"},
-                "destinationPath": {"type": "string"},
-                "propertyChanges": {"type": "object", "additionalProperties": True},
-                "pattern": {"type": "string"},
-                "useRegex": {"type": "boolean"},
-                "includeProperties": {"type": "boolean"},
-                "maxResults": {"type": "integer"},
+                "assetPath": {"type": "string", "description": "Asset file path (e.g., 'Assets/Scripts/Player.cs')."},
+                "assetGuid": {"type": "string", "description": "Asset GUID (alternative to assetPath)."},
+                "content": {"type": "string", "description": "File content for create/update operations."},
+                "destinationPath": {"type": "string", "description": "Destination path for rename/duplicate operations."},
+                "propertyChanges": {"type": "object", "additionalProperties": True, "description": "Importer property changes for updateImporter operation."},
+                "pattern": {"type": "string", "description": "Asset path pattern for batch operations (e.g., 'Assets/Textures/*.png')."},
+                "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of glob."},
+                "includeProperties": {"type": "boolean", "description": "Include asset properties in inspect response."},
+                "maxResults": {"type": "integer", "description": "Maximum results for batch operations (default: 1000)."},
             },
         },
         ["operation"],
@@ -249,19 +255,20 @@ def register_tools(server: Server) -> None:
                         "list",
                         "findByType",
                     ],
+                    "description": "ScriptableObject operation to perform.",
                 },
-                "typeName": {"type": "string"},
-                "assetPath": {"type": "string"},
-                "assetGuid": {"type": "string"},
-                "properties": {"type": "object", "additionalProperties": True},
-                "includeProperties": {"type": "boolean"},
-                "propertyFilter": {"type": "array", "items": {"type": "string"}},
-                "searchPath": {"type": "string"},
-                "maxResults": {"type": "integer"},
-                "offset": {"type": "integer"},
-                "sourceAssetPath": {"type": "string"},
-                "sourceAssetGuid": {"type": "string"},
-                "destinationAssetPath": {"type": "string"},
+                "typeName": {"type": "string", "description": "Full type name for create/findByType (e.g., 'MyGame.GameConfig')."},
+                "assetPath": {"type": "string", "description": "ScriptableObject asset path (e.g., 'Assets/Data/Config.asset')."},
+                "assetGuid": {"type": "string", "description": "Asset GUID (alternative to assetPath)."},
+                "properties": {"type": "object", "additionalProperties": True, "description": "Property values to set on the ScriptableObject."},
+                "includeProperties": {"type": "boolean", "description": "Include property values in inspect response (default: true)."},
+                "propertyFilter": {"type": "array", "items": {"type": "string"}, "description": "Filter specific properties to include in response."},
+                "searchPath": {"type": "string", "description": "Directory to search for findByType/list (default: 'Assets')."},
+                "maxResults": {"type": "integer", "description": "Maximum results for list/findByType (default: 100)."},
+                "offset": {"type": "integer", "description": "Skip first N results for pagination."},
+                "sourceAssetPath": {"type": "string", "description": "Source asset path for duplicate operation."},
+                "sourceAssetGuid": {"type": "string", "description": "Source asset GUID for duplicate operation."},
+                "destinationAssetPath": {"type": "string", "description": "Destination path for duplicate operation."},
             },
         },
         ["operation"],
@@ -408,6 +415,7 @@ def register_tools(server: Server) -> None:
                         "renameFromList",
                         "createMenuList",
                     ],
+                    "description": "Transform batch operation to perform.",
                 },
                 "gameObjectPaths": {
                     "type": "array",
@@ -476,6 +484,7 @@ def register_tools(server: Server) -> None:
                         "distributeVertical",
                         "matchSize",
                     ],
+                    "description": "RectTransform batch operation to perform.",
                 },
                 "gameObjectPaths": {
                     "type": "array",
@@ -488,6 +497,7 @@ def register_tools(server: Server) -> None:
                         "x": {"type": "number"},
                         "y": {"type": "number"},
                     },
+                    "description": "Minimum anchor point (0-1). Bottom-left is (0,0), top-right is (1,1).",
                 },
                 "anchorMax": {
                     "type": "object",
@@ -495,6 +505,7 @@ def register_tools(server: Server) -> None:
                         "x": {"type": "number"},
                         "y": {"type": "number"},
                     },
+                    "description": "Maximum anchor point (0-1). Set equal to anchorMin for fixed position.",
                 },
                 "pivot": {
                     "type": "object",
@@ -502,6 +513,7 @@ def register_tools(server: Server) -> None:
                         "x": {"type": "number"},
                         "y": {"type": "number"},
                     },
+                    "description": "Pivot point (0-1). Center is (0.5, 0.5).",
                 },
                 "sizeDelta": {
                     "type": "object",
@@ -509,6 +521,7 @@ def register_tools(server: Server) -> None:
                         "x": {"type": "number"},
                         "y": {"type": "number"},
                     },
+                    "description": "Size delta in pixels (width, height offset from anchored size).",
                 },
                 "anchoredPosition": {
                     "type": "object",
@@ -516,6 +529,7 @@ def register_tools(server: Server) -> None:
                         "x": {"type": "number"},
                         "y": {"type": "number"},
                     },
+                    "description": "Position relative to anchors in pixels.",
                 },
                 "preset": {
                     "type": "string",
@@ -537,11 +551,12 @@ def register_tools(server: Server) -> None:
                         "stretchBottom",
                         "stretchAll",
                     ],
+                    "description": "Anchor preset for alignToParent operation.",
                 },
-                "spacing": {"type": "number"},
-                "matchWidth": {"type": "boolean"},
-                "matchHeight": {"type": "boolean"},
-                "sourceGameObjectPath": {"type": "string"},
+                "spacing": {"type": "number", "description": "Spacing between elements for distribute operations (pixels)."},
+                "matchWidth": {"type": "boolean", "description": "Match width from source element in matchSize operation."},
+                "matchHeight": {"type": "boolean", "description": "Match height from source element in matchSize operation."},
+                "sourceGameObjectPath": {"type": "string", "description": "Source element path for matchSize operation."},
             },
         },
         ["operation"],
@@ -693,7 +708,8 @@ def register_tools(server: Server) -> None:
                         "createFromTemplate", "inspect",
                     ],
                 },
-                "parentPath": {"type": "string", "description": "Parent GameObject path."},
+                "parentPath": {"type": "string", "description": "Parent GameObject path for create operations."},
+                "targetPath": {"type": "string", "description": "Target GameObject path for addLayoutGroup/updateLayoutGroup/removeLayoutGroup operations."},
                 "name": {"type": "string", "description": "UI element name."},
                 "renderMode": {
                     "type": "string",
@@ -763,9 +779,11 @@ def register_tools(server: Server) -> None:
                     "description": "LayoutGroup padding (default: 0 for all).",
                 },
                 "spacing": {
-                    "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
-                    "description": "Spacing between elements (x for Horizontal/Grid, y for Vertical/Grid).",
+                    "oneOf": [
+                        {"type": "number"},
+                        {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}}
+                    ],
+                    "description": "Spacing: number for Horizontal/Vertical layouts, {x, y} object for Grid layout.",
                 },
                 "childAlignment": {
                     "type": "string",
@@ -1909,40 +1927,93 @@ unity_ui_navigation({
             return [types.TextContent(type="text", text=as_pretty_json(payload))]
 
         if name == "unity_compilation_await":
-            # Use async compilation waiting instead of blocking command
+            # Async polling approach: wait for compilation to start, then wait for completion
             _ensure_bridge_connected()
             timeout_seconds = args.get("timeoutSeconds", 60)
+            poll_interval = 0.5  # Poll every 500ms
+            poll_timeout = 5.0  # Wait up to 5 seconds for compilation to start
 
-            # Check if compilation is currently in progress
-            if not bridge_manager.is_compiling():
-                # No compilation in progress - return immediately
-                result = {
-                    "wasCompiling": False,
-                    "compilationCompleted": True,
-                    "waitTimeSeconds": 0.0,
-                    "success": True,
-                    "errorCount": 0,
-                    "message": "No compilation in progress",
-                }
-                return [types.TextContent(type="text", text=as_pretty_json(result))]
+            start_time = time.time()
+            is_compiling = False
+            unity_status: dict[str, Any] = {}
 
-            # Compilation is in progress - wait for completion
+            # Phase 1: Poll until compilation starts or timeout
             logger.info(
-                "Compilation in progress - waiting for completion (timeout: %ds)...",
+                "Polling for compilation start (poll_timeout: %.1fs, total_timeout: %ds)...",
+                poll_timeout,
                 timeout_seconds,
             )
 
+            while time.time() - start_time < poll_timeout:
+                # Check local state first (faster)
+                if bridge_manager.is_compiling():
+                    is_compiling = True
+                    logger.info("Compilation detected via local state")
+                    break
+
+                # Query Unity for actual compilation status
+                try:
+                    unity_status = await bridge_manager.send_command(
+                        "compilationAwait", {"operation": "status"}
+                    )
+                    if unity_status.get("isCompiling", False):
+                        is_compiling = True
+                        logger.info("Compilation detected via Unity query")
+                        break
+                except Exception as exc:
+                    # Bridge might be disconnected during compilation
+                    logger.debug("Unity query failed (may be compiling): %s", exc)
+                    # If bridge disconnected, assume compilation started
+                    if not bridge_manager.is_connected():
+                        is_compiling = True
+                        logger.info("Bridge disconnected - assuming compilation started")
+                        break
+
+                # Wait before next poll
+                await asyncio.sleep(poll_interval)
+
+            poll_elapsed = time.time() - start_time
+
+            if not is_compiling:
+                # No compilation detected after polling - return current status
+                logger.info("No compilation detected after %.1fs polling", poll_elapsed)
+                if unity_status:
+                    unity_status["wasCompiling"] = False
+                    unity_status["compilationCompleted"] = True
+                    unity_status["waitTimeSeconds"] = poll_elapsed
+                    unity_status["message"] = "No compilation detected"
+                    return [types.TextContent(type="text", text=as_pretty_json(unity_status))]
+                result = {
+                    "wasCompiling": False,
+                    "compilationCompleted": True,
+                    "waitTimeSeconds": poll_elapsed,
+                    "success": True,
+                    "errorCount": 0,
+                    "message": "No compilation detected",
+                }
+                return [types.TextContent(type="text", text=as_pretty_json(result))]
+
+            # Phase 2: Compilation in progress - wait for completion asynchronously
+            remaining_timeout = max(1, timeout_seconds - int(poll_elapsed))
+            logger.info(
+                "Compilation in progress - waiting for completion (timeout: %ds)...",
+                remaining_timeout,
+            )
+
             try:
-                compilation_result = await bridge_manager.await_compilation(timeout_seconds)
+                compilation_result = await bridge_manager.await_compilation(remaining_timeout)
+                total_elapsed = time.time() - start_time
                 # Add wasCompiling flag for consistency with original API
                 compilation_result["wasCompiling"] = True
                 compilation_result["compilationCompleted"] = compilation_result.get("completed", True)
+                compilation_result["waitTimeSeconds"] = total_elapsed
                 return [types.TextContent(type="text", text=as_pretty_json(compilation_result))]
             except TimeoutError as exc:
+                total_elapsed = time.time() - start_time
                 result = {
                     "wasCompiling": True,
                     "compilationCompleted": False,
-                    "waitTimeSeconds": float(timeout_seconds),
+                    "waitTimeSeconds": total_elapsed,
                     "success": False,
                     "errorCount": 0,
                     "timedOut": True,

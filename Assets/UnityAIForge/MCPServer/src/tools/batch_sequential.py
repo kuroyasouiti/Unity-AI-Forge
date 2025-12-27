@@ -31,6 +31,9 @@ STATE_FILE = Path(__file__).parent.parent.parent / ".batch_queue_state.json"
 # Users can use either the MCP name (e.g., "unity_gameobject_crud")
 # or the internal name (e.g., "gameObjectManage")
 TOOL_NAME_MAPPING: dict[str, str] = {
+    # Utility
+    "unity_ping": "pingUnityEditor",
+    "unity_compilation_await": "compilationAwait",
     # Low-Level CRUD
     "unity_scene_crud": "sceneManage",
     "unity_gameobject_crud": "gameObjectManage",

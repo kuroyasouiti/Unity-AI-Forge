@@ -193,9 +193,9 @@ class TestExecuteBatchSequential:
             batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
 
             operations = [
-                {"tool": "op1", "arguments": {}},
-                {"tool": "op2", "arguments": {}},
-                {"tool": "op3", "arguments": {}},
+                {"tool": "unity_ping", "arguments": {}},
+                {"tool": "unity_scene_crud", "arguments": {"operation": "inspect"}},
+                {"tool": "unity_gameobject_crud", "arguments": {"operation": "inspect"}},
             ]
 
             result = await execute_batch_sequential(
@@ -233,9 +233,9 @@ class TestExecuteBatchSequential:
             )
 
             operations = [
-                {"tool": "op1", "arguments": {}},
-                {"tool": "op2", "arguments": {}},
-                {"tool": "op3", "arguments": {}},
+                {"tool": "unity_ping", "arguments": {}},
+                {"tool": "unity_scene_crud", "arguments": {"operation": "inspect"}},
+                {"tool": "unity_gameobject_crud", "arguments": {"operation": "inspect"}},
             ]
 
             result1 = await execute_batch_sequential(
@@ -279,7 +279,7 @@ class TestExecuteBatchSequential:
 
             batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
 
-            operations = [{"tool": "op1", "arguments": {}}]
+            operations = [{"tool": "unity_ping", "arguments": {}}]
 
             result = await execute_batch_sequential(
                 bridge_client=mock_bridge_manager,

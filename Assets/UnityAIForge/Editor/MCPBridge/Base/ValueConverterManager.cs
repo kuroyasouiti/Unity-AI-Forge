@@ -224,22 +224,9 @@ namespace MCP.Editor.Base
 
         private object ConvertToUnityObject(object value, Type targetType)
         {
-            var (assetPath, gameObjectPath, guid) = ExtractPaths(value);
+            var (assetPath, sceneObjectPath) = ExtractPaths(value);
 
-            // Resolve GUID to asset path
-            if (!string.IsNullOrEmpty(guid))
-            {
-                assetPath = AssetDatabase.GUIDToAssetPath(guid);
-            }
-
-            // Auto-detect: string without "Assets/" prefix is a scene object path
-            if (!string.IsNullOrEmpty(assetPath) && !assetPath.StartsWith("Assets/") && string.IsNullOrEmpty(gameObjectPath))
-            {
-                gameObjectPath = assetPath;
-                assetPath = null;
-            }
-
-            // Try to load from asset path
+            // Try to load from asset path ($ref format)
             if (!string.IsNullOrEmpty(assetPath))
             {
                 var asset = LoadAssetAtPath(assetPath, targetType);
@@ -247,38 +234,45 @@ namespace MCP.Editor.Base
                     return asset;
             }
 
-            // Try to find scene object
-            if (!string.IsNullOrEmpty(gameObjectPath))
+            // Try to find scene object (string path without "Assets/" prefix)
+            if (!string.IsNullOrEmpty(sceneObjectPath))
             {
-                return FindSceneObject(gameObjectPath, targetType);
+                return FindSceneObject(sceneObjectPath, targetType);
             }
 
             return null;
         }
 
-        private (string assetPath, string gameObjectPath, string guid) ExtractPaths(object value)
+        /// <summary>
+        /// Extracts asset path and scene object path from value.
+        /// Supported formats:
+        /// - Asset reference: {"$ref": "Assets/Prefabs/Player.prefab"}
+        /// - Scene object: "Player" or "Canvas/Panel/Button" (string without "Assets/" prefix)
+        /// </summary>
+        private (string assetPath, string sceneObjectPath) ExtractPaths(object value)
         {
+            // String value: auto-detect based on "Assets/" prefix
             if (value is string str)
             {
-                return (str, null, null);
+                if (str.StartsWith("Assets/") || str.StartsWith("Packages/"))
+                {
+                    return (str, null); // Asset path
+                }
+                return (null, str); // Scene object path
             }
 
-            string assetPath = null, gameObjectPath = null, guid = null;
+            string assetPath = null;
 
             if (value is Dictionary<string, object> dict)
             {
-                assetPath = GetStringValue(dict, "$ref") ?? GetStringValue(dict, "assetPath");
-                gameObjectPath = GetStringValue(dict, "_gameObjectPath");
-                guid = GetStringValue(dict, "guid");
+                assetPath = GetStringValue(dict, "$ref");
             }
             else if (value is JObject jObj)
             {
-                assetPath = jObj.Value<string>("$ref") ?? jObj.Value<string>("assetPath");
-                gameObjectPath = jObj.Value<string>("_gameObjectPath");
-                guid = jObj.Value<string>("guid");
+                assetPath = jObj.Value<string>("$ref");
             }
 
-            return (assetPath, gameObjectPath, guid);
+            return (assetPath, null);
         }
 
         private string GetStringValue(Dictionary<string, object> dict, string key)

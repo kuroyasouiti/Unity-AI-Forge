@@ -380,5 +380,214 @@ namespace MCP.Editor.Tests.ValueConverters
         }
 
         #endregion
+
+        #region Prefab Reference Tests
+
+        [Test]
+        public void ApplyProperties_PrefabReference_WithStringPath_Success()
+        {
+            var (go, component) = _tracker.CreateWithComponent<TestPrefabReferenceComponent>("TestObject");
+
+            // Create a test prefab
+            var prefabGo = new GameObject("TestPrefabForProperty");
+            var prefabPath = "Assets/TestTemp/TestPrefabForProperty.prefab";
+
+            try
+            {
+                if (!System.IO.Directory.Exists("Assets/TestTemp"))
+                {
+                    System.IO.Directory.CreateDirectory("Assets/TestTemp");
+                    UnityEditor.AssetDatabase.Refresh();
+                }
+
+                UnityEditor.PrefabUtility.SaveAsPrefabAsset(prefabGo, prefabPath);
+                UnityEditor.AssetDatabase.Refresh();
+
+                var properties = new Dictionary<string, object>
+                {
+                    ["prefabReference"] = prefabPath
+                };
+
+                var result = _applier.ApplyProperties(component, properties);
+
+                Assert.IsTrue(result.AllSucceeded);
+                Assert.Contains("prefabReference", result.Updated);
+                Assert.IsNotNull(component.prefabReference);
+                Assert.AreEqual("TestPrefabForProperty", component.prefabReference.name);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefabGo);
+                UnityEditor.AssetDatabase.DeleteAsset(prefabPath);
+                UnityEditor.AssetDatabase.DeleteAsset("Assets/TestTemp");
+            }
+        }
+
+        [Test]
+        public void ApplyProperties_PrefabReference_WithRefFormat_Success()
+        {
+            var (go, component) = _tracker.CreateWithComponent<TestPrefabReferenceComponent>("TestObject");
+
+            // Create a test prefab
+            var prefabGo = new GameObject("TestPrefabRefFormat");
+            var prefabPath = "Assets/TestTemp/TestPrefabRefFormat.prefab";
+
+            try
+            {
+                if (!System.IO.Directory.Exists("Assets/TestTemp"))
+                {
+                    System.IO.Directory.CreateDirectory("Assets/TestTemp");
+                    UnityEditor.AssetDatabase.Refresh();
+                }
+
+                UnityEditor.PrefabUtility.SaveAsPrefabAsset(prefabGo, prefabPath);
+                UnityEditor.AssetDatabase.Refresh();
+
+                var properties = new Dictionary<string, object>
+                {
+                    ["prefabReference"] = new Dictionary<string, object>
+                    {
+                        ["$ref"] = prefabPath
+                    }
+                };
+
+                var result = _applier.ApplyProperties(component, properties);
+
+                Assert.IsTrue(result.AllSucceeded);
+                Assert.Contains("prefabReference", result.Updated);
+                Assert.IsNotNull(component.prefabReference);
+                Assert.AreEqual("TestPrefabRefFormat", component.prefabReference.name);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefabGo);
+                UnityEditor.AssetDatabase.DeleteAsset(prefabPath);
+                UnityEditor.AssetDatabase.DeleteAsset("Assets/TestTemp");
+            }
+        }
+
+        [Test]
+        public void ApplyProperties_MaterialReference_WithStringPath_Success()
+        {
+            var (go, component) = _tracker.CreateWithComponent<TestPrefabReferenceComponent>("TestObject");
+
+            // Create a test material
+            var prefabPath = "Assets/TestTemp/TestMaterial.mat";
+
+            try
+            {
+                if (!System.IO.Directory.Exists("Assets/TestTemp"))
+                {
+                    System.IO.Directory.CreateDirectory("Assets/TestTemp");
+                    UnityEditor.AssetDatabase.Refresh();
+                }
+
+                var material = new Material(Shader.Find("Standard"));
+                UnityEditor.AssetDatabase.CreateAsset(material, prefabPath);
+                UnityEditor.AssetDatabase.Refresh();
+
+                var properties = new Dictionary<string, object>
+                {
+                    ["materialReference"] = prefabPath
+                };
+
+                var result = _applier.ApplyProperties(component, properties);
+
+                Assert.IsTrue(result.AllSucceeded);
+                Assert.Contains("materialReference", result.Updated);
+                Assert.IsNotNull(component.materialReference);
+            }
+            finally
+            {
+                UnityEditor.AssetDatabase.DeleteAsset(prefabPath);
+                UnityEditor.AssetDatabase.DeleteAsset("Assets/TestTemp");
+            }
+        }
+
+        [Test]
+        public void ApplyProperties_PrivatePrefabReference_WithSerializeField_Success()
+        {
+            var (go, component) = _tracker.CreateWithComponent<TestPrefabReferenceComponent>("TestObject");
+
+            // Create a test prefab
+            var prefabGo = new GameObject("TestPrivatePrefab");
+            var prefabPath = "Assets/TestTemp/TestPrivatePrefab.prefab";
+
+            try
+            {
+                if (!System.IO.Directory.Exists("Assets/TestTemp"))
+                {
+                    System.IO.Directory.CreateDirectory("Assets/TestTemp");
+                    UnityEditor.AssetDatabase.Refresh();
+                }
+
+                UnityEditor.PrefabUtility.SaveAsPrefabAsset(prefabGo, prefabPath);
+                UnityEditor.AssetDatabase.Refresh();
+
+                // Access private field via [SerializeField]
+                var properties = new Dictionary<string, object>
+                {
+                    ["_privatePrefabReference"] = prefabPath
+                };
+
+                var result = _applier.ApplyProperties(component, properties);
+
+                Assert.IsTrue(result.AllSucceeded);
+                Assert.Contains("_privatePrefabReference", result.Updated);
+                Assert.IsNotNull(component.PrivatePrefabReference);
+                Assert.AreEqual("TestPrivatePrefab", component.PrivatePrefabReference.name);
+            }
+            finally
+            {
+                Object.DestroyImmediate(prefabGo);
+                UnityEditor.AssetDatabase.DeleteAsset(prefabPath);
+                UnityEditor.AssetDatabase.DeleteAsset("Assets/TestTemp");
+            }
+        }
+
+        [Test]
+        public void ApplyProperties_SceneObjectReference_WithPath_Success()
+        {
+            var (go, component) = _tracker.CreateWithComponent<TestPrefabReferenceComponent>("TestObject");
+
+            // Create a scene object with Transform (not a prefab)
+            var targetGo = _tracker.Create("TargetSceneObject");
+            var targetRb = targetGo.AddComponent<Rigidbody2D>();
+
+            // Use scene object path (without "Assets/" prefix)
+            var properties = new Dictionary<string, object>
+            {
+                ["transformReference"] = "TargetSceneObject",
+                ["rigidbodyReference"] = "TargetSceneObject"
+            };
+
+            var result = _applier.ApplyProperties(component, properties);
+
+            Assert.IsTrue(result.AllSucceeded);
+            Assert.Contains("transformReference", result.Updated);
+            Assert.Contains("rigidbodyReference", result.Updated);
+            Assert.AreSame(targetGo.transform, component.transformReference);
+            Assert.AreSame(targetRb, component.rigidbodyReference);
+        }
+
+        [Test]
+        public void ApplyProperties_InvalidPrefabPath_SetsNull()
+        {
+            var (go, component) = _tracker.CreateWithComponent<TestPrefabReferenceComponent>("TestObject");
+
+            var properties = new Dictionary<string, object>
+            {
+                ["prefabReference"] = "Assets/NonExistent/Prefab.prefab"
+            };
+
+            var result = _applier.ApplyProperties(component, properties);
+
+            // Property is updated (to null), so it should succeed
+            Assert.IsTrue(result.AllSucceeded);
+            Assert.Contains("prefabReference", result.Updated);
+            Assert.IsNull(component.prefabReference);
+        }
+
+        #endregion
     }
 }

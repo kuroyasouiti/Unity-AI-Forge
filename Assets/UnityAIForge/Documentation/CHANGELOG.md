@@ -9,6 +9,49 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.11] - 2025-12-27
+
+### 改善
+
+- **ValueConverterManager のパス解決をシンプル化**
+  - `$ref` 形式のアセット参照に集約
+  - `guid`、`assetPath`、`_gameObjectPath` の個別サポートを削除
+  - パス自動検出: `Assets/` または `Packages/` プレフィックスはアセット、それ以外はシーンオブジェクト
+  - コードの可読性と保守性を向上
+
+- **MCP ツールスキーマの説明を強化**
+  - 全ツールの主要パラメータに `description` を追加
+  - `scene_crud`、`gameobject_crud`、`component_crud`、`asset_crud`、`scriptableObject_crud` のパラメータに説明追加
+  - `transform_batch`、`rectTransform_batch` のパラメータに説明追加
+  - `ui_foundation` の `spacing` パラメータを `oneOf` 形式に変更（数値またはオブジェクト）
+
+- **`unity_compilation_await` の非同期ポーリング実装**
+  - コンパイル開始を5秒間ポーリングで検出
+  - ローカル状態とUnityクエリの両方でコンパイル状態を確認
+  - ブリッジ切断時にコンパイル開始と判断
+  - タイムアウト処理の改善
+
+- **バッチ順次処理のツール名マッピング拡張**
+  - `unity_ping` → `pingUnityEditor` マッピングを追加
+  - `unity_compilation_await` → `compilationAwait` マッピングを追加
+
+### テスト
+
+- **ComponentPropertyApplierTests を追加**
+  - コンポーネントプロパティ適用のテストケースを追加
+
+- **ValueConverterManagerTests を拡張**
+  - パス解決のエッジケーステストを追加
+  - `$ref` 形式と文字列形式の変換テストを追加
+
+### 技術詳細
+
+- `ValueConverterManager.cs`: `ExtractPaths()` メソッドをシンプル化（約40行削減）
+- `register_tools.py`: 50以上のパラメータに `description` を追加、compilation_await の非同期ポーリング実装
+- `batch_sequential.py`: Utility ツール（ping, compilation_await）のマッピング追加
+- `ComponentPropertyApplierTests.cs`: 209行追加
+- `ValueConverterManagerTests.cs`: 129行追加
+
 ## [2.4.10] - 2025-12-26
 
 ### 削除

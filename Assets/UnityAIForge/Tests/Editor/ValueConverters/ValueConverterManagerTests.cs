@@ -421,25 +421,7 @@ namespace MCP.Editor.Tests.ValueConverters
         }
 
         [Test]
-        public void Convert_AssetPathFormatDictionary_ToMaterial_LoadsAsset()
-        {
-            // Use assetPath format
-            var dict = new Dictionary<string, object>
-            {
-                ["assetPath"] = "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"
-            };
-
-            var result = _manager.Convert(dict, typeof(Material));
-
-            // Note: This test may fail if URP is not installed, which is acceptable
-            if (result != null)
-            {
-                Assert.IsInstanceOf<Material>(result);
-            }
-        }
-
-        [Test]
-        public void Convert_StringPath_ToTexture_LoadsAsset()
+        public void Convert_StringPath_ToAsset_LoadsAsset()
         {
             // Use a string path directly
             var result = _manager.Convert(
@@ -463,6 +445,117 @@ namespace MCP.Editor.Tests.ValueConverters
             };
 
             var result = _manager.Convert(dict, typeof(Material));
+
+            Assert.IsNull(result);
+        }
+
+        #endregion
+
+        #region Prefab Reference Tests
+
+        [Test]
+        public void Convert_PrefabPath_ToGameObject_LoadsPrefab()
+        {
+            // Create a test prefab
+            var testGo = new GameObject("TestPrefabForConversion");
+            var prefabPath = "Assets/TestTemp/TestPrefabForConversion.prefab";
+
+            try
+            {
+                // Ensure directory exists
+                if (!System.IO.Directory.Exists("Assets/TestTemp"))
+                {
+                    System.IO.Directory.CreateDirectory("Assets/TestTemp");
+                    UnityEditor.AssetDatabase.Refresh();
+                }
+
+                // Create prefab
+                UnityEditor.PrefabUtility.SaveAsPrefabAsset(testGo, prefabPath);
+                UnityEditor.AssetDatabase.Refresh();
+
+                // Test conversion with string path
+                var result = _manager.Convert(prefabPath, typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreEqual("TestPrefabForConversion", ((GameObject)result).name);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(testGo);
+                UnityEditor.AssetDatabase.DeleteAsset(prefabPath);
+                UnityEditor.AssetDatabase.DeleteAsset("Assets/TestTemp");
+            }
+        }
+
+        [Test]
+        public void Convert_RefFormatDictionary_ToPrefab_LoadsPrefab()
+        {
+            // Create a test prefab
+            var testGo = new GameObject("TestPrefabRefFormat");
+            var prefabPath = "Assets/TestTemp/TestPrefabRefFormat.prefab";
+
+            try
+            {
+                if (!System.IO.Directory.Exists("Assets/TestTemp"))
+                {
+                    System.IO.Directory.CreateDirectory("Assets/TestTemp");
+                    UnityEditor.AssetDatabase.Refresh();
+                }
+
+                UnityEditor.PrefabUtility.SaveAsPrefabAsset(testGo, prefabPath);
+                UnityEditor.AssetDatabase.Refresh();
+
+                // Test conversion with $ref format
+                var dict = new Dictionary<string, object>
+                {
+                    ["$ref"] = prefabPath
+                };
+
+                var result = _manager.Convert(dict, typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreEqual("TestPrefabRefFormat", ((GameObject)result).name);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(testGo);
+                UnityEditor.AssetDatabase.DeleteAsset(prefabPath);
+                UnityEditor.AssetDatabase.DeleteAsset("Assets/TestTemp");
+            }
+        }
+
+        [Test]
+        public void Convert_SceneObjectPath_ToGameObject_FindsSceneObject()
+        {
+            // Create a scene object (not a prefab)
+            var sceneGo = new GameObject("TestSceneObject");
+
+            try
+            {
+                // Path without "Assets/" prefix should be treated as scene object path
+                var result = _manager.Convert("TestSceneObject", typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreSame(sceneGo, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(sceneGo);
+            }
+        }
+
+        [Test]
+        public void Convert_InvalidPrefabPath_ReturnsNull()
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["$ref"] = "Assets/NonExistent/Prefab.prefab"
+            };
+
+            var result = _manager.Convert(dict, typeof(GameObject));
 
             Assert.IsNull(result);
         }
