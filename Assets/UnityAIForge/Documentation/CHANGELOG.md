@@ -9,6 +9,34 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.4.12] - 2025-12-27
+
+### 追加
+
+- **シーンオブジェクト参照の強化**
+  - `$ref` 形式でシーンオブジェクトを参照可能に（例: `{"$ref": "Canvas/Panel/Button"}`）
+  - 非アクティブなGameObjectも検索可能に
+  - 階層パスによるネストされたオブジェクトの検索をサポート
+  - 全ロード済みシーンを横断して検索
+
+### テスト
+
+- **シーンオブジェクト参照テストを追加**
+  - `Convert_RefFormat_ToSceneObject_FindsSceneObject` - `$ref`形式でのシーンオブジェクト参照
+  - `Convert_HierarchyPath_ToGameObject_FindsNestedObject` - 階層パスでのネストオブジェクト検索
+  - `Convert_HierarchyPath_ToComponent_FindsComponent` - 階層パスでのコンポーネント取得
+  - `Convert_InactiveSceneObject_FindsObject` - 非アクティブオブジェクトの検索
+  - `Convert_InactiveNestedObject_FindsObject` - 非アクティブな子オブジェクトの検索
+  - `Convert_RefFormat_HierarchyPath_FindsNestedObject` - `$ref`形式での階層パス検索
+
+### 技術詳細
+
+- `ValueConverterManager.cs`:
+  - `ConvertToUnityObject()` - アセット検索失敗時にシーンオブジェクトにフォールバック
+  - `FindSceneObject()` - 非アクティブオブジェクト検索をサポート
+  - `FindGameObjectIncludingInactive()` - 全シーンのルートオブジェクトから階層検索
+  - `FindChildByName()` - 非アクティブな子オブジェクトも検索
+
 ## [2.4.11] - 2025-12-27
 
 ### 改善

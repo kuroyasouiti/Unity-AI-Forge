@@ -548,6 +548,150 @@ namespace MCP.Editor.Tests.ValueConverters
         }
 
         [Test]
+        public void Convert_RefFormat_ToSceneObject_FindsSceneObject()
+        {
+            // Create a scene object
+            var sceneGo = new GameObject("TestRefSceneObject");
+
+            try
+            {
+                // $ref format with scene object path (not starting with Assets/)
+                var dict = new Dictionary<string, object>
+                {
+                    ["$ref"] = "TestRefSceneObject"
+                };
+
+                var result = _manager.Convert(dict, typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreSame(sceneGo, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(sceneGo);
+            }
+        }
+
+        [Test]
+        public void Convert_HierarchyPath_ToGameObject_FindsNestedObject()
+        {
+            // Create a hierarchy: Parent/Child/GrandChild
+            var parent = new GameObject("TestParent");
+            var child = new GameObject("TestChild");
+            var grandChild = new GameObject("TestGrandChild");
+            child.transform.SetParent(parent.transform);
+            grandChild.transform.SetParent(child.transform);
+
+            try
+            {
+                var result = _manager.Convert("TestParent/TestChild/TestGrandChild", typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreSame(grandChild, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+            }
+        }
+
+        [Test]
+        public void Convert_HierarchyPath_ToComponent_FindsComponent()
+        {
+            // Create a hierarchy with a component
+            var parent = new GameObject("TestParentWithComponent");
+            var child = new GameObject("TestChildWithRigidbody");
+            child.transform.SetParent(parent.transform);
+            var rb = child.AddComponent<Rigidbody>();
+
+            try
+            {
+                var result = _manager.Convert("TestParentWithComponent/TestChildWithRigidbody", typeof(Rigidbody));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<Rigidbody>(result);
+                Assert.AreSame(rb, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+            }
+        }
+
+        [Test]
+        public void Convert_InactiveSceneObject_FindsObject()
+        {
+            // Create an inactive scene object
+            var sceneGo = new GameObject("TestInactiveObject");
+            sceneGo.SetActive(false);
+
+            try
+            {
+                var result = _manager.Convert("TestInactiveObject", typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreSame(sceneGo, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(sceneGo);
+            }
+        }
+
+        [Test]
+        public void Convert_InactiveNestedObject_FindsObject()
+        {
+            // Create a hierarchy with inactive child
+            var parent = new GameObject("TestActiveParent");
+            var child = new GameObject("TestInactiveChild");
+            child.transform.SetParent(parent.transform);
+            child.SetActive(false);
+
+            try
+            {
+                var result = _manager.Convert("TestActiveParent/TestInactiveChild", typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreSame(child, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+            }
+        }
+
+        [Test]
+        public void Convert_RefFormat_HierarchyPath_FindsNestedObject()
+        {
+            // Create a hierarchy
+            var parent = new GameObject("TestRefParent");
+            var child = new GameObject("TestRefChild");
+            child.transform.SetParent(parent.transform);
+
+            try
+            {
+                var dict = new Dictionary<string, object>
+                {
+                    ["$ref"] = "TestRefParent/TestRefChild"
+                };
+
+                var result = _manager.Convert(dict, typeof(GameObject));
+
+                Assert.IsNotNull(result);
+                Assert.IsInstanceOf<GameObject>(result);
+                Assert.AreSame(child, result);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+            }
+        }
+
+        [Test]
         public void Convert_InvalidPrefabPath_ReturnsNull()
         {
             var dict = new Dictionary<string, object>

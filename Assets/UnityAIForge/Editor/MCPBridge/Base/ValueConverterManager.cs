@@ -226,15 +226,22 @@ namespace MCP.Editor.Base
         {
             var (assetPath, sceneObjectPath) = ExtractPaths(value);
 
-            // Try to load from asset path ($ref format)
+            // Try to load from asset path first
             if (!string.IsNullOrEmpty(assetPath))
             {
                 var asset = LoadAssetAtPath(assetPath, targetType);
                 if (asset != null)
                     return asset;
+
+                // If asset not found and path doesn't look like an asset path,
+                // treat it as a scene object path (for $ref format with scene objects)
+                if (!assetPath.StartsWith("Assets/") && !assetPath.StartsWith("Packages/") && !assetPath.EndsWith(".asset") && !assetPath.EndsWith(".prefab"))
+                {
+                    sceneObjectPath = assetPath;
+                }
             }
 
-            // Try to find scene object (string path without "Assets/" prefix)
+            // Try to find scene object
             if (!string.IsNullOrEmpty(sceneObjectPath))
             {
                 return FindSceneObject(sceneObjectPath, targetType);
@@ -247,7 +254,8 @@ namespace MCP.Editor.Base
         /// Extracts asset path and scene object path from value.
         /// Supported formats:
         /// - Asset reference: {"$ref": "Assets/Prefabs/Player.prefab"}
-        /// - Scene object: "Player" or "Canvas/Panel/Button" (string without "Assets/" prefix)
+        /// - Scene object (string): "Player" or "Canvas/Panel/Button"
+        /// - Scene object ($ref): {"$ref": "Canvas/Panel/Button"} (auto-detected if not an asset path)
         /// </summary>
         private (string assetPath, string sceneObjectPath) ExtractPaths(object value)
         {
@@ -261,18 +269,29 @@ namespace MCP.Editor.Base
                 return (null, str); // Scene object path
             }
 
-            string assetPath = null;
+            string refPath = null;
 
             if (value is Dictionary<string, object> dict)
             {
-                assetPath = GetStringValue(dict, "$ref");
+                refPath = GetStringValue(dict, "$ref");
             }
             else if (value is JObject jObj)
             {
-                assetPath = jObj.Value<string>("$ref");
+                refPath = jObj.Value<string>("$ref");
             }
 
-            return (assetPath, null);
+            if (!string.IsNullOrEmpty(refPath))
+            {
+                // Check if it looks like an asset path
+                if (refPath.StartsWith("Assets/") || refPath.StartsWith("Packages/"))
+                {
+                    return (refPath, null); // Definitely an asset path
+                }
+                // Could be either - return as assetPath first, ConvertToUnityObject will fallback to scene
+                return (refPath, null);
+            }
+
+            return (null, null);
         }
 
         private string GetStringValue(Dictionary<string, object> dict, string key)
@@ -294,9 +313,24 @@ namespace MCP.Editor.Base
             return null;
         }
 
+        /// <summary>
+        /// Finds a scene object by path, including inactive objects.
+        /// Supports paths like "Player", "Canvas/Panel/Button", "/RootObject/Child".
+        /// </summary>
         private UnityEngine.Object FindSceneObject(string path, Type targetType)
         {
+            if (string.IsNullOrEmpty(path))
+                return null;
+
+            // First try GameObject.Find (only finds active objects)
             var go = GameObject.Find(path);
+
+            // If not found, search including inactive objects
+            if (go == null)
+            {
+                go = FindGameObjectIncludingInactive(path);
+            }
+
             if (go == null)
                 return null;
 
@@ -305,6 +339,72 @@ namespace MCP.Editor.Base
             if (typeof(Component).IsAssignableFrom(targetType))
                 return go.GetComponent(targetType);
 
+            return null;
+        }
+
+        /// <summary>
+        /// Finds a GameObject by path, including inactive objects.
+        /// </summary>
+        private GameObject FindGameObjectIncludingInactive(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return null;
+
+            // Remove leading slash if present
+            var searchPath = path.TrimStart('/');
+            var parts = searchPath.Split('/');
+
+            if (parts.Length == 0)
+                return null;
+
+            // Get all root GameObjects in all loaded scenes
+            var rootObjects = new List<GameObject>();
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (scene.isLoaded)
+                {
+                    rootObjects.AddRange(scene.GetRootGameObjects());
+                }
+            }
+
+            // Find the root object (first part of path)
+            GameObject current = null;
+            foreach (var root in rootObjects)
+            {
+                if (root.name == parts[0])
+                {
+                    current = root;
+                    break;
+                }
+            }
+
+            if (current == null)
+                return null;
+
+            // Navigate through the path
+            for (int i = 1; i < parts.Length; i++)
+            {
+                var child = FindChildByName(current.transform, parts[i]);
+                if (child == null)
+                    return null;
+                current = child.gameObject;
+            }
+
+            return current;
+        }
+
+        /// <summary>
+        /// Finds a direct child by name (works with inactive objects).
+        /// </summary>
+        private Transform FindChildByName(Transform parent, string name)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child.name == name)
+                    return child;
+            }
             return null;
         }
 
