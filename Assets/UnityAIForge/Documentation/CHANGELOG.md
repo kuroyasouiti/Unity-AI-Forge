@@ -9,6 +9,120 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.5.1] - 2025-12-29
+
+### ドキュメント
+
+- **GAMEKIT_ROADMAP.md** - 今後のGameKit開発ロードマップ
+  - Phase 3: animation_sync, effect
+  - Phase 4: save, inventory
+  - Phase 5: dialogue, quest, status_effect
+  - 各ツールの設計案、スキーマ定義、ランタイムコンポーネント設計を含む
+
+### 追加
+
+- **Phase 2 GameKit MCP ツール（4ツール）**
+  LLMがC#スクリプトを書く代わりに宣言的に使用できる、追加のゲームメカニクス用MCPツール群
+
+  - **unity_gamekit_collectible** - 収集アイテムシステム
+    - アイテムタイプ: Coin, Health, Ammo, Key, PowerUp, Experience, Custom
+    - 磁石効果（近くのアイテムを引き寄せ）、リスポーン対応
+    - 操作: create, update, inspect, delete, collect, respawn, reset, findByCollectibleId
+    - UnityEvents: OnCollected(collector, value), OnRespawn
+
+  - **unity_gamekit_projectile** - 弾丸/ミサイルシステム
+    - 移動タイプ: Straight（直進）、Homing（ホーミング）、Parabolic（放物線）、Boomerang（ブーメラン）
+    - 反射（バウンド）、貫通対応
+    - 操作: create, update, inspect, delete, launch, setHomingTarget, destroy, findByProjectileId
+    - UnityEvents: OnLaunch, OnHit(target, damage), OnBounce, OnPierce, OnExpire
+
+  - **unity_gamekit_waypoint** - パス追従システム
+    - パスモード: Once（1回）、Loop（ループ）、PingPong（往復）
+    - ウェイポイント地点ごとの待機時間設定
+    - 操作: create, update, inspect, delete, addWaypoint, removeWaypoint, clearWaypoints, startPath, stopPath, pausePath, resumePath, resetPath, goToWaypoint, findByWaypointId
+    - UnityEvents: OnWaypointReached(index), OnPathComplete, OnPathStart
+
+  - **unity_gamekit_trigger_zone** - トリガーゾーンシステム
+    - ゾーンタイプ: Checkpoint, DamageZone, HealZone, Teleport, SpeedBoost, SlowDown, KillZone, SafeZone, Generic, Trigger
+    - 2D/3Dコライダー対応、ダメージ/回復/速度変更効果
+    - 操作: create, update, inspect, delete, activate, deactivate, reset, setTeleportDestination, findByZoneId
+    - UnityEvents: OnZoneEnter(obj), OnZoneExit(obj), OnZoneStay(obj), OnTeleport, OnCheckpointActivated
+
+### 変更
+
+- **ツール総数を34から38に増加**
+  - High-Level GameKit: 10 → 14ツール
+  - ツール選択ガイド、Quick Referenceを更新
+  - フッター情報を更新（GameKit Phase 1 & 2）
+
+### ランタイムコンポーネント
+
+- `GameKitCollectible.cs` - 収集アイテム管理コンポーネント
+- `GameKitProjectile.cs` - 弾丸/ミサイル管理コンポーネント
+- `GameKitWaypointFollower.cs` - パス追従コンポーネント
+- `GameKitTriggerZone.cs` - トリガーゾーンコンポーネント
+
+### MCPハンドラー
+
+- `GameKitCollectibleHandler.cs` - Collectible MCPコマンドハンドラー
+- `GameKitProjectileHandler.cs` - Projectile MCPコマンドハンドラー
+- `GameKitWaypointHandler.cs` - Waypoint MCPコマンドハンドラー
+- `GameKitTriggerZoneHandler.cs` - TriggerZone MCPコマンドハンドラー
+
+## [2.5.0] - 2025-12-29
+
+### 追加
+
+- **Phase 1 GameKit MCP ツール（4ツール）**
+  LLMがC#スクリプトを書く代わりに宣言的に使用できる、一般的なゲームメカニクス用MCPツール群
+
+  - **unity_gamekit_health** - HP/ダメージシステム
+    - 最大HP、現在HP、無敵時間、死亡時動作（Destroy/Disable/Respawn/EventOnly）
+    - リスポーン位置・遅延設定
+    - 操作: create, update, inspect, delete, applyDamage, heal, kill, respawn, setInvincible, findByHealthId
+    - UnityEvents: OnDamage, OnHeal, OnDeath, OnRespawn, OnInvincibilityStart/End
+
+  - **unity_gamekit_spawner** - スポーンシステム
+    - スポーンモード: Interval（一定間隔）、Wave（ウェーブ制）、Burst（一括）、Manual（手動）
+    - オブジェクトプール対応、複数スポーン地点、ランダム回転/オフセット
+    - 操作: create, update, inspect, delete, start, stop, reset, spawnOne, spawnBurst, despawnAll, addSpawnPoint, addWave, findBySpawnerId
+    - UnityEvents: OnSpawn, OnDespawn, OnWaveStart/Complete, OnAllWavesComplete
+
+  - **unity_gamekit_timer** - タイマー/クールダウンシステム
+    - タイマー: ループ、一時停止、ポーズ無視（unscaledTime）対応
+    - クールダウン: 複数クールダウンを1つのGameObjectで管理（CooldownManager）
+    - 操作: createTimer, updateTimer, inspectTimer, deleteTimer, startTimer, stopTimer, pauseTimer, resumeTimer, resetTimer, createCooldown, inspectCooldown, triggerCooldown, resetCooldown, deleteCooldown, findByTimerId
+    - UnityEvents: OnTimerStart, OnTimerComplete, OnTimerTick, OnCooldownReady
+
+  - **unity_gamekit_ai** - AI行動システム
+    - 行動タイプ: Patrol（巡回）、Chase（追跡）、Flee（逃走）、PatrolAndChase（巡回+追跡）
+    - AI状態: Idle, Patrol, Chase, Attack, Flee, Return
+    - パトロールモード: Loop, PingPong, Random
+    - 検出システム: 検出半径、視野角、視線判定（レイキャスト）、ターゲットレイヤーマスク
+    - 操作: create, update, inspect, delete, setTarget, clearTarget, setState, addPatrolPoint, clearPatrolPoints, findByAIId
+    - UnityEvents: OnTargetDetected, OnTargetLost, OnStateChanged, OnPatrolPointReached, OnAttackRange
+
+### 変更
+
+- **ツール総数を30から34に増加**
+  - High-Level GameKit: 6 → 10ツール
+  - ツール選択ガイド、Quick Referenceを更新
+
+### ランタイムコンポーネント
+
+- `GameKitHealth.cs` - HP/ダメージ管理コンポーネント
+- `GameKitSpawner.cs` - スポーン管理コンポーネント（DespawnTrackerを含む）
+- `GameKitTimer.cs` - タイマーコンポーネント
+- `GameKitCooldown.cs` / `GameKitCooldownManager.cs` - クールダウン管理
+- `GameKitAIBehavior.cs` - AI行動コンポーネント
+
+### MCPハンドラー
+
+- `GameKitHealthHandler.cs` - Health MCPコマンドハンドラー
+- `GameKitSpawnerHandler.cs` - Spawner MCPコマンドハンドラー
+- `GameKitTimerHandler.cs` - Timer MCPコマンドハンドラー
+- `GameKitAIHandler.cs` - AI MCPコマンドハンドラー
+
 ## [2.4.12] - 2025-12-27
 
 ### 追加

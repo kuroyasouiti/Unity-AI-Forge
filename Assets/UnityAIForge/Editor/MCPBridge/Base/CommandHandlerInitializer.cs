@@ -160,12 +160,25 @@ namespace MCP.Editor.Base
         /// </summary>
         private static void RegisterGameKitHandlers()
         {
+            // Core GameKit handlers
             CommandHandlerFactory.Register("gamekitActor", new Handlers.GameKit.GameKitActorHandler());
             CommandHandlerFactory.Register("gamekitManager", new Handlers.GameKit.GameKitManagerHandler());
             CommandHandlerFactory.Register("gamekitInteraction", new Handlers.GameKit.GameKitInteractionHandler());
             CommandHandlerFactory.Register("gamekitUICommand", new Handlers.GameKit.GameKitUICommandHandler());
             CommandHandlerFactory.Register("gamekitMachinations", new Handlers.GameKit.GameKitMachinationsHandler());
             CommandHandlerFactory.Register("gamekitSceneFlow", new Handlers.GameKit.GameKitSceneFlowHandler());
+
+            // Phase 1 GameKit handlers - Common game mechanics
+            CommandHandlerFactory.Register("gamekitHealth", new Handlers.GameKit.GameKitHealthHandler());
+            CommandHandlerFactory.Register("gamekitSpawner", new Handlers.GameKit.GameKitSpawnerHandler());
+            CommandHandlerFactory.Register("gamekitTimer", new Handlers.GameKit.GameKitTimerHandler());
+            CommandHandlerFactory.Register("gamekitAI", new Handlers.GameKit.GameKitAIHandler());
+
+            // Phase 2 GameKit handlers - Additional game mechanics
+            CommandHandlerFactory.Register("gamekitCollectible", new Handlers.GameKit.GameKitCollectibleHandler());
+            CommandHandlerFactory.Register("gamekitProjectile", new Handlers.GameKit.GameKitProjectileHandler());
+            CommandHandlerFactory.Register("gamekitWaypoint", new Handlers.GameKit.GameKitWaypointHandler());
+            CommandHandlerFactory.Register("gamekitTriggerZone", new Handlers.GameKit.GameKitTriggerZoneHandler());
         }
     }
 }

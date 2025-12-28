@@ -86,6 +86,7 @@ Documentation/
 │   └── README.md ──────────────── テスト実行方法
 │
 ├── 📝 CHANGELOG.md ────────────── 変更履歴
+├── 🔮 GAMEKIT_ROADMAP.md ─────── 今後の開発計画
 ├── 🤖 CLAUDE.md ───────────────── Claude AI 連携
 ├── 🇯🇵 README_ja.md ──────────── プロジェクト概要（日本語）
 └── 🇬🇧 README.md ─────────────── Project Overview (English)
@@ -195,6 +196,7 @@ Documentation/
 - [CharacterController Bundle](Handlers/CharacterControllerBundle.README.md)
 - [Testing Guide](Testing/README.md)
 - [Changelog](CHANGELOG.md)
+- [GameKit Roadmap](GAMEKIT_ROADMAP.md) - 今後の開発計画
 
 </details>
 
@@ -241,6 +243,7 @@ Documentation/
 | GameKit Guide | ✅ 完成 | 2025-12-09 |
 | MCP Tools | ✅ 完成 | 2025-12-09 |
 | Examples | ✅ 完成 | 2025-12-03 |
+| GameKit Roadmap | 📋 計画中 | 2025-12-29 |
 | API Reference | 🚧 作成中 | - |
 
 ---

@@ -1356,6 +1356,438 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    # Phase 1 GameKit tools - Common game mechanics
+    gamekit_health_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "applyDamage", "heal", "kill", "respawn", "setInvincible", "findByHealthId"],
+                    "description": "Health operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "healthId": {"type": "string", "description": "Unique health component identifier."},
+                "maxHealth": {"type": "number", "description": "Maximum health value.", "default": 100},
+                "currentHealth": {"type": "number", "description": "Current health value."},
+                "invincibilityDuration": {"type": "number", "description": "Duration of invincibility after taking damage (seconds).", "default": 0.5},
+                "canTakeDamage": {"type": "boolean", "description": "Whether the entity can take damage."},
+                "onDeath": {
+                    "type": "string",
+                    "enum": ["destroy", "disable", "respawn", "event"],
+                    "description": "Behavior when health reaches zero.",
+                },
+                "respawnPosition": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Position to respawn at.",
+                },
+                "respawnDelay": {"type": "number", "description": "Delay before respawning (seconds)."},
+                "resetHealthOnRespawn": {"type": "boolean", "description": "Reset health to max on respawn."},
+                "amount": {"type": "number", "description": "Amount for applyDamage/heal operations."},
+                "invincible": {"type": "boolean", "description": "Set invincibility state for setInvincible operation."},
+                "duration": {"type": "number", "description": "Invincibility duration for setInvincible operation."},
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_spawner_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "start", "stop", "reset", "spawnOne", "spawnBurst", "despawnAll", "addSpawnPoint", "addWave", "findBySpawnerId"],
+                    "description": "Spawner operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "spawnerId": {"type": "string", "description": "Unique spawner identifier."},
+                "prefabPath": {"type": "string", "description": "Path to prefab asset to spawn."},
+                "spawnMode": {
+                    "type": "string",
+                    "enum": ["interval", "wave", "burst", "manual"],
+                    "description": "Spawning mode.",
+                },
+                "autoStart": {"type": "boolean", "description": "Start spawning automatically on scene start."},
+                "spawnInterval": {"type": "number", "description": "Time between spawns (seconds).", "default": 3.0},
+                "initialDelay": {"type": "number", "description": "Delay before first spawn."},
+                "maxActive": {"type": "integer", "description": "Maximum active instances at once.", "default": 10},
+                "maxTotal": {"type": "integer", "description": "Maximum total spawns (-1 for unlimited)."},
+                "spawnPointMode": {
+                    "type": "string",
+                    "enum": ["sequential", "random", "randomNoRepeat"],
+                    "description": "How to select spawn points.",
+                },
+                "usePool": {"type": "boolean", "description": "Use object pooling.", "default": True},
+                "poolInitialSize": {"type": "integer", "description": "Initial pool size."},
+                "loopWaves": {"type": "boolean", "description": "Loop waves after completing all."},
+                "delayBetweenWaves": {"type": "number", "description": "Delay between waves (seconds)."},
+                "waves": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "count": {"type": "integer", "description": "Number of enemies in wave."},
+                            "delay": {"type": "number", "description": "Delay before wave starts."},
+                            "spawnInterval": {"type": "number", "description": "Time between spawns in wave."},
+                        },
+                    },
+                    "description": "Wave configurations.",
+                },
+                "positionRandomness": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Random offset range for spawn positions.",
+                },
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Position for new spawn point.",
+                },
+                "pointPath": {"type": "string", "description": "Path to existing GameObject to use as spawn point."},
+                "count": {"type": "integer", "description": "Number to spawn for spawnBurst."},
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_timer_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["createTimer", "updateTimer", "inspectTimer", "deleteTimer", "createCooldown", "updateCooldown", "inspectCooldown", "deleteCooldown", "createCooldownManager", "addCooldownToManager", "inspectCooldownManager", "findByTimerId", "findByCooldownId"],
+                    "description": "Timer/Cooldown operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "timerId": {"type": "string", "description": "Unique timer identifier."},
+                "duration": {"type": "number", "description": "Timer duration (seconds).", "default": 5.0},
+                "loop": {"type": "boolean", "description": "Loop timer when complete.", "default": False},
+                "autoStart": {"type": "boolean", "description": "Start timer automatically.", "default": False},
+                "unscaledTime": {"type": "boolean", "description": "Use unscaled time (ignores Time.timeScale).", "default": False},
+                "cooldownId": {"type": "string", "description": "Unique cooldown identifier."},
+                "cooldownDuration": {"type": "number", "description": "Cooldown duration (seconds).", "default": 1.0},
+                "startReady": {"type": "boolean", "description": "Start with cooldown ready.", "default": True},
+                "cooldowns": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string", "description": "Cooldown ID."},
+                            "duration": {"type": "number", "description": "Cooldown duration."},
+                            "startReady": {"type": "boolean", "description": "Start ready."},
+                        },
+                    },
+                    "description": "Cooldown configurations for CooldownManager.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_ai_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "setTarget", "clearTarget", "setState", "addPatrolPoint", "clearPatrolPoints", "findByAIId"],
+                    "description": "AI behavior operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "aiId": {"type": "string", "description": "Unique AI behavior identifier."},
+                "behaviorType": {
+                    "type": "string",
+                    "enum": ["patrol", "chase", "flee", "patrolAndChase"],
+                    "description": "AI behavior type.",
+                },
+                "use2D": {"type": "boolean", "description": "Use 2D movement.", "default": True},
+                "moveSpeed": {"type": "number", "description": "Movement speed.", "default": 3.0},
+                "turnSpeed": {"type": "number", "description": "Turn speed.", "default": 5.0},
+                "patrolMode": {
+                    "type": "string",
+                    "enum": ["loop", "pingPong", "random"],
+                    "description": "Patrol point traversal mode.",
+                },
+                "waitTimeAtPoint": {"type": "number", "description": "Wait time at each patrol point."},
+                "patrolPoints": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            {"type": "string", "description": "Path to existing GameObject."},
+                            {
+                                "type": "object",
+                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                                "description": "Position to create new patrol point.",
+                            },
+                        ],
+                    },
+                    "description": "Patrol point paths or positions.",
+                },
+                "chaseTargetTag": {"type": "string", "description": "Tag of GameObjects to chase.", "default": "Player"},
+                "chaseTargetPath": {"type": "string", "description": "Path to specific chase target."},
+                "detectionRadius": {"type": "number", "description": "Detection range.", "default": 10.0},
+                "loseTargetDistance": {"type": "number", "description": "Distance at which to lose target.", "default": 15.0},
+                "fieldOfView": {"type": "number", "description": "Field of view in degrees.", "default": 360},
+                "requireLineOfSight": {"type": "boolean", "description": "Require line of sight for detection."},
+                "attackRange": {"type": "number", "description": "Attack range.", "default": 2.0},
+                "attackCooldown": {"type": "number", "description": "Attack cooldown (seconds).", "default": 1.0},
+                "fleeDistance": {"type": "number", "description": "Distance to flee."},
+                "safeDistance": {"type": "number", "description": "Distance considered safe."},
+                "state": {
+                    "type": "string",
+                    "enum": ["idle", "patrol", "chase", "attack", "flee", "return"],
+                    "description": "AI state to set.",
+                },
+                "pointPath": {"type": "string", "description": "Path to GameObject for patrol point."},
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Position for new patrol point.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 2 GameKit Schemas - Additional game mechanics
+
+    gamekit_collectible_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "collect", "respawn", "reset", "findByCollectibleId"],
+                    "description": "Collectible operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "collectibleId": {"type": "string", "description": "Unique collectible identifier."},
+                "name": {"type": "string", "description": "Name for new collectible GameObject."},
+                "collectibleType": {
+                    "type": "string",
+                    "enum": ["coin", "health", "mana", "powerup", "key", "ammo", "experience", "custom"],
+                    "description": "Type of collectible item.",
+                },
+                "customTypeName": {"type": "string", "description": "Custom type name for 'custom' collectibleType."},
+                "value": {"type": "number", "description": "Float value of collectible."},
+                "intValue": {"type": "integer", "description": "Integer value of collectible."},
+                "collectionBehavior": {
+                    "type": "string",
+                    "enum": ["destroy", "disable", "respawn"],
+                    "description": "What happens when collected.",
+                },
+                "respawnDelay": {"type": "number", "description": "Respawn delay in seconds."},
+                "collectable": {"type": "boolean", "description": "Whether the item can be collected."},
+                "requiredTag": {"type": "string", "description": "Required tag for collector."},
+                "is2D": {"type": "boolean", "description": "Use 2D collider instead of 3D."},
+                "colliderRadius": {"type": "number", "description": "Collider radius."},
+                "enableFloatAnimation": {"type": "boolean", "description": "Enable floating animation."},
+                "floatAmplitude": {"type": "number", "description": "Float animation amplitude."},
+                "floatFrequency": {"type": "number", "description": "Float animation frequency."},
+                "enableRotation": {"type": "boolean", "description": "Enable rotation animation."},
+                "rotationSpeed": {"type": "number", "description": "Rotation speed in degrees per second."},
+                "rotationAxis": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Rotation axis.",
+                },
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Position for new collectible.",
+                },
+                "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject (not just component)."},
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_projectile_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "launch", "setHomingTarget", "destroy", "findByProjectileId"],
+                    "description": "Projectile operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "projectileId": {"type": "string", "description": "Unique projectile identifier."},
+                "name": {"type": "string", "description": "Name for new projectile GameObject."},
+                "movementType": {
+                    "type": "string",
+                    "enum": ["transform", "rigidbody", "rigidbody2d"],
+                    "description": "Movement physics type.",
+                },
+                "speed": {"type": "number", "description": "Projectile speed."},
+                "damage": {"type": "number", "description": "Damage dealt on hit."},
+                "lifetime": {"type": "number", "description": "Time before auto-destroy."},
+                "useGravity": {"type": "boolean", "description": "Apply gravity to projectile."},
+                "gravityScale": {"type": "number", "description": "Gravity scale multiplier."},
+                "damageOnHit": {"type": "boolean", "description": "Apply damage on collision."},
+                "targetTag": {"type": "string", "description": "Tag of valid targets."},
+                "canBounce": {"type": "boolean", "description": "Allow bouncing off surfaces."},
+                "maxBounces": {"type": "integer", "description": "Maximum bounce count."},
+                "bounciness": {"type": "number", "description": "Bounce velocity retention (0-1)."},
+                "isHoming": {"type": "boolean", "description": "Enable homing behavior."},
+                "homingTargetPath": {"type": "string", "description": "Path to homing target."},
+                "homingStrength": {"type": "number", "description": "Homing turning strength."},
+                "maxHomingAngle": {"type": "number", "description": "Max homing angle in degrees."},
+                "canPierce": {"type": "boolean", "description": "Pass through targets."},
+                "maxPierceCount": {"type": "integer", "description": "Maximum pierce count."},
+                "pierceDamageReduction": {"type": "number", "description": "Damage reduction per pierce (0-1)."},
+                "direction": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Launch direction.",
+                },
+                "targetPosition": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Target position to launch at.",
+                },
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Initial position.",
+                },
+                "isTrigger": {"type": "boolean", "description": "Use trigger collider."},
+                "colliderRadius": {"type": "number", "description": "Collider radius."},
+                "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject."},
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_waypoint_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create", "update", "inspect", "delete",
+                        "addWaypoint", "removeWaypoint", "clearWaypoints",
+                        "startPath", "stopPath", "pausePath", "resumePath", "resetPath",
+                        "goToWaypoint", "findByWaypointId"
+                    ],
+                    "description": "Waypoint operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "waypointId": {"type": "string", "description": "Unique waypoint follower identifier."},
+                "name": {"type": "string", "description": "Name for new waypoint follower GameObject."},
+                "pathMode": {
+                    "type": "string",
+                    "enum": ["once", "loop", "pingpong"],
+                    "description": "Path traversal mode.",
+                },
+                "movementType": {
+                    "type": "string",
+                    "enum": ["transform", "rigidbody", "rigidbody2d"],
+                    "description": "Movement physics type.",
+                },
+                "moveSpeed": {"type": "number", "description": "Movement speed."},
+                "rotationSpeed": {"type": "number", "description": "Rotation speed."},
+                "rotationMode": {
+                    "type": "string",
+                    "enum": ["none", "lookattarget", "aligntopath"],
+                    "description": "Rotation behavior.",
+                },
+                "autoStart": {"type": "boolean", "description": "Start moving automatically."},
+                "waitTimeAtPoint": {"type": "number", "description": "Wait time at each waypoint."},
+                "startDelay": {"type": "number", "description": "Delay before starting path."},
+                "smoothMovement": {"type": "boolean", "description": "Use smooth movement."},
+                "smoothTime": {"type": "number", "description": "Smoothing time."},
+                "arrivalThreshold": {"type": "number", "description": "Distance threshold for arrival."},
+                "useLocalSpace": {"type": "boolean", "description": "Use local coordinates."},
+                "waypointPositions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    },
+                    "description": "Initial waypoint positions.",
+                },
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Position for addWaypoint or initial position.",
+                },
+                "index": {"type": "integer", "description": "Waypoint index for operations."},
+                "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject."},
+                "deleteWaypointChildren": {"type": "boolean", "description": "Delete waypoint child objects."},
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_trigger_zone_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "activate", "deactivate", "reset", "setTeleportDestination", "findByZoneId"],
+                    "description": "Trigger zone operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "zoneId": {"type": "string", "description": "Unique trigger zone identifier."},
+                "name": {"type": "string", "description": "Name for new trigger zone GameObject."},
+                "zoneType": {
+                    "type": "string",
+                    "enum": ["generic", "checkpoint", "damagezone", "healzone", "teleport", "speedboost", "slowdown", "killzone", "safezone", "trigger"],
+                    "description": "Type of trigger zone.",
+                },
+                "triggerMode": {
+                    "type": "string",
+                    "enum": ["once", "onceperentity", "repeat", "whileinside"],
+                    "description": "Trigger activation mode.",
+                },
+                "isActive": {"type": "boolean", "description": "Whether zone is active."},
+                "requiredTag": {"type": "string", "description": "Required tag for triggering."},
+                "cooldown": {"type": "number", "description": "Cooldown between triggers."},
+                "maxTriggerCount": {"type": "integer", "description": "Maximum trigger count (0 = unlimited)."},
+                "effectAmount": {"type": "number", "description": "Damage/heal amount for DamageZone/HealZone."},
+                "effectInterval": {"type": "number", "description": "Effect interval for WhileInside mode."},
+                "speedMultiplier": {"type": "number", "description": "Speed multiplier for SpeedBoost/SlowDown."},
+                "checkpointIndex": {"type": "integer", "description": "Checkpoint index for ordering."},
+                "destinationPath": {"type": "string", "description": "Teleport destination GameObject path."},
+                "destinationPosition": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Teleport destination position.",
+                },
+                "is2D": {"type": "boolean", "description": "Use 2D colliders."},
+                "colliderShape": {
+                    "type": "string",
+                    "enum": ["box", "sphere", "circle", "capsule"],
+                    "description": "Collider shape.",
+                },
+                "colliderSize": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Collider size.",
+                },
+                "showGizmo": {"type": "boolean", "description": "Show editor gizmo."},
+                "gizmoColor": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Gizmo color (RGBA 0-1).",
+                },
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Initial position.",
+                },
+                "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject."},
+            },
+        },
+        ["operation"],
+    )
+
     sprite2d_bundle_schema = _schema_with_required(
         {
             "type": "object",
@@ -1907,6 +2339,458 @@ unity_ui_navigation({
 ```""",
             inputSchema=ui_navigation_schema,
         ),
+        # Phase 1 GameKit Tools - Common game mechanics
+        types.Tool(
+            name="unity_gamekit_health",
+            description="""High-level GameKit Health: create and manage health/damage systems for game entities.
+
+**Operations:**
+- create: Add GameKitHealth component with configurable settings
+- update: Modify health parameters (maxHealth, invincibilityDuration, deathBehavior)
+- inspect: View health status and configuration
+- delete: Remove GameKitHealth component
+- applyDamage: Deal damage to the entity
+- heal: Restore health
+- kill: Instantly kill the entity
+- respawn: Respawn at configured position
+- setInvincible: Enable/disable invincibility
+- findByHealthId: Find health component by ID
+
+**Death Behaviors:** Destroy, Disable, Respawn, EventOnly
+
+**Features:**
+- Invincibility frames after damage
+- UnityEvents: OnDamage, OnHeal, OnDeath, OnRespawn, OnInvincibilityStart/End
+- Auto-respawn with configurable delay
+
+**Example:**
+```python
+# Create a player health component
+unity_gamekit_health({
+    "operation": "create",
+    "gameObjectPath": "Player",
+    "healthId": "player_health",
+    "maxHealth": 100,
+    "invincibilityDuration": 1.0,
+    "deathBehavior": "Respawn",
+    "respawnDelay": 2.0
+})
+
+# Apply damage
+unity_gamekit_health({
+    "operation": "applyDamage",
+    "healthId": "player_health",
+    "amount": 25
+})
+```""",
+            inputSchema=gamekit_health_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_spawner",
+            description="""High-level GameKit Spawner: create spawn systems for enemies, items, and objects.
+
+**Operations:**
+- create: Add GameKitSpawner component
+- update: Modify spawner settings
+- inspect: View spawner status
+- delete: Remove spawner
+- start: Start spawning
+- stop: Stop spawning
+- reset: Reset spawn count
+- spawnOne: Spawn a single instance
+- spawnBurst: Spawn multiple at once
+- despawnAll: Despawn all spawned objects
+- addSpawnPoint: Add spawn position
+- addWave: Add wave configuration
+- findBySpawnerId: Find spawner by ID
+
+**Spawn Modes:** Interval, Wave, Burst, Manual
+
+**Features:**
+- Object pooling support
+- Multiple spawn points
+- Wave system with enemy counts and delays
+- Random rotation/offset options
+- UnityEvents: OnSpawn, OnDespawn, OnWaveStart/Complete, OnAllWavesComplete
+
+**Example:**
+```python
+# Create enemy spawner
+unity_gamekit_spawner({
+    "operation": "create",
+    "gameObjectPath": "EnemySpawner",
+    "spawnerId": "enemy_spawner",
+    "prefabPath": "Assets/Prefabs/Enemy.prefab",
+    "spawnMode": "Interval",
+    "spawnInterval": 3.0,
+    "maxSpawnCount": 10,
+    "autoStart": True
+})
+
+# Add wave configuration
+unity_gamekit_spawner({
+    "operation": "addWave",
+    "spawnerId": "enemy_spawner",
+    "enemyCount": 5,
+    "spawnInterval": 1.0,
+    "delayAfterWave": 5.0
+})
+```""",
+            inputSchema=gamekit_spawner_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_timer",
+            description="""High-level GameKit Timer: create timers and cooldown systems.
+
+**Operations:**
+- createTimer: Add GameKitTimer component
+- updateTimer: Modify timer settings
+- inspectTimer: View timer status
+- deleteTimer: Remove timer
+- startTimer: Start the timer
+- stopTimer: Stop the timer
+- pauseTimer: Pause (can resume)
+- resumeTimer: Resume paused timer
+- resetTimer: Reset to initial duration
+- createCooldown: Add cooldown to CooldownManager
+- inspectCooldown: Check cooldown status
+- triggerCooldown: Start a cooldown
+- resetCooldown: Reset cooldown
+- deleteCooldown: Remove cooldown
+- findByTimerId: Find timer by ID
+
+**Timer Features:**
+- Loop mode for repeating timers
+- Unscaled time for pause-immune timers
+- UnityEvents: OnTimerStart, OnTimerComplete, OnTimerTick
+
+**Cooldown Features:**
+- Multiple cooldowns on single GameObject
+- Ready state checking
+- Remaining time queries
+
+**Example:**
+```python
+# Create a countdown timer
+unity_gamekit_timer({
+    "operation": "createTimer",
+    "gameObjectPath": "GameManager",
+    "timerId": "round_timer",
+    "duration": 60.0,
+    "loop": False,
+    "autoStart": True
+})
+
+# Create attack cooldown
+unity_gamekit_timer({
+    "operation": "createCooldown",
+    "gameObjectPath": "Player",
+    "cooldownId": "attack_cooldown",
+    "duration": 0.5
+})
+```""",
+            inputSchema=gamekit_timer_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_ai",
+            description="""High-level GameKit AI: create AI behaviors for NPCs and enemies.
+
+**Operations:**
+- create: Add GameKitAIBehavior component
+- update: Modify AI settings
+- inspect: View AI status
+- delete: Remove AI component
+- setTarget: Set chase/flee target
+- clearTarget: Clear current target
+- setState: Force state change
+- addPatrolPoint: Add patrol waypoint
+- clearPatrolPoints: Clear all waypoints
+- findByAIId: Find AI by ID
+
+**Behavior Types:** Patrol, Chase, Flee, PatrolAndChase
+
+**AI States:** Idle, Patrol, Chase, Attack, Flee, Return
+
+**Patrol Modes:** Loop, PingPong, Random
+
+**Detection:**
+- Detection radius
+- Field of view angle
+- Line of sight (raycast)
+- Target layer mask
+
+**Example:**
+```python
+# Create patrol enemy
+unity_gamekit_ai({
+    "operation": "create",
+    "gameObjectPath": "Enemy",
+    "aiId": "enemy_ai",
+    "behaviorType": "PatrolAndChase",
+    "moveSpeed": 3.0,
+    "detectionRadius": 8.0,
+    "fieldOfView": 120,
+    "patrolMode": "PingPong"
+})
+
+# Add patrol points
+unity_gamekit_ai({
+    "operation": "addPatrolPoint",
+    "aiId": "enemy_ai",
+    "position": {"x": 0, "y": 0, "z": 5}
+})
+```""",
+            inputSchema=gamekit_ai_schema,
+        ),
+        # Phase 2 GameKit Tools - Additional game mechanics
+        types.Tool(
+            name="unity_gamekit_collectible",
+            description="""High-level GameKit Collectible: create collectible items for games.
+
+**Operations:**
+- create: Add GameKitCollectible component
+- update: Modify collectible settings
+- inspect: View collectible status
+- delete: Remove collectible component
+- collect: Simulate collection (editor mode)
+- respawn: Respawn collected item
+- reset: Reset to initial state
+- findByCollectibleId: Find by ID
+
+**Collectible Types:** Coin, Health, Mana, PowerUp, Key, Ammo, Experience, Custom
+
+**Collection Behaviors:** Destroy, Disable, Respawn
+
+**Features:**
+- Auto-apply values to GameKitHealth/ResourceManager
+- Float animation (bobbing)
+- Rotation animation
+- Customizable collider
+- Tag/layer filtering
+
+**Example:**
+```python
+# Create a coin collectible
+unity_gamekit_collectible({
+    "operation": "create",
+    "name": "GoldCoin",
+    "collectibleId": "coin_01",
+    "collectibleType": "coin",
+    "value": 10,
+    "enableFloatAnimation": True,
+    "enableRotation": True,
+    "collectionBehavior": "destroy",
+    "position": {"x": 0, "y": 1, "z": 0}
+})
+
+# Create a health pickup with respawn
+unity_gamekit_collectible({
+    "operation": "create",
+    "name": "HealthPack",
+    "collectibleType": "health",
+    "value": 25,
+    "collectionBehavior": "respawn",
+    "respawnDelay": 10.0
+})
+```""",
+            inputSchema=gamekit_collectible_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_projectile",
+            description="""High-level GameKit Projectile: create projectiles for games.
+
+**Operations:**
+- create: Add GameKitProjectile component
+- update: Modify projectile settings
+- inspect: View projectile status
+- delete: Remove projectile component
+- launch: Set launch direction (play mode)
+- setHomingTarget: Set homing target
+- destroy: Destroy projectile
+- findByProjectileId: Find by ID
+
+**Movement Types:** Transform, Rigidbody, Rigidbody2D
+
+**Features:**
+- Homing missiles (target tracking)
+- Bouncing projectiles
+- Piercing projectiles
+- Gravity support
+- Damage on hit (GameKitHealth integration)
+- Target tag/layer filtering
+
+**Example:**
+```python
+# Create a bullet projectile
+unity_gamekit_projectile({
+    "operation": "create",
+    "name": "Bullet",
+    "projectileId": "bullet_01",
+    "movementType": "rigidbody",
+    "speed": 20,
+    "damage": 10,
+    "lifetime": 5,
+    "targetTag": "Enemy"
+})
+
+# Create a homing missile
+unity_gamekit_projectile({
+    "operation": "create",
+    "name": "Missile",
+    "movementType": "rigidbody",
+    "speed": 15,
+    "damage": 50,
+    "isHoming": True,
+    "homingStrength": 5.0,
+    "maxHomingAngle": 60
+})
+
+# Create a bouncing ball
+unity_gamekit_projectile({
+    "operation": "create",
+    "name": "BouncyBall",
+    "canBounce": True,
+    "maxBounces": 5,
+    "bounciness": 0.8
+})
+```""",
+            inputSchema=gamekit_projectile_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_waypoint",
+            description="""High-level GameKit Waypoint: create path followers for NPCs and platforms.
+
+**Operations:**
+- create: Add GameKitWaypoint component
+- update: Modify waypoint settings
+- inspect: View waypoint status
+- delete: Remove waypoint component
+- addWaypoint: Add waypoint position
+- removeWaypoint: Remove waypoint at index
+- clearWaypoints: Remove all waypoints
+- startPath/stopPath/pausePath/resumePath: Path control
+- resetPath: Reset to first waypoint
+- goToWaypoint: Jump to waypoint index
+- findByWaypointId: Find by ID
+
+**Path Modes:** Once, Loop, PingPong
+
+**Movement Types:** Transform, Rigidbody, Rigidbody2D
+
+**Rotation Modes:** None, LookAtTarget, AlignToPath
+
+**Features:**
+- Wait time at points
+- Smooth movement
+- Editor gizmo visualization
+- Per-point wait times
+
+**Example:**
+```python
+# Create a patrol route
+unity_gamekit_waypoint({
+    "operation": "create",
+    "name": "PatrolEnemy",
+    "waypointId": "enemy_patrol",
+    "pathMode": "pingpong",
+    "moveSpeed": 3,
+    "waitTimeAtPoint": 1.0,
+    "waypointPositions": [
+        {"x": 0, "y": 0, "z": 0},
+        {"x": 5, "y": 0, "z": 0},
+        {"x": 5, "y": 0, "z": 5},
+        {"x": 0, "y": 0, "z": 5}
+    ]
+})
+
+# Create a moving platform
+unity_gamekit_waypoint({
+    "operation": "create",
+    "name": "MovingPlatform",
+    "pathMode": "loop",
+    "moveSpeed": 2,
+    "smoothMovement": True,
+    "waypointPositions": [
+        {"x": 0, "y": 0, "z": 0},
+        {"x": 0, "y": 5, "z": 0}
+    ]
+})
+```""",
+            inputSchema=gamekit_waypoint_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_trigger_zone",
+            description="""High-level GameKit TriggerZone: create trigger zones for game mechanics.
+
+**Operations:**
+- create: Add GameKitTriggerZone component
+- update: Modify zone settings
+- inspect: View zone status
+- delete: Remove zone component
+- activate/deactivate: Enable/disable zone
+- reset: Reset trigger state
+- setTeleportDestination: Set teleport target
+- findByZoneId: Find by ID
+
+**Zone Types:**
+- Generic: Custom trigger events
+- Checkpoint: Save progress points
+- DamageZone: Deal damage over time
+- HealZone: Heal over time
+- Teleport: Teleport to destination
+- SpeedBoost: Increase movement speed
+- SlowDown: Decrease movement speed
+- KillZone: Instant death
+- SafeZone: Prevent damage
+- Trigger: One-time trigger events
+
+**Trigger Modes:** Once, OncePerEntity, Repeat, WhileInside
+
+**Features:**
+- 2D/3D collider support
+- Tag/layer filtering
+- Cooldown system
+- Effect intervals
+- Editor gizmo visualization
+
+**Example:**
+```python
+# Create a checkpoint
+unity_gamekit_trigger_zone({
+    "operation": "create",
+    "name": "Checkpoint1",
+    "zoneId": "checkpoint_1",
+    "zoneType": "checkpoint",
+    "checkpointIndex": 1,
+    "colliderSize": {"x": 2, "y": 3, "z": 2}
+})
+
+# Create a damage zone (lava)
+unity_gamekit_trigger_zone({
+    "operation": "create",
+    "name": "LavaZone",
+    "zoneType": "damagezone",
+    "triggerMode": "whileinside",
+    "effectAmount": 10,
+    "effectInterval": 0.5,
+    "gizmoColor": {"r": 1, "g": 0.3, "b": 0, "a": 0.5}
+})
+
+# Create a teleporter
+unity_gamekit_trigger_zone({
+    "operation": "create",
+    "name": "Teleporter",
+    "zoneType": "teleport",
+    "triggerMode": "once"
+})
+unity_gamekit_trigger_zone({
+    "operation": "setTeleportDestination",
+    "zoneId": "Teleporter",
+    "destinationPosition": {"x": 10, "y": 0, "z": 20}
+})
+```""",
+            inputSchema=gamekit_trigger_zone_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -2139,6 +3023,32 @@ unity_ui_navigation({
 
         if name == "unity_gamekit_sceneflow":
             return await _call_bridge_tool("gamekitSceneFlow", args)
+
+        # Phase 1 GameKit Tools - Common game mechanics
+        if name == "unity_gamekit_health":
+            return await _call_bridge_tool("gamekitHealth", args)
+
+        if name == "unity_gamekit_spawner":
+            return await _call_bridge_tool("gamekitSpawner", args)
+
+        if name == "unity_gamekit_timer":
+            return await _call_bridge_tool("gamekitTimer", args)
+
+        if name == "unity_gamekit_ai":
+            return await _call_bridge_tool("gamekitAI", args)
+
+        # Phase 2 GameKit Tools - Additional game mechanics
+        if name == "unity_gamekit_collectible":
+            return await _call_bridge_tool("gamekitCollectible", args)
+
+        if name == "unity_gamekit_projectile":
+            return await _call_bridge_tool("gamekitProjectile", args)
+
+        if name == "unity_gamekit_waypoint":
+            return await _call_bridge_tool("gamekitWaypoint", args)
+
+        if name == "unity_gamekit_trigger_zone":
+            return await _call_bridge_tool("gamekitTriggerZone", args)
 
         if name == "unity_sprite2d_bundle":
             return await _call_bridge_tool("sprite2DBundle", args)
