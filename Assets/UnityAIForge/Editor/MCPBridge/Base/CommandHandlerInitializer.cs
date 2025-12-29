@@ -183,6 +183,10 @@ namespace MCP.Editor.Base
             // Phase 3 GameKit handlers - Animation & Effects
             CommandHandlerFactory.Register("gamekitAnimationSync", new Handlers.GameKit.GameKitAnimationSyncHandler());
             CommandHandlerFactory.Register("gamekitEffect", new Handlers.GameKit.GameKitEffectHandler());
+
+            // Phase 4 GameKit handlers - Persistence & Inventory
+            CommandHandlerFactory.Register("gamekitSave", new Handlers.GameKit.GameKitSaveHandler());
+            CommandHandlerFactory.Register("gamekitInventory", new Handlers.GameKit.GameKitInventoryHandler());
         }
     }
 }

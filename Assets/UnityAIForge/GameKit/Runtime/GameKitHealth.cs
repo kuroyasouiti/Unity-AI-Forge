@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -55,6 +56,17 @@ namespace UnityAIForge.GameKit
         private float invincibilityTimer = 0f;
         private bool isDead = false;
 
+        // Registry for finding health components by ID
+        private static readonly Dictionary<string, GameKitHealth> _registry = new Dictionary<string, GameKitHealth>();
+
+        /// <summary>
+        /// Find health component by ID.
+        /// </summary>
+        public static GameKitHealth FindById(string id)
+        {
+            return _registry.TryGetValue(id, out var health) ? health : null;
+        }
+
         // Properties
         public string HealthId => healthId;
         public float MaxHealth => maxHealth;
@@ -70,6 +82,22 @@ namespace UnityAIForge.GameKit
         private void Awake()
         {
             EnsureEventsInitialized();
+        }
+
+        private void OnEnable()
+        {
+            if (!string.IsNullOrEmpty(healthId))
+            {
+                _registry[healthId] = this;
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (!string.IsNullOrEmpty(healthId))
+            {
+                _registry.Remove(healthId);
+            }
         }
 
         private void Update()

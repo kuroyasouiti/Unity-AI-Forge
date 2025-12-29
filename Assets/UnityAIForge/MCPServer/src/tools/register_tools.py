@@ -1922,6 +1922,131 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    # Phase 4: Persistence & Inventory
+    gamekit_save_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["createProfile", "updateProfile", "inspectProfile", "deleteProfile", "addTarget", "removeTarget", "clearTargets", "save", "load", "listSlots", "deleteSlot", "createManager", "inspectManager", "deleteManager", "findByProfileId"],
+                    "description": "Save system operation.",
+                },
+                "profileId": {"type": "string", "description": "Save profile identifier."},
+                "assetPath": {"type": "string", "description": "Asset path for profile (e.g., 'Assets/GameKit/SaveProfiles/MainSave.asset')."},
+                "targetPath": {"type": "string", "description": "GameObject path for manager."},
+                "slotId": {"type": "string", "description": "Save slot identifier for save/load operations."},
+                "saveTargets": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["transform", "component", "resourceManager", "health", "sceneFlow", "inventory", "playerPrefs"], "description": "Type of data to save."},
+                            "saveKey": {"type": "string", "description": "Unique key for this save data."},
+                            "gameObjectPath": {"type": "string", "description": "GameObject path for transform/component saves."},
+                            "savePosition": {"type": "boolean", "description": "Save position (for transform type)."},
+                            "saveRotation": {"type": "boolean", "description": "Save rotation (for transform type)."},
+                            "saveScale": {"type": "boolean", "description": "Save scale (for transform type)."},
+                            "componentType": {"type": "string", "description": "Component type name (for component type)."},
+                            "properties": {"type": "array", "items": {"type": "string"}, "description": "Properties to save from component."},
+                            "resourceManagerId": {"type": "string", "description": "ResourceManager ID (for resourceManager type)."},
+                            "healthId": {"type": "string", "description": "Health ID (for health type)."},
+                            "sceneFlowId": {"type": "string", "description": "SceneFlow ID (for sceneFlow type)."},
+                            "inventoryId": {"type": "string", "description": "Inventory ID (for inventory type)."},
+                        },
+                    },
+                    "description": "Save targets for createProfile operation.",
+                },
+                "target": {
+                    "type": "object",
+                    "description": "Single save target for addTarget operation.",
+                },
+                "saveKey": {"type": "string", "description": "Save key for removeTarget operation."},
+                "autoSave": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {"type": "boolean", "description": "Enable auto-save."},
+                        "intervalSeconds": {"type": "number", "description": "Auto-save interval in seconds."},
+                        "onSceneChange": {"type": "boolean", "description": "Auto-save on scene change."},
+                        "onApplicationPause": {"type": "boolean", "description": "Auto-save on application pause."},
+                        "autoSaveSlotId": {"type": "string", "description": "Slot ID for auto-save."},
+                    },
+                    "description": "Auto-save configuration.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_inventory_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "defineItem", "updateItem", "inspectItem", "deleteItem", "addItem", "removeItem", "useItem", "equip", "unequip", "getEquipped", "clear", "sort", "findByInventoryId", "findByItemId"],
+                    "description": "Inventory operation.",
+                },
+                "inventoryId": {"type": "string", "description": "Inventory identifier."},
+                "gameObjectPath": {"type": "string", "description": "GameObject path for inventory component."},
+                "maxSlots": {"type": "integer", "description": "Maximum inventory slots (default: 20)."},
+                "categories": {"type": "array", "items": {"type": "string"}, "description": "Allowed item categories (e.g., ['weapon', 'armor', 'consumable'])."},
+                "stackableCategories": {"type": "array", "items": {"type": "string"}, "description": "Categories that allow stacking."},
+                "maxStackSize": {"type": "integer", "description": "Default max stack size (default: 99)."},
+                "itemId": {"type": "string", "description": "Item identifier."},
+                "assetPath": {"type": "string", "description": "Asset path for item (e.g., 'Assets/GameKit/Items/HealthPotion.asset')."},
+                "quantity": {"type": "integer", "description": "Quantity to add/remove (default: 1)."},
+                "slotIndex": {"type": "integer", "description": "Slot index for useItem/equip operations."},
+                "equipSlot": {"type": "string", "description": "Equipment slot (mainHand/offHand/head/body/hands/feet/accessory1/accessory2)."},
+                "displayName": {"type": "string", "description": "Item display name."},
+                "description": {"type": "string", "description": "Item description."},
+                "category": {"type": "string", "description": "Item category (weapon/armor/consumable/material/key/quest/misc)."},
+                "itemData": {
+                    "type": "object",
+                    "properties": {
+                        "displayName": {"type": "string", "description": "Item display name."},
+                        "description": {"type": "string", "description": "Item description."},
+                        "category": {"type": "string", "description": "Item category."},
+                        "stackable": {"type": "boolean", "description": "Can items stack."},
+                        "maxStack": {"type": "integer", "description": "Max stack size."},
+                        "buyPrice": {"type": "integer", "description": "Buy price."},
+                        "sellPrice": {"type": "integer", "description": "Sell price."},
+                        "equippable": {"type": "boolean", "description": "Can item be equipped."},
+                        "equipSlot": {"type": "string", "description": "Equipment slot for equippable items."},
+                        "equipStats": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "statName": {"type": "string"},
+                                    "modifierType": {"type": "string", "enum": ["flat", "percentAdd", "percentMultiply"]},
+                                    "value": {"type": "number"},
+                                },
+                            },
+                            "description": "Stat modifiers when equipped.",
+                        },
+                        "onUse": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string", "enum": ["none", "heal", "addResource", "playEffect", "custom"], "description": "Use action type."},
+                                "healthId": {"type": "string", "description": "Health ID for heal action."},
+                                "amount": {"type": "number", "description": "Heal/resource amount."},
+                                "resourceManagerId": {"type": "string", "description": "ResourceManager ID."},
+                                "resourceName": {"type": "string", "description": "Resource name to add."},
+                                "resourceAmount": {"type": "number", "description": "Resource amount."},
+                                "effectId": {"type": "string", "description": "Effect ID to play."},
+                                "consumeOnUse": {"type": "boolean", "description": "Consume item on use (default: true)."},
+                            },
+                            "description": "Action to perform when item is used.",
+                        },
+                    },
+                    "description": "Item data for defineItem operation.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     sprite2d_bundle_schema = _schema_with_required(
         {
             "type": "object",
@@ -3084,6 +3209,145 @@ unity_gamekit_effect({
 ```""",
             inputSchema=gamekit_effect_schema,
         ),
+        # Phase 4: Persistence & Inventory
+        types.Tool(
+            name="unity_gamekit_save",
+            description="""High-level GameKit Save: declarative save/load system with profiles and slots.
+
+**Operations:**
+- createProfile: Create save profile (ScriptableObject)
+- updateProfile: Update profile settings
+- inspectProfile: View profile targets and settings
+- deleteProfile: Delete profile asset
+- addTarget: Add a save target to profile
+- removeTarget: Remove save target by key
+- clearTargets: Clear all targets
+- save: Execute save to slot
+- load: Execute load from slot
+- listSlots: List all save slots
+- deleteSlot: Delete a save slot
+- createManager: Create GameKitSaveManager component
+- inspectManager: View manager state
+- deleteManager: Delete manager component
+- findByProfileId: Find profile by ID
+
+**Save Target Types:**
+- transform: Save position/rotation/scale
+- component: Save custom component properties
+- resourceManager: Save GameKitResourceManager state
+- health: Save GameKitHealth state
+- sceneFlow: Save GameKitSceneFlow state
+- inventory: Save GameKitInventory state
+- playerPrefs: Save to PlayerPrefs
+
+**Example:**
+```python
+# Create save profile
+unity_gamekit_save({
+    "operation": "createProfile",
+    "profileId": "main_save",
+    "saveTargets": [
+        {"type": "transform", "saveKey": "playerPos", "gameObjectPath": "Player"},
+        {"type": "resourceManager", "saveKey": "resources", "resourceManagerId": "player_resources"},
+        {"type": "inventory", "saveKey": "inventory", "inventoryId": "player_inventory"}
+    ],
+    "autoSave": {"enabled": true, "intervalSeconds": 300}
+})
+
+# Save to slot
+unity_gamekit_save({
+    "operation": "save",
+    "slotId": "slot_1"
+})
+
+# Load from slot
+unity_gamekit_save({
+    "operation": "load",
+    "slotId": "slot_1"
+})
+```""",
+            inputSchema=gamekit_save_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_inventory",
+            description="""High-level GameKit Inventory: complete inventory system with items, stacking, and equipment.
+
+**Operations:**
+- create: Create inventory component on GameObject
+- update: Update inventory settings
+- inspect: View inventory slots and equipped items
+- delete: Delete inventory component
+- defineItem: Create item asset (ScriptableObject)
+- updateItem: Update item asset properties
+- inspectItem: View item details
+- deleteItem: Delete item asset
+- addItem: Add item to inventory
+- removeItem: Remove item from inventory
+- useItem: Use item at slot index
+- equip: Equip item from slot
+- unequip: Unequip item from equipment slot
+- getEquipped: Get equipped item(s)
+- clear: Clear all inventory items
+- sort: Sort inventory by category
+- findByInventoryId: Find inventory by ID
+- findByItemId: Find item asset by ID
+
+**Item Categories:**
+- weapon, armor, consumable, material, key, quest, misc
+
+**Equipment Slots:**
+- mainHand, offHand, head, body, hands, feet, accessory1, accessory2
+
+**Example:**
+```python
+# Create inventory
+unity_gamekit_inventory({
+    "operation": "create",
+    "gameObjectPath": "Player",
+    "inventoryId": "player_inventory",
+    "maxSlots": 20,
+    "categories": ["weapon", "armor", "consumable", "key"],
+    "stackableCategories": ["consumable"],
+    "maxStackSize": 99
+})
+
+# Define item asset
+unity_gamekit_inventory({
+    "operation": "defineItem",
+    "itemId": "health_potion",
+    "assetPath": "Assets/Items/HealthPotion.asset",
+    "itemData": {
+        "displayName": "Health Potion",
+        "description": "Restores 50 HP",
+        "category": "consumable",
+        "stackable": true,
+        "maxStack": 10,
+        "onUse": {
+            "type": "heal",
+            "healthId": "player_hp",
+            "amount": 50
+        }
+    }
+})
+
+# Add item to inventory
+unity_gamekit_inventory({
+    "operation": "addItem",
+    "inventoryId": "player_inventory",
+    "itemId": "health_potion",
+    "quantity": 3
+})
+
+# Equip item
+unity_gamekit_inventory({
+    "operation": "equip",
+    "inventoryId": "player_inventory",
+    "slotIndex": 0,
+    "equipSlot": "mainHand"
+})
+```""",
+            inputSchema=gamekit_inventory_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -3349,6 +3613,13 @@ unity_gamekit_effect({
 
         if name == "unity_gamekit_effect":
             return await _call_bridge_tool("gamekitEffect", args)
+
+        # Phase 4 GameKit Tools - Persistence & Inventory
+        if name == "unity_gamekit_save":
+            return await _call_bridge_tool("gamekitSave", args)
+
+        if name == "unity_gamekit_inventory":
+            return await _call_bridge_tool("gamekitInventory", args)
 
         if name == "unity_sprite2d_bundle":
             return await _call_bridge_tool("sprite2DBundle", args)

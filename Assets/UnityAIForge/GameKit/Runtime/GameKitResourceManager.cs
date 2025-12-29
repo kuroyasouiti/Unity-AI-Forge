@@ -17,6 +17,10 @@ namespace UnityAIForge.GameKit
     [AddComponentMenu("")]
     public class GameKitResourceManager : MonoBehaviour
     {
+        [Header("Identity")]
+        [Tooltip("Unique identifier for this resource manager")]
+        [SerializeField] private string managerId;
+
         [Header("Machinations Asset (Optional)")]
         [Tooltip("Use a Machinations diagram asset to initialize resource pools")]
         [SerializeField] private GameKitMachinationsAsset machinationsAsset;
@@ -39,9 +43,37 @@ namespace UnityAIForge.GameKit
         public TriggerFiredEvent OnTriggerFired = new TriggerFiredEvent();
         
         public GameKitMachinationsAsset MachinationsAsset => machinationsAsset;
-        
+        public string ManagerId => managerId;
+
         private Dictionary<string, float> lastTriggerValues = new Dictionary<string, float>();
         private Dictionary<string, bool> flowStates = new Dictionary<string, bool>();
+
+        // Registry for finding resource managers by ID
+        private static readonly Dictionary<string, GameKitResourceManager> _registry = new Dictionary<string, GameKitResourceManager>();
+
+        /// <summary>
+        /// Find resource manager by ID.
+        /// </summary>
+        public static GameKitResourceManager FindById(string id)
+        {
+            return _registry.TryGetValue(id, out var manager) ? manager : null;
+        }
+
+        private void OnEnable()
+        {
+            if (!string.IsNullOrEmpty(managerId))
+            {
+                _registry[managerId] = this;
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (!string.IsNullOrEmpty(managerId))
+            {
+                _registry.Remove(managerId);
+            }
+        }
 
         private void Start()
         {
