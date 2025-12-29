@@ -1788,6 +1788,140 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    # Phase 3 GameKit Tools - Animation & Effects
+    gamekit_animation_sync_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "addSyncRule", "removeSyncRule", "addTriggerRule", "removeTriggerRule", "fireTrigger", "setParameter", "findBySyncId"],
+                    "description": "Animation sync operation to perform.",
+                },
+                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "syncId": {"type": "string", "description": "Unique animation sync identifier."},
+                "animatorPath": {"type": "string", "description": "Path to GameObject with Animator component."},
+                "autoFindAnimator": {"type": "boolean", "description": "Auto-find Animator on same GameObject."},
+                "syncRules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "parameter": {"type": "string", "description": "Animator parameter name."},
+                            "parameterType": {"type": "string", "enum": ["float", "int", "bool"], "description": "Parameter type."},
+                            "sourceType": {"type": "string", "enum": ["rigidbody3d", "rigidbody2d", "transform", "health", "custom"], "description": "Value source type."},
+                            "sourceProperty": {"type": "string", "description": "Property to read (e.g., 'velocity.magnitude', 'position.y')."},
+                            "healthId": {"type": "string", "description": "Health ID when sourceType is 'health'."},
+                            "multiplier": {"type": "number", "description": "Value multiplier (default: 1.0)."},
+                            "boolThreshold": {"type": "number", "description": "Threshold for bool parameters."},
+                        },
+                    },
+                    "description": "Sync rules for animator parameters.",
+                },
+                "triggers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "triggerName": {"type": "string", "description": "Animator trigger name."},
+                            "eventSource": {"type": "string", "enum": ["health", "input", "manual"], "description": "Event source type."},
+                            "inputAction": {"type": "string", "description": "Input action name."},
+                            "healthId": {"type": "string", "description": "Health component ID."},
+                            "healthEvent": {"type": "string", "enum": ["OnDamaged", "OnHealed", "OnDeath", "OnRespawn", "OnInvincibilityStart", "OnInvincibilityEnd"], "description": "Health event type."},
+                        },
+                    },
+                    "description": "Trigger rules for animator triggers.",
+                },
+                "rule": {
+                    "type": "object",
+                    "properties": {
+                        "parameter": {"type": "string"},
+                        "parameterType": {"type": "string"},
+                        "sourceType": {"type": "string"},
+                        "sourceProperty": {"type": "string"},
+                        "healthId": {"type": "string"},
+                        "multiplier": {"type": "number"},
+                        "boolThreshold": {"type": "number"},
+                    },
+                    "description": "Single sync rule for addSyncRule operation.",
+                },
+                "trigger": {
+                    "type": "object",
+                    "properties": {
+                        "triggerName": {"type": "string"},
+                        "eventSource": {"type": "string"},
+                        "inputAction": {"type": "string"},
+                        "healthId": {"type": "string"},
+                        "healthEvent": {"type": "string"},
+                    },
+                    "description": "Single trigger rule for addTriggerRule operation.",
+                },
+                "parameterName": {"type": "string", "description": "Parameter/trigger name for remove/set operations."},
+                "triggerName": {"type": "string", "description": "Trigger name to fire."},
+                "value": {"type": "number", "description": "Value for setParameter operation."},
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_effect_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "addComponent", "removeComponent", "clearComponents", "play", "playAtPosition", "playAtTransform", "shakeCamera", "flashScreen", "setTimeScale", "createManager", "registerEffect", "unregisterEffect", "findByEffectId", "listEffects"],
+                    "description": "Effect operation to perform.",
+                },
+                "effectId": {"type": "string", "description": "Unique effect identifier."},
+                "assetPath": {"type": "string", "description": "Effect asset path (e.g., 'Assets/Effects/HitEffect.asset')."},
+                "targetPath": {"type": "string", "description": "Target GameObject path for playAtTransform."},
+                "managerPath": {"type": "string", "description": "Path to EffectManager GameObject."},
+                "newEffectId": {"type": "string", "description": "New effect ID for update operation."},
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["particle", "sound", "cameraShake", "screenFlash", "timeScale"], "description": "Effect component type."},
+                            "prefabPath": {"type": "string", "description": "Particle prefab path."},
+                            "duration": {"type": "number", "description": "Effect duration."},
+                            "attachToTarget": {"type": "boolean", "description": "Attach particle to target."},
+                            "positionOffset": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
+                            "particleScale": {"type": "number", "description": "Particle scale multiplier."},
+                            "clipPath": {"type": "string", "description": "Audio clip path."},
+                            "volume": {"type": "number", "description": "Audio volume (0-1)."},
+                            "pitchVariation": {"type": "number", "description": "Pitch variation range."},
+                            "spatialBlend": {"type": "number", "description": "3D spatial blend (0=2D, 1=3D)."},
+                            "intensity": {"type": "number", "description": "Camera shake intensity."},
+                            "shakeDuration": {"type": "number", "description": "Camera shake duration."},
+                            "frequency": {"type": "number", "description": "Camera shake frequency."},
+                            "color": {"type": "object", "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}}, "description": "Flash color."},
+                            "flashDuration": {"type": "number", "description": "Screen flash duration."},
+                            "fadeTime": {"type": "number", "description": "Flash fade time."},
+                            "targetTimeScale": {"type": "number", "description": "Target time scale for slow-mo."},
+                            "timeScaleDuration": {"type": "number", "description": "Time scale effect duration."},
+                            "timeScaleTransition": {"type": "number", "description": "Time scale transition time."},
+                        },
+                    },
+                    "description": "Effect components for create operation.",
+                },
+                "component": {
+                    "type": "object",
+                    "description": "Single effect component for addComponent operation.",
+                },
+                "componentIndex": {"type": "integer", "description": "Component index for removeComponent."},
+                "position": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "description": "Position for play operation.",
+                },
+                "persistent": {"type": "boolean", "description": "Manager persists across scenes (DontDestroyOnLoad)."},
+            },
+        },
+        ["operation"],
+    )
+
     sprite2d_bundle_schema = _schema_with_required(
         {
             "type": "object",
@@ -2791,6 +2925,165 @@ unity_gamekit_trigger_zone({
 ```""",
             inputSchema=gamekit_trigger_zone_schema,
         ),
+        # Phase 3 GameKit Tools - Animation & Effects
+        types.Tool(
+            name="unity_gamekit_animation_sync",
+            description="""High-level GameKit Animation Sync: declarative animation synchronization with game state.
+
+**Operations:**
+- create: Add GameKitAnimationSync component with sync rules
+- update: Modify sync configuration
+- inspect: View sync rules and trigger rules
+- delete: Remove GameKitAnimationSync component
+- addSyncRule: Add a parameter sync rule
+- removeSyncRule: Remove sync rule by parameter name
+- addTriggerRule: Add a trigger rule
+- removeTriggerRule: Remove trigger rule by name
+- fireTrigger: Manually fire an animator trigger
+- setParameter: Set an animator parameter value
+- findBySyncId: Find animation sync by ID
+
+**Sync Source Types:**
+- rigidbody3d/rigidbody2d: Sync with velocity, angular velocity
+- transform: Sync with position, rotation, scale
+- health: Sync with GameKitHealth component
+- custom: Manual value setting
+
+**Trigger Event Sources:**
+- health: Fire trigger on damage, heal, death, respawn, invincibility
+- input: Fire trigger on input action
+- manual: Fire via API call
+
+**Example:**
+```python
+# Create animation sync with movement speed
+unity_gamekit_animation_sync({
+    "operation": "create",
+    "targetPath": "Player",
+    "syncId": "player_anim",
+    "syncRules": [
+        {
+            "parameter": "Speed",
+            "sourceType": "rigidbody3d",
+            "sourceProperty": "velocity.magnitude",
+            "multiplier": 1.0
+        },
+        {
+            "parameter": "HealthPercent",
+            "sourceType": "health",
+            "healthId": "player_hp",
+            "sourceProperty": "healthPercent"
+        }
+    ],
+    "triggers": [
+        {
+            "triggerName": "Hit",
+            "eventSource": "health",
+            "healthId": "player_hp",
+            "healthEvent": "OnDamaged"
+        }
+    ]
+})
+
+# Add a sync rule
+unity_gamekit_animation_sync({
+    "operation": "addSyncRule",
+    "syncId": "player_anim",
+    "rule": {
+        "parameter": "IsGrounded",
+        "parameterType": "bool",
+        "sourceType": "custom",
+        "boolThreshold": 0.5
+    }
+})
+```""",
+            inputSchema=gamekit_animation_sync_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_effect",
+            description="""High-level GameKit Effect: composite effect system for particles, sound, camera shake, and screen flash.
+
+**Operations:**
+- create: Create a new effect asset (ScriptableObject)
+- update: Update effect asset properties
+- inspect: View effect components
+- delete: Delete effect asset
+- addComponent: Add a component to effect
+- removeComponent: Remove component by index
+- clearComponents: Clear all components
+- play: Play effect at position (runtime)
+- playAtPosition: Same as play
+- playAtTransform: Play effect attached to transform (runtime)
+- shakeCamera: Direct camera shake (runtime)
+- flashScreen: Direct screen flash (runtime)
+- setTimeScale: Time scale effect for hit pause (runtime)
+- createManager: Create GameKitEffectManager in scene
+- registerEffect: Register effect with manager
+- unregisterEffect: Unregister effect
+- findByEffectId: Find effect asset by ID
+- listEffects: List all registered effects
+
+**Effect Component Types:**
+- particle: Spawn particle prefab
+- sound: Play audio clip
+- cameraShake: Shake camera
+- screenFlash: Flash screen overlay
+- timeScale: Slow motion / hit pause
+
+**Example:**
+```python
+# Create hit effect asset
+unity_gamekit_effect({
+    "operation": "create",
+    "effectId": "hit_effect",
+    "assetPath": "Assets/Effects/HitEffect.asset",
+    "components": [
+        {
+            "type": "particle",
+            "prefabPath": "Assets/Particles/HitSpark.prefab",
+            "duration": 0.5
+        },
+        {
+            "type": "sound",
+            "clipPath": "Assets/Audio/hit.wav",
+            "volume": 0.8,
+            "pitchVariation": 0.1
+        },
+        {
+            "type": "cameraShake",
+            "intensity": 0.3,
+            "shakeDuration": 0.2,
+            "frequency": 25
+        },
+        {
+            "type": "screenFlash",
+            "color": {"r": 1, "g": 0, "b": 0, "a": 0.3},
+            "flashDuration": 0.1
+        }
+    ]
+})
+
+# Create effect manager
+unity_gamekit_effect({
+    "operation": "createManager",
+    "persistent": true
+})
+
+# Register effect with manager
+unity_gamekit_effect({
+    "operation": "registerEffect",
+    "effectId": "hit_effect"
+})
+
+# Play effect (in play mode)
+unity_gamekit_effect({
+    "operation": "play",
+    "effectId": "hit_effect",
+    "position": {"x": 0, "y": 1, "z": 0}
+})
+```""",
+            inputSchema=gamekit_effect_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -3049,6 +3342,13 @@ unity_gamekit_trigger_zone({
 
         if name == "unity_gamekit_trigger_zone":
             return await _call_bridge_tool("gamekitTriggerZone", args)
+
+        # Phase 3 GameKit Tools - Animation & Effects
+        if name == "unity_gamekit_animation_sync":
+            return await _call_bridge_tool("gamekitAnimationSync", args)
+
+        if name == "unity_gamekit_effect":
+            return await _call_bridge_tool("gamekitEffect", args)
 
         if name == "unity_sprite2d_bundle":
             return await _call_bridge_tool("sprite2DBundle", args)

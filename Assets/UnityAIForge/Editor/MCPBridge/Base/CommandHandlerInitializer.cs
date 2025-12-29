@@ -179,6 +179,10 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("gamekitProjectile", new Handlers.GameKit.GameKitProjectileHandler());
             CommandHandlerFactory.Register("gamekitWaypoint", new Handlers.GameKit.GameKitWaypointHandler());
             CommandHandlerFactory.Register("gamekitTriggerZone", new Handlers.GameKit.GameKitTriggerZoneHandler());
+
+            // Phase 3 GameKit handlers - Animation & Effects
+            CommandHandlerFactory.Register("gamekitAnimationSync", new Handlers.GameKit.GameKitAnimationSyncHandler());
+            CommandHandlerFactory.Register("gamekitEffect", new Handlers.GameKit.GameKitEffectHandler());
         }
     }
 }

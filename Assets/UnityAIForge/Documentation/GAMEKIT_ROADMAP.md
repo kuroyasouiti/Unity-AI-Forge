@@ -2,7 +2,7 @@
 
 This document outlines the planned MCP tools for future GameKit development. These tools are designed to prevent LLMs from writing custom C# logic code by providing declarative, high-level abstractions.
 
-## Current Status (v2.5.1)
+## Current Status (v2.6.0)
 
 ### ✅ Implemented Tools
 
@@ -18,11 +18,15 @@ This document outlines the planned MCP tools for future GameKit development. The
 - `unity_gamekit_waypoint` - パス追従
 - `unity_gamekit_trigger_zone` - トリガーゾーン
 
+**Phase 3 - Animation & Effects:**
+- `unity_gamekit_animation_sync` - アニメーション同期
+- `unity_gamekit_effect` - エフェクトシステム（パーティクル/サウンド/カメラシェイク/スクリーンフラッシュ）
+
 ---
 
 ## 🔮 Future Phases
 
-### Phase 3: Animation & Effects
+### ~~Phase 3: Animation & Effects~~ ✅ IMPLEMENTED
 
 #### unity_gamekit_animation_sync
 **目的:** LLMがAnimatorコントローラーを直接操作するコードを書く代わりに、宣言的なアニメーション同期を提供
@@ -703,15 +707,15 @@ public class GameKitStatusEffectReceiver : MonoBehaviour
 
 ## 実装優先度
 
-| Phase | Tools | Priority | 依存関係 |
-|-------|-------|----------|----------|
-| 3 | animation_sync | Medium | Animator |
-| 3 | effect | High | ParticleSystem, AudioSource |
-| 4 | save | High | ResourceManager, SceneFlow |
-| 4 | inventory | High | Collectible |
-| 5 | dialogue | Medium | UI系ツール |
-| 5 | quest | Medium | dialogue, inventory |
-| 5 | status_effect | Medium | Health, Timer |
+| Phase | Tools | Priority | Status |
+|-------|-------|----------|--------|
+| 3 | animation_sync | Medium | ✅ Implemented |
+| 3 | effect | High | ✅ Implemented |
+| 4 | save | High | Pending |
+| 4 | inventory | High | Pending |
+| 5 | dialogue | Medium | Pending |
+| 5 | quest | Medium | Pending |
+| 5 | status_effect | Medium | Pending |
 
 ## 設計原則
 
@@ -737,5 +741,5 @@ public class GameKitStatusEffectReceiver : MonoBehaviour
 
 ---
 
-*Last Updated: 2024-12 (v2.5.1)*
-*Document Status: Planning/Design Phase*
+*Last Updated: 2024-12 (v2.6.0)*
+*Document Status: Phase 3 Implemented*
