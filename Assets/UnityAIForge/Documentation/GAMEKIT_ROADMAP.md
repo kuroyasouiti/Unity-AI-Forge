@@ -2,7 +2,7 @@
 
 This document outlines the planned MCP tools for future GameKit development. These tools are designed to prevent LLMs from writing custom C# logic code by providing declarative, high-level abstractions.
 
-## Current Status (v2.7.0)
+## Current Status (v2.8.0)
 
 ### ✅ Implemented Tools
 
@@ -26,6 +26,11 @@ This document outlines the planned MCP tools for future GameKit development. The
 - `unity_gamekit_save` - 宣言的セーブ/ロードシステム（プロファイル・スロット管理）
 - `unity_gamekit_inventory` - インベントリシステム（アイテム・スタック・装備）
 
+**Phase 5 - Story & Quest Systems:**
+- `unity_gamekit_dialogue` - 宣言的対話システム（ノード・選択肢・条件・アクション）
+- `unity_gamekit_quest` - クエストシステム（目標・前提条件・報酬）
+- `unity_gamekit_status_effect` - ステータス効果システム（バフ/デバフ・DoT・スタック）
+
 ---
 
 ## 🔮 Future Phases
@@ -33,6 +38,8 @@ This document outlines the planned MCP tools for future GameKit development. The
 ### ~~Phase 3: Animation & Effects~~ ✅ IMPLEMENTED
 
 ### ~~Phase 4: Persistence & Inventory~~ ✅ IMPLEMENTED
+
+### ~~Phase 5: Story & Quest Systems~~ ✅ IMPLEMENTED
 
 #### unity_gamekit_animation_sync
 **目的:** LLMがAnimatorコントローラーを直接操作するコードを書く代わりに、宣言的なアニメーション同期を提供
@@ -719,9 +726,9 @@ public class GameKitStatusEffectReceiver : MonoBehaviour
 | 3 | effect | High | ✅ Implemented |
 | 4 | save | High | ✅ Implemented |
 | 4 | inventory | High | ✅ Implemented |
-| 5 | dialogue | Medium | Pending |
-| 5 | quest | Medium | Pending |
-| 5 | status_effect | Medium | Pending |
+| 5 | dialogue | Medium | ✅ Implemented |
+| 5 | quest | Medium | ✅ Implemented |
+| 5 | status_effect | Medium | ✅ Implemented |
 
 ## 設計原則
 
@@ -747,5 +754,5 @@ public class GameKitStatusEffectReceiver : MonoBehaviour
 
 ---
 
-*Last Updated: 2024-12 (v2.7.0)*
-*Document Status: Phase 4 Implemented*
+*Last Updated: 2024-12 (v2.8.0)*
+*Document Status: Phase 5 Implemented*

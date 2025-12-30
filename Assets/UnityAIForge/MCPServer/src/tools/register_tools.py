@@ -2047,6 +2047,221 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    # Phase 5 GameKit Schemas - Story & Quest Systems
+    gamekit_dialogue_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "createDialogue", "updateDialogue", "inspectDialogue", "deleteDialogue",
+                        "addNode", "updateNode", "removeNode",
+                        "addChoice", "updateChoice", "removeChoice",
+                        "startDialogue", "selectChoice", "advanceDialogue", "endDialogue",
+                        "createManager", "inspectManager", "deleteManager",
+                        "findByDialogueId"
+                    ],
+                    "description": "Dialogue operation.",
+                },
+                "dialogueId": {"type": "string", "description": "Dialogue identifier."},
+                "assetPath": {"type": "string", "description": "Asset path for dialogue (e.g., 'Assets/Dialogues/NPC_Greeting.asset')."},
+                "gameObjectPath": {"type": "string", "description": "GameObject path for dialogue manager."},
+                "managerId": {"type": "string", "description": "Dialogue manager identifier."},
+                "displayName": {"type": "string", "description": "Dialogue display name."},
+                "description": {"type": "string", "description": "Dialogue description."},
+                "nodeId": {"type": "string", "description": "Node identifier."},
+                "choiceId": {"type": "string", "description": "Choice identifier."},
+                "choiceIndex": {"type": "integer", "description": "Choice index for selectChoice operation."},
+                "nodeData": {
+                    "type": "object",
+                    "properties": {
+                        "nodeId": {"type": "string", "description": "Node ID."},
+                        "nodeType": {"type": "string", "enum": ["dialogue", "choice", "branch", "action", "exit"], "description": "Node type."},
+                        "speakerName": {"type": "string", "description": "Speaker name for dialogue nodes."},
+                        "dialogueText": {"type": "string", "description": "Dialogue text content."},
+                        "nextNodeId": {"type": "string", "description": "Next node ID."},
+                        "delaySeconds": {"type": "number", "description": "Delay before auto-advancing."},
+                    },
+                    "description": "Node data for addNode/updateNode operations.",
+                },
+                "choiceData": {
+                    "type": "object",
+                    "properties": {
+                        "choiceId": {"type": "string", "description": "Choice ID."},
+                        "choiceText": {"type": "string", "description": "Choice display text."},
+                        "targetNodeId": {"type": "string", "description": "Target node when selected."},
+                        "conditions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "type": {"type": "string", "enum": ["quest", "resource", "inventory", "variable", "health", "custom"]},
+                                    "questId": {"type": "string"},
+                                    "questState": {"type": "string"},
+                                    "resourceManagerId": {"type": "string"},
+                                    "resourceName": {"type": "string"},
+                                    "comparison": {"type": "string", "enum": ["greaterThan", "lessThan", "equalTo", "greaterOrEqual", "lessOrEqual", "notEqual"]},
+                                    "value": {"type": "number"},
+                                },
+                            },
+                            "description": "Conditions for this choice to be available.",
+                        },
+                    },
+                    "description": "Choice data for addChoice/updateChoice operations.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_quest_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "createQuest", "updateQuest", "inspectQuest", "deleteQuest",
+                        "addObjective", "updateObjective", "removeObjective",
+                        "addPrerequisite", "removePrerequisite",
+                        "addReward", "removeReward",
+                        "startQuest", "completeQuest", "failQuest", "abandonQuest",
+                        "updateProgress", "listQuests",
+                        "createManager", "inspectManager", "deleteManager",
+                        "findByQuestId"
+                    ],
+                    "description": "Quest operation.",
+                },
+                "questId": {"type": "string", "description": "Quest identifier."},
+                "assetPath": {"type": "string", "description": "Asset path for quest (e.g., 'Assets/Quests/MainQuest_01.asset')."},
+                "gameObjectPath": {"type": "string", "description": "GameObject path for quest manager."},
+                "managerId": {"type": "string", "description": "Quest manager identifier."},
+                "displayName": {"type": "string", "description": "Quest display name."},
+                "description": {"type": "string", "description": "Quest description."},
+                "category": {"type": "string", "enum": ["main", "side", "daily", "weekly", "event", "tutorial", "hidden", "custom"], "description": "Quest category."},
+                "objectiveId": {"type": "string", "description": "Objective identifier."},
+                "progressAmount": {"type": "integer", "description": "Progress amount for updateProgress."},
+                "filter": {"type": "string", "enum": ["all", "active", "completed", "failed", "available"], "description": "Filter for listQuests."},
+                "objectiveData": {
+                    "type": "object",
+                    "properties": {
+                        "objectiveId": {"type": "string", "description": "Objective ID."},
+                        "objectiveType": {"type": "string", "enum": ["kill", "collect", "talk", "location", "interact", "escort", "defend", "deliver", "explore", "craft", "custom"], "description": "Objective type."},
+                        "description": {"type": "string", "description": "Objective description."},
+                        "targetId": {"type": "string", "description": "Target ID (enemy type, item ID, NPC ID, etc.)."},
+                        "requiredAmount": {"type": "integer", "description": "Required amount to complete."},
+                        "isOptional": {"type": "boolean", "description": "Whether objective is optional."},
+                        "isSilent": {"type": "boolean", "description": "Whether to hide objective from UI."},
+                    },
+                    "description": "Objective data for addObjective/updateObjective operations.",
+                },
+                "rewardData": {
+                    "type": "object",
+                    "properties": {
+                        "rewardId": {"type": "string", "description": "Reward ID."},
+                        "rewardType": {"type": "string", "enum": ["resource", "item", "experience", "reputation", "unlock", "dialogue", "custom"], "description": "Reward type."},
+                        "resourceManagerId": {"type": "string", "description": "ResourceManager ID for resource rewards."},
+                        "resourceName": {"type": "string", "description": "Resource name."},
+                        "amount": {"type": "number", "description": "Reward amount."},
+                        "itemId": {"type": "string", "description": "Item ID for item rewards."},
+                        "quantity": {"type": "integer", "description": "Item quantity."},
+                    },
+                    "description": "Reward data for addReward operation.",
+                },
+                "prerequisiteData": {
+                    "type": "object",
+                    "properties": {
+                        "prerequisiteId": {"type": "string", "description": "Prerequisite ID."},
+                        "type": {"type": "string", "enum": ["questComplete", "questActive", "level", "resource", "item", "reputation", "custom"], "description": "Prerequisite type."},
+                        "questId": {"type": "string", "description": "Quest ID for quest-based prerequisites."},
+                        "resourceManagerId": {"type": "string", "description": "ResourceManager ID for resource prerequisites."},
+                        "resourceName": {"type": "string", "description": "Resource name."},
+                        "requiredValue": {"type": "number", "description": "Required value."},
+                    },
+                    "description": "Prerequisite data for addPrerequisite operation.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_status_effect_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "defineEffect", "updateEffect", "inspectEffect", "deleteEffect",
+                        "addModifier", "updateModifier", "removeModifier", "clearModifiers",
+                        "create", "update", "inspect", "delete",
+                        "applyEffect", "removeEffect", "clearEffects",
+                        "getActiveEffects", "getStatModifier",
+                        "findByEffectId", "findByReceiverId", "listEffects"
+                    ],
+                    "description": "Status effect operation.",
+                },
+                "effectId": {"type": "string", "description": "Effect identifier."},
+                "receiverId": {"type": "string", "description": "Receiver component identifier."},
+                "assetPath": {"type": "string", "description": "Asset path for effect (e.g., 'Assets/Effects/Poison.asset')."},
+                "gameObjectPath": {"type": "string", "description": "GameObject path for receiver component."},
+                "displayName": {"type": "string", "description": "Effect display name."},
+                "description": {"type": "string", "description": "Effect description."},
+                "effectType": {"type": "string", "enum": ["buff", "debuff", "neutral"], "description": "Effect type."},
+                "category": {"type": "string", "enum": ["generic", "poison", "burn", "freeze", "stun", "slow", "haste", "shield", "regeneration", "invincibility", "weakness", "strength", "custom"], "description": "Effect category."},
+                "duration": {"type": "number", "description": "Effect duration in seconds."},
+                "isPermanent": {"type": "boolean", "description": "Whether effect is permanent."},
+                "stackable": {"type": "boolean", "description": "Whether effect can stack."},
+                "maxStacks": {"type": "integer", "description": "Maximum stacks."},
+                "stackBehavior": {"type": "string", "enum": ["refreshDuration", "addDuration", "independent", "increaseStacks"], "description": "Behavior when effect is applied while active."},
+                "tickInterval": {"type": "number", "description": "Tick interval in seconds."},
+                "tickOnApply": {"type": "boolean", "description": "Whether to tick immediately on apply."},
+                "stacks": {"type": "integer", "description": "Number of stacks for applyEffect."},
+                "modifierId": {"type": "string", "description": "Modifier identifier."},
+                "statName": {"type": "string", "description": "Stat name for getStatModifier."},
+                "modifierData": {
+                    "type": "object",
+                    "properties": {
+                        "modifierId": {"type": "string", "description": "Modifier ID."},
+                        "type": {"type": "string", "enum": ["statModifier", "damageOverTime", "healOverTime", "stun", "silence", "invincible", "custom"], "description": "Modifier type."},
+                        "targetHealthId": {"type": "string", "description": "Target health component ID."},
+                        "targetStat": {"type": "string", "description": "Target stat name."},
+                        "value": {"type": "number", "description": "Modifier value."},
+                        "operation": {"type": "string", "enum": ["add", "subtract", "multiply", "divide", "set", "percentAdd", "percentMultiply"], "description": "Modifier operation."},
+                        "scaleWithStacks": {"type": "boolean", "description": "Scale value with stacks."},
+                        "damagePerTick": {"type": "number", "description": "Damage per tick for DoT."},
+                        "healPerTick": {"type": "number", "description": "Heal per tick for HoT."},
+                        "damageType": {"type": "string", "enum": ["physical", "magic", "fire", "ice", "lightning", "poison", "true"], "description": "Damage type."},
+                    },
+                    "description": "Modifier data for addModifier/updateModifier operations.",
+                },
+                "effectData": {
+                    "type": "object",
+                    "properties": {
+                        "displayName": {"type": "string"},
+                        "description": {"type": "string"},
+                        "effectType": {"type": "string", "enum": ["buff", "debuff", "neutral"]},
+                        "category": {"type": "string"},
+                        "duration": {"type": "number"},
+                        "isPermanent": {"type": "boolean"},
+                        "stackable": {"type": "boolean"},
+                        "maxStacks": {"type": "integer"},
+                        "stackBehavior": {"type": "string"},
+                        "tickInterval": {"type": "number"},
+                        "tickOnApply": {"type": "boolean"},
+                        "particleEffectId": {"type": "string"},
+                        "onApplyEffectId": {"type": "string"},
+                        "onRemoveEffectId": {"type": "string"},
+                        "onTickEffectId": {"type": "string"},
+                    },
+                    "description": "Effect data for defineEffect/updateEffect operations.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     sprite2d_bundle_schema = _schema_with_required(
         {
             "type": "object",
@@ -2319,6 +2534,353 @@ def register_tools(server: Server) -> None:
                 },
                 "frameRate": {"type": "number", "description": "Animation frame rate (default: 12)."},
                 "loop": {"type": "boolean", "description": "Loop animation."},
+            },
+        },
+        ["operation"],
+    )
+
+    # ======================================================================
+    # Development Cycle & Visual Tools (ROADMAP_MCP_TOOLS.md)
+    # ======================================================================
+
+    # Phase 1.1: PlayMode Control
+    playmode_control_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["play", "pause", "unpause", "stop", "step", "getState"],
+                    "description": "PlayMode control operation.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 1.2: Console Log
+    console_log_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["getRecent", "getErrors", "getWarnings", "getLogs", "clear", "getCompilationErrors", "getSummary"],
+                    "description": "Console log operation.",
+                },
+                "count": {"type": "integer", "description": "Number of logs to retrieve (default: 50 for getRecent, 100 for filtered)."},
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 2.1: Material Bundle
+    material_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "setTexture", "setColor", "applyPreset", "inspect", "applyToObjects", "delete", "duplicate", "listPresets"],
+                    "description": "Material bundle operation.",
+                },
+                "name": {"type": "string", "description": "Material name."},
+                "savePath": {"type": "string", "description": "Save path for material asset (e.g., 'Assets/Materials/MyMat.mat')."},
+                "materialPath": {"type": "string", "description": "Existing material asset path."},
+                "preset": {
+                    "type": "string",
+                    "enum": ["unlit", "lit", "transparent", "cutout", "fade", "sprite", "ui", "emissive", "metallic", "glass"],
+                    "description": "Material preset to apply.",
+                },
+                "shader": {"type": "string", "description": "Shader name override (e.g., 'Standard', 'Universal Render Pipeline/Lit')."},
+                "color": {"type": "string", "description": "Main color (hex format: '#RRGGBB' or '#RRGGBBAA')."},
+                "metallic": {"type": "number", "description": "Metallic value (0-1)."},
+                "smoothness": {"type": "number", "description": "Smoothness value (0-1)."},
+                "emission": {"type": "boolean", "description": "Enable emission."},
+                "emissionColor": {"type": "string", "description": "Emission color (hex format)."},
+                "emissionIntensity": {"type": "number", "description": "Emission intensity."},
+                "texturePath": {"type": "string", "description": "Texture asset path."},
+                "textureProperty": {"type": "string", "description": "Texture property name (e.g., '_MainTex', '_BumpMap')."},
+                "tiling": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "description": "Texture tiling."},
+                "offset": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "description": "Texture offset."},
+                "pattern": {"type": "string", "description": "Pattern for applyToObjects (e.g., 'Cube*')."},
+                "targetMaterialPath": {"type": "string", "description": "Target path for duplicate operation."},
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 2.2: Light Bundle
+    light_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "inspect", "delete", "applyPreset", "createLightingSetup", "listPresets"],
+                    "description": "Light bundle operation.",
+                },
+                "name": {"type": "string", "description": "Light GameObject name."},
+                "gameObjectPath": {"type": "string", "description": "Existing light GameObject path."},
+                "lightType": {
+                    "type": "string",
+                    "enum": ["Directional", "Point", "Spot", "Area"],
+                    "description": "Light type.",
+                },
+                "preset": {
+                    "type": "string",
+                    "enum": ["daylight", "moonlight", "warm", "cool", "spotlight", "candle", "neon"],
+                    "description": "Light preset to apply.",
+                },
+                "setupPreset": {
+                    "type": "string",
+                    "enum": ["daylight", "nighttime", "indoor", "dramatic", "studio", "sunset"],
+                    "description": "Complete lighting setup preset.",
+                },
+                "color": {"type": "string", "description": "Light color (hex format)."},
+                "intensity": {"type": "number", "description": "Light intensity."},
+                "range": {"type": "number", "description": "Light range (for Point/Spot)."},
+                "spotAngle": {"type": "number", "description": "Spot light angle."},
+                "shadows": {
+                    "type": "string",
+                    "enum": ["none", "hard", "soft"],
+                    "description": "Shadow type.",
+                },
+                "position": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}, "description": "Light position."},
+                "rotation": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}, "description": "Light rotation."},
+                "renderMode": {
+                    "type": "string",
+                    "enum": ["Auto", "ForcePixel", "ForceVertex"],
+                    "description": "Light render mode.",
+                },
+                "bounceIntensity": {"type": "number", "description": "Bounce intensity for indirect lighting."},
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 2.3: Particle Bundle
+    particle_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update", "applyPreset", "play", "stop", "pause", "inspect", "delete", "duplicate", "listPresets"],
+                    "description": "Particle bundle operation.",
+                },
+                "name": {"type": "string", "description": "ParticleSystem GameObject name."},
+                "gameObjectPath": {"type": "string", "description": "Existing ParticleSystem GameObject path."},
+                "preset": {
+                    "type": "string",
+                    "enum": ["explosion", "fire", "smoke", "sparkle", "rain", "snow", "dust", "trail", "hit", "heal", "magic", "leaves"],
+                    "description": "Particle preset to apply.",
+                },
+                "position": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}, "description": "Particle system position."},
+                "startSize": {"type": "number", "description": "Start size."},
+                "startLifetime": {"type": "number", "description": "Start lifetime."},
+                "startSpeed": {"type": "number", "description": "Start speed."},
+                "startColor": {"type": "string", "description": "Start color (hex format)."},
+                "maxParticles": {"type": "integer", "description": "Maximum particles."},
+                "emissionRate": {"type": "number", "description": "Emission rate over time."},
+                "duration": {"type": "number", "description": "System duration."},
+                "loop": {"type": "boolean", "description": "Loop playback."},
+                "playOnAwake": {"type": "boolean", "description": "Play on awake."},
+                "simulationSpace": {
+                    "type": "string",
+                    "enum": ["Local", "World", "Custom"],
+                    "description": "Simulation space.",
+                },
+                "gravity": {"type": "number", "description": "Gravity modifier."},
+                "shape": {
+                    "type": "string",
+                    "enum": ["Sphere", "Hemisphere", "Cone", "Box", "Circle", "Edge"],
+                    "description": "Emission shape.",
+                },
+                "shapeRadius": {"type": "number", "description": "Shape radius."},
+                "shapeAngle": {"type": "number", "description": "Shape angle (for Cone)."},
+                "targetPath": {"type": "string", "description": "Target path for duplicate operation."},
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 3.1: Animation3D Bundle
+    animation3d_bundle_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["setupAnimator", "createController", "addState", "addTransition", "setParameter", "addBlendTree", "createAvatarMask", "inspect", "delete", "listParameters", "listStates"],
+                    "description": "Animation3D bundle operation.",
+                },
+                "gameObjectPath": {"type": "string", "description": "Target GameObject for setupAnimator."},
+                "controllerPath": {"type": "string", "description": "AnimatorController asset path."},
+                "name": {"type": "string", "description": "Name for new controller/mask."},
+                "savePath": {"type": "string", "description": "Save path for asset."},
+                "applyRootMotion": {"type": "boolean", "description": "Apply root motion."},
+                "updateMode": {
+                    "type": "string",
+                    "enum": ["Normal", "AnimatePhysics", "UnscaledTime"],
+                    "description": "Animator update mode.",
+                },
+                "cullingMode": {
+                    "type": "string",
+                    "enum": ["AlwaysAnimate", "CullCompletely", "CullUpdateTransforms"],
+                    "description": "Animator culling mode.",
+                },
+                "parameters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "type": {"type": "string", "enum": ["float", "int", "bool", "trigger"]},
+                            "defaultValue": {},
+                        },
+                    },
+                    "description": "Animator parameters.",
+                },
+                "states": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "clip": {"type": "string"},
+                            "isDefault": {"type": "boolean"},
+                            "speed": {"type": "number"},
+                        },
+                    },
+                    "description": "Animation states.",
+                },
+                "transitions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "from": {"type": "string"},
+                            "to": {"type": "string"},
+                            "hasExitTime": {"type": "boolean"},
+                            "exitTime": {"type": "number"},
+                            "duration": {"type": "number"},
+                            "conditions": {"type": "array"},
+                        },
+                    },
+                    "description": "State transitions.",
+                },
+                "stateName": {"type": "string", "description": "State name."},
+                "clipPath": {"type": "string", "description": "Animation clip path."},
+                "layerIndex": {"type": "integer", "description": "Layer index (default: 0)."},
+                "isDefault": {"type": "boolean", "description": "Set as default state."},
+                "speed": {"type": "number", "description": "State playback speed."},
+                "fromState": {"type": "string", "description": "Source state for transition ('Any' for AnyState)."},
+                "toState": {"type": "string", "description": "Destination state for transition."},
+                "hasExitTime": {"type": "boolean", "description": "Transition has exit time."},
+                "exitTime": {"type": "number", "description": "Exit time (0-1)."},
+                "duration": {"type": "number", "description": "Transition duration."},
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "param": {"type": "string"},
+                            "mode": {"type": "string", "enum": ["if", "ifnot", "greater", "less", "equals", "notequal"]},
+                            "value": {"type": "number"},
+                        },
+                    },
+                    "description": "Transition conditions.",
+                },
+                "parameterName": {"type": "string", "description": "Parameter name."},
+                "parameterType": {"type": "string", "enum": ["float", "int", "bool", "trigger"], "description": "Parameter type."},
+                "defaultValue": {"description": "Default parameter value."},
+                "blendTreeName": {"type": "string", "description": "BlendTree name."},
+                "blendType": {
+                    "type": "string",
+                    "enum": ["Simple1D", "SimpleDirectional2D", "FreeformDirectional2D", "FreeformCartesian2D"],
+                    "description": "BlendTree type.",
+                },
+                "blendParameter": {"type": "string", "description": "Blend parameter name."},
+                "blendParameterY": {"type": "string", "description": "Blend parameter Y (for 2D)."},
+                "motions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "clip": {"type": "string"},
+                            "threshold": {"type": "number"},
+                            "positionX": {"type": "number"},
+                            "positionY": {"type": "number"},
+                        },
+                    },
+                    "description": "BlendTree motions.",
+                },
+                "enabledParts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Enabled body parts for AvatarMask.",
+                },
+                "disabledParts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Disabled body parts for AvatarMask.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    # Phase 3.2: Event Wiring
+    event_wiring_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["wire", "unwire", "inspect", "listEvents", "clearEvent", "wireMultiple"],
+                    "description": "Event wiring operation.",
+                },
+                "source": {
+                    "type": "object",
+                    "properties": {
+                        "gameObject": {"type": "string", "description": "Source GameObject path."},
+                        "component": {"type": "string", "description": "Source component type (e.g., 'Button', 'UnityEngine.UI.Button')."},
+                        "event": {"type": "string", "description": "Event name (e.g., 'onClick', 'm_OnClick')."},
+                    },
+                    "description": "Event source.",
+                },
+                "target": {
+                    "type": "object",
+                    "properties": {
+                        "gameObject": {"type": "string", "description": "Target GameObject path."},
+                        "component": {"type": "string", "description": "Target component type (optional, defaults to searching GameObject)."},
+                        "method": {"type": "string", "description": "Target method name."},
+                        "mode": {
+                            "type": "string",
+                            "enum": ["Void", "Int", "Float", "String", "Bool", "Object"],
+                            "description": "Argument mode.",
+                        },
+                        "argument": {"description": "Argument value (type depends on mode)."},
+                    },
+                    "description": "Event target.",
+                },
+                "gameObjectPath": {"type": "string", "description": "GameObject for listEvents."},
+                "componentType": {"type": "string", "description": "Component type for listEvents (optional)."},
+                "targetGameObject": {"type": "string", "description": "Target GameObject for unwire filtering."},
+                "targetMethod": {"type": "string", "description": "Target method for unwire filtering."},
+                "listenerIndex": {"type": "integer", "description": "Specific listener index for unwire."},
+                "wirings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source": {"type": "object"},
+                            "target": {"type": "object"},
+                        },
+                    },
+                    "description": "Multiple wirings for wireMultiple.",
+                },
             },
         },
         ["operation"],
@@ -3348,6 +3910,455 @@ unity_gamekit_inventory({
 ```""",
             inputSchema=gamekit_inventory_schema,
         ),
+        # Phase 5 GameKit Tools - Story & Quest Systems
+        types.Tool(
+            name="unity_gamekit_dialogue",
+            description="""High-level GameKit Dialogue: declarative dialogue system for NPC conversations with choices and conditions.
+
+**Operations:**
+- createDialogue: Create dialogue asset (ScriptableObject)
+- updateDialogue: Update dialogue properties
+- inspectDialogue: View dialogue structure
+- deleteDialogue: Delete dialogue asset
+- addNode: Add dialogue node
+- updateNode: Update node properties
+- removeNode: Remove node
+- addChoice: Add choice to choice node
+- updateChoice: Update choice properties
+- removeChoice: Remove choice
+- startDialogue: Start dialogue at runtime
+- selectChoice: Select choice during dialogue
+- advanceDialogue: Advance to next node
+- endDialogue: End current dialogue
+- createManager: Create DialogueManager component
+- inspectManager: View manager state
+- deleteManager: Delete manager component
+- findByDialogueId: Find dialogue by ID
+
+**Node Types:**
+- dialogue: Standard dialogue with speaker and text
+- choice: Multiple choice branch
+- branch: Conditional branch
+- action: Execute actions (add items, start quests, etc.)
+- exit: End dialogue
+
+**Condition Types:**
+- quest, resource, inventory, variable, health, custom
+
+**Example:**
+```python
+# Create dialogue asset
+unity_gamekit_dialogue({
+    "operation": "createDialogue",
+    "dialogueId": "npc_greeting",
+    "assetPath": "Assets/Dialogues/NPC_Greeting.asset",
+    "displayName": "NPC Greeting"
+})
+
+# Add dialogue node
+unity_gamekit_dialogue({
+    "operation": "addNode",
+    "dialogueId": "npc_greeting",
+    "nodeData": {
+        "nodeId": "start",
+        "nodeType": "dialogue",
+        "speakerName": "Old Man",
+        "dialogueText": "Hello, traveler! Are you looking for work?",
+        "nextNodeId": "choice_1"
+    }
+})
+
+# Add choice node with conditions
+unity_gamekit_dialogue({
+    "operation": "addNode",
+    "dialogueId": "npc_greeting",
+    "nodeData": {
+        "nodeId": "choice_1",
+        "nodeType": "choice"
+    }
+})
+
+unity_gamekit_dialogue({
+    "operation": "addChoice",
+    "dialogueId": "npc_greeting",
+    "nodeId": "choice_1",
+    "choiceData": {
+        "choiceId": "accept",
+        "choiceText": "Yes, I'm interested!",
+        "targetNodeId": "quest_start"
+    }
+})
+```""",
+            inputSchema=gamekit_dialogue_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_quest",
+            description="""High-level GameKit Quest: complete quest system with objectives, prerequisites, and rewards.
+
+**Operations:**
+- createQuest: Create quest asset (ScriptableObject)
+- updateQuest: Update quest properties
+- inspectQuest: View quest details
+- deleteQuest: Delete quest asset
+- addObjective: Add quest objective
+- updateObjective: Update objective properties
+- removeObjective: Remove objective
+- addPrerequisite: Add quest prerequisite
+- removePrerequisite: Remove prerequisite
+- addReward: Add quest reward
+- removeReward: Remove reward
+- startQuest: Start quest at runtime
+- completeQuest: Complete quest
+- failQuest: Fail quest
+- abandonQuest: Abandon active quest
+- updateProgress: Update objective progress
+- listQuests: List quests by filter
+- createManager: Create QuestManager component
+- inspectManager: View manager state
+- deleteManager: Delete manager component
+- findByQuestId: Find quest by ID
+
+**Quest Categories:**
+- main, side, daily, weekly, event, tutorial, hidden, custom
+
+**Objective Types:**
+- kill, collect, talk, location, interact, escort, defend, deliver, explore, craft, custom
+
+**Reward Types:**
+- resource, item, experience, reputation, unlock, dialogue, custom
+
+**Example:**
+```python
+# Create quest asset
+unity_gamekit_quest({
+    "operation": "createQuest",
+    "questId": "main_quest_01",
+    "assetPath": "Assets/Quests/MainQuest_01.asset",
+    "displayName": "The Lost Artifact",
+    "description": "Find the ancient artifact in the dungeon.",
+    "category": "main"
+})
+
+# Add objective
+unity_gamekit_quest({
+    "operation": "addObjective",
+    "questId": "main_quest_01",
+    "objectiveData": {
+        "objectiveId": "kill_goblins",
+        "objectiveType": "kill",
+        "description": "Defeat 5 goblins",
+        "targetId": "goblin",
+        "requiredAmount": 5
+    }
+})
+
+# Add reward
+unity_gamekit_quest({
+    "operation": "addReward",
+    "questId": "main_quest_01",
+    "rewardData": {
+        "rewardId": "gold_reward",
+        "rewardType": "resource",
+        "resourceManagerId": "player_resources",
+        "resourceName": "gold",
+        "amount": 100
+    }
+})
+
+# Start quest at runtime
+unity_gamekit_quest({
+    "operation": "startQuest",
+    "questId": "main_quest_01"
+})
+
+# Update progress
+unity_gamekit_quest({
+    "operation": "updateProgress",
+    "questId": "main_quest_01",
+    "objectiveId": "kill_goblins",
+    "progressAmount": 1
+})
+```""",
+            inputSchema=gamekit_quest_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_status_effect",
+            description="""High-level GameKit Status Effect: buff/debuff system with DoT, stat modifiers, and stacking.
+
+**Operations:**
+- defineEffect: Create effect asset (ScriptableObject)
+- updateEffect: Update effect properties
+- inspectEffect: View effect details
+- deleteEffect: Delete effect asset
+- addModifier: Add effect modifier
+- updateModifier: Update modifier properties
+- removeModifier: Remove modifier
+- clearModifiers: Clear all modifiers
+- create: Create StatusEffectReceiver component
+- update: Update receiver properties
+- inspect: View receiver state
+- delete: Delete receiver component
+- applyEffect: Apply effect to receiver
+- removeEffect: Remove active effect
+- clearEffects: Clear all active effects
+- getActiveEffects: List active effects
+- getStatModifier: Get cumulative stat modifier
+- findByEffectId: Find effect asset by ID
+- findByReceiverId: Find receiver by ID
+- listEffects: List all effect assets
+
+**Effect Types:**
+- buff, debuff, neutral
+
+**Effect Categories:**
+- generic, poison, burn, freeze, stun, slow, haste, shield, regeneration, invincibility, weakness, strength, custom
+
+**Modifier Types:**
+- statModifier: Modify stat values
+- damageOverTime: Deal periodic damage
+- healOverTime: Heal periodically
+- stun, silence, invincible: Status conditions
+
+**Stack Behaviors:**
+- refreshDuration, addDuration, independent, increaseStacks
+
+**Example:**
+```python
+# Define poison effect
+unity_gamekit_status_effect({
+    "operation": "defineEffect",
+    "effectId": "poison_weak",
+    "assetPath": "Assets/Effects/Poison_Weak.asset",
+    "effectData": {
+        "displayName": "Weak Poison",
+        "description": "Deals 5 damage per second for 10 seconds",
+        "effectType": "debuff",
+        "category": "poison",
+        "duration": 10,
+        "tickInterval": 1,
+        "stackable": true,
+        "maxStacks": 3,
+        "stackBehavior": "increaseStacks"
+    }
+})
+
+# Add DoT modifier
+unity_gamekit_status_effect({
+    "operation": "addModifier",
+    "effectId": "poison_weak",
+    "modifierData": {
+        "modifierId": "poison_dot",
+        "type": "damageOverTime",
+        "targetHealthId": "target_hp",
+        "damagePerTick": 5,
+        "damageType": "poison",
+        "scaleWithStacks": true
+    }
+})
+
+# Create receiver on enemy
+unity_gamekit_status_effect({
+    "operation": "create",
+    "gameObjectPath": "Enemy",
+    "receiverId": "enemy_receiver"
+})
+
+# Apply effect at runtime
+unity_gamekit_status_effect({
+    "operation": "applyEffect",
+    "receiverId": "enemy_receiver",
+    "effectId": "poison_weak",
+    "stacks": 1
+})
+
+# Get active effects
+unity_gamekit_status_effect({
+    "operation": "getActiveEffects",
+    "receiverId": "enemy_receiver"
+})
+```""",
+            inputSchema=gamekit_status_effect_schema,
+        ),
+        # ======================================================================
+        # Development Cycle & Visual Tools (ROADMAP_MCP_TOOLS.md)
+        # ======================================================================
+        types.Tool(
+            name="unity_playmode_control",
+            description="""Control Unity Editor play mode for testing games.
+
+**Operations:**
+- play: Start play mode
+- pause: Pause play mode
+- unpause: Resume paused play mode
+- stop: Stop play mode
+- step: Step one frame (while paused)
+- getState: Get current play mode state (stopped/playing/paused)
+
+Essential for LLMs to execute and test games autonomously.""",
+            inputSchema=playmode_control_schema,
+        ),
+        types.Tool(
+            name="unity_console_log",
+            description="""Retrieve Unity Console logs for debugging.
+
+**Operations:**
+- getRecent: Get recent N logs (default: 50)
+- getErrors: Get error logs only
+- getWarnings: Get warning logs only
+- getLogs: Get normal Debug.Log messages only
+- clear: Clear console
+- getCompilationErrors: Get detailed compilation errors with file/line info
+- getSummary: Get log count summary (errors/warnings/logs)
+
+Essential for LLMs to debug and fix issues autonomously.""",
+            inputSchema=console_log_schema,
+        ),
+        types.Tool(
+            name="unity_material_bundle",
+            description="""Create and configure materials with presets.
+
+**Operations:**
+- create: Create new material with optional preset
+- update: Update material properties (color, metallic, smoothness)
+- setTexture: Set texture with tiling/offset
+- setColor: Set color property
+- applyPreset: Apply material preset
+- inspect: Get material properties
+- applyToObjects: Apply material to multiple GameObjects
+- delete: Delete material asset
+- duplicate: Duplicate material
+- listPresets: List available presets
+
+**Presets:** unlit, lit, transparent, cutout, fade, sprite, ui, emissive, metallic, glass
+
+Supports Standard, URP, and HDRP render pipelines.""",
+            inputSchema=material_bundle_schema,
+        ),
+        types.Tool(
+            name="unity_light_bundle",
+            description="""Create and configure lights with presets.
+
+**Operations:**
+- create: Create light with type and preset
+- update: Update light properties
+- inspect: Get light properties
+- delete: Delete light GameObject
+- applyPreset: Apply light preset
+- createLightingSetup: Create complete lighting setup
+- listPresets: List available presets
+
+**Light Presets:** daylight, moonlight, warm, cool, spotlight, candle, neon
+
+**Setup Presets:** daylight (sun+ambient), nighttime (moon), indoor (points), dramatic (contrast), studio (3-point), sunset (warm)""",
+            inputSchema=light_bundle_schema,
+        ),
+        types.Tool(
+            name="unity_particle_bundle",
+            description="""Create and configure particle systems with presets.
+
+**Operations:**
+- create: Create particle system with preset
+- update: Update particle properties
+- applyPreset: Apply particle preset
+- play: Start particle playback
+- stop: Stop particle playback
+- pause: Pause particle playback
+- inspect: Get particle system properties
+- delete: Delete particle system GameObject
+- duplicate: Duplicate particle system
+- listPresets: List available presets
+
+**Presets:** explosion, fire, smoke, sparkle, rain, snow, dust, trail, hit, heal, magic, leaves""",
+            inputSchema=particle_bundle_schema,
+        ),
+        types.Tool(
+            name="unity_animation3d_bundle",
+            description="""Create and configure 3D character animations.
+
+**Operations:**
+- setupAnimator: Setup Animator component on GameObject
+- createController: Create AnimatorController with parameters/states/transitions
+- addState: Add animation state
+- addTransition: Add state transition with conditions
+- setParameter: Add/update animator parameter
+- addBlendTree: Create BlendTree for smooth animation blending
+- createAvatarMask: Create AvatarMask for partial body animation
+- inspect: Get controller structure
+- delete: Delete controller or state
+- listParameters: List all parameters
+- listStates: List all states in layer
+
+**Example:**
+```python
+unity_animation3d_bundle({
+    "operation": "createController",
+    "name": "PlayerAnimator",
+    "savePath": "Assets/Animations/PlayerAnimator.controller",
+    "parameters": [
+        {"name": "Speed", "type": "float"},
+        {"name": "IsGrounded", "type": "bool"}
+    ],
+    "states": [
+        {"name": "Idle", "clip": "Assets/Animations/Idle.anim", "isDefault": True},
+        {"name": "Walk", "clip": "Assets/Animations/Walk.anim"}
+    ],
+    "transitions": [
+        {"from": "Idle", "to": "Walk", "conditions": [{"param": "Speed", "mode": "greater", "value": 0.1}]}
+    ]
+})
+```""",
+            inputSchema=animation3d_bundle_schema,
+        ),
+        types.Tool(
+            name="unity_event_wiring",
+            description="""Wire UnityEvents dynamically (Button.onClick, Slider.onValueChanged, etc.).
+
+**Operations:**
+- wire: Add listener to UnityEvent
+- unwire: Remove listener(s) from UnityEvent
+- inspect: View event listeners
+- listEvents: List UnityEvent fields on component
+- clearEvent: Clear all listeners from event
+- wireMultiple: Wire multiple events at once
+
+**Argument Modes:** Void, Int, Float, String, Bool, Object
+
+**Example:**
+```python
+# Wire button click to method
+unity_event_wiring({
+    "operation": "wire",
+    "source": {
+        "gameObject": "Canvas/StartButton",
+        "component": "Button",
+        "event": "onClick"
+    },
+    "target": {
+        "gameObject": "GameManager",
+        "method": "StartGame",
+        "mode": "Void"
+    }
+})
+
+# Wire slider with value argument
+unity_event_wiring({
+    "operation": "wire",
+    "source": {
+        "gameObject": "Canvas/VolumeSlider",
+        "component": "Slider",
+        "event": "onValueChanged"
+    },
+    "target": {
+        "gameObject": "AudioManager",
+        "method": "SetVolume",
+        "mode": "Float"
+    }
+})
+```
+
+Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom UnityEvents.""",
+            inputSchema=event_wiring_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -3621,6 +4632,16 @@ unity_gamekit_inventory({
         if name == "unity_gamekit_inventory":
             return await _call_bridge_tool("gamekitInventory", args)
 
+        # Phase 5 GameKit Tools - Story & Quest Systems
+        if name == "unity_gamekit_dialogue":
+            return await _call_bridge_tool("gamekitDialogue", args)
+
+        if name == "unity_gamekit_quest":
+            return await _call_bridge_tool("gamekitQuest", args)
+
+        if name == "unity_gamekit_status_effect":
+            return await _call_bridge_tool("gamekitStatusEffect", args)
+
         if name == "unity_sprite2d_bundle":
             return await _call_bridge_tool("sprite2DBundle", args)
 
@@ -3635,6 +4656,28 @@ unity_gamekit_inventory({
 
         if name == "unity_ui_navigation":
             return await _call_bridge_tool("uiNavigation", args)
+
+        # Development Cycle & Visual Tools (ROADMAP_MCP_TOOLS.md)
+        if name == "unity_playmode_control":
+            return await _call_bridge_tool("playModeControl", args)
+
+        if name == "unity_console_log":
+            return await _call_bridge_tool("consoleLog", args)
+
+        if name == "unity_material_bundle":
+            return await _call_bridge_tool("materialBundle", args)
+
+        if name == "unity_light_bundle":
+            return await _call_bridge_tool("lightBundle", args)
+
+        if name == "unity_particle_bundle":
+            return await _call_bridge_tool("particleBundle", args)
+
+        if name == "unity_animation3d_bundle":
+            return await _call_bridge_tool("animation3DBundle", args)
+
+        if name == "unity_event_wiring":
+            return await _call_bridge_tool("eventWiring", args)
 
         if name == "unity_batch_sequential_execute":
             # Special handling for batch sequential tool (doesn't use bridge directly)

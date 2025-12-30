@@ -13,6 +13,25 @@ namespace MCP.Editor.Base
     /// </summary>
     public abstract class BaseCommandHandler : ICommandHandler
     {
+        #region Response Key Constants
+
+        /// <summary>Response key: success status.</summary>
+        protected const string KeySuccess = "success";
+        /// <summary>Response key: error message.</summary>
+        protected const string KeyError = "error";
+        /// <summary>Response key: category name.</summary>
+        protected const string KeyCategory = "category";
+        /// <summary>Response key: general message.</summary>
+        protected const string KeyMessage = "message";
+        /// <summary>Response key: GameObject path.</summary>
+        protected const string KeyGameObjectPath = "gameObjectPath";
+        /// <summary>Response key: asset path.</summary>
+        protected const string KeyAssetPath = "assetPath";
+        /// <summary>Response key: operation name.</summary>
+        protected const string KeyOperation = "operation";
+
+        #endregion
+
         #region Protected Fields
         
         /// <summary>
@@ -344,17 +363,73 @@ namespace MCP.Editor.Base
         {
             var response = new Dictionary<string, object>
             {
-                ["success"] = true
+                [KeySuccess] = true
             };
-            
+
             foreach (var (key, value) in additionalData)
             {
                 response[key] = value;
             }
-            
+
             return response;
         }
-        
+
+        /// <summary>
+        /// Extracts a nested dictionary from payload.
+        /// Returns null if key doesn't exist or value is not a dictionary.
+        /// </summary>
+        /// <param name="payload">The source payload</param>
+        /// <param name="key">The key to look up</param>
+        /// <returns>The nested dictionary or null</returns>
+        protected Dictionary<string, object> GetDictFromPayload(Dictionary<string, object> payload, string key)
+        {
+            if (payload != null && payload.TryGetValue(key, out var value) && value is Dictionary<string, object> dict)
+            {
+                return dict;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts a list from payload.
+        /// Returns null if key doesn't exist or value is not a list.
+        /// </summary>
+        /// <param name="payload">The source payload</param>
+        /// <param name="key">The key to look up</param>
+        /// <returns>The list or null</returns>
+        protected List<object> GetListFromPayload(Dictionary<string, object> payload, string key)
+        {
+            if (payload != null && payload.TryGetValue(key, out var value) && value is List<object> list)
+            {
+                return list;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Creates a failure response with a message and optional additional data.
+        /// Use this for expected error conditions (e.g., "asset not found").
+        /// </summary>
+        /// <param name="errorMessage">The error message</param>
+        /// <param name="additionalData">Optional additional key-value pairs</param>
+        /// <returns>A dictionary with success=false and error details</returns>
+        protected Dictionary<string, object> CreateFailureResponse(string errorMessage, params (string key, object value)[] additionalData)
+        {
+            var response = new Dictionary<string, object>
+            {
+                [KeySuccess] = false,
+                [KeyError] = errorMessage,
+                [KeyCategory] = Category
+            };
+
+            foreach (var (key, value) in additionalData)
+            {
+                response[key] = value;
+            }
+
+            return response;
+        }
+
         #endregion
         
         #region Resource Resolution Helper Methods

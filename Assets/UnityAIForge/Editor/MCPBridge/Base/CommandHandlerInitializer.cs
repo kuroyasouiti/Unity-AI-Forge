@@ -61,6 +61,9 @@ namespace MCP.Editor.Base
                 // ミドルレベルツールのハンドラーを登録
                 RegisterMidLevelHandlers();
 
+                // 開発サイクル・ビジュアル制御ツールのハンドラーを登録
+                RegisterDevCycleAndVisualHandlers();
+
                 // ハイレベルGameKitツールのハンドラーを登録
                 RegisterGameKitHandlers();
                 
@@ -156,6 +159,26 @@ namespace MCP.Editor.Base
         }
 
         /// <summary>
+        /// 開発サイクル基盤・ビジュアル制御ツールのハンドラーを登録します。
+        /// ROADMAP_MCP_TOOLS.md に基づく実装です。
+        /// </summary>
+        private static void RegisterDevCycleAndVisualHandlers()
+        {
+            // Phase 1: 開発サイクル基盤 (最優先)
+            CommandHandlerFactory.Register("playModeControl", new PlayModeControlHandler());
+            CommandHandlerFactory.Register("consoleLog", new ConsoleLogHandler());
+
+            // Phase 2: ビジュアル制御 (重要)
+            CommandHandlerFactory.Register("materialBundle", new MaterialBundleHandler());
+            CommandHandlerFactory.Register("lightBundle", new LightBundleHandler());
+            CommandHandlerFactory.Register("particleBundle", new ParticleBundleHandler());
+
+            // Phase 3: アニメーション・イベント (推奨)
+            CommandHandlerFactory.Register("animation3DBundle", new Animation3DBundleHandler());
+            CommandHandlerFactory.Register("eventWiring", new EventWiringHandler());
+        }
+
+        /// <summary>
         /// ハイレベルGameKitツールのハンドラーを登録します。
         /// </summary>
         private static void RegisterGameKitHandlers()
@@ -187,6 +210,11 @@ namespace MCP.Editor.Base
             // Phase 4 GameKit handlers - Persistence & Inventory
             CommandHandlerFactory.Register("gamekitSave", new Handlers.GameKit.GameKitSaveHandler());
             CommandHandlerFactory.Register("gamekitInventory", new Handlers.GameKit.GameKitInventoryHandler());
+
+            // Phase 5 GameKit handlers - Story & Quest Systems
+            CommandHandlerFactory.Register("gamekitDialogue", new Handlers.GameKit.GameKitDialogueHandler());
+            CommandHandlerFactory.Register("gamekitQuest", new Handlers.GameKit.GameKitQuestHandler());
+            CommandHandlerFactory.Register("gamekitStatusEffect", new Handlers.GameKit.GameKitStatusEffectHandler());
         }
     }
 }
