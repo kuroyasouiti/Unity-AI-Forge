@@ -329,9 +329,9 @@ namespace MCP.Editor.Handlers.GameKit
             var invincible = GetBool(payload, "invincible", true);
             var duration = GetFloat(payload, "duration", 0f);
 
-            // In editor mode, we can only set canTakeDamage
+            // Set isInvincible field directly
             var serializedHealth = new SerializedObject(health);
-            serializedHealth.FindProperty("canTakeDamage").boolValue = !invincible;
+            serializedHealth.FindProperty("isInvincible").boolValue = invincible;
 
             if (duration > 0)
             {
@@ -343,8 +343,8 @@ namespace MCP.Editor.Handlers.GameKit
 
             return CreateSuccessResponse(
                 ("healthId", health.HealthId),
-                ("canTakeDamage", !invincible),
-                ("note", invincible ? "Set to invincible (canTakeDamage=false)" : "Set to vulnerable (canTakeDamage=true)")
+                ("isInvincible", invincible),
+                ("note", invincible ? "Set to invincible" : "Set to vulnerable")
             );
         }
 

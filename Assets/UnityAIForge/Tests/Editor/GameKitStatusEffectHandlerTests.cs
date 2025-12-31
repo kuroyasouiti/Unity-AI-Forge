@@ -181,7 +181,7 @@ namespace MCP.Editor.Tests
                 ["effectId"] = "effect_stack",
                 ["displayName"] = "Stackable Effect",
                 ["duration"] = 5f,
-                ["isStackable"] = true,
+                ["stackable"] = true,
                 ["maxStacks"] = 5,
                 ["assetPath"] = assetPath
             };
@@ -217,14 +217,18 @@ namespace MCP.Editor.Tests
             };
             _handler.Execute(createPayload);
 
-            // Add modifier
+            // Add modifier - handler expects modifier data in "modifier" dictionary
             var addModifierPayload = new Dictionary<string, object>
             {
                 ["operation"] = "addModifier",
                 ["assetPath"] = assetPath,
-                ["stat"] = "Speed",
-                ["value"] = -5f,
-                ["type"] = "Additive"
+                ["modifier"] = new Dictionary<string, object>
+                {
+                    ["modifierId"] = "speed_mod",
+                    ["targetStat"] = "Speed",
+                    ["value"] = -5f,
+                    ["type"] = "statModifier"
+                }
             };
 
             var result = _handler.Execute(addModifierPayload) as Dictionary<string, object>;
@@ -297,7 +301,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "create",
-                ["gameObjectPath"] = "TestEffectReceiver"
+                ["targetPath"] = "TestEffectReceiver"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;
@@ -317,7 +321,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "create",
-                ["gameObjectPath"] = "TestEffectReceiverImmune",
+                ["targetPath"] = "TestEffectReceiverImmune",
                 ["immuneTo"] = new List<object> { "poison", "burn" }
             };
 
@@ -359,7 +363,7 @@ namespace MCP.Editor.Tests
                 ["assetPath"] = assetPath,
                 ["displayName"] = "Updated Name",
                 ["duration"] = 20f,
-                ["isStackable"] = true
+                ["stackable"] = true
             };
 
             var result = _handler.Execute(updatePayload) as Dictionary<string, object>;
@@ -429,26 +433,28 @@ namespace MCP.Editor.Tests
                 {
                     new Dictionary<string, object>
                     {
-                        ["stat"] = "Attack",
+                        ["modifierId"] = "attack_mod",
+                        ["targetStat"] = "Attack",
                         ["value"] = 5f,
-                        ["type"] = "Additive"
+                        ["type"] = "statModifier"
                     },
                     new Dictionary<string, object>
                     {
-                        ["stat"] = "Defense",
+                        ["modifierId"] = "defense_mod",
+                        ["targetStat"] = "Defense",
                         ["value"] = 3f,
-                        ["type"] = "Additive"
+                        ["type"] = "statModifier"
                     }
                 }
             };
             _handler.Execute(createPayload);
 
-            // Remove first modifier
+            // Remove first modifier by modifierId
             var removeModifierPayload = new Dictionary<string, object>
             {
                 ["operation"] = "removeModifier",
                 ["assetPath"] = assetPath,
-                ["index"] = 0
+                ["modifierId"] = "attack_mod"
             };
 
             var result = _handler.Execute(removeModifierPayload) as Dictionary<string, object>;

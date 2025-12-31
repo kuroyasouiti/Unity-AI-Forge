@@ -29,6 +29,15 @@ namespace MCP.Editor.Base
         }
 
         /// <summary>
+        /// 初期化状態をリセットします（テスト用）。
+        /// </summary>
+        public static void ResetInitializationState()
+        {
+            _hasInitialized = false;
+            _isInitializing = false;
+        }
+
+        /// <summary>
         /// 全てのコマンドハンドラーを初期化して登録します。
         /// 重複呼び出しは無視されます。
         /// </summary>

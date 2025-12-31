@@ -191,9 +191,12 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addNode",
                 ["assetPath"] = assetPath,
-                ["nodeId"] = "new_node",
-                ["speaker"] = "Merchant",
-                ["text"] = "Welcome to my shop!"
+                ["node"] = new Dictionary<string, object>
+                {
+                    ["nodeId"] = "new_node",
+                    ["speaker"] = "Merchant",
+                    ["text"] = "Welcome to my shop!"
+                }
             };
 
             var result = _handler.Execute(addNodePayload) as Dictionary<string, object>;
@@ -235,14 +238,17 @@ namespace MCP.Editor.Tests
             };
             _handler.Execute(createPayload);
 
-            // Add choice
+            // Add choice - use assetPath for reliable asset resolution
             var addChoicePayload = new Dictionary<string, object>
             {
                 ["operation"] = "addChoice",
                 ["assetPath"] = assetPath,
                 ["nodeId"] = "question_node",
-                ["choiceText"] = "Buy items",
-                ["nextNodeId"] = "shop_node"
+                ["choice"] = new Dictionary<string, object>
+                {
+                    ["text"] = "Buy items",
+                    ["nextNodeId"] = "shop_node"
+                }
             };
 
             var result = _handler.Execute(addChoicePayload) as Dictionary<string, object>;
@@ -310,7 +316,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "createManager",
-                ["gameObjectPath"] = "TestDialogueManager"
+                ["targetPath"] = "TestDialogueManager"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

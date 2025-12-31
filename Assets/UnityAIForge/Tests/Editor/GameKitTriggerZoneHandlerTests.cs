@@ -80,7 +80,7 @@ namespace MCP.Editor.Tests
                 ["operation"] = "create",
                 ["targetPath"] = "TestTriggerZone",
                 ["zoneId"] = "checkpoint_001",
-                ["triggerType"] = "Checkpoint"
+                ["zoneType"] = "Checkpoint"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;
@@ -123,15 +123,27 @@ namespace MCP.Editor.Tests
             var go = CreateTestGameObject("TestTeleportZone");
             var destination = CreateTestGameObject("TeleportDestination");
 
-            var payload = new Dictionary<string, object>
+            // First, create the teleport zone
+            var createPayload = new Dictionary<string, object>
             {
                 ["operation"] = "create",
                 ["targetPath"] = "TestTeleportZone",
-                ["zoneType"] = "Teleport",
-                ["teleportDestinationPath"] = "TeleportDestination"
+                ["zoneType"] = "Teleport"
             };
 
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
+            var createResult = _handler.Execute(createPayload) as Dictionary<string, object>;
+            Assert.IsNotNull(createResult);
+            Assert.IsTrue((bool)createResult["success"]);
+
+            // Then, set the teleport destination using setTeleportDestination operation
+            var setDestPayload = new Dictionary<string, object>
+            {
+                ["operation"] = "setTeleportDestination",
+                ["targetPath"] = "TestTeleportZone",
+                ["destinationPath"] = "TeleportDestination"
+            };
+
+            var result = _handler.Execute(setDestPayload) as Dictionary<string, object>;
 
             Assert.IsNotNull(result);
             Assert.IsTrue((bool)result["success"]);
@@ -150,7 +162,7 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "create",
                 ["targetPath"] = "TestTriggerZoneCollider",
-                ["triggerType"] = "Checkpoint",
+                ["zoneType"] = "Checkpoint",
                 ["colliderSize"] = new Dictionary<string, object>
                 {
                     ["x"] = 5f,
@@ -172,10 +184,10 @@ namespace MCP.Editor.Tests
 
         #endregion
 
-        #region SetTriggerType Operation Tests
+        #region Update Operation Tests
 
         [Test]
-        public void Execute_SetTriggerType_ShouldChangeTriggerType()
+        public void Execute_Update_ShouldChangeZoneType()
         {
             var go = CreateTestGameObject("TestTriggerTypeChange");
             var zone = go.AddComponent<GameKitTriggerZone>();
@@ -183,7 +195,7 @@ namespace MCP.Editor.Tests
 
             var payload = new Dictionary<string, object>
             {
-                ["operation"] = "setTriggerType",
+                ["operation"] = "update",
                 ["targetPath"] = "TestTriggerTypeChange",
                 ["zoneType"] = "HealZone"
             };

@@ -129,8 +129,8 @@ namespace MCP.Editor.Handlers
                 throw new ArgumentException($"Method not found: {methodName} with mode {argMode}");
             }
 
-            // Add persistent listener using reflection
-            AddPersistentListener(unityEvent, targetObj, methodName, argMode, argument);
+            // Add persistent listener using SerializedObject
+            AddPersistentListener(sourceComponent, unityEvent, targetObj, methodName, argMode, argument);
 
             EditorUtility.SetDirty(sourceComponent);
 
@@ -652,54 +652,150 @@ namespace MCP.Editor.Handlers
             return methods.FirstOrDefault(m => m.Name == methodName);
         }
 
-        private void AddPersistentListener(UnityEventBase unityEvent, UnityEngine.Object target, string methodName, string argMode, object argument)
+        private void AddPersistentListener(Component sourceComponent, UnityEventBase unityEvent, UnityEngine.Object target, string methodName, string argMode, object argument)
         {
-            // Use reflection to add persistent listener manually
-            // Unity's UnityEventTools requires delegates, but we need to set up serialized listeners
+            // Use SerializedObject to properly add persistent listeners
+            // This is the reliable way to manipulate UnityEvents in the Editor
 
-            // Get the current count to determine the new index
-            int currentCount = unityEvent.GetPersistentEventCount();
+            // Get the SerializedObject for the source component (which owns the event)
+            var serializedObject = new SerializedObject(sourceComponent);
 
-            // Use reflection to access internal methods
-            var unityEventType = typeof(UnityEventBase);
-
-            // Add a new persistent listener slot
-            var addListenerMethod = unityEventType.GetMethod("AddPersistentListener",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            if (addListenerMethod != null)
+            // Find the event property
+            SerializedProperty eventProperty = FindEventProperty(serializedObject, unityEvent);
+            if (eventProperty == null)
             {
-                addListenerMethod.Invoke(unityEvent, null);
+                throw new InvalidOperationException("Could not find the serialized event property");
             }
 
-            // Set the target and method name
-            var registerMethod = unityEventType.GetMethod("RegisterPersistentListener",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            if (registerMethod != null)
+            // Get the m_PersistentCalls.m_Calls array
+            var callsProperty = eventProperty.FindPropertyRelative("m_PersistentCalls.m_Calls");
+            if (callsProperty == null)
             {
-                registerMethod.Invoke(unityEvent, new object[] { currentCount, target, methodName });
+                throw new InvalidOperationException("Could not find m_PersistentCalls.m_Calls");
             }
 
-            // Set the call state to RuntimeOnly by default
-            var setCallStateMethod = unityEventType.GetMethod("SetPersistentListenerState",
-                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            if (setCallStateMethod != null)
+            // Add a new element
+            int newIndex = callsProperty.arraySize;
+            callsProperty.InsertArrayElementAtIndex(newIndex);
+            var callProperty = callsProperty.GetArrayElementAtIndex(newIndex);
+
+            // Set the target
+            var targetProperty = callProperty.FindPropertyRelative("m_Target");
+            targetProperty.objectReferenceValue = target;
+
+            // Set the method name
+            var methodNameProperty = callProperty.FindPropertyRelative("m_MethodName");
+            methodNameProperty.stringValue = methodName;
+
+            // Set the call state (RuntimeOnly = 1, Off = 0, EditorAndRuntime = 2)
+            var callStateProperty = callProperty.FindPropertyRelative("m_CallState");
+            callStateProperty.enumValueIndex = 2; // EditorAndRuntime
+
+            // Set the mode based on argMode
+            var modeProperty = callProperty.FindPropertyRelative("m_Mode");
+            var argumentsProperty = callProperty.FindPropertyRelative("m_Arguments");
+
+            switch (argMode.ToLower())
             {
-                setCallStateMethod.Invoke(unityEvent, new object[] { currentCount, UnityEventCallState.RuntimeOnly });
+                case "void":
+                    modeProperty.enumValueIndex = 1; // Void
+                    break;
+                case "int":
+                    modeProperty.enumValueIndex = 4; // Int
+                    if (argument != null && argumentsProperty != null)
+                    {
+                        var intArg = argumentsProperty.FindPropertyRelative("m_IntArgument");
+                        if (intArg != null) intArg.intValue = Convert.ToInt32(argument);
+                    }
+                    break;
+                case "float":
+                    modeProperty.enumValueIndex = 5; // Float
+                    if (argument != null && argumentsProperty != null)
+                    {
+                        var floatArg = argumentsProperty.FindPropertyRelative("m_FloatArgument");
+                        if (floatArg != null) floatArg.floatValue = Convert.ToSingle(argument);
+                    }
+                    break;
+                case "string":
+                    modeProperty.enumValueIndex = 3; // String
+                    if (argument != null && argumentsProperty != null)
+                    {
+                        var stringArg = argumentsProperty.FindPropertyRelative("m_StringArgument");
+                        if (stringArg != null) stringArg.stringValue = argument.ToString();
+                    }
+                    break;
+                case "bool":
+                    modeProperty.enumValueIndex = 6; // Bool
+                    if (argument != null && argumentsProperty != null)
+                    {
+                        var boolArg = argumentsProperty.FindPropertyRelative("m_BoolArgument");
+                        if (boolArg != null) boolArg.boolValue = Convert.ToBoolean(argument);
+                    }
+                    break;
+                case "object":
+                    modeProperty.enumValueIndex = 2; // Object
+                    if (argument != null && argumentsProperty != null)
+                    {
+                        var objectArg = argumentsProperty.FindPropertyRelative("m_ObjectArgument");
+                        if (objectArg != null && argument is UnityEngine.Object unityObj)
+                        {
+                            objectArg.objectReferenceValue = unityObj;
+                        }
+                    }
+                    break;
+                default:
+                    modeProperty.enumValueIndex = 1; // Default to Void
+                    break;
             }
 
-            // For typed arguments, set the argument value via SerializedObject if needed
-            if (argMode.ToLower() != "void" && argument != null)
-            {
-                SetPersistentListenerArgument(unityEvent, currentCount, argMode, argument);
-            }
+            serializedObject.ApplyModifiedProperties();
         }
 
-        private void SetPersistentListenerArgument(UnityEventBase unityEvent, int listenerIndex, string argMode, object argument)
+        private SerializedProperty FindEventProperty(SerializedObject serializedObject, UnityEventBase targetEvent)
         {
-            // For persistent listeners with arguments, we need to use SerializedObject
-            // This is complex and varies by Unity version
-            // For now, we'll skip argument setting for non-void listeners
-            // The listener will still be wired up, just without the preset argument
+            var target = serializedObject.targetObject;
+            var type = target.GetType();
+            var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            foreach (var field in fields)
+            {
+                if (typeof(UnityEventBase).IsAssignableFrom(field.FieldType))
+                {
+                    var eventValue = field.GetValue(target) as UnityEventBase;
+                    if (ReferenceEquals(eventValue, targetEvent))
+                    {
+                        // Try to find the serialized property
+                        var prop = serializedObject.FindProperty(field.Name);
+                        if (prop != null) return prop;
+
+                        // Try with m_ prefix
+                        prop = serializedObject.FindProperty("m_" + field.Name.TrimStart('m', '_'));
+                        if (prop != null) return prop;
+
+                        // For properties like "onClick", try the backing field
+                        prop = serializedObject.FindProperty("m_On" + field.Name.TrimStart('o', 'n').TrimStart('O', 'n'));
+                        if (prop != null) return prop;
+                    }
+                }
+            }
+
+            // Fallback: iterate through all serialized properties
+            var iterator = serializedObject.GetIterator();
+            while (iterator.NextVisible(true))
+            {
+                if (iterator.propertyType == SerializedPropertyType.Generic &&
+                    iterator.type.Contains("UnityEvent"))
+                {
+                    // Check if this is the right event by comparing persistent call counts and structure
+                    var callsProp = iterator.FindPropertyRelative("m_PersistentCalls.m_Calls");
+                    if (callsProp != null)
+                    {
+                        return iterator.Copy();
+                    }
+                }
+            }
+
+            return null;
         }
 
         private string GetGameObjectPath(GameObject go)

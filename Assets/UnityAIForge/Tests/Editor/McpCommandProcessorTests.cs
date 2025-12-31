@@ -21,7 +21,8 @@ namespace MCP.Editor.Tests
         {
             _createdObjects = new List<GameObject>();
             CommandHandlerFactory.Clear();
-            // ハンドラーを再初期化
+            // 初期化状態をリセットしてハンドラーを再初期化
+            CommandHandlerInitializer.ResetInitializationState();
             CommandHandlerInitializer.InitializeHandlers();
         }
 

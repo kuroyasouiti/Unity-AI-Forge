@@ -177,9 +177,12 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addComponent",
                 ["assetPath"] = assetPath,
-                ["componentType"] = "TimeScale",
-                ["scale"] = 0.1f,
-                ["duration"] = 0.5f
+                ["component"] = new Dictionary<string, object>
+                {
+                    ["type"] = "TimeScale",
+                    ["targetTimeScale"] = 0.1f,
+                    ["timeScaleDuration"] = 0.5f
+                }
             };
 
             var result = _handler.Execute(addPayload) as Dictionary<string, object>;
@@ -203,7 +206,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "createManager",
-                ["gameObjectPath"] = "TestEffectManager"
+                ["targetPath"] = "TestEffectManager"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

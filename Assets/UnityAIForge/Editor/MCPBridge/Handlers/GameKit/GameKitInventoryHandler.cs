@@ -264,29 +264,130 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"Item asset already exists at: {assetPath}");
             }
 
+            // Create ScriptableObject instance
             var item = ScriptableObject.CreateInstance<GameKitItemAsset>();
 
-            // Parse item data
-            if (payload.TryGetValue("itemData", out var dataObj) && dataObj is Dictionary<string, object> itemData)
+            // Get basic properties
+            string displayName, description, categoryStr;
+            Dictionary<string, object> itemData = null;
+
+            if (payload.TryGetValue("itemData", out var dataObj) && dataObj is Dictionary<string, object> data)
             {
-                ConfigureItemAsset(item, itemId, itemData);
+                itemData = data;
+                displayName = GetStringFromDict(data, "displayName", null) ?? GetString(payload, "displayName") ?? itemId;
+                description = GetStringFromDict(data, "description", null) ?? GetString(payload, "description") ?? "";
+                categoryStr = GetStringFromDict(data, "category", null) ?? GetString(payload, "category") ?? "misc";
             }
             else
             {
-                var displayName = GetString(payload, "displayName") ?? itemId;
-                var description = GetString(payload, "description") ?? "";
-                var categoryStr = GetString(payload, "category") ?? "misc";
-                var category = ParseItemCategory(categoryStr);
-                item.Initialize(itemId, displayName, description, category);
+                displayName = GetString(payload, "displayName") ?? itemId;
+                description = GetString(payload, "description") ?? "";
+                categoryStr = GetString(payload, "category") ?? "misc";
             }
 
+            var category = ParseItemCategory(categoryStr);
+
+            // First, create the asset to register it with Unity's AssetDatabase
             AssetDatabase.CreateAsset(item, assetPath);
+
+            // Now use SerializedObject to set ALL properties (this guarantees proper serialization)
+            var serializedObject = new SerializedObject(item);
+
+            // Set basic properties
+            serializedObject.FindProperty("itemId").stringValue = itemId;
+            serializedObject.FindProperty("displayName").stringValue = displayName;
+            serializedObject.FindProperty("description").stringValue = description;
+            serializedObject.FindProperty("category").enumValueIndex = (int)category;
+
+            // Set stacking properties
+            if (itemData != null && itemData.TryGetValue("stackable", out var stackableObj))
+            {
+                serializedObject.FindProperty("stackable").boolValue = Convert.ToBoolean(stackableObj);
+                var maxStack = itemData.TryGetValue("maxStack", out var maxStackObj) ? Convert.ToInt32(maxStackObj) : 99;
+                serializedObject.FindProperty("maxStack").intValue = Mathf.Max(1, maxStack);
+            }
+
+            // Set extended properties via serialized object
+            if (itemData != null)
+            {
+                // Prices
+                if (itemData.TryGetValue("buyPrice", out var buyObj))
+                {
+                    serializedObject.FindProperty("buyPrice").intValue = Convert.ToInt32(buyObj);
+                }
+                if (itemData.TryGetValue("sellPrice", out var sellObj))
+                {
+                    serializedObject.FindProperty("sellPrice").intValue = Convert.ToInt32(sellObj);
+                }
+
+                // Equipment
+                if (itemData.TryGetValue("equippable", out var equipObj) && Convert.ToBoolean(equipObj))
+                {
+                    serializedObject.FindProperty("equippable").boolValue = true;
+                    if (itemData.TryGetValue("equipSlot", out var slotObj))
+                    {
+                        var equipSlot = ParseEquipmentSlot(slotObj.ToString());
+                        serializedObject.FindProperty("equipSlot").enumValueIndex = (int)equipSlot;
+                    }
+
+                    // Equipment stats
+                    if (itemData.TryGetValue("equipStats", out var statsObj) && statsObj is List<object> statsList)
+                    {
+                        var statsProp = serializedObject.FindProperty("equipStats");
+                        statsProp.ClearArray();
+                        foreach (var statObj in statsList)
+                        {
+                            if (statObj is Dictionary<string, object> statDict)
+                            {
+                                statsProp.InsertArrayElementAtIndex(statsProp.arraySize);
+                                var elem = statsProp.GetArrayElementAtIndex(statsProp.arraySize - 1);
+                                elem.FindPropertyRelative("statName").stringValue = GetStringFromDict(statDict, "statName", "");
+                                elem.FindPropertyRelative("modifierType").enumValueIndex = (int)ParseModifierType(GetStringFromDict(statDict, "modifierType", "flat"));
+                                elem.FindPropertyRelative("value").floatValue = statDict.TryGetValue("value", out var valObj) ? Convert.ToSingle(valObj) : 0;
+                            }
+                        }
+                    }
+                }
+
+                // Use action
+                if (itemData.TryGetValue("onUse", out var useObj) && useObj is Dictionary<string, object> useData)
+                {
+                    var onUseProp = serializedObject.FindProperty("onUse");
+                    if (useData.TryGetValue("type", out var typeObj))
+                    {
+                        var useType = ParseUseActionType(typeObj.ToString());
+                        onUseProp.FindPropertyRelative("actionType").enumValueIndex = (int)useType;
+                    }
+                    if (useData.TryGetValue("amount", out var amountObj))
+                    {
+                        onUseProp.FindPropertyRelative("amount").floatValue = Convert.ToSingle(amountObj);
+                    }
+                    if (useData.TryGetValue("consumeOnUse", out var consumeObj))
+                    {
+                        onUseProp.FindPropertyRelative("consumeOnUse").boolValue = Convert.ToBoolean(consumeObj);
+                    }
+                }
+            }
+
+            // Apply all changes
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+
+            // Save to disk
+            EditorUtility.SetDirty(item);
             AssetDatabase.SaveAssets();
+
+            // Force reimport to ensure disk state is up-to-date
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+
+            // Reload the asset to verify
+            var savedItem = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(assetPath);
 
             return CreateSuccessResponse(
                 ("itemId", itemId),
                 ("assetPath", assetPath),
-                ("displayName", item.DisplayName)
+                ("displayName", savedItem?.DisplayName ?? itemId),
+                ("stackable", savedItem?.Stackable ?? false),
+                ("maxStack", savedItem?.MaxStack ?? 1)
             );
         }
 
@@ -388,6 +489,9 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             var quantity = GetInt(payload, "quantity", 1);
+
+            // Refresh to ensure we get the latest asset data from disk
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
 
             var item = FindItemAssetById(itemId);
             if (item == null)
@@ -741,6 +845,16 @@ namespace MCP.Editor.Handlers.GameKit
                 item.SetStacking(stackable, maxStack);
             }
 
+            // Configure extended properties
+            ConfigureItemAssetExtended(item, data);
+        }
+
+        /// <summary>
+        /// Configure extended item properties (prices, equipment, use actions).
+        /// Used by both DefineItem and UpdateItem operations.
+        /// </summary>
+        private void ConfigureItemAssetExtended(GameKitItemAsset item, Dictionary<string, object> data)
+        {
             // Prices
             if (data.TryGetValue("buyPrice", out var buyObj) || data.TryGetValue("sellPrice", out var sellObj))
             {
@@ -801,6 +915,28 @@ namespace MCP.Editor.Handlers.GameKit
 
                 item.SetUseAction(useAction);
             }
+        }
+
+        /// <summary>
+        /// Configure extended item properties using SerializedObject for on-disk persistence.
+        /// Currently a placeholder - stacking is handled separately in DefineItem.
+        /// </summary>
+        private void ConfigureItemAssetSerializedExtended(SerializedObject so, Dictionary<string, object> data)
+        {
+            // Prices - using SerializedProperty for direct serialization
+            if (data.TryGetValue("buyPrice", out var buyObj) || data.TryGetValue("sellPrice", out var sellObj))
+            {
+                var buyPriceProp = so.FindProperty("buyPrice");
+                var sellPriceProp = so.FindProperty("sellPrice");
+
+                if (buyPriceProp != null && data.TryGetValue("buyPrice", out var bObj))
+                    buyPriceProp.intValue = Convert.ToInt32(bObj);
+                if (sellPriceProp != null && data.TryGetValue("sellPrice", out var sObj))
+                    sellPriceProp.intValue = Convert.ToInt32(sObj);
+            }
+
+            // Equipment - handled via direct properties after SerializedObject changes are applied
+            // Note: Complex nested structures like equipStats are better handled after loading
         }
 
         private GameKitItemAsset.ItemCategory ParseItemCategory(string str)

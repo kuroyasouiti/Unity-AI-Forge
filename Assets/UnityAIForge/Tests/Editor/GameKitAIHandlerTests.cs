@@ -104,7 +104,7 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "create",
                 ["targetPath"] = "TestAIPatrol",
-                ["behavior"] = "Patrol",
+                ["behaviorType"] = "Patrol",
                 ["moveSpeed"] = 5f
             };
 
@@ -127,9 +127,9 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "create",
                 ["targetPath"] = "TestAIChase",
-                ["behavior"] = "Chase",
-                ["detectionRange"] = 15f,
-                ["chaseSpeed"] = 8f
+                ["behaviorType"] = "Chase",
+                ["detectionRadius"] = 15f,
+                ["moveSpeed"] = 8f
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

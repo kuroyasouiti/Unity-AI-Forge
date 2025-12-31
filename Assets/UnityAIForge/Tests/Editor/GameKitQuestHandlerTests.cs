@@ -226,15 +226,18 @@ namespace MCP.Editor.Tests
             };
             _handler.Execute(createPayload);
 
-            // Add objective
+            // Add objective - handler expects objective data in "objective" dictionary
             var addObjectivePayload = new Dictionary<string, object>
             {
                 ["operation"] = "addObjective",
                 ["assetPath"] = assetPath,
-                ["objectiveId"] = "new_objective",
-                ["description"] = "Talk to the merchant",
-                ["type"] = "Interact",
-                ["targetCount"] = 1
+                ["objective"] = new Dictionary<string, object>
+                {
+                    ["objectiveId"] = "new_objective",
+                    ["description"] = "Talk to the merchant",
+                    ["type"] = "Interact",
+                    ["requiredCount"] = 1
+                }
             };
 
             var result = _handler.Execute(addObjectivePayload) as Dictionary<string, object>;
@@ -267,14 +270,17 @@ namespace MCP.Editor.Tests
             };
             _handler.Execute(createPayload);
 
-            // Add reward
+            // Add reward - handler expects reward data in "reward" dictionary
             var addRewardPayload = new Dictionary<string, object>
             {
                 ["operation"] = "addReward",
                 ["assetPath"] = assetPath,
-                ["type"] = "Item",
-                ["itemId"] = "sword_001",
-                ["amount"] = 1
+                ["reward"] = new Dictionary<string, object>
+                {
+                    ["type"] = "Item",
+                    ["itemId"] = "sword_001",
+                    ["amount"] = 1
+                }
             };
 
             var result = _handler.Execute(addRewardPayload) as Dictionary<string, object>;
@@ -346,7 +352,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "createManager",
-                ["gameObjectPath"] = "TestQuestManager"
+                ["targetPath"] = "TestQuestManager"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

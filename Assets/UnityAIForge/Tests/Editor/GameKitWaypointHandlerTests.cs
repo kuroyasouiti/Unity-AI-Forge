@@ -126,7 +126,7 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "create",
                 ["targetPath"] = "TestWaypointPoints",
-                ["waypoints"] = new List<object>
+                ["waypointPositions"] = new List<object>
                 {
                     new Dictionary<string, object> { ["x"] = 0f, ["y"] = 0f, ["z"] = 0f },
                     new Dictionary<string, object> { ["x"] = 10f, ["y"] = 0f, ["z"] = 0f },

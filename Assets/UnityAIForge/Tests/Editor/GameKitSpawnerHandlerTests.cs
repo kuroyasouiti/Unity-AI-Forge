@@ -203,8 +203,8 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addWave",
                 ["targetPath"] = "TestSpawnerWave",
-                ["waveCount"] = 5,
-                ["waveDelay"] = 10f
+                ["count"] = 5,
+                ["delay"] = 10f
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

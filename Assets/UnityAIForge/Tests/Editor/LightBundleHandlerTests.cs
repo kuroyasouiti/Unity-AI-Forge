@@ -366,11 +366,12 @@ namespace MCP.Editor.Tests
 
             Assert.IsNotNull(result);
             Assert.IsTrue((bool)result["success"]);
-            Assert.IsTrue(result.ContainsKey("presets"));
+            Assert.IsTrue(result.ContainsKey("lightPresets"));
+            Assert.IsTrue(result.ContainsKey("setupPresets"));
 
-            var presets = result["presets"] as List<Dictionary<string, object>>;
-            Assert.IsNotNull(presets);
-            Assert.IsTrue(presets.Count > 0);
+            var lightPresets = result["lightPresets"] as List<Dictionary<string, object>>;
+            Assert.IsNotNull(lightPresets);
+            Assert.IsTrue(lightPresets.Count > 0);
         }
 
         #endregion

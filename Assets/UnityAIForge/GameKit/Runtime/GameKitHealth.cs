@@ -52,7 +52,7 @@ namespace UnityAIForge.GameKit
         public UnityEvent OnInvincibilityEnd = new UnityEvent();
 
         // State
-        private bool isInvincible = false;
+        [SerializeField] private bool isInvincible = false;
         private float invincibilityTimer = 0f;
         private bool isDead = false;
 

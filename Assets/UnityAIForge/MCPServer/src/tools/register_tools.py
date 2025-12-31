@@ -2345,31 +2345,20 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "clone", "inspect", "delete", "show", "hide", "toggle", "setNavigation"],
+                    "enum": ["create", "clone", "inspect", "delete", "show", "hide", "toggle"],
                     "description": "UI hierarchy operation.",
                 },
                 "parentPath": {"type": "string", "description": "Parent GameObject path (usually Canvas or Panel)."},
-                "gameObjectPath": {"type": "string", "description": "Target UI hierarchy root path for inspect/delete/show/hide/toggle/clone/setNavigation."},
+                "gameObjectPath": {"type": "string", "description": "Target UI hierarchy root path for inspect/delete/show/hide/toggle/clone."},
                 "hierarchyId": {"type": "string", "description": "Optional identifier for the UI hierarchy (used for referencing)."},
                 "hierarchy": {
                     "type": "object",
                     "description": "Declarative UI hierarchy definition (recursive structure).",
                     "additionalProperties": True,
                 },
-                "recursive": {"type": "boolean", "description": "Apply visibility/navigation recursively to children (default: true)."},
+                "recursive": {"type": "boolean", "description": "Apply visibility recursively to children (default: true)."},
                 "interactable": {"type": "boolean", "description": "Set interactable state when showing/hiding."},
                 "blocksRaycasts": {"type": "boolean", "description": "Set blocksRaycasts state when showing/hiding."},
-                "navigationMode": {
-                    "type": "string",
-                    "enum": ["none", "auto-vertical", "auto-horizontal", "explicit"],
-                    "description": "Navigation mode for setNavigation operation.",
-                },
-                "selectables": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of selectable element paths for explicit navigation setup.",
-                },
-                "wrapAround": {"type": "boolean", "description": "Enable wrap-around navigation (last→first, first→last)."},
                 "newName": {"type": "string", "description": "New name for cloned hierarchy root."},
             },
         },
@@ -3016,7 +3005,7 @@ Essential for configuring GameObject behavior and wiring up component references
         ),
         types.Tool(
             name="unity_gamekit_interaction",
-            description="High-level GameKit Interaction: create trigger-based interactions with declarative actions. Choose from 5 trigger types (collision/trigger/raycast/proximity/input) and 5 action types (spawnPrefab/destroyObject/playSound/sendMessage/changeScene). Add conditions (tag/layer/distance/custom) for filtering. Supports both 2D (BoxCollider2D, CircleCollider2D, CapsuleCollider2D, PolygonCollider2D) and 3D (BoxCollider, SphereCollider, CapsuleCollider, MeshCollider) colliders via is2D parameter. Perfect for collectibles, doors, switches, treasure chests, and interactive objects. No scripting required - define complete interactions declaratively.",
+            description="High-level GameKit Interaction: create trigger-based interactions with declarative actions. Choose from 5 trigger types (collision/trigger/raycast/proximity/input) and 5 action types (spawnPrefab/destroyObject/playSound/sendMessage/changeScene). Add conditions (tag/layer/distance/custom) for filtering. Supports both 2D (BoxCollider2D, CircleCollider2D, CapsuleCollider2D, PolygonCollider2D) and 3D (BoxCollider, SphereCollider, CapsuleCollider, MeshCollider) colliders via is2D parameter. Perfect for collectibles, doors, switches, treasure chests, and interactive objects. No scripting required - define complete interactions declaratively. **When to use:** For custom script actions (sendMessage, spawnPrefab). For built-in zone effects (damage, heal, checkpoint, teleport), use unity_gamekit_trigger_zone instead.",
             inputSchema=gamekit_interaction_schema,
         ),
         types.Tool(
@@ -3046,7 +3035,7 @@ Essential for configuring GameObject behavior and wiring up component references
         ),
         types.Tool(
             name="unity_ui_hierarchy",
-            description="""Mid-level declarative UI hierarchy management: create complex UI structures from single JSON definitions, manage visibility states, configure keyboard/gamepad navigation.
+            description="""Mid-level declarative UI hierarchy management: create complex UI structures from single JSON definitions, manage visibility states.
 
 **Operations:**
 - create: Build complete UI hierarchy from declarative JSON structure (panels, buttons, text, images, inputs, scrollviews, toggles, sliders, dropdowns)
@@ -3054,7 +3043,8 @@ Essential for configuring GameObject behavior and wiring up component references
 - inspect: Export UI hierarchy as JSON structure
 - delete: Remove UI hierarchy
 - show/hide/toggle: Control visibility using CanvasGroup (alpha, interactable, blocksRaycasts)
-- setNavigation: Configure keyboard/gamepad navigation (none/auto-vertical/auto-horizontal/explicit)
+
+For navigation, use unity_ui_navigation tool.
 
 **Hierarchy Structure Example:**
 ```json
@@ -3360,7 +3350,9 @@ unity_gamekit_ai({
     "aiId": "enemy_ai",
     "position": {"x": 0, "y": 0, "z": 5}
 })
-```""",
+```
+
+**When to use:** For intelligent behaviors (patrol + chase, detection, state machines). For simple path following without AI (moving platforms, rails), use unity_gamekit_waypoint instead.""",
             inputSchema=gamekit_ai_schema,
         ),
         # Phase 2 GameKit Tools - Additional game mechanics
@@ -3536,7 +3528,9 @@ unity_gamekit_waypoint({
         {"x": 0, "y": 5, "z": 0}
     ]
 })
-```""",
+```
+
+**When to use:** For simple path following (moving platforms, rails, fixed NPC routes). For AI behaviors with detection and chase, use unity_gamekit_ai instead.""",
             inputSchema=gamekit_waypoint_schema,
         ),
         types.Tool(
@@ -3609,7 +3603,9 @@ unity_gamekit_trigger_zone({
     "zoneId": "Teleporter",
     "destinationPosition": {"x": 10, "y": 0, "z": 20}
 })
-```""",
+```
+
+**When to use:** For built-in zone effects (damage, heal, checkpoint, teleport, speed zones). For custom script actions (sendMessage, spawnPrefab), use unity_gamekit_interaction instead.""",
             inputSchema=gamekit_trigger_zone_schema,
         ),
         # Phase 3 GameKit Tools - Animation & Effects

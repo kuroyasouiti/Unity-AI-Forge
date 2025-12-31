@@ -128,8 +128,11 @@ namespace MCP.Editor.Tests
                 ["operation"] = "createProfile",
                 ["profileId"] = "auto_save",
                 ["assetPath"] = assetPath,
-                ["autoSave"] = true,
-                ["autoSaveInterval"] = 60f
+                ["autoSave"] = new Dictionary<string, object>
+                {
+                    ["enabled"] = true,
+                    ["intervalSeconds"] = 60f
+                }
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;
@@ -153,17 +156,17 @@ namespace MCP.Editor.Tests
                 ["operation"] = "createProfile",
                 ["profileId"] = "targets_save",
                 ["assetPath"] = assetPath,
-                ["targets"] = new List<object>
+                ["saveTargets"] = new List<object>
                 {
                     new Dictionary<string, object>
                     {
-                        ["targetType"] = "Transform",
-                        ["key"] = "player_position"
+                        ["type"] = "transform",
+                        ["saveKey"] = "player_position"
                     },
                     new Dictionary<string, object>
                     {
-                        ["targetType"] = "PlayerPrefs",
-                        ["key"] = "high_score"
+                        ["type"] = "playerPrefs",
+                        ["saveKey"] = "high_score"
                     }
                 }
             };
@@ -199,8 +202,11 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addTarget",
                 ["assetPath"] = assetPath,
-                ["targetType"] = "Health",
-                ["key"] = "player_health"
+                ["target"] = new Dictionary<string, object>
+                {
+                    ["type"] = "health",
+                    ["saveKey"] = "player_health"
+                }
             };
 
             var result = _handler.Execute(addPayload) as Dictionary<string, object>;
@@ -224,7 +230,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "createManager",
-                ["gameObjectPath"] = "TestSaveManager"
+                ["targetPath"] = "TestSaveManager"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

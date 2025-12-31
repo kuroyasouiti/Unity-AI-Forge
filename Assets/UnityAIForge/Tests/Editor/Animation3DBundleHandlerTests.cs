@@ -295,16 +295,16 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addTransition",
                 ["controllerPath"] = assetPath,
-                ["sourceState"] = "Idle",
-                ["destinationState"] = "Walk",
+                ["fromState"] = "Idle",
+                ["toState"] = "Walk",
                 ["hasExitTime"] = false,
                 ["conditions"] = new List<object>
                 {
                     new Dictionary<string, object>
                     {
-                        ["parameter"] = "Speed",
-                        ["mode"] = "Greater",
-                        ["threshold"] = 0.1f
+                        ["param"] = "Speed",
+                        ["mode"] = "greater",
+                        ["value"] = 0.1f
                     }
                 }
             };

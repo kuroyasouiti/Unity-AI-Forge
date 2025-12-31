@@ -106,7 +106,7 @@ namespace MCP.Editor.Tests
                 ["speed"] = 15f,
                 ["isHoming"] = true,
                 ["homingStrength"] = 5f,
-                ["homingRange"] = 10f
+                ["maxHomingAngle"] = 60f
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

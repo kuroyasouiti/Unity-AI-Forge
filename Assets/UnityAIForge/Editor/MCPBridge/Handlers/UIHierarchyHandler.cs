@@ -10,8 +10,8 @@ using UnityEngine.UI;
 namespace MCP.Editor.Handlers
 {
     /// <summary>
-    /// Mid-level UI hierarchy handler: create complex UI hierarchies declaratively,
-    /// manage UI state (show/hide), and configure navigation.
+    /// Mid-level UI hierarchy handler: create complex UI hierarchies declaratively
+    /// and manage UI state (show/hide). For navigation, use UINavigationHandler.
     /// </summary>
     public class UIHierarchyHandler : BaseCommandHandler
     {
@@ -24,7 +24,6 @@ namespace MCP.Editor.Handlers
             "show",
             "hide",
             "toggle",
-            "setNavigation",
         };
 
         public override string Category => "uiHierarchy";
@@ -44,7 +43,6 @@ namespace MCP.Editor.Handlers
                 "show" => SetVisibility(payload, true),
                 "hide" => SetVisibility(payload, false),
                 "toggle" => ToggleVisibility(payload),
-                "setNavigation" => SetNavigation(payload),
                 _ => throw new InvalidOperationException($"Unsupported UI hierarchy operation: {operation}"),
             };
         }
@@ -1125,166 +1123,6 @@ namespace MCP.Editor.Handlers
             }
 
             return paths;
-        }
-
-        #endregion
-
-        #region Navigation
-
-        private object SetNavigation(Dictionary<string, object> payload)
-        {
-            var targetPath = GetString(payload, "targetPath");
-            var mode = GetString(payload, "mode")?.ToLowerInvariant() ?? "auto";
-
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for setNavigation operation.");
-            }
-
-            var target = ResolveGameObject(targetPath);
-            var selectables = target.GetComponentsInChildren<Selectable>(true);
-
-            if (mode == "auto")
-            {
-                // Auto-configure navigation based on layout
-                var layout = GetString(payload, "layout")?.ToLowerInvariant() ?? "vertical";
-                ConfigureAutoNavigation(selectables, layout);
-            }
-            else if (mode == "explicit")
-            {
-                // Set explicit navigation
-                if (payload.TryGetValue("navigation", out var navObj) && navObj is Dictionary<string, object> navDict)
-                {
-                    ConfigureExplicitNavigation(target, navDict);
-                }
-            }
-            else if (mode == "none")
-            {
-                // Disable navigation
-                foreach (var selectable in selectables)
-                {
-                    Undo.RecordObject(selectable, "Disable Navigation");
-                    var nav = selectable.navigation;
-                    nav.mode = Navigation.Mode.None;
-                    selectable.navigation = nav;
-                }
-            }
-
-            // Set first selected if specified
-            var firstSelectedPath = GetString(payload, "firstSelected");
-            if (!string.IsNullOrEmpty(firstSelectedPath))
-            {
-                var firstSelected = ResolveGameObject(firstSelectedPath);
-                var selectable = firstSelected.GetComponent<Selectable>();
-                if (selectable != null)
-                {
-                    var eventSystem = UnityEngine.EventSystems.EventSystem.current;
-                    if (eventSystem != null)
-                    {
-                        eventSystem.SetSelectedGameObject(firstSelected);
-                    }
-                }
-            }
-
-            EditorSceneManager.MarkSceneDirty(target.scene);
-
-            return new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["targetPath"] = targetPath,
-                ["mode"] = mode,
-                ["selectableCount"] = selectables.Length
-            };
-        }
-
-        private void ConfigureAutoNavigation(Selectable[] selectables, string layout)
-        {
-            if (selectables.Length < 2) return;
-
-            for (int i = 0; i < selectables.Length; i++)
-            {
-                Undo.RecordObject(selectables[i], "Configure Navigation");
-                var nav = selectables[i].navigation;
-                nav.mode = Navigation.Mode.Explicit;
-
-                if (layout == "vertical")
-                {
-                    nav.selectOnUp = i > 0 ? selectables[i - 1] : selectables[selectables.Length - 1];
-                    nav.selectOnDown = i < selectables.Length - 1 ? selectables[i + 1] : selectables[0];
-                }
-                else if (layout == "horizontal")
-                {
-                    nav.selectOnLeft = i > 0 ? selectables[i - 1] : selectables[selectables.Length - 1];
-                    nav.selectOnRight = i < selectables.Length - 1 ? selectables[i + 1] : selectables[0];
-                }
-
-                selectables[i].navigation = nav;
-            }
-        }
-
-        private void ConfigureExplicitNavigation(GameObject root, Dictionary<string, object> navDict)
-        {
-            foreach (var kvp in navDict)
-            {
-                var selectablePath = kvp.Key;
-                if (kvp.Value is not Dictionary<string, object> directions) continue;
-
-                var selectableGo = FindChildByPath(root.transform, selectablePath);
-                if (selectableGo == null) continue;
-
-                var selectable = selectableGo.GetComponent<Selectable>();
-                if (selectable == null) continue;
-
-                Undo.RecordObject(selectable, "Configure Explicit Navigation");
-                var nav = selectable.navigation;
-                nav.mode = Navigation.Mode.Explicit;
-
-                if (directions.TryGetValue("up", out var upPath))
-                {
-                    var upGo = FindChildByPath(root.transform, upPath.ToString());
-                    nav.selectOnUp = upGo?.GetComponent<Selectable>();
-                }
-                if (directions.TryGetValue("down", out var downPath))
-                {
-                    var downGo = FindChildByPath(root.transform, downPath.ToString());
-                    nav.selectOnDown = downGo?.GetComponent<Selectable>();
-                }
-                if (directions.TryGetValue("left", out var leftPath))
-                {
-                    var leftGo = FindChildByPath(root.transform, leftPath.ToString());
-                    nav.selectOnLeft = leftGo?.GetComponent<Selectable>();
-                }
-                if (directions.TryGetValue("right", out var rightPath))
-                {
-                    var rightGo = FindChildByPath(root.transform, rightPath.ToString());
-                    nav.selectOnRight = rightGo?.GetComponent<Selectable>();
-                }
-
-                selectable.navigation = nav;
-            }
-        }
-
-        private GameObject FindChildByPath(Transform root, string path)
-        {
-            var parts = path.Split('/');
-            var current = root;
-
-            foreach (var part in parts)
-            {
-                var found = false;
-                for (int i = 0; i < current.childCount; i++)
-                {
-                    if (current.GetChild(i).name == part)
-                    {
-                        current = current.GetChild(i);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return null;
-            }
-
-            return current.gameObject;
         }
 
         #endregion

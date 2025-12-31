@@ -66,11 +66,23 @@ namespace MCP.Editor.Handlers
                 savePath = $"Assets/Materials/{name}.mat";
             }
 
-            // Ensure directory exists
-            string directory = Path.GetDirectoryName(savePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            // Normalize path separators for Unity
+            savePath = savePath.Replace("\\", "/");
+            string directory = Path.GetDirectoryName(savePath)?.Replace("\\", "/");
+
+            // Ensure Unity asset folder exists using AssetDatabase (this creates both Unity metadata and physical folders)
+            if (!string.IsNullOrEmpty(directory) && !AssetDatabase.IsValidFolder(directory))
             {
-                Directory.CreateDirectory(directory);
+                CreateFolderRecursive(directory);
+                // Force refresh to ensure folder is registered
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            }
+
+            // Also ensure physical directory exists (belt and suspenders approach)
+            string physicalDirectory = directory?.Replace("Assets", Application.dataPath);
+            if (!string.IsNullOrEmpty(physicalDirectory) && !Directory.Exists(physicalDirectory))
+            {
+                Directory.CreateDirectory(physicalDirectory);
             }
 
             // Get appropriate shader based on render pipeline and preset
@@ -93,9 +105,27 @@ namespace MCP.Editor.Handlers
                 ApplyProperties(material, payload["properties"] as Dictionary<string, object>);
             }
 
-            // Save material asset
+            // Create the asset
             AssetDatabase.CreateAsset(material, savePath);
+
+            // Mark dirty and save
+            EditorUtility.SetDirty(material);
             AssetDatabase.SaveAssets();
+
+            // Force synchronous import to write file to disk
+            AssetDatabase.ImportAsset(savePath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+
+            // Final refresh to ensure everything is synced
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+
+            // Verify the file exists on disk
+            string physicalPath = savePath.Replace("Assets/", Application.dataPath + "/").Replace("Assets\\", Application.dataPath + "\\");
+            if (!File.Exists(physicalPath))
+            {
+                // Try one more approach: force serialize the asset
+                AssetDatabase.ForceReserializeAssets(new[] { savePath });
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            }
 
             return CreateSuccessResponse(
                 ("message", $"Material '{name}' created"),
@@ -736,6 +766,25 @@ namespace MCP.Editor.Handlers
                 GetFloat(payload, "b", 1f),
                 GetFloat(payload, "a", 1f)
             );
+        }
+
+        private void CreateFolderRecursive(string folderPath)
+        {
+            if (AssetDatabase.IsValidFolder(folderPath))
+                return;
+
+            var parentFolder = System.IO.Path.GetDirectoryName(folderPath)?.Replace("\\", "/");
+            var folderName = System.IO.Path.GetFileName(folderPath);
+
+            if (!string.IsNullOrEmpty(parentFolder) && !AssetDatabase.IsValidFolder(parentFolder))
+            {
+                CreateFolderRecursive(parentFolder);
+            }
+
+            if (!string.IsNullOrEmpty(parentFolder) && !string.IsNullOrEmpty(folderName))
+            {
+                AssetDatabase.CreateFolder(parentFolder, folderName);
+            }
         }
 
         #endregion

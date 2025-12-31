@@ -121,7 +121,7 @@ namespace MCP.Editor.Tests
             Assert.IsNotNull(asset);
             Assert.AreEqual("sword_001", asset.ItemId);
             Assert.AreEqual("Iron Sword", asset.DisplayName);
-            Assert.AreEqual(ItemCategory.Weapon, asset.Category);
+            Assert.AreEqual(GameKitItemAsset.ItemCategory.Weapon, asset.Category);
         }
 
         [Test]
@@ -134,20 +134,27 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "defineItem",
                 ["itemId"] = "armor_001",
-                ["displayName"] = "Steel Armor",
-                ["category"] = "Armor",
                 ["assetPath"] = assetPath,
-                ["statModifiers"] = new List<object>
+                ["itemData"] = new Dictionary<string, object>
                 {
-                    new Dictionary<string, object>
+                    ["displayName"] = "Steel Armor",
+                    ["category"] = "Armor",
+                    ["equippable"] = true,
+                    ["equipSlot"] = "body",
+                    ["equipStats"] = new List<object>
                     {
-                        ["stat"] = "Defense",
-                        ["value"] = 15f
-                    },
-                    new Dictionary<string, object>
-                    {
-                        ["stat"] = "Speed",
-                        ["value"] = -2f
+                        new Dictionary<string, object>
+                        {
+                            ["statName"] = "Defense",
+                            ["value"] = 15f,
+                            ["modifierType"] = "flat"
+                        },
+                        new Dictionary<string, object>
+                        {
+                            ["statName"] = "Speed",
+                            ["value"] = -2f,
+                            ["modifierType"] = "flat"
+                        }
                     }
                 }
             };
@@ -171,13 +178,16 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "defineItem",
                 ["itemId"] = "potion_001",
-                ["displayName"] = "Health Potion",
-                ["category"] = "Consumable",
                 ["assetPath"] = assetPath,
-                ["useAction"] = new Dictionary<string, object>
+                ["itemData"] = new Dictionary<string, object>
                 {
-                    ["type"] = "Heal",
-                    ["value"] = 50f
+                    ["displayName"] = "Health Potion",
+                    ["category"] = "Consumable",
+                    ["onUse"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "heal",
+                        ["amount"] = 50f
+                    }
                 }
             };
 
@@ -187,7 +197,7 @@ namespace MCP.Editor.Tests
             Assert.IsTrue((bool)result["success"]);
 
             var asset = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(assetPath);
-            Assert.AreEqual(ItemCategory.Consumable, asset.Category);
+            Assert.AreEqual(GameKitItemAsset.ItemCategory.Consumable, asset.Category);
             Assert.IsNotNull(asset.OnUse);
         }
 
@@ -203,7 +213,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "create",
-                ["targetPath"] = "TestInventory",
+                ["gameObjectPath"] = "TestInventory",
                 ["inventoryId"] = "player_inventory",
                 ["maxSlots"] = 20
             };
@@ -227,7 +237,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "create",
-                ["targetPath"] = "TestInventoryCapacity",
+                ["gameObjectPath"] = "TestInventoryCapacity",
                 ["maxSlots"] = 30
             };
 
@@ -257,7 +267,12 @@ namespace MCP.Editor.Tests
                 ["itemId"] = "inv_item_001",
                 ["displayName"] = "Test Item",
                 ["category"] = "Misc",
-                ["assetPath"] = itemPath
+                ["assetPath"] = itemPath,
+                ["itemData"] = new Dictionary<string, object>
+                {
+                    ["stackable"] = true,
+                    ["maxStack"] = 99
+                }
             };
             _handler.Execute(createItemPayload);
 
@@ -269,9 +284,9 @@ namespace MCP.Editor.Tests
             var addPayload = new Dictionary<string, object>
             {
                 ["operation"] = "addItem",
-                ["targetPath"] = "TestInventoryAddItem",
-                ["itemPath"] = itemPath,
-                ["amount"] = 5
+                ["gameObjectPath"] = "TestInventoryAddItem",
+                ["itemId"] = "inv_item_001",
+                ["quantity"] = 5
             };
 
             var result = _handler.Execute(addPayload) as Dictionary<string, object>;
@@ -326,7 +341,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "inspect",
-                ["targetPath"] = "TestInventoryInspect"
+                ["gameObjectPath"] = "TestInventoryInspect"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;
@@ -377,7 +392,7 @@ namespace MCP.Editor.Tests
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = "delete",
-                ["targetPath"] = "TestInventoryDelete"
+                ["gameObjectPath"] = "TestInventoryDelete"
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;

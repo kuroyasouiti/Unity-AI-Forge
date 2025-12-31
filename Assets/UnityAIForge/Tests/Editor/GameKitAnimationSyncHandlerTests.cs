@@ -111,8 +111,8 @@ namespace MCP.Editor.Tests
                 {
                     new Dictionary<string, object>
                     {
-                        ["parameterName"] = "Speed",
-                        ["sourceType"] = "Rigidbody",
+                        ["parameter"] = "Speed",
+                        ["sourceType"] = "rigidbody3d",
                         ["sourceProperty"] = "velocity.magnitude"
                     }
                 }
@@ -142,9 +142,12 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addSyncRule",
                 ["targetPath"] = "TestAnimSyncAddRule",
-                ["parameterName"] = "IsGrounded",
-                ["sourceType"] = "Transform",
-                ["sourceProperty"] = "position.y"
+                ["rule"] = new Dictionary<string, object>
+                {
+                    ["parameter"] = "IsGrounded",
+                    ["sourceType"] = "transform",
+                    ["sourceProperty"] = "position.y"
+                }
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;
@@ -169,8 +172,12 @@ namespace MCP.Editor.Tests
             {
                 ["operation"] = "addTriggerRule",
                 ["targetPath"] = "TestAnimSyncTrigger",
-                ["eventName"] = "OnDamaged",
-                ["triggerParameter"] = "TakeDamage"
+                ["trigger"] = new Dictionary<string, object>
+                {
+                    ["triggerName"] = "TakeDamage",
+                    ["eventSource"] = "health",
+                    ["healthEvent"] = "OnDamaged"
+                }
             };
 
             var result = _handler.Execute(payload) as Dictionary<string, object>;
