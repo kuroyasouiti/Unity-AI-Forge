@@ -9,6 +9,26 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.5.3] - 2026-01-01
+
+### リファクタリング
+
+- **MCPサーバーのプロンプト外部化**
+  - システムプロンプトを `src/prompts/system_instructions.md` に外部化
+  - `src/prompts/loader.py` で動的バージョン置換に対応
+  - `create_mcp_server.py` を660行から35行に大幅簡素化
+
+- **共通スキーマヘルパーの作成**
+  - `src/tools/schemas/common.py` にUnity型用の再利用可能なスキーマヘルパーを追加
+  - `vector2_schema()`, `vector3_schema()`, `position_schema()`, `rotation_schema()`
+  - `color_rgba_schema()`, `bounds_schema()`, `bounds_2d_schema()`, `cell_position_schema()`
+  - `schema_with_required()` でrequiredフィールドとadditionalProperties設定を一括追加
+
+### 改善
+
+- **physics_bundle_schema の description 追加**
+  - プロパティにdescription説明を追加し、ツール使用時の可読性を向上
+
 ## [2.5.2] - 2026-01-01
 
 ### 修正

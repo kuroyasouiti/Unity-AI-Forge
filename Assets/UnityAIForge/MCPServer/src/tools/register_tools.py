@@ -86,13 +86,34 @@ def register_tools(server: Server) -> None:
                     ],
                     "description": "Scene operation to perform.",
                 },
-                "scenePath": {"type": "string", "description": "Path to scene file (e.g., 'Assets/Scenes/Level1.unity')."},
-                "newSceneName": {"type": "string", "description": "New name for duplicate operation."},
-                "additive": {"type": "boolean", "description": "Load scene additively (keep existing scenes loaded)."},
-                "includeOpenScenes": {"type": "boolean", "description": "Include currently open scenes in inspect response."},
-                "includeHierarchy": {"type": "boolean", "description": "Include scene hierarchy (GameObjects) in inspect response."},
-                "includeComponents": {"type": "boolean", "description": "Include component details for each GameObject in hierarchy."},
-                "filter": {"type": "string", "description": "Filter GameObjects by name pattern (e.g., 'Player*', '*Enemy*')."},
+                "scenePath": {
+                    "type": "string",
+                    "description": "Path to scene file (e.g., 'Assets/Scenes/Level1.unity').",
+                },
+                "newSceneName": {
+                    "type": "string",
+                    "description": "New name for duplicate operation.",
+                },
+                "additive": {
+                    "type": "boolean",
+                    "description": "Load scene additively (keep existing scenes loaded).",
+                },
+                "includeOpenScenes": {
+                    "type": "boolean",
+                    "description": "Include currently open scenes in inspect response.",
+                },
+                "includeHierarchy": {
+                    "type": "boolean",
+                    "description": "Include scene hierarchy (GameObjects) in inspect response.",
+                },
+                "includeComponents": {
+                    "type": "boolean",
+                    "description": "Include component details for each GameObject in hierarchy.",
+                },
+                "filter": {
+                    "type": "string",
+                    "description": "Filter GameObjects by name pattern (e.g., 'Player*', '*Enemy*').",
+                },
             },
         },
         ["operation"],
@@ -118,25 +139,68 @@ def register_tools(server: Server) -> None:
                     ],
                     "description": "GameObject operation to perform.",
                 },
-                "gameObjectPath": {"type": "string", "description": "Hierarchy path to target GameObject (e.g., 'Canvas/Panel/Button')."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path for create/move operations."},
-                "template": {"type": "string", "description": "Primitive template for create (e.g., 'Cube', 'Sphere', 'Capsule', 'Cylinder', 'Plane', 'Quad')."},
-                "name": {"type": "string", "description": "Name for new GameObject or rename operation."},
-                "tag": {"type": "string", "description": "Tag to assign (e.g., 'Player', 'Enemy'). Must exist in project settings."},
-                "layer": {"oneOf": [{"type": "integer"}, {"type": "string"}], "description": "Layer by number (0-31) or name (e.g., 'UI', 'Player'). Use unity_projectSettings_crud to add custom layers."},
-                "active": {"type": "boolean", "description": "Set GameObject active/inactive state."},
-                "static": {"type": "boolean", "description": "Mark GameObject as static for optimization."},
-                "pattern": {"type": "string", "description": "Name pattern for batch operations (e.g., 'Enemy*', '*_LOD0')."},
-                "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of wildcard."},
-                "includeComponents": {"type": "boolean", "description": "Include component details in inspect response."},
-                "maxResults": {"type": "integer", "description": "Maximum number of results for batch operations (default: 1000)."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Hierarchy path to target GameObject (e.g., 'Canvas/Panel/Button').",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for create/move operations.",
+                },
+                "template": {
+                    "type": "string",
+                    "description": "Primitive template for create (e.g., 'Cube', 'Sphere', 'Capsule', 'Cylinder', 'Plane', 'Quad').",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for new GameObject or rename operation.",
+                },
+                "tag": {
+                    "type": "string",
+                    "description": "Tag to assign (e.g., 'Player', 'Enemy'). Must exist in project settings.",
+                },
+                "layer": {
+                    "oneOf": [{"type": "integer"}, {"type": "string"}],
+                    "description": "Layer by number (0-31) or name (e.g., 'UI', 'Player'). Use unity_projectSettings_crud to add custom layers.",
+                },
+                "active": {
+                    "type": "boolean",
+                    "description": "Set GameObject active/inactive state.",
+                },
+                "static": {
+                    "type": "boolean",
+                    "description": "Mark GameObject as static for optimization.",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "Name pattern for batch operations (e.g., 'Enemy*', '*_LOD0').",
+                },
+                "useRegex": {
+                    "type": "boolean",
+                    "description": "Interpret pattern as regex instead of wildcard.",
+                },
+                "includeComponents": {
+                    "type": "boolean",
+                    "description": "Include component details in inspect response.",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum number of results for batch operations (default: 1000).",
+                },
                 "components": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "description": "Component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.BoxCollider2D')."},
-                            "properties": {"type": "object", "additionalProperties": True, "description": "Property values to set on the component."},
+                            "type": {
+                                "type": "string",
+                                "description": "Component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.BoxCollider2D').",
+                            },
+                            "properties": {
+                                "type": "object",
+                                "additionalProperties": True,
+                                "description": "Property values to set on the component.",
+                            },
                         },
                         "required": ["type"],
                     },
@@ -165,17 +229,52 @@ def register_tools(server: Server) -> None:
                     ],
                     "description": "Component operation to perform.",
                 },
-                "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
-                "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId (alternative to path)."},
-                "componentType": {"type": "string", "description": "Full component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.UI.Button')."},
-                "propertyChanges": {"type": "object", "additionalProperties": True, "description": "Property values to set. Use {'$ref': 'path'} for references: 'Assets/...' for assets, 'Canvas/Panel/Button' for scene objects (including inactive)."},
-                "applyDefaults": {"type": "boolean", "description": "Apply default property values when adding component."},
-                "pattern": {"type": "string", "description": "GameObject name pattern for batch operations."},
-                "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of wildcard."},
-                "includeProperties": {"type": "boolean", "description": "Include property values in inspect response (default: true)."},
-                "propertyFilter": {"type": "array", "items": {"type": "string"}, "description": "Filter specific properties to include in response."},
-                "maxResults": {"type": "integer", "description": "Maximum results for batch operations (default: 1000)."},
-                "stopOnError": {"type": "boolean", "description": "Stop batch operation on first error (default: true)."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "gameObjectGlobalObjectId": {
+                    "type": "string",
+                    "description": "Target GameObject GlobalObjectId (alternative to path).",
+                },
+                "componentType": {
+                    "type": "string",
+                    "description": "Full component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.UI.Button').",
+                },
+                "propertyChanges": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "Property values to set. Use {'$ref': 'path'} for references: 'Assets/...' for assets, 'Canvas/Panel/Button' for scene objects (including inactive).",
+                },
+                "applyDefaults": {
+                    "type": "boolean",
+                    "description": "Apply default property values when adding component.",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "GameObject name pattern for batch operations.",
+                },
+                "useRegex": {
+                    "type": "boolean",
+                    "description": "Interpret pattern as regex instead of wildcard.",
+                },
+                "includeProperties": {
+                    "type": "boolean",
+                    "description": "Include property values in inspect response (default: true).",
+                },
+                "propertyFilter": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Filter specific properties to include in response.",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum results for batch operations (default: 1000).",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "Stop batch operation on first error (default: true).",
+                },
             },
         },
         ["operation", "componentType"],
@@ -201,15 +300,43 @@ def register_tools(server: Server) -> None:
                     ],
                     "description": "Asset operation to perform.",
                 },
-                "assetPath": {"type": "string", "description": "Asset file path (e.g., 'Assets/Scripts/Player.cs')."},
-                "assetGuid": {"type": "string", "description": "Asset GUID (alternative to assetPath)."},
-                "content": {"type": "string", "description": "File content for create/update operations."},
-                "destinationPath": {"type": "string", "description": "Destination path for rename/duplicate operations."},
-                "propertyChanges": {"type": "object", "additionalProperties": True, "description": "Importer property changes for updateImporter operation."},
-                "pattern": {"type": "string", "description": "Asset path pattern for batch operations (e.g., 'Assets/Textures/*.png')."},
-                "useRegex": {"type": "boolean", "description": "Interpret pattern as regex instead of glob."},
-                "includeProperties": {"type": "boolean", "description": "Include asset properties in inspect response."},
-                "maxResults": {"type": "integer", "description": "Maximum results for batch operations (default: 1000)."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset file path (e.g., 'Assets/Scripts/Player.cs').",
+                },
+                "assetGuid": {
+                    "type": "string",
+                    "description": "Asset GUID (alternative to assetPath).",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "File content for create/update operations.",
+                },
+                "destinationPath": {
+                    "type": "string",
+                    "description": "Destination path for rename/duplicate operations.",
+                },
+                "propertyChanges": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "Importer property changes for updateImporter operation.",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "Asset path pattern for batch operations (e.g., 'Assets/Textures/*.png').",
+                },
+                "useRegex": {
+                    "type": "boolean",
+                    "description": "Interpret pattern as regex instead of glob.",
+                },
+                "includeProperties": {
+                    "type": "boolean",
+                    "description": "Include asset properties in inspect response.",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum results for batch operations (default: 1000).",
+                },
             },
         },
         ["operation"],
@@ -221,20 +348,58 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["read", "write", "list", "addSceneToBuild", "removeSceneFromBuild", "listBuildScenes", "reorderBuildScenes", "setBuildSceneEnabled"],
+                    "enum": [
+                        "read",
+                        "write",
+                        "list",
+                        "addSceneToBuild",
+                        "removeSceneFromBuild",
+                        "listBuildScenes",
+                        "reorderBuildScenes",
+                        "setBuildSceneEnabled",
+                    ],
                 },
                 "category": {
                     "type": "string",
-                    "enum": ["player", "quality", "time", "physics", "physics2d", "audio", "editor", "tagsLayers"],
+                    "enum": [
+                        "player",
+                        "quality",
+                        "time",
+                        "physics",
+                        "physics2d",
+                        "audio",
+                        "editor",
+                        "tagsLayers",
+                    ],
                     "description": "Settings category to read/write.",
                 },
-                "property": {"type": "string", "description": "Property name to read/write. Use 'list' operation to see available properties."},
-                "value": {"description": "Value to set. Type depends on property (string, number, boolean, object for Vector types like gravity)."},
-                "scenePath": {"type": "string", "description": "Path to scene file for build settings operations"},
-                "index": {"type": "integer", "description": "Scene index for build settings operations"},
-                "fromIndex": {"type": "integer", "description": "Source index for reordering build scenes"},
-                "toIndex": {"type": "integer", "description": "Target index for reordering build scenes"},
-                "enabled": {"type": "boolean", "description": "Whether scene is enabled in build settings"},
+                "property": {
+                    "type": "string",
+                    "description": "Property name to read/write. Use 'list' operation to see available properties.",
+                },
+                "value": {
+                    "description": "Value to set. Type depends on property (string, number, boolean, object for Vector types like gravity)."
+                },
+                "scenePath": {
+                    "type": "string",
+                    "description": "Path to scene file for build settings operations",
+                },
+                "index": {
+                    "type": "integer",
+                    "description": "Scene index for build settings operations",
+                },
+                "fromIndex": {
+                    "type": "integer",
+                    "description": "Source index for reordering build scenes",
+                },
+                "toIndex": {
+                    "type": "integer",
+                    "description": "Target index for reordering build scenes",
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether scene is enabled in build settings",
+                },
             },
         },
         ["operation"],
@@ -257,18 +422,56 @@ def register_tools(server: Server) -> None:
                     ],
                     "description": "ScriptableObject operation to perform.",
                 },
-                "typeName": {"type": "string", "description": "Full type name for create/findByType (e.g., 'MyGame.GameConfig')."},
-                "assetPath": {"type": "string", "description": "ScriptableObject asset path (e.g., 'Assets/Data/Config.asset')."},
-                "assetGuid": {"type": "string", "description": "Asset GUID (alternative to assetPath)."},
-                "properties": {"type": "object", "additionalProperties": True, "description": "Property values to set on the ScriptableObject."},
-                "includeProperties": {"type": "boolean", "description": "Include property values in inspect response (default: true)."},
-                "propertyFilter": {"type": "array", "items": {"type": "string"}, "description": "Filter specific properties to include in response."},
-                "searchPath": {"type": "string", "description": "Directory to search for findByType/list (default: 'Assets')."},
-                "maxResults": {"type": "integer", "description": "Maximum results for list/findByType (default: 100)."},
-                "offset": {"type": "integer", "description": "Skip first N results for pagination."},
-                "sourceAssetPath": {"type": "string", "description": "Source asset path for duplicate operation."},
-                "sourceAssetGuid": {"type": "string", "description": "Source asset GUID for duplicate operation."},
-                "destinationAssetPath": {"type": "string", "description": "Destination path for duplicate operation."},
+                "typeName": {
+                    "type": "string",
+                    "description": "Full type name for create/findByType (e.g., 'MyGame.GameConfig').",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "ScriptableObject asset path (e.g., 'Assets/Data/Config.asset').",
+                },
+                "assetGuid": {
+                    "type": "string",
+                    "description": "Asset GUID (alternative to assetPath).",
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "Property values to set on the ScriptableObject.",
+                },
+                "includeProperties": {
+                    "type": "boolean",
+                    "description": "Include property values in inspect response (default: true).",
+                },
+                "propertyFilter": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Filter specific properties to include in response.",
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": "Directory to search for findByType/list (default: 'Assets').",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum results for list/findByType (default: 100).",
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Skip first N results for pagination.",
+                },
+                "sourceAssetPath": {
+                    "type": "string",
+                    "description": "Source asset path for duplicate operation.",
+                },
+                "sourceAssetGuid": {
+                    "type": "string",
+                    "description": "Source asset GUID for duplicate operation.",
+                },
+                "destinationAssetPath": {
+                    "type": "string",
+                    "description": "Destination path for duplicate operation.",
+                },
             },
         },
         ["operation"],
@@ -432,10 +635,23 @@ def register_tools(server: Server) -> None:
                     "description": "Center point for circular arrangement.",
                 },
                 "radius": {"type": "number", "description": "Radius for circular arrangement."},
-                "startAngle": {"type": "number", "description": "Starting angle in degrees for circular arrangement (0 = right, 90 = up)."},
-                "clockwise": {"type": "boolean", "description": "Arrange objects clockwise (default: false = counter-clockwise)."},
-                "plane": {"type": "string", "enum": ["XY", "XZ", "YZ"], "description": "Plane for circular arrangement (default: XY for 2D, XZ for 3D top-down)."},
-                "localSpace": {"type": "boolean", "description": "Use local space coordinates instead of world space."},
+                "startAngle": {
+                    "type": "number",
+                    "description": "Starting angle in degrees for circular arrangement (0 = right, 90 = up).",
+                },
+                "clockwise": {
+                    "type": "boolean",
+                    "description": "Arrange objects clockwise (default: false = counter-clockwise).",
+                },
+                "plane": {
+                    "type": "string",
+                    "enum": ["XY", "XZ", "YZ"],
+                    "description": "Plane for circular arrangement (default: XY for 2D, XZ for 3D top-down).",
+                },
+                "localSpace": {
+                    "type": "boolean",
+                    "description": "Use local space coordinates instead of world space.",
+                },
                 "startPosition": {
                     "type": "object",
                     "properties": {
@@ -454,15 +670,44 @@ def register_tools(server: Server) -> None:
                     },
                     "description": "End position for linear arrangement.",
                 },
-                "spacing": {"type": "number", "description": "Spacing between objects for linear arrangement or menu list."},
-                "baseName": {"type": "string", "description": "Base name for sequential renaming (e.g., 'Enemy' -> Enemy_001, Enemy_002)."},
-                "startIndex": {"type": "integer", "description": "Starting index for sequential renaming (default: 1)."},
-                "padding": {"type": "integer", "description": "Zero-padding for sequential numbers (e.g., 3 -> 001, 002)."},
-                "names": {"type": "array", "items": {"type": "string"}, "description": "Custom name list for renameFromList operation."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path for createMenuList operation."},
-                "prefabPath": {"type": "string", "description": "Prefab asset path for createMenuList operation."},
-                "axis": {"type": "string", "enum": ["horizontal", "vertical"], "description": "Layout axis for createMenuList operation."},
-                "offset": {"type": "number", "description": "Offset from parent for createMenuList operation."},
+                "spacing": {
+                    "type": "number",
+                    "description": "Spacing between objects for linear arrangement or menu list.",
+                },
+                "baseName": {
+                    "type": "string",
+                    "description": "Base name for sequential renaming (e.g., 'Enemy' -> Enemy_001, Enemy_002).",
+                },
+                "startIndex": {
+                    "type": "integer",
+                    "description": "Starting index for sequential renaming (default: 1).",
+                },
+                "padding": {
+                    "type": "integer",
+                    "description": "Zero-padding for sequential numbers (e.g., 3 -> 001, 002).",
+                },
+                "names": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Custom name list for renameFromList operation.",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for createMenuList operation.",
+                },
+                "prefabPath": {
+                    "type": "string",
+                    "description": "Prefab asset path for createMenuList operation.",
+                },
+                "axis": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical"],
+                    "description": "Layout axis for createMenuList operation.",
+                },
+                "offset": {
+                    "type": "number",
+                    "description": "Offset from parent for createMenuList operation.",
+                },
             },
         },
         ["operation"],
@@ -553,10 +798,22 @@ def register_tools(server: Server) -> None:
                     ],
                     "description": "Anchor preset for alignToParent operation.",
                 },
-                "spacing": {"type": "number", "description": "Spacing between elements for distribute operations (pixels)."},
-                "matchWidth": {"type": "boolean", "description": "Match width from source element in matchSize operation."},
-                "matchHeight": {"type": "boolean", "description": "Match height from source element in matchSize operation."},
-                "sourceGameObjectPath": {"type": "string", "description": "Source element path for matchSize operation."},
+                "spacing": {
+                    "type": "number",
+                    "description": "Spacing between elements for distribute operations (pixels).",
+                },
+                "matchWidth": {
+                    "type": "boolean",
+                    "description": "Match width from source element in matchSize operation.",
+                },
+                "matchHeight": {
+                    "type": "boolean",
+                    "description": "Match height from source element in matchSize operation.",
+                },
+                "sourceGameObjectPath": {
+                    "type": "string",
+                    "description": "Source element path for matchSize operation.",
+                },
             },
         },
         ["operation"],
@@ -577,6 +834,7 @@ def register_tools(server: Server) -> None:
                         "updateCollider3D",
                         "inspect",
                     ],
+                    "description": "Physics operation: applyPreset2D/3D (apply physics preset), updateRigidbody2D/3D (modify rigidbody), updateCollider2D/3D (modify collider), inspect (view physics setup).",
                 },
                 "gameObjectPaths": {
                     "type": "array",
@@ -602,24 +860,44 @@ def register_tools(server: Server) -> None:
                     "enum": ["box", "sphere", "capsule", "mesh", "circle", "polygon", "edge"],
                     "description": "Collider type to add (2D: box/circle/polygon/edge, 3D: box/sphere/capsule/mesh).",
                 },
-                "isTrigger": {"type": "boolean"},
+                "isTrigger": {
+                    "type": "boolean",
+                    "description": "Set collider as trigger (no physics collision).",
+                },
                 "rigidbodyType": {
                     "type": "string",
                     "enum": ["dynamic", "kinematic", "static"],
+                    "description": "Rigidbody2D body type.",
                 },
-                "mass": {"type": "number"},
-                "drag": {"type": "number"},
-                "angularDrag": {"type": "number"},
-                "gravityScale": {"type": "number"},
-                "useGravity": {"type": "boolean"},
-                "isKinematic": {"type": "boolean"},
+                "mass": {"type": "number", "description": "Rigidbody mass."},
+                "drag": {"type": "number", "description": "Linear drag (air resistance)."},
+                "angularDrag": {
+                    "type": "number",
+                    "description": "Angular drag (rotational resistance).",
+                },
+                "gravityScale": {
+                    "type": "number",
+                    "description": "Gravity multiplier for Rigidbody2D.",
+                },
+                "useGravity": {"type": "boolean", "description": "Enable gravity for Rigidbody3D."},
+                "isKinematic": {
+                    "type": "boolean",
+                    "description": "Set rigidbody as kinematic (not affected by physics).",
+                },
                 "interpolate": {
                     "type": "string",
                     "enum": ["none", "interpolate", "extrapolate"],
+                    "description": "Rigidbody interpolation mode for smoother movement.",
                 },
                 "collisionDetection": {
                     "type": "string",
-                    "enum": ["discrete", "continuous", "continuousDynamic", "continuousSpeculative"],
+                    "enum": [
+                        "discrete",
+                        "continuous",
+                        "continuousDynamic",
+                        "continuousSpeculative",
+                    ],
+                    "description": "Collision detection mode (continuous for fast-moving objects).",
                 },
                 "constraints": {
                     "type": "object",
@@ -631,6 +909,7 @@ def register_tools(server: Server) -> None:
                         "freezeRotationY": {"type": "boolean"},
                         "freezeRotationZ": {"type": "boolean"},
                     },
+                    "description": "Freeze rigidbody position/rotation on specific axes.",
                 },
                 "size": {
                     "type": "object",
@@ -650,7 +929,10 @@ def register_tools(server: Server) -> None:
                     },
                     "description": "Collider center offset.",
                 },
-                "radius": {"type": "number", "description": "Radius for sphere/circle/capsule colliders."},
+                "radius": {
+                    "type": "number",
+                    "description": "Radius for sphere/circle/capsule colliders.",
+                },
                 "height": {"type": "number", "description": "Height for capsule colliders."},
                 "material": {"type": "string", "description": "Physics material asset path."},
             },
@@ -671,9 +953,15 @@ def register_tools(server: Server) -> None:
                     "enum": ["follow", "orbit", "splitScreen", "fixed", "dolly"],
                     "description": "Camera rig preset type.",
                 },
-                "parentPath": {"type": "string", "description": "Parent GameObject path for the rig."},
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for the rig.",
+                },
                 "rigName": {"type": "string", "description": "Name for the camera rig."},
-                "targetPath": {"type": "string", "description": "Target GameObject to follow/orbit."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject to follow/orbit.",
+                },
                 "offset": {
                     "type": "object",
                     "properties": {
@@ -685,11 +973,17 @@ def register_tools(server: Server) -> None:
                 },
                 "distance": {"type": "number", "description": "Distance from target (for orbit)."},
                 "followSpeed": {"type": "number", "description": "Follow smoothing speed."},
-                "lookAtTarget": {"type": "boolean", "description": "Whether camera should look at target."},
+                "lookAtTarget": {
+                    "type": "boolean",
+                    "description": "Whether camera should look at target.",
+                },
                 "fieldOfView": {"type": "number", "description": "Camera field of view."},
                 "orthographic": {"type": "boolean", "description": "Use orthographic projection."},
                 "orthographicSize": {"type": "number", "description": "Orthographic camera size."},
-                "splitScreenIndex": {"type": "integer", "description": "Split screen viewport index (0-3)."},
+                "splitScreenIndex": {
+                    "type": "integer",
+                    "description": "Split screen viewport index (0-3).",
+                },
             },
         },
         ["operation"],
@@ -702,14 +996,28 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "createCanvas", "createPanel", "createButton", "createText",
-                        "createImage", "createInputField", "createScrollView",
-                        "addLayoutGroup", "updateLayoutGroup", "removeLayoutGroup",
-                        "createFromTemplate", "inspect",
+                        "createCanvas",
+                        "createPanel",
+                        "createButton",
+                        "createText",
+                        "createImage",
+                        "createInputField",
+                        "createScrollView",
+                        "addLayoutGroup",
+                        "updateLayoutGroup",
+                        "removeLayoutGroup",
+                        "createFromTemplate",
+                        "inspect",
                     ],
                 },
-                "parentPath": {"type": "string", "description": "Parent GameObject path for create operations."},
-                "targetPath": {"type": "string", "description": "Target GameObject path for addLayoutGroup/updateLayoutGroup/removeLayoutGroup operations."},
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for create operations.",
+                },
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for addLayoutGroup/updateLayoutGroup/removeLayoutGroup operations.",
+                },
                 "name": {"type": "string", "description": "UI element name."},
                 "renderMode": {
                     "type": "string",
@@ -732,31 +1040,64 @@ def register_tools(server: Server) -> None:
                 "anchorPreset": {
                     "type": "string",
                     "enum": [
-                        "topLeft", "topCenter", "topRight",
-                        "middleLeft", "middleCenter", "middleRight",
-                        "bottomLeft", "bottomCenter", "bottomRight",
+                        "topLeft",
+                        "topCenter",
+                        "topRight",
+                        "middleLeft",
+                        "middleCenter",
+                        "middleRight",
+                        "bottomLeft",
+                        "bottomCenter",
+                        "bottomRight",
                         "stretchAll",
                     ],
                     "description": "RectTransform anchor preset.",
                 },
                 "width": {"type": "number", "description": "Width of UI element."},
                 "height": {"type": "number", "description": "Height of UI element."},
-                "spritePath": {"type": "string", "description": "Sprite asset path for Image/Button."},
-                "placeholder": {"type": "string", "description": "Placeholder text for InputField."},
+                "spritePath": {
+                    "type": "string",
+                    "description": "Sprite asset path for Image/Button.",
+                },
+                "placeholder": {
+                    "type": "string",
+                    "description": "Placeholder text for InputField.",
+                },
                 # ScrollView parameters
-                "horizontal": {"type": "boolean", "description": "Enable horizontal scrolling (default: false)."},
-                "vertical": {"type": "boolean", "description": "Enable vertical scrolling (default: true)."},
-                "horizontalScrollbar": {"type": "boolean", "description": "Show horizontal scrollbar (default: false)."},
-                "verticalScrollbar": {"type": "boolean", "description": "Show vertical scrollbar (default: true)."},
+                "horizontal": {
+                    "type": "boolean",
+                    "description": "Enable horizontal scrolling (default: false).",
+                },
+                "vertical": {
+                    "type": "boolean",
+                    "description": "Enable vertical scrolling (default: true).",
+                },
+                "horizontalScrollbar": {
+                    "type": "boolean",
+                    "description": "Show horizontal scrollbar (default: false).",
+                },
+                "verticalScrollbar": {
+                    "type": "boolean",
+                    "description": "Show vertical scrollbar (default: true).",
+                },
                 "movementType": {
                     "type": "string",
                     "enum": ["Unrestricted", "Elastic", "Clamped"],
                     "description": "ScrollView movement type (default: Elastic).",
                 },
-                "elasticity": {"type": "number", "description": "Elasticity amount for Elastic movement (default: 0.1)."},
+                "elasticity": {
+                    "type": "number",
+                    "description": "Elasticity amount for Elastic movement (default: 0.1).",
+                },
                 "inertia": {"type": "boolean", "description": "Enable inertia (default: true)."},
-                "decelerationRate": {"type": "number", "description": "Deceleration rate for inertia (default: 0.135)."},
-                "scrollSensitivity": {"type": "number", "description": "Scroll sensitivity (default: 1)."},
+                "decelerationRate": {
+                    "type": "number",
+                    "description": "Deceleration rate for inertia (default: 0.135).",
+                },
+                "scrollSensitivity": {
+                    "type": "number",
+                    "description": "Scroll sensitivity (default: 1).",
+                },
                 "viewportSize": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
@@ -781,26 +1122,56 @@ def register_tools(server: Server) -> None:
                 "spacing": {
                     "oneOf": [
                         {"type": "number"},
-                        {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}}
+                        {
+                            "type": "object",
+                            "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                        },
                     ],
                     "description": "Spacing: number for Horizontal/Vertical layouts, {x, y} object for Grid layout.",
                 },
                 "childAlignment": {
                     "type": "string",
                     "enum": [
-                        "UpperLeft", "UpperCenter", "UpperRight",
-                        "MiddleLeft", "MiddleCenter", "MiddleRight",
-                        "LowerLeft", "LowerCenter", "LowerRight",
+                        "UpperLeft",
+                        "UpperCenter",
+                        "UpperRight",
+                        "MiddleLeft",
+                        "MiddleCenter",
+                        "MiddleRight",
+                        "LowerLeft",
+                        "LowerCenter",
+                        "LowerRight",
                     ],
                     "description": "Child alignment within the layout (default: UpperLeft).",
                 },
-                "childControlWidth": {"type": "boolean", "description": "Control child width (default: true)."},
-                "childControlHeight": {"type": "boolean", "description": "Control child height (default: true)."},
-                "childScaleWidth": {"type": "boolean", "description": "Use child scale for width (default: false)."},
-                "childScaleHeight": {"type": "boolean", "description": "Use child scale for height (default: false)."},
-                "childForceExpandWidth": {"type": "boolean", "description": "Force expand width (default: true)."},
-                "childForceExpandHeight": {"type": "boolean", "description": "Force expand height (default: true)."},
-                "reverseArrangement": {"type": "boolean", "description": "Reverse child arrangement (default: false)."},
+                "childControlWidth": {
+                    "type": "boolean",
+                    "description": "Control child width (default: true).",
+                },
+                "childControlHeight": {
+                    "type": "boolean",
+                    "description": "Control child height (default: true).",
+                },
+                "childScaleWidth": {
+                    "type": "boolean",
+                    "description": "Use child scale for width (default: false).",
+                },
+                "childScaleHeight": {
+                    "type": "boolean",
+                    "description": "Use child scale for height (default: false).",
+                },
+                "childForceExpandWidth": {
+                    "type": "boolean",
+                    "description": "Force expand width (default: true).",
+                },
+                "childForceExpandHeight": {
+                    "type": "boolean",
+                    "description": "Force expand height (default: true).",
+                },
+                "reverseArrangement": {
+                    "type": "boolean",
+                    "description": "Reverse child arrangement (default: false).",
+                },
                 # Grid-specific parameters
                 "startCorner": {
                     "type": "string",
@@ -822,9 +1193,15 @@ def register_tools(server: Server) -> None:
                     "enum": ["Flexible", "FixedColumnCount", "FixedRowCount"],
                     "description": "Grid constraint mode (default: Flexible).",
                 },
-                "constraintCount": {"type": "integer", "description": "Number of rows/columns when using fixed constraint."},
+                "constraintCount": {
+                    "type": "integer",
+                    "description": "Number of rows/columns when using fixed constraint.",
+                },
                 # ContentSizeFitter parameters
-                "addContentSizeFitter": {"type": "boolean", "description": "Add ContentSizeFitter to target (default: false)."},
+                "addContentSizeFitter": {
+                    "type": "boolean",
+                    "description": "Add ContentSizeFitter to target (default: false).",
+                },
                 "horizontalFit": {
                     "type": "string",
                     "enum": ["Unconstrained", "MinSize", "PreferredSize"],
@@ -874,7 +1251,10 @@ def register_tools(server: Server) -> None:
                 "minDistance": {"type": "number", "description": "Min distance for 3D sound."},
                 "maxDistance": {"type": "number", "description": "Max distance for 3D sound."},
                 "priority": {"type": "integer", "description": "Priority (0-256, 0=highest)."},
-                "mixerGroupPath": {"type": "string", "description": "Audio mixer group asset path."},
+                "mixerGroupPath": {
+                    "type": "string",
+                    "description": "Audio mixer group asset path.",
+                },
             },
         },
         ["operation"],
@@ -894,11 +1274,19 @@ def register_tools(server: Server) -> None:
                     "enum": ["player", "ui", "vehicle", "custom"],
                     "description": "Input profile preset type.",
                 },
-                "inputActionsAssetPath": {"type": "string", "description": "InputActions asset path."},
+                "inputActionsAssetPath": {
+                    "type": "string",
+                    "description": "InputActions asset path.",
+                },
                 "defaultActionMap": {"type": "string", "description": "Default action map name."},
                 "notificationBehavior": {
                     "type": "string",
-                    "enum": ["sendMessages", "broadcastMessages", "invokeUnityEvents", "invokeCSharpEvents"],
+                    "enum": [
+                        "sendMessages",
+                        "broadcastMessages",
+                        "invokeUnityEvents",
+                        "invokeCSharpEvents",
+                    ],
                     "description": "Input notification behavior.",
                 },
                 "actions": {
@@ -941,13 +1329,23 @@ def register_tools(server: Server) -> None:
                 "height": {"type": "number", "description": "Capsule height."},
                 "center": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Center offset of the capsule.",
                 },
                 "slopeLimit": {"type": "number", "description": "Maximum slope angle in degrees."},
                 "stepOffset": {"type": "number", "description": "Maximum step height."},
-                "skinWidth": {"type": "number", "description": "Skin width for collision detection."},
-                "minMoveDistance": {"type": "number", "description": "Minimum move distance threshold."},
+                "skinWidth": {
+                    "type": "number",
+                    "description": "Skin width for collision detection.",
+                },
+                "minMoveDistance": {
+                    "type": "number",
+                    "description": "Minimum move distance threshold.",
+                },
             },
         },
         ["operation"],
@@ -960,19 +1358,40 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "createTilemap", "inspect",
-                        "setTile", "getTile", "setTiles",
-                        "clearTile", "clearTiles", "clearAllTiles",
-                        "fillArea", "boxFill",
-                        "worldToCell", "cellToWorld",
-                        "updateRenderer", "updateCollider", "addCollider",
-                        "createTile", "createRuleTile", "inspectTile", "updateTile",
+                        "createTilemap",
+                        "inspect",
+                        "setTile",
+                        "getTile",
+                        "setTiles",
+                        "clearTile",
+                        "clearTiles",
+                        "clearAllTiles",
+                        "fillArea",
+                        "boxFill",
+                        "worldToCell",
+                        "cellToWorld",
+                        "updateRenderer",
+                        "updateCollider",
+                        "addCollider",
+                        "createTile",
+                        "createRuleTile",
+                        "inspectTile",
+                        "updateTile",
                     ],
                     "description": "Tilemap operation.",
                 },
-                "name": {"type": "string", "description": "Tilemap GameObject name (for createTilemap)."},
-                "tilemapPath": {"type": "string", "description": "Tilemap GameObject hierarchy path."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path (for createTilemap)."},
+                "name": {
+                    "type": "string",
+                    "description": "Tilemap GameObject name (for createTilemap).",
+                },
+                "tilemapPath": {
+                    "type": "string",
+                    "description": "Tilemap GameObject hierarchy path.",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path (for createTilemap).",
+                },
                 "cellLayout": {
                     "type": "string",
                     "enum": ["Rectangle", "Hexagon", "Isometric", "IsometricZAsY"],
@@ -980,43 +1399,76 @@ def register_tools(server: Server) -> None:
                 },
                 "cellSize": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Grid cell size.",
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+                    "properties": {
+                        "x": {"type": "integer"},
+                        "y": {"type": "integer"},
+                        "z": {"type": "integer"},
+                    },
                     "description": "Tile position (grid coordinates, integers).",
                 },
                 "positions": {
                     "type": "array",
                     "items": {
                         "type": "object",
-                        "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+                        "properties": {
+                            "x": {"type": "integer"},
+                            "y": {"type": "integer"},
+                            "z": {"type": "integer"},
+                        },
                     },
                     "description": "Multiple tile positions for setTiles.",
                 },
                 "worldPosition": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "World position for worldToCell conversion.",
                 },
                 "cellPosition": {
                     "type": "object",
-                    "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+                    "properties": {
+                        "x": {"type": "integer"},
+                        "y": {"type": "integer"},
+                        "z": {"type": "integer"},
+                    },
                     "description": "Cell position for cellToWorld conversion.",
                 },
                 "bounds": {
                     "type": "object",
                     "properties": {
-                        "xMin": {"type": "integer"}, "yMin": {"type": "integer"}, "zMin": {"type": "integer"},
-                        "xMax": {"type": "integer"}, "yMax": {"type": "integer"}, "zMax": {"type": "integer"},
+                        "xMin": {"type": "integer"},
+                        "yMin": {"type": "integer"},
+                        "zMin": {"type": "integer"},
+                        "xMax": {"type": "integer"},
+                        "yMax": {"type": "integer"},
+                        "zMax": {"type": "integer"},
                     },
                     "description": "Bounding box for area operations (fillArea, clearTiles, boxFill).",
                 },
-                "tileAssetPath": {"type": "string", "description": "Tile asset path (.asset file)."},
-                "spritePath": {"type": "string", "description": "Sprite asset path for createTile."},
-                "defaultSprite": {"type": "string", "description": "Default sprite path for createRuleTile."},
+                "tileAssetPath": {
+                    "type": "string",
+                    "description": "Tile asset path (.asset file).",
+                },
+                "spritePath": {
+                    "type": "string",
+                    "description": "Sprite asset path for createTile.",
+                },
+                "defaultSprite": {
+                    "type": "string",
+                    "description": "Default sprite path for createRuleTile.",
+                },
                 "colliderType": {
                     "type": "string",
                     "enum": ["None", "Sprite", "Grid"],
@@ -1024,7 +1476,12 @@ def register_tools(server: Server) -> None:
                 },
                 "color": {
                     "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "properties": {
+                        "r": {"type": "number"},
+                        "g": {"type": "number"},
+                        "b": {"type": "number"},
+                        "a": {"type": "number"},
+                    },
                     "description": "Tile color (RGBA 0-1).",
                 },
                 "rules": {
@@ -1032,23 +1489,45 @@ def register_tools(server: Server) -> None:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "sprites": {"type": "array", "items": {"type": "string"}, "description": "Sprite paths for this rule."},
+                            "sprites": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Sprite paths for this rule.",
+                            },
                             "neighbors": {"type": "object", "description": "Neighbor constraints."},
                         },
                     },
                     "description": "RuleTile tiling rules (requires 2D Tilemap Extras package).",
                 },
-                "sortingLayerName": {"type": "string", "description": "Sorting layer name for TilemapRenderer."},
-                "sortingOrder": {"type": "integer", "description": "Sorting order for TilemapRenderer."},
+                "sortingLayerName": {
+                    "type": "string",
+                    "description": "Sorting layer name for TilemapRenderer.",
+                },
+                "sortingOrder": {
+                    "type": "integer",
+                    "description": "Sorting order for TilemapRenderer.",
+                },
                 "mode": {
                     "type": "string",
                     "enum": ["Chunk", "Individual"],
                     "description": "TilemapRenderer mode.",
                 },
-                "usedByComposite": {"type": "boolean", "description": "Whether TilemapCollider2D is used by CompositeCollider2D."},
-                "usedByEffector": {"type": "boolean", "description": "Whether TilemapCollider2D is used by effector."},
-                "isTrigger": {"type": "boolean", "description": "Whether TilemapCollider2D is a trigger."},
-                "includeAllTiles": {"type": "boolean", "description": "Include all tile data in inspect response."},
+                "usedByComposite": {
+                    "type": "boolean",
+                    "description": "Whether TilemapCollider2D is used by CompositeCollider2D.",
+                },
+                "usedByEffector": {
+                    "type": "boolean",
+                    "description": "Whether TilemapCollider2D is used by effector.",
+                },
+                "isTrigger": {
+                    "type": "boolean",
+                    "description": "Whether TilemapCollider2D is a trigger.",
+                },
+                "includeAllTiles": {
+                    "type": "boolean",
+                    "description": "Include all tile data in inspect response.",
+                },
             },
         },
         ["operation"],
@@ -1063,11 +1542,26 @@ def register_tools(server: Server) -> None:
                     "enum": ["create", "update", "inspect", "delete"],
                     "description": "Actor operation.",
                 },
-                "actorId": {"type": "string", "description": "Unique actor identifier (used for targeting with UICommand and scripting)."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path (optional, defaults to scene root)."},
+                "actorId": {
+                    "type": "string",
+                    "description": "Unique actor identifier (used for targeting with UICommand and scripting).",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path (optional, defaults to scene root).",
+                },
                 "behaviorProfile": {
                     "type": "string",
-                    "enum": ["2dLinear", "2dPhysics", "2dTileGrid", "graphNode", "splineMovement", "3dCharacterController", "3dPhysics", "3dNavMesh"],
+                    "enum": [
+                        "2dLinear",
+                        "2dPhysics",
+                        "2dTileGrid",
+                        "graphNode",
+                        "splineMovement",
+                        "3dCharacterController",
+                        "3dPhysics",
+                        "3dNavMesh",
+                    ],
                     "description": "Movement behavior profile: '2dLinear' (simple 2D movement), '2dPhysics' (Rigidbody2D physics), '2dTileGrid' (grid-based movement for tactics/roguelikes), 'graphNode' (A* pathfinding, 2D/3D agnostic), 'splineMovement' (rail-based for 2.5D/rail shooters), '3dCharacterController' (CharacterController for FPS/TPS), '3dPhysics' (Rigidbody physics), '3dNavMesh' (NavMesh agent for RTS/strategy).",
                 },
                 "controlMode": {
@@ -1077,16 +1571,30 @@ def register_tools(server: Server) -> None:
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Initial world position of the actor.",
                 },
                 "rotation": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Initial euler rotation of the actor (optional).",
                 },
-                "spritePath": {"type": "string", "description": "Sprite asset path for 2D actors (e.g., 'Assets/Sprites/Player.png')."},
-                "modelPath": {"type": "string", "description": "Model prefab path for 3D actors (e.g., 'Assets/Models/Character.prefab')."},
+                "spritePath": {
+                    "type": "string",
+                    "description": "Sprite asset path for 2D actors (e.g., 'Assets/Sprites/Player.png').",
+                },
+                "modelPath": {
+                    "type": "string",
+                    "description": "Model prefab path for 3D actors (e.g., 'Assets/Models/Character.prefab').",
+                },
             },
         },
         ["operation"],
@@ -1098,7 +1606,15 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "exportState", "importState", "setFlowEnabled"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "exportState",
+                        "importState",
+                        "setFlowEnabled",
+                    ],
                     "description": "Manager operation.",
                 },
                 "managerId": {"type": "string", "description": "Unique manager identifier."},
@@ -1108,7 +1624,10 @@ def register_tools(server: Server) -> None:
                     "description": "Manager type: 'turnBased' for turn-based games, 'realtime' for real-time coordination, 'resourcePool' for resource/economy management, 'eventHub' for global events, 'stateManager' for finite state machines.",
                 },
                 "parentPath": {"type": "string", "description": "Parent GameObject path."},
-                "persistent": {"type": "boolean", "description": "DontDestroyOnLoad flag (survives scene changes)."},
+                "persistent": {
+                    "type": "boolean",
+                    "description": "DontDestroyOnLoad flag (survives scene changes).",
+                },
                 "turnPhases": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -1129,8 +1648,14 @@ def register_tools(server: Server) -> None:
                     "additionalProperties": True,
                     "description": "State data for importState operation (JSON-serializable state from exportState).",
                 },
-                "flowId": {"type": "string", "description": "Flow identifier for setFlowEnabled operation."},
-                "enabled": {"type": "boolean", "description": "Enable/disable flow for setFlowEnabled operation."},
+                "flowId": {
+                    "type": "string",
+                    "description": "Flow identifier for setFlowEnabled operation.",
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Enable/disable flow for setFlowEnabled operation.",
+                },
             },
         },
         ["operation"],
@@ -1145,8 +1670,14 @@ def register_tools(server: Server) -> None:
                     "enum": ["create", "update", "inspect", "delete"],
                     "description": "Interaction operation.",
                 },
-                "interactionId": {"type": "string", "description": "Unique interaction identifier (e.g., 'GoldCoin', 'AutoDoor')."},
-                "parentPath": {"type": "string", "description": "Parent GameObject path (optional, creates new GameObject if not specified)."},
+                "interactionId": {
+                    "type": "string",
+                    "description": "Unique interaction identifier (e.g., 'GoldCoin', 'AutoDoor').",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path (optional, creates new GameObject if not specified).",
+                },
                 "triggerType": {
                     "type": "string",
                     "enum": ["collision", "trigger", "raycast", "proximity", "input"],
@@ -1159,7 +1690,11 @@ def register_tools(server: Server) -> None:
                 },
                 "triggerSize": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Collider size/radius (Vector3 for box/capsule, x for sphere/circle radius).",
                 },
                 "is2D": {
@@ -1171,9 +1706,25 @@ def register_tools(server: Server) -> None:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "enum": ["spawnPrefab", "destroyObject", "playSound", "sendMessage", "changeScene"], "description": "Action type to execute."},
-                            "target": {"type": "string", "description": "Target GameObject name/path or 'self' for the interaction GameObject."},
-                            "parameter": {"type": "string", "description": "Action parameter (prefab path, message name, scene name, etc.)."},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "spawnPrefab",
+                                    "destroyObject",
+                                    "playSound",
+                                    "sendMessage",
+                                    "changeScene",
+                                ],
+                                "description": "Action type to execute.",
+                            },
+                            "target": {
+                                "type": "string",
+                                "description": "Target GameObject name/path or 'self' for the interaction GameObject.",
+                            },
+                            "parameter": {
+                                "type": "string",
+                                "description": "Action parameter (prefab path, message name, scene name, etc.).",
+                            },
                         },
                     },
                     "description": "Declarative actions to execute when trigger conditions are met (executed in order).",
@@ -1183,8 +1734,15 @@ def register_tools(server: Server) -> None:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "enum": ["tag", "layer", "distance", "custom"], "description": "Condition type."},
-                            "value": {"type": "string", "description": "Condition value (tag name, layer name/number, distance threshold, custom script)."},
+                            "type": {
+                                "type": "string",
+                                "enum": ["tag", "layer", "distance", "custom"],
+                                "description": "Condition type.",
+                            },
+                            "value": {
+                                "type": "string",
+                                "description": "Condition value (tag name, layer name/number, distance threshold, custom script).",
+                            },
                         },
                     },
                     "description": "Conditions to check before executing actions (all conditions must pass, AND logic).",
@@ -1209,8 +1767,14 @@ def register_tools(server: Server) -> None:
                     "enum": ["actor", "manager"],
                     "description": "Target type: 'actor' for GameKitActor or 'manager' for GameKitManager.",
                 },
-                "targetActorId": {"type": "string", "description": "Target actor ID (when targetType is 'actor')."},
-                "targetManagerId": {"type": "string", "description": "Target manager ID (when targetType is 'manager')."},
+                "targetActorId": {
+                    "type": "string",
+                    "description": "Target actor ID (when targetType is 'actor').",
+                },
+                "targetManagerId": {
+                    "type": "string",
+                    "description": "Target manager ID (when targetType is 'manager').",
+                },
                 "commands": {
                     "type": "array",
                     "items": {
@@ -1221,14 +1785,36 @@ def register_tools(server: Server) -> None:
                             "icon": {"type": "string"},
                             "commandType": {
                                 "type": "string",
-                                "enum": ["move", "jump", "action", "look", "custom", "addResource", "setResource", "consumeResource", "changeState", "nextTurn", "triggerScene"],
+                                "enum": [
+                                    "move",
+                                    "jump",
+                                    "action",
+                                    "look",
+                                    "custom",
+                                    "addResource",
+                                    "setResource",
+                                    "consumeResource",
+                                    "changeState",
+                                    "nextTurn",
+                                    "triggerScene",
+                                ],
                                 "description": "Command type: Actor commands (move/jump/action/look/custom) or Manager commands (addResource/setResource/consumeResource/changeState/nextTurn/triggerScene).",
                             },
-                            "commandParameter": {"type": "string", "description": "Parameter for action/resource/state commands."},
-                            "resourceAmount": {"type": "number", "description": "Amount for resource commands (addResource/setResource/consumeResource)."},
+                            "commandParameter": {
+                                "type": "string",
+                                "description": "Parameter for action/resource/state commands.",
+                            },
+                            "resourceAmount": {
+                                "type": "number",
+                                "description": "Amount for resource commands (addResource/setResource/consumeResource).",
+                            },
                             "moveDirection": {
                                 "type": "object",
-                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
                                 "description": "Direction vector for move commands.",
                             },
                             "lookDirection": {
@@ -1265,8 +1851,14 @@ def register_tools(server: Server) -> None:
                 },
                 "diagramId": {"type": "string", "description": "Unique diagram identifier."},
                 "assetPath": {"type": "string", "description": "Path to Machinations asset file."},
-                "managerId": {"type": "string", "description": "Manager ID to apply/export diagram to/from."},
-                "resetExisting": {"type": "boolean", "description": "Reset existing resources when applying."},
+                "managerId": {
+                    "type": "string",
+                    "description": "Manager ID to apply/export diagram to/from.",
+                },
+                "resetExisting": {
+                    "type": "boolean",
+                    "description": "Reset existing resources when applying.",
+                },
                 "initialResources": {
                     "type": "array",
                     "items": {
@@ -1316,7 +1908,10 @@ def register_tools(server: Server) -> None:
                         "properties": {
                             "triggerName": {"type": "string"},
                             "resourceName": {"type": "string"},
-                            "thresholdType": {"type": "string", "enum": ["above", "below", "equal", "notEqual"]},
+                            "thresholdType": {
+                                "type": "string",
+                                "enum": ["above", "below", "equal", "notEqual"],
+                            },
                             "thresholdValue": {"type": "number"},
                             "enabledByDefault": {"type": "boolean"},
                         },
@@ -1334,23 +1929,63 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "inspect", "delete", "transition", "addScene", "removeScene", "updateScene", "addTransition", "removeTransition", "addSharedScene", "removeSharedScene"],
+                    "enum": [
+                        "create",
+                        "inspect",
+                        "delete",
+                        "transition",
+                        "addScene",
+                        "removeScene",
+                        "updateScene",
+                        "addTransition",
+                        "removeTransition",
+                        "addSharedScene",
+                        "removeSharedScene",
+                    ],
                     "description": "SceneFlow operation: 'create' for initial setup, then use individual add/remove/update operations for granular control.",
                 },
-                "flowId": {"type": "string", "description": "Unique scene flow identifier (e.g., 'MainGameFlow')."},
-                "sceneName": {"type": "string", "description": "Scene name for single-scene operations (addScene, removeScene, updateScene, addSharedScene, removeSharedScene)."},
-                "scenePath": {"type": "string", "description": "Unity scene asset path (e.g., 'Assets/Scenes/Level1.unity') for addScene/updateScene."},
-                "loadMode": {"type": "string", "enum": ["single", "additive"], "description": "'single' unloads all scenes, 'additive' loads on top of existing (for addScene/updateScene)."},
+                "flowId": {
+                    "type": "string",
+                    "description": "Unique scene flow identifier (e.g., 'MainGameFlow').",
+                },
+                "sceneName": {
+                    "type": "string",
+                    "description": "Scene name for single-scene operations (addScene, removeScene, updateScene, addSharedScene, removeSharedScene).",
+                },
+                "scenePath": {
+                    "type": "string",
+                    "description": "Unity scene asset path (e.g., 'Assets/Scenes/Level1.unity') for addScene/updateScene.",
+                },
+                "loadMode": {
+                    "type": "string",
+                    "enum": ["single", "additive"],
+                    "description": "'single' unloads all scenes, 'additive' loads on top of existing (for addScene/updateScene).",
+                },
                 "sharedScenePaths": {
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Array of shared scene paths to load with this scene (for addScene/updateScene), e.g., ['Assets/Scenes/UIOverlay.unity', 'Assets/Scenes/AudioManager.unity'].",
                 },
-                "sharedScenePath": {"type": "string", "description": "Single shared scene path for addSharedScene/removeSharedScene operations."},
-                "fromScene": {"type": "string", "description": "Source scene name for transition operations (addTransition/removeTransition)."},
-                "toScene": {"type": "string", "description": "Destination scene name for addTransition operation."},
-                "trigger": {"type": "string", "description": "Trigger name for transition operations (addTransition/removeTransition, e.g., 'startGame', 'levelComplete')."},
-                "triggerName": {"type": "string", "description": "Transition trigger name for 'transition' operation (runtime execution)."},
+                "sharedScenePath": {
+                    "type": "string",
+                    "description": "Single shared scene path for addSharedScene/removeSharedScene operations.",
+                },
+                "fromScene": {
+                    "type": "string",
+                    "description": "Source scene name for transition operations (addTransition/removeTransition).",
+                },
+                "toScene": {
+                    "type": "string",
+                    "description": "Destination scene name for addTransition operation.",
+                },
+                "trigger": {
+                    "type": "string",
+                    "description": "Trigger name for transition operations (addTransition/removeTransition, e.g., 'startGame', 'levelComplete').",
+                },
+                "triggerName": {
+                    "type": "string",
+                    "description": "Transition trigger name for 'transition' operation (runtime execution).",
+                },
             },
         },
         ["operation"],
@@ -1363,15 +1998,43 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "applyDamage", "heal", "kill", "respawn", "setInvincible", "findByHealthId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "applyDamage",
+                        "heal",
+                        "kill",
+                        "respawn",
+                        "setInvincible",
+                        "findByHealthId",
+                    ],
                     "description": "Health operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
-                "healthId": {"type": "string", "description": "Unique health component identifier."},
-                "maxHealth": {"type": "number", "description": "Maximum health value.", "default": 100},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "healthId": {
+                    "type": "string",
+                    "description": "Unique health component identifier.",
+                },
+                "maxHealth": {
+                    "type": "number",
+                    "description": "Maximum health value.",
+                    "default": 100,
+                },
                 "currentHealth": {"type": "number", "description": "Current health value."},
-                "invincibilityDuration": {"type": "number", "description": "Duration of invincibility after taking damage (seconds).", "default": 0.5},
-                "canTakeDamage": {"type": "boolean", "description": "Whether the entity can take damage."},
+                "invincibilityDuration": {
+                    "type": "number",
+                    "description": "Duration of invincibility after taking damage (seconds).",
+                    "default": 0.5,
+                },
+                "canTakeDamage": {
+                    "type": "boolean",
+                    "description": "Whether the entity can take damage.",
+                },
                 "onDeath": {
                     "type": "string",
                     "enum": ["destroy", "disable", "respawn", "event"],
@@ -1379,14 +2042,33 @@ def register_tools(server: Server) -> None:
                 },
                 "respawnPosition": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Position to respawn at.",
                 },
-                "respawnDelay": {"type": "number", "description": "Delay before respawning (seconds)."},
-                "resetHealthOnRespawn": {"type": "boolean", "description": "Reset health to max on respawn."},
-                "amount": {"type": "number", "description": "Amount for applyDamage/heal operations."},
-                "invincible": {"type": "boolean", "description": "Set invincibility state for setInvincible operation."},
-                "duration": {"type": "number", "description": "Invincibility duration for setInvincible operation."},
+                "respawnDelay": {
+                    "type": "number",
+                    "description": "Delay before respawning (seconds).",
+                },
+                "resetHealthOnRespawn": {
+                    "type": "boolean",
+                    "description": "Reset health to max on respawn.",
+                },
+                "amount": {
+                    "type": "number",
+                    "description": "Amount for applyDamage/heal operations.",
+                },
+                "invincible": {
+                    "type": "boolean",
+                    "description": "Set invincibility state for setInvincible operation.",
+                },
+                "duration": {
+                    "type": "number",
+                    "description": "Invincibility duration for setInvincible operation.",
+                },
             },
         },
         ["operation"],
@@ -1398,10 +2080,27 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "start", "stop", "reset", "spawnOne", "spawnBurst", "despawnAll", "addSpawnPoint", "addWave", "findBySpawnerId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "start",
+                        "stop",
+                        "reset",
+                        "spawnOne",
+                        "spawnBurst",
+                        "despawnAll",
+                        "addSpawnPoint",
+                        "addWave",
+                        "findBySpawnerId",
+                    ],
                     "description": "Spawner operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
                 "spawnerId": {"type": "string", "description": "Unique spawner identifier."},
                 "prefabPath": {"type": "string", "description": "Path to prefab asset to spawn."},
                 "spawnMode": {
@@ -1409,43 +2108,81 @@ def register_tools(server: Server) -> None:
                     "enum": ["interval", "wave", "burst", "manual"],
                     "description": "Spawning mode.",
                 },
-                "autoStart": {"type": "boolean", "description": "Start spawning automatically on scene start."},
-                "spawnInterval": {"type": "number", "description": "Time between spawns (seconds).", "default": 3.0},
+                "autoStart": {
+                    "type": "boolean",
+                    "description": "Start spawning automatically on scene start.",
+                },
+                "spawnInterval": {
+                    "type": "number",
+                    "description": "Time between spawns (seconds).",
+                    "default": 3.0,
+                },
                 "initialDelay": {"type": "number", "description": "Delay before first spawn."},
-                "maxActive": {"type": "integer", "description": "Maximum active instances at once.", "default": 10},
-                "maxTotal": {"type": "integer", "description": "Maximum total spawns (-1 for unlimited)."},
+                "maxActive": {
+                    "type": "integer",
+                    "description": "Maximum active instances at once.",
+                    "default": 10,
+                },
+                "maxTotal": {
+                    "type": "integer",
+                    "description": "Maximum total spawns (-1 for unlimited).",
+                },
                 "spawnPointMode": {
                     "type": "string",
                     "enum": ["sequential", "random", "randomNoRepeat"],
                     "description": "How to select spawn points.",
                 },
-                "usePool": {"type": "boolean", "description": "Use object pooling.", "default": True},
+                "usePool": {
+                    "type": "boolean",
+                    "description": "Use object pooling.",
+                    "default": True,
+                },
                 "poolInitialSize": {"type": "integer", "description": "Initial pool size."},
                 "loopWaves": {"type": "boolean", "description": "Loop waves after completing all."},
-                "delayBetweenWaves": {"type": "number", "description": "Delay between waves (seconds)."},
+                "delayBetweenWaves": {
+                    "type": "number",
+                    "description": "Delay between waves (seconds).",
+                },
                 "waves": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "count": {"type": "integer", "description": "Number of enemies in wave."},
+                            "count": {
+                                "type": "integer",
+                                "description": "Number of enemies in wave.",
+                            },
                             "delay": {"type": "number", "description": "Delay before wave starts."},
-                            "spawnInterval": {"type": "number", "description": "Time between spawns in wave."},
+                            "spawnInterval": {
+                                "type": "number",
+                                "description": "Time between spawns in wave.",
+                            },
                         },
                     },
                     "description": "Wave configurations.",
                 },
                 "positionRandomness": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Random offset range for spawn positions.",
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Position for new spawn point.",
                 },
-                "pointPath": {"type": "string", "description": "Path to existing GameObject to use as spawn point."},
+                "pointPath": {
+                    "type": "string",
+                    "description": "Path to existing GameObject to use as spawn point.",
+                },
                 "count": {"type": "integer", "description": "Number to spawn for spawnBurst."},
             },
         },
@@ -1458,18 +2195,59 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["createTimer", "updateTimer", "inspectTimer", "deleteTimer", "createCooldown", "updateCooldown", "inspectCooldown", "deleteCooldown", "createCooldownManager", "addCooldownToManager", "inspectCooldownManager", "findByTimerId", "findByCooldownId"],
+                    "enum": [
+                        "createTimer",
+                        "updateTimer",
+                        "inspectTimer",
+                        "deleteTimer",
+                        "createCooldown",
+                        "updateCooldown",
+                        "inspectCooldown",
+                        "deleteCooldown",
+                        "createCooldownManager",
+                        "addCooldownToManager",
+                        "inspectCooldownManager",
+                        "findByTimerId",
+                        "findByCooldownId",
+                    ],
                     "description": "Timer/Cooldown operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
                 "timerId": {"type": "string", "description": "Unique timer identifier."},
-                "duration": {"type": "number", "description": "Timer duration (seconds).", "default": 5.0},
-                "loop": {"type": "boolean", "description": "Loop timer when complete.", "default": False},
-                "autoStart": {"type": "boolean", "description": "Start timer automatically.", "default": False},
-                "unscaledTime": {"type": "boolean", "description": "Use unscaled time (ignores Time.timeScale).", "default": False},
+                "duration": {
+                    "type": "number",
+                    "description": "Timer duration (seconds).",
+                    "default": 5.0,
+                },
+                "loop": {
+                    "type": "boolean",
+                    "description": "Loop timer when complete.",
+                    "default": False,
+                },
+                "autoStart": {
+                    "type": "boolean",
+                    "description": "Start timer automatically.",
+                    "default": False,
+                },
+                "unscaledTime": {
+                    "type": "boolean",
+                    "description": "Use unscaled time (ignores Time.timeScale).",
+                    "default": False,
+                },
                 "cooldownId": {"type": "string", "description": "Unique cooldown identifier."},
-                "cooldownDuration": {"type": "number", "description": "Cooldown duration (seconds).", "default": 1.0},
-                "startReady": {"type": "boolean", "description": "Start with cooldown ready.", "default": True},
+                "cooldownDuration": {
+                    "type": "number",
+                    "description": "Cooldown duration (seconds).",
+                    "default": 1.0,
+                },
+                "startReady": {
+                    "type": "boolean",
+                    "description": "Start with cooldown ready.",
+                    "default": True,
+                },
                 "cooldowns": {
                     "type": "array",
                     "items": {
@@ -1493,10 +2271,24 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "setTarget", "clearTarget", "setState", "addPatrolPoint", "clearPatrolPoints", "findByAIId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setTarget",
+                        "clearTarget",
+                        "setState",
+                        "addPatrolPoint",
+                        "clearPatrolPoints",
+                        "findByAIId",
+                    ],
                     "description": "AI behavior operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
                 "aiId": {"type": "string", "description": "Unique AI behavior identifier."},
                 "behaviorType": {
                     "type": "string",
@@ -1511,7 +2303,10 @@ def register_tools(server: Server) -> None:
                     "enum": ["loop", "pingPong", "random"],
                     "description": "Patrol point traversal mode.",
                 },
-                "waitTimeAtPoint": {"type": "number", "description": "Wait time at each patrol point."},
+                "waitTimeAtPoint": {
+                    "type": "number",
+                    "description": "Wait time at each patrol point.",
+                },
                 "patrolPoints": {
                     "type": "array",
                     "items": {
@@ -1519,21 +2314,51 @@ def register_tools(server: Server) -> None:
                             {"type": "string", "description": "Path to existing GameObject."},
                             {
                                 "type": "object",
-                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
                                 "description": "Position to create new patrol point.",
                             },
                         ],
                     },
                     "description": "Patrol point paths or positions.",
                 },
-                "chaseTargetTag": {"type": "string", "description": "Tag of GameObjects to chase.", "default": "Player"},
-                "chaseTargetPath": {"type": "string", "description": "Path to specific chase target."},
-                "detectionRadius": {"type": "number", "description": "Detection range.", "default": 10.0},
-                "loseTargetDistance": {"type": "number", "description": "Distance at which to lose target.", "default": 15.0},
-                "fieldOfView": {"type": "number", "description": "Field of view in degrees.", "default": 360},
-                "requireLineOfSight": {"type": "boolean", "description": "Require line of sight for detection."},
+                "chaseTargetTag": {
+                    "type": "string",
+                    "description": "Tag of GameObjects to chase.",
+                    "default": "Player",
+                },
+                "chaseTargetPath": {
+                    "type": "string",
+                    "description": "Path to specific chase target.",
+                },
+                "detectionRadius": {
+                    "type": "number",
+                    "description": "Detection range.",
+                    "default": 10.0,
+                },
+                "loseTargetDistance": {
+                    "type": "number",
+                    "description": "Distance at which to lose target.",
+                    "default": 15.0,
+                },
+                "fieldOfView": {
+                    "type": "number",
+                    "description": "Field of view in degrees.",
+                    "default": 360,
+                },
+                "requireLineOfSight": {
+                    "type": "boolean",
+                    "description": "Require line of sight for detection.",
+                },
                 "attackRange": {"type": "number", "description": "Attack range.", "default": 2.0},
-                "attackCooldown": {"type": "number", "description": "Attack cooldown (seconds).", "default": 1.0},
+                "attackCooldown": {
+                    "type": "number",
+                    "description": "Attack cooldown (seconds).",
+                    "default": 1.0,
+                },
                 "fleeDistance": {"type": "number", "description": "Distance to flee."},
                 "safeDistance": {"type": "number", "description": "Distance considered safe."},
                 "state": {
@@ -1541,10 +2366,17 @@ def register_tools(server: Server) -> None:
                     "enum": ["idle", "patrol", "chase", "attack", "flee", "return"],
                     "description": "AI state to set.",
                 },
-                "pointPath": {"type": "string", "description": "Path to GameObject for patrol point."},
+                "pointPath": {
+                    "type": "string",
+                    "description": "Path to GameObject for patrol point.",
+                },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Position for new patrol point.",
                 },
             },
@@ -1560,18 +2392,45 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "collect", "respawn", "reset", "findByCollectibleId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "collect",
+                        "respawn",
+                        "reset",
+                        "findByCollectibleId",
+                    ],
                     "description": "Collectible operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
-                "collectibleId": {"type": "string", "description": "Unique collectible identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "collectibleId": {
+                    "type": "string",
+                    "description": "Unique collectible identifier.",
+                },
                 "name": {"type": "string", "description": "Name for new collectible GameObject."},
                 "collectibleType": {
                     "type": "string",
-                    "enum": ["coin", "health", "mana", "powerup", "key", "ammo", "experience", "custom"],
+                    "enum": [
+                        "coin",
+                        "health",
+                        "mana",
+                        "powerup",
+                        "key",
+                        "ammo",
+                        "experience",
+                        "custom",
+                    ],
                     "description": "Type of collectible item.",
                 },
-                "customTypeName": {"type": "string", "description": "Custom type name for 'custom' collectibleType."},
+                "customTypeName": {
+                    "type": "string",
+                    "description": "Custom type name for 'custom' collectibleType.",
+                },
                 "value": {"type": "number", "description": "Float value of collectible."},
                 "intValue": {"type": "integer", "description": "Integer value of collectible."},
                 "collectionBehavior": {
@@ -1580,26 +2439,46 @@ def register_tools(server: Server) -> None:
                     "description": "What happens when collected.",
                 },
                 "respawnDelay": {"type": "number", "description": "Respawn delay in seconds."},
-                "collectable": {"type": "boolean", "description": "Whether the item can be collected."},
+                "collectable": {
+                    "type": "boolean",
+                    "description": "Whether the item can be collected.",
+                },
                 "requiredTag": {"type": "string", "description": "Required tag for collector."},
                 "is2D": {"type": "boolean", "description": "Use 2D collider instead of 3D."},
                 "colliderRadius": {"type": "number", "description": "Collider radius."},
-                "enableFloatAnimation": {"type": "boolean", "description": "Enable floating animation."},
+                "enableFloatAnimation": {
+                    "type": "boolean",
+                    "description": "Enable floating animation.",
+                },
                 "floatAmplitude": {"type": "number", "description": "Float animation amplitude."},
                 "floatFrequency": {"type": "number", "description": "Float animation frequency."},
                 "enableRotation": {"type": "boolean", "description": "Enable rotation animation."},
-                "rotationSpeed": {"type": "number", "description": "Rotation speed in degrees per second."},
+                "rotationSpeed": {
+                    "type": "number",
+                    "description": "Rotation speed in degrees per second.",
+                },
                 "rotationAxis": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Rotation axis.",
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Position for new collectible.",
                 },
-                "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject (not just component)."},
+                "deleteGameObject": {
+                    "type": "boolean",
+                    "description": "Delete entire GameObject (not just component).",
+                },
             },
         },
         ["operation"],
@@ -1611,10 +2490,22 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "launch", "setHomingTarget", "destroy", "findByProjectileId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "launch",
+                        "setHomingTarget",
+                        "destroy",
+                        "findByProjectileId",
+                    ],
                     "description": "Projectile operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
                 "projectileId": {"type": "string", "description": "Unique projectile identifier."},
                 "name": {"type": "string", "description": "Name for new projectile GameObject."},
                 "movementType": {
@@ -1638,20 +2529,35 @@ def register_tools(server: Server) -> None:
                 "maxHomingAngle": {"type": "number", "description": "Max homing angle in degrees."},
                 "canPierce": {"type": "boolean", "description": "Pass through targets."},
                 "maxPierceCount": {"type": "integer", "description": "Maximum pierce count."},
-                "pierceDamageReduction": {"type": "number", "description": "Damage reduction per pierce (0-1)."},
+                "pierceDamageReduction": {
+                    "type": "number",
+                    "description": "Damage reduction per pierce (0-1).",
+                },
                 "direction": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Launch direction.",
                 },
                 "targetPosition": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Target position to launch at.",
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Initial position.",
                 },
                 "isTrigger": {"type": "boolean", "description": "Use trigger collider."},
@@ -1669,16 +2575,35 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "create", "update", "inspect", "delete",
-                        "addWaypoint", "removeWaypoint", "clearWaypoints",
-                        "startPath", "stopPath", "pausePath", "resumePath", "resetPath",
-                        "goToWaypoint", "findByWaypointId"
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "addWaypoint",
+                        "removeWaypoint",
+                        "clearWaypoints",
+                        "startPath",
+                        "stopPath",
+                        "pausePath",
+                        "resumePath",
+                        "resetPath",
+                        "goToWaypoint",
+                        "findByWaypointId",
                     ],
                     "description": "Waypoint operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
-                "waypointId": {"type": "string", "description": "Unique waypoint follower identifier."},
-                "name": {"type": "string", "description": "Name for new waypoint follower GameObject."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "waypointId": {
+                    "type": "string",
+                    "description": "Unique waypoint follower identifier.",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for new waypoint follower GameObject.",
+                },
                 "pathMode": {
                     "type": "string",
                     "enum": ["once", "loop", "pingpong"],
@@ -1701,24 +2626,38 @@ def register_tools(server: Server) -> None:
                 "startDelay": {"type": "number", "description": "Delay before starting path."},
                 "smoothMovement": {"type": "boolean", "description": "Use smooth movement."},
                 "smoothTime": {"type": "number", "description": "Smoothing time."},
-                "arrivalThreshold": {"type": "number", "description": "Distance threshold for arrival."},
+                "arrivalThreshold": {
+                    "type": "number",
+                    "description": "Distance threshold for arrival.",
+                },
                 "useLocalSpace": {"type": "boolean", "description": "Use local coordinates."},
                 "waypointPositions": {
                     "type": "array",
                     "items": {
                         "type": "object",
-                        "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                        "properties": {
+                            "x": {"type": "number"},
+                            "y": {"type": "number"},
+                            "z": {"type": "number"},
+                        },
                     },
                     "description": "Initial waypoint positions.",
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Position for addWaypoint or initial position.",
                 },
                 "index": {"type": "integer", "description": "Waypoint index for operations."},
                 "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject."},
-                "deleteWaypointChildren": {"type": "boolean", "description": "Delete waypoint child objects."},
+                "deleteWaypointChildren": {
+                    "type": "boolean",
+                    "description": "Delete waypoint child objects.",
+                },
             },
         },
         ["operation"],
@@ -1730,15 +2669,39 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "activate", "deactivate", "reset", "setTeleportDestination", "findByZoneId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "activate",
+                        "deactivate",
+                        "reset",
+                        "setTeleportDestination",
+                        "findByZoneId",
+                    ],
                     "description": "Trigger zone operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
                 "zoneId": {"type": "string", "description": "Unique trigger zone identifier."},
                 "name": {"type": "string", "description": "Name for new trigger zone GameObject."},
                 "zoneType": {
                     "type": "string",
-                    "enum": ["generic", "checkpoint", "damagezone", "healzone", "teleport", "speedboost", "slowdown", "killzone", "safezone", "trigger"],
+                    "enum": [
+                        "generic",
+                        "checkpoint",
+                        "damagezone",
+                        "healzone",
+                        "teleport",
+                        "speedboost",
+                        "slowdown",
+                        "killzone",
+                        "safezone",
+                        "trigger",
+                    ],
                     "description": "Type of trigger zone.",
                 },
                 "triggerMode": {
@@ -1749,15 +2712,37 @@ def register_tools(server: Server) -> None:
                 "isActive": {"type": "boolean", "description": "Whether zone is active."},
                 "requiredTag": {"type": "string", "description": "Required tag for triggering."},
                 "cooldown": {"type": "number", "description": "Cooldown between triggers."},
-                "maxTriggerCount": {"type": "integer", "description": "Maximum trigger count (0 = unlimited)."},
-                "effectAmount": {"type": "number", "description": "Damage/heal amount for DamageZone/HealZone."},
-                "effectInterval": {"type": "number", "description": "Effect interval for WhileInside mode."},
-                "speedMultiplier": {"type": "number", "description": "Speed multiplier for SpeedBoost/SlowDown."},
-                "checkpointIndex": {"type": "integer", "description": "Checkpoint index for ordering."},
-                "destinationPath": {"type": "string", "description": "Teleport destination GameObject path."},
+                "maxTriggerCount": {
+                    "type": "integer",
+                    "description": "Maximum trigger count (0 = unlimited).",
+                },
+                "effectAmount": {
+                    "type": "number",
+                    "description": "Damage/heal amount for DamageZone/HealZone.",
+                },
+                "effectInterval": {
+                    "type": "number",
+                    "description": "Effect interval for WhileInside mode.",
+                },
+                "speedMultiplier": {
+                    "type": "number",
+                    "description": "Speed multiplier for SpeedBoost/SlowDown.",
+                },
+                "checkpointIndex": {
+                    "type": "integer",
+                    "description": "Checkpoint index for ordering.",
+                },
+                "destinationPath": {
+                    "type": "string",
+                    "description": "Teleport destination GameObject path.",
+                },
                 "destinationPosition": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Teleport destination position.",
                 },
                 "is2D": {"type": "boolean", "description": "Use 2D colliders."},
@@ -1768,18 +2753,31 @@ def register_tools(server: Server) -> None:
                 },
                 "colliderSize": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Collider size.",
                 },
                 "showGizmo": {"type": "boolean", "description": "Show editor gizmo."},
                 "gizmoColor": {
                     "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "properties": {
+                        "r": {"type": "number"},
+                        "g": {"type": "number"},
+                        "b": {"type": "number"},
+                        "a": {"type": "number"},
+                    },
                     "description": "Gizmo color (RGBA 0-1).",
                 },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Initial position.",
                 },
                 "deleteGameObject": {"type": "boolean", "description": "Delete entire GameObject."},
@@ -1795,25 +2793,75 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "addSyncRule", "removeSyncRule", "addTriggerRule", "removeTriggerRule", "fireTrigger", "setParameter", "findBySyncId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "addSyncRule",
+                        "removeSyncRule",
+                        "addTriggerRule",
+                        "removeTriggerRule",
+                        "fireTrigger",
+                        "setParameter",
+                        "findBySyncId",
+                    ],
                     "description": "Animation sync operation to perform.",
                 },
-                "targetPath": {"type": "string", "description": "Target GameObject hierarchy path."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
                 "syncId": {"type": "string", "description": "Unique animation sync identifier."},
-                "animatorPath": {"type": "string", "description": "Path to GameObject with Animator component."},
-                "autoFindAnimator": {"type": "boolean", "description": "Auto-find Animator on same GameObject."},
+                "animatorPath": {
+                    "type": "string",
+                    "description": "Path to GameObject with Animator component.",
+                },
+                "autoFindAnimator": {
+                    "type": "boolean",
+                    "description": "Auto-find Animator on same GameObject.",
+                },
                 "syncRules": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "parameter": {"type": "string", "description": "Animator parameter name."},
-                            "parameterType": {"type": "string", "enum": ["float", "int", "bool"], "description": "Parameter type."},
-                            "sourceType": {"type": "string", "enum": ["rigidbody3d", "rigidbody2d", "transform", "health", "custom"], "description": "Value source type."},
-                            "sourceProperty": {"type": "string", "description": "Property to read (e.g., 'velocity.magnitude', 'position.y')."},
-                            "healthId": {"type": "string", "description": "Health ID when sourceType is 'health'."},
-                            "multiplier": {"type": "number", "description": "Value multiplier (default: 1.0)."},
-                            "boolThreshold": {"type": "number", "description": "Threshold for bool parameters."},
+                            "parameter": {
+                                "type": "string",
+                                "description": "Animator parameter name.",
+                            },
+                            "parameterType": {
+                                "type": "string",
+                                "enum": ["float", "int", "bool"],
+                                "description": "Parameter type.",
+                            },
+                            "sourceType": {
+                                "type": "string",
+                                "enum": [
+                                    "rigidbody3d",
+                                    "rigidbody2d",
+                                    "transform",
+                                    "health",
+                                    "custom",
+                                ],
+                                "description": "Value source type.",
+                            },
+                            "sourceProperty": {
+                                "type": "string",
+                                "description": "Property to read (e.g., 'velocity.magnitude', 'position.y').",
+                            },
+                            "healthId": {
+                                "type": "string",
+                                "description": "Health ID when sourceType is 'health'.",
+                            },
+                            "multiplier": {
+                                "type": "number",
+                                "description": "Value multiplier (default: 1.0).",
+                            },
+                            "boolThreshold": {
+                                "type": "number",
+                                "description": "Threshold for bool parameters.",
+                            },
                         },
                     },
                     "description": "Sync rules for animator parameters.",
@@ -1823,11 +2871,29 @@ def register_tools(server: Server) -> None:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "triggerName": {"type": "string", "description": "Animator trigger name."},
-                            "eventSource": {"type": "string", "enum": ["health", "input", "manual"], "description": "Event source type."},
+                            "triggerName": {
+                                "type": "string",
+                                "description": "Animator trigger name.",
+                            },
+                            "eventSource": {
+                                "type": "string",
+                                "enum": ["health", "input", "manual"],
+                                "description": "Event source type.",
+                            },
                             "inputAction": {"type": "string", "description": "Input action name."},
                             "healthId": {"type": "string", "description": "Health component ID."},
-                            "healthEvent": {"type": "string", "enum": ["OnDamaged", "OnHealed", "OnDeath", "OnRespawn", "OnInvincibilityStart", "OnInvincibilityEnd"], "description": "Health event type."},
+                            "healthEvent": {
+                                "type": "string",
+                                "enum": [
+                                    "OnDamaged",
+                                    "OnHealed",
+                                    "OnDeath",
+                                    "OnRespawn",
+                                    "OnInvincibilityStart",
+                                    "OnInvincibilityEnd",
+                                ],
+                                "description": "Health event type.",
+                            },
                         },
                     },
                     "description": "Trigger rules for animator triggers.",
@@ -1856,7 +2922,10 @@ def register_tools(server: Server) -> None:
                     },
                     "description": "Single trigger rule for addTriggerRule operation.",
                 },
-                "parameterName": {"type": "string", "description": "Parameter/trigger name for remove/set operations."},
+                "parameterName": {
+                    "type": "string",
+                    "description": "Parameter/trigger name for remove/set operations.",
+                },
                 "triggerName": {"type": "string", "description": "Trigger name to fire."},
                 "value": {"type": "number", "description": "Value for setParameter operation."},
             },
@@ -1870,38 +2939,131 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "addComponent", "removeComponent", "clearComponents", "play", "playAtPosition", "playAtTransform", "shakeCamera", "flashScreen", "setTimeScale", "createManager", "registerEffect", "unregisterEffect", "findByEffectId", "listEffects"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "addComponent",
+                        "removeComponent",
+                        "clearComponents",
+                        "play",
+                        "playAtPosition",
+                        "playAtTransform",
+                        "shakeCamera",
+                        "flashScreen",
+                        "setTimeScale",
+                        "createManager",
+                        "registerEffect",
+                        "unregisterEffect",
+                        "findByEffectId",
+                        "listEffects",
+                    ],
                     "description": "Effect operation to perform.",
                 },
                 "effectId": {"type": "string", "description": "Unique effect identifier."},
-                "assetPath": {"type": "string", "description": "Effect asset path (e.g., 'Assets/Effects/HitEffect.asset')."},
-                "targetPath": {"type": "string", "description": "Target GameObject path for playAtTransform."},
-                "managerPath": {"type": "string", "description": "Path to EffectManager GameObject."},
-                "newEffectId": {"type": "string", "description": "New effect ID for update operation."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Effect asset path (e.g., 'Assets/Effects/HitEffect.asset').",
+                },
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for playAtTransform.",
+                },
+                "managerPath": {
+                    "type": "string",
+                    "description": "Path to EffectManager GameObject.",
+                },
+                "newEffectId": {
+                    "type": "string",
+                    "description": "New effect ID for update operation.",
+                },
                 "components": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "enum": ["particle", "sound", "cameraShake", "screenFlash", "timeScale"], "description": "Effect component type."},
-                            "prefabPath": {"type": "string", "description": "Particle prefab path."},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "particle",
+                                    "sound",
+                                    "cameraShake",
+                                    "screenFlash",
+                                    "timeScale",
+                                ],
+                                "description": "Effect component type.",
+                            },
+                            "prefabPath": {
+                                "type": "string",
+                                "description": "Particle prefab path.",
+                            },
                             "duration": {"type": "number", "description": "Effect duration."},
-                            "attachToTarget": {"type": "boolean", "description": "Attach particle to target."},
-                            "positionOffset": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
-                            "particleScale": {"type": "number", "description": "Particle scale multiplier."},
+                            "attachToTarget": {
+                                "type": "boolean",
+                                "description": "Attach particle to target.",
+                            },
+                            "positionOffset": {
+                                "type": "object",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                            },
+                            "particleScale": {
+                                "type": "number",
+                                "description": "Particle scale multiplier.",
+                            },
                             "clipPath": {"type": "string", "description": "Audio clip path."},
                             "volume": {"type": "number", "description": "Audio volume (0-1)."},
-                            "pitchVariation": {"type": "number", "description": "Pitch variation range."},
-                            "spatialBlend": {"type": "number", "description": "3D spatial blend (0=2D, 1=3D)."},
-                            "intensity": {"type": "number", "description": "Camera shake intensity."},
-                            "shakeDuration": {"type": "number", "description": "Camera shake duration."},
-                            "frequency": {"type": "number", "description": "Camera shake frequency."},
-                            "color": {"type": "object", "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}}, "description": "Flash color."},
-                            "flashDuration": {"type": "number", "description": "Screen flash duration."},
+                            "pitchVariation": {
+                                "type": "number",
+                                "description": "Pitch variation range.",
+                            },
+                            "spatialBlend": {
+                                "type": "number",
+                                "description": "3D spatial blend (0=2D, 1=3D).",
+                            },
+                            "intensity": {
+                                "type": "number",
+                                "description": "Camera shake intensity.",
+                            },
+                            "shakeDuration": {
+                                "type": "number",
+                                "description": "Camera shake duration.",
+                            },
+                            "frequency": {
+                                "type": "number",
+                                "description": "Camera shake frequency.",
+                            },
+                            "color": {
+                                "type": "object",
+                                "properties": {
+                                    "r": {"type": "number"},
+                                    "g": {"type": "number"},
+                                    "b": {"type": "number"},
+                                    "a": {"type": "number"},
+                                },
+                                "description": "Flash color.",
+                            },
+                            "flashDuration": {
+                                "type": "number",
+                                "description": "Screen flash duration.",
+                            },
                             "fadeTime": {"type": "number", "description": "Flash fade time."},
-                            "targetTimeScale": {"type": "number", "description": "Target time scale for slow-mo."},
-                            "timeScaleDuration": {"type": "number", "description": "Time scale effect duration."},
-                            "timeScaleTransition": {"type": "number", "description": "Time scale transition time."},
+                            "targetTimeScale": {
+                                "type": "number",
+                                "description": "Target time scale for slow-mo.",
+                            },
+                            "timeScaleDuration": {
+                                "type": "number",
+                                "description": "Time scale effect duration.",
+                            },
+                            "timeScaleTransition": {
+                                "type": "number",
+                                "description": "Time scale transition time.",
+                            },
                         },
                     },
                     "description": "Effect components for create operation.",
@@ -1910,13 +3072,23 @@ def register_tools(server: Server) -> None:
                     "type": "object",
                     "description": "Single effect component for addComponent operation.",
                 },
-                "componentIndex": {"type": "integer", "description": "Component index for removeComponent."},
+                "componentIndex": {
+                    "type": "integer",
+                    "description": "Component index for removeComponent.",
+                },
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Position for play operation.",
                 },
-                "persistent": {"type": "boolean", "description": "Manager persists across scenes (DontDestroyOnLoad)."},
+                "persistent": {
+                    "type": "boolean",
+                    "description": "Manager persists across scenes (DontDestroyOnLoad).",
+                },
             },
         },
         ["operation"],
@@ -1929,30 +3101,98 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["createProfile", "updateProfile", "inspectProfile", "deleteProfile", "addTarget", "removeTarget", "clearTargets", "save", "load", "listSlots", "deleteSlot", "createManager", "inspectManager", "deleteManager", "findByProfileId"],
+                    "enum": [
+                        "createProfile",
+                        "updateProfile",
+                        "inspectProfile",
+                        "deleteProfile",
+                        "addTarget",
+                        "removeTarget",
+                        "clearTargets",
+                        "save",
+                        "load",
+                        "listSlots",
+                        "deleteSlot",
+                        "createManager",
+                        "inspectManager",
+                        "deleteManager",
+                        "findByProfileId",
+                    ],
                     "description": "Save system operation.",
                 },
                 "profileId": {"type": "string", "description": "Save profile identifier."},
-                "assetPath": {"type": "string", "description": "Asset path for profile (e.g., 'Assets/GameKit/SaveProfiles/MainSave.asset')."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for profile (e.g., 'Assets/GameKit/SaveProfiles/MainSave.asset').",
+                },
                 "targetPath": {"type": "string", "description": "GameObject path for manager."},
-                "slotId": {"type": "string", "description": "Save slot identifier for save/load operations."},
+                "slotId": {
+                    "type": "string",
+                    "description": "Save slot identifier for save/load operations.",
+                },
                 "saveTargets": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {"type": "string", "enum": ["transform", "component", "resourceManager", "health", "sceneFlow", "inventory", "playerPrefs"], "description": "Type of data to save."},
-                            "saveKey": {"type": "string", "description": "Unique key for this save data."},
-                            "gameObjectPath": {"type": "string", "description": "GameObject path for transform/component saves."},
-                            "savePosition": {"type": "boolean", "description": "Save position (for transform type)."},
-                            "saveRotation": {"type": "boolean", "description": "Save rotation (for transform type)."},
-                            "saveScale": {"type": "boolean", "description": "Save scale (for transform type)."},
-                            "componentType": {"type": "string", "description": "Component type name (for component type)."},
-                            "properties": {"type": "array", "items": {"type": "string"}, "description": "Properties to save from component."},
-                            "resourceManagerId": {"type": "string", "description": "ResourceManager ID (for resourceManager type)."},
-                            "healthId": {"type": "string", "description": "Health ID (for health type)."},
-                            "sceneFlowId": {"type": "string", "description": "SceneFlow ID (for sceneFlow type)."},
-                            "inventoryId": {"type": "string", "description": "Inventory ID (for inventory type)."},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "transform",
+                                    "component",
+                                    "resourceManager",
+                                    "health",
+                                    "sceneFlow",
+                                    "inventory",
+                                    "playerPrefs",
+                                ],
+                                "description": "Type of data to save.",
+                            },
+                            "saveKey": {
+                                "type": "string",
+                                "description": "Unique key for this save data.",
+                            },
+                            "gameObjectPath": {
+                                "type": "string",
+                                "description": "GameObject path for transform/component saves.",
+                            },
+                            "savePosition": {
+                                "type": "boolean",
+                                "description": "Save position (for transform type).",
+                            },
+                            "saveRotation": {
+                                "type": "boolean",
+                                "description": "Save rotation (for transform type).",
+                            },
+                            "saveScale": {
+                                "type": "boolean",
+                                "description": "Save scale (for transform type).",
+                            },
+                            "componentType": {
+                                "type": "string",
+                                "description": "Component type name (for component type).",
+                            },
+                            "properties": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Properties to save from component.",
+                            },
+                            "resourceManagerId": {
+                                "type": "string",
+                                "description": "ResourceManager ID (for resourceManager type).",
+                            },
+                            "healthId": {
+                                "type": "string",
+                                "description": "Health ID (for health type).",
+                            },
+                            "sceneFlowId": {
+                                "type": "string",
+                                "description": "SceneFlow ID (for sceneFlow type).",
+                            },
+                            "inventoryId": {
+                                "type": "string",
+                                "description": "Inventory ID (for inventory type).",
+                            },
                         },
                     },
                     "description": "Save targets for createProfile operation.",
@@ -1961,15 +3201,30 @@ def register_tools(server: Server) -> None:
                     "type": "object",
                     "description": "Single save target for addTarget operation.",
                 },
-                "saveKey": {"type": "string", "description": "Save key for removeTarget operation."},
+                "saveKey": {
+                    "type": "string",
+                    "description": "Save key for removeTarget operation.",
+                },
                 "autoSave": {
                     "type": "object",
                     "properties": {
                         "enabled": {"type": "boolean", "description": "Enable auto-save."},
-                        "intervalSeconds": {"type": "number", "description": "Auto-save interval in seconds."},
-                        "onSceneChange": {"type": "boolean", "description": "Auto-save on scene change."},
-                        "onApplicationPause": {"type": "boolean", "description": "Auto-save on application pause."},
-                        "autoSaveSlotId": {"type": "string", "description": "Slot ID for auto-save."},
+                        "intervalSeconds": {
+                            "type": "number",
+                            "description": "Auto-save interval in seconds.",
+                        },
+                        "onSceneChange": {
+                            "type": "boolean",
+                            "description": "Auto-save on scene change.",
+                        },
+                        "onApplicationPause": {
+                            "type": "boolean",
+                            "description": "Auto-save on application pause.",
+                        },
+                        "autoSaveSlotId": {
+                            "type": "string",
+                            "description": "Slot ID for auto-save.",
+                        },
                     },
                     "description": "Auto-save configuration.",
                 },
@@ -1984,23 +3239,74 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "defineItem", "updateItem", "inspectItem", "deleteItem", "addItem", "removeItem", "useItem", "equip", "unequip", "getEquipped", "clear", "sort", "findByInventoryId", "findByItemId"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "defineItem",
+                        "updateItem",
+                        "inspectItem",
+                        "deleteItem",
+                        "addItem",
+                        "removeItem",
+                        "useItem",
+                        "equip",
+                        "unequip",
+                        "getEquipped",
+                        "clear",
+                        "sort",
+                        "findByInventoryId",
+                        "findByItemId",
+                    ],
                     "description": "Inventory operation.",
                 },
                 "inventoryId": {"type": "string", "description": "Inventory identifier."},
-                "gameObjectPath": {"type": "string", "description": "GameObject path for inventory component."},
-                "maxSlots": {"type": "integer", "description": "Maximum inventory slots (default: 20)."},
-                "categories": {"type": "array", "items": {"type": "string"}, "description": "Allowed item categories (e.g., ['weapon', 'armor', 'consumable'])."},
-                "stackableCategories": {"type": "array", "items": {"type": "string"}, "description": "Categories that allow stacking."},
-                "maxStackSize": {"type": "integer", "description": "Default max stack size (default: 99)."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "GameObject path for inventory component.",
+                },
+                "maxSlots": {
+                    "type": "integer",
+                    "description": "Maximum inventory slots (default: 20).",
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Allowed item categories (e.g., ['weapon', 'armor', 'consumable']).",
+                },
+                "stackableCategories": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Categories that allow stacking.",
+                },
+                "maxStackSize": {
+                    "type": "integer",
+                    "description": "Default max stack size (default: 99).",
+                },
                 "itemId": {"type": "string", "description": "Item identifier."},
-                "assetPath": {"type": "string", "description": "Asset path for item (e.g., 'Assets/GameKit/Items/HealthPotion.asset')."},
-                "quantity": {"type": "integer", "description": "Quantity to add/remove (default: 1)."},
-                "slotIndex": {"type": "integer", "description": "Slot index for useItem/equip operations."},
-                "equipSlot": {"type": "string", "description": "Equipment slot (mainHand/offHand/head/body/hands/feet/accessory1/accessory2)."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for item (e.g., 'Assets/GameKit/Items/HealthPotion.asset').",
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "Quantity to add/remove (default: 1).",
+                },
+                "slotIndex": {
+                    "type": "integer",
+                    "description": "Slot index for useItem/equip operations.",
+                },
+                "equipSlot": {
+                    "type": "string",
+                    "description": "Equipment slot (mainHand/offHand/head/body/hands/feet/accessory1/accessory2).",
+                },
                 "displayName": {"type": "string", "description": "Item display name."},
                 "description": {"type": "string", "description": "Item description."},
-                "category": {"type": "string", "description": "Item category (weapon/armor/consumable/material/key/quest/misc)."},
+                "category": {
+                    "type": "string",
+                    "description": "Item category (weapon/armor/consumable/material/key/quest/misc).",
+                },
                 "itemData": {
                     "type": "object",
                     "properties": {
@@ -2012,14 +3318,20 @@ def register_tools(server: Server) -> None:
                         "buyPrice": {"type": "integer", "description": "Buy price."},
                         "sellPrice": {"type": "integer", "description": "Sell price."},
                         "equippable": {"type": "boolean", "description": "Can item be equipped."},
-                        "equipSlot": {"type": "string", "description": "Equipment slot for equippable items."},
+                        "equipSlot": {
+                            "type": "string",
+                            "description": "Equipment slot for equippable items.",
+                        },
                         "equipStats": {
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
                                     "statName": {"type": "string"},
-                                    "modifierType": {"type": "string", "enum": ["flat", "percentAdd", "percentMultiply"]},
+                                    "modifierType": {
+                                        "type": "string",
+                                        "enum": ["flat", "percentAdd", "percentMultiply"],
+                                    },
                                     "value": {"type": "number"},
                                 },
                             },
@@ -2028,14 +3340,36 @@ def register_tools(server: Server) -> None:
                         "onUse": {
                             "type": "object",
                             "properties": {
-                                "type": {"type": "string", "enum": ["none", "heal", "addResource", "playEffect", "custom"], "description": "Use action type."},
-                                "healthId": {"type": "string", "description": "Health ID for heal action."},
-                                "amount": {"type": "number", "description": "Heal/resource amount."},
-                                "resourceManagerId": {"type": "string", "description": "ResourceManager ID."},
-                                "resourceName": {"type": "string", "description": "Resource name to add."},
-                                "resourceAmount": {"type": "number", "description": "Resource amount."},
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["none", "heal", "addResource", "playEffect", "custom"],
+                                    "description": "Use action type.",
+                                },
+                                "healthId": {
+                                    "type": "string",
+                                    "description": "Health ID for heal action.",
+                                },
+                                "amount": {
+                                    "type": "number",
+                                    "description": "Heal/resource amount.",
+                                },
+                                "resourceManagerId": {
+                                    "type": "string",
+                                    "description": "ResourceManager ID.",
+                                },
+                                "resourceName": {
+                                    "type": "string",
+                                    "description": "Resource name to add.",
+                                },
+                                "resourceAmount": {
+                                    "type": "number",
+                                    "description": "Resource amount.",
+                                },
                                 "effectId": {"type": "string", "description": "Effect ID to play."},
-                                "consumeOnUse": {"type": "boolean", "description": "Consume item on use (default: true)."},
+                                "consumeOnUse": {
+                                    "type": "boolean",
+                                    "description": "Consume item on use (default: true).",
+                                },
                             },
                             "description": "Action to perform when item is used.",
                         },
@@ -2055,33 +3389,64 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "createDialogue", "updateDialogue", "inspectDialogue", "deleteDialogue",
-                        "addNode", "updateNode", "removeNode",
-                        "addChoice", "updateChoice", "removeChoice",
-                        "startDialogue", "selectChoice", "advanceDialogue", "endDialogue",
-                        "createManager", "inspectManager", "deleteManager",
-                        "findByDialogueId"
+                        "createDialogue",
+                        "updateDialogue",
+                        "inspectDialogue",
+                        "deleteDialogue",
+                        "addNode",
+                        "updateNode",
+                        "removeNode",
+                        "addChoice",
+                        "updateChoice",
+                        "removeChoice",
+                        "startDialogue",
+                        "selectChoice",
+                        "advanceDialogue",
+                        "endDialogue",
+                        "createManager",
+                        "inspectManager",
+                        "deleteManager",
+                        "findByDialogueId",
                     ],
                     "description": "Dialogue operation.",
                 },
                 "dialogueId": {"type": "string", "description": "Dialogue identifier."},
-                "assetPath": {"type": "string", "description": "Asset path for dialogue (e.g., 'Assets/Dialogues/NPC_Greeting.asset')."},
-                "gameObjectPath": {"type": "string", "description": "GameObject path for dialogue manager."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for dialogue (e.g., 'Assets/Dialogues/NPC_Greeting.asset').",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "GameObject path for dialogue manager.",
+                },
                 "managerId": {"type": "string", "description": "Dialogue manager identifier."},
                 "displayName": {"type": "string", "description": "Dialogue display name."},
                 "description": {"type": "string", "description": "Dialogue description."},
                 "nodeId": {"type": "string", "description": "Node identifier."},
                 "choiceId": {"type": "string", "description": "Choice identifier."},
-                "choiceIndex": {"type": "integer", "description": "Choice index for selectChoice operation."},
+                "choiceIndex": {
+                    "type": "integer",
+                    "description": "Choice index for selectChoice operation.",
+                },
                 "nodeData": {
                     "type": "object",
                     "properties": {
                         "nodeId": {"type": "string", "description": "Node ID."},
-                        "nodeType": {"type": "string", "enum": ["dialogue", "choice", "branch", "action", "exit"], "description": "Node type."},
-                        "speakerName": {"type": "string", "description": "Speaker name for dialogue nodes."},
+                        "nodeType": {
+                            "type": "string",
+                            "enum": ["dialogue", "choice", "branch", "action", "exit"],
+                            "description": "Node type.",
+                        },
+                        "speakerName": {
+                            "type": "string",
+                            "description": "Speaker name for dialogue nodes.",
+                        },
                         "dialogueText": {"type": "string", "description": "Dialogue text content."},
                         "nextNodeId": {"type": "string", "description": "Next node ID."},
-                        "delaySeconds": {"type": "number", "description": "Delay before auto-advancing."},
+                        "delaySeconds": {
+                            "type": "number",
+                            "description": "Delay before auto-advancing.",
+                        },
                     },
                     "description": "Node data for addNode/updateNode operations.",
                 },
@@ -2090,18 +3455,41 @@ def register_tools(server: Server) -> None:
                     "properties": {
                         "choiceId": {"type": "string", "description": "Choice ID."},
                         "choiceText": {"type": "string", "description": "Choice display text."},
-                        "targetNodeId": {"type": "string", "description": "Target node when selected."},
+                        "targetNodeId": {
+                            "type": "string",
+                            "description": "Target node when selected.",
+                        },
                         "conditions": {
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "type": {"type": "string", "enum": ["quest", "resource", "inventory", "variable", "health", "custom"]},
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "quest",
+                                            "resource",
+                                            "inventory",
+                                            "variable",
+                                            "health",
+                                            "custom",
+                                        ],
+                                    },
                                     "questId": {"type": "string"},
                                     "questState": {"type": "string"},
                                     "resourceManagerId": {"type": "string"},
                                     "resourceName": {"type": "string"},
-                                    "comparison": {"type": "string", "enum": ["greaterThan", "lessThan", "equalTo", "greaterOrEqual", "lessOrEqual", "notEqual"]},
+                                    "comparison": {
+                                        "type": "string",
+                                        "enum": [
+                                            "greaterThan",
+                                            "lessThan",
+                                            "equalTo",
+                                            "greaterOrEqual",
+                                            "lessOrEqual",
+                                            "notEqual",
+                                        ],
+                                    },
                                     "value": {"type": "number"},
                                 },
                             },
@@ -2122,37 +3510,104 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "createQuest", "updateQuest", "inspectQuest", "deleteQuest",
-                        "addObjective", "updateObjective", "removeObjective",
-                        "addPrerequisite", "removePrerequisite",
-                        "addReward", "removeReward",
-                        "startQuest", "completeQuest", "failQuest", "abandonQuest",
-                        "updateProgress", "listQuests",
-                        "createManager", "inspectManager", "deleteManager",
-                        "findByQuestId"
+                        "createQuest",
+                        "updateQuest",
+                        "inspectQuest",
+                        "deleteQuest",
+                        "addObjective",
+                        "updateObjective",
+                        "removeObjective",
+                        "addPrerequisite",
+                        "removePrerequisite",
+                        "addReward",
+                        "removeReward",
+                        "startQuest",
+                        "completeQuest",
+                        "failQuest",
+                        "abandonQuest",
+                        "updateProgress",
+                        "listQuests",
+                        "createManager",
+                        "inspectManager",
+                        "deleteManager",
+                        "findByQuestId",
                     ],
                     "description": "Quest operation.",
                 },
                 "questId": {"type": "string", "description": "Quest identifier."},
-                "assetPath": {"type": "string", "description": "Asset path for quest (e.g., 'Assets/Quests/MainQuest_01.asset')."},
-                "gameObjectPath": {"type": "string", "description": "GameObject path for quest manager."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for quest (e.g., 'Assets/Quests/MainQuest_01.asset').",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "GameObject path for quest manager.",
+                },
                 "managerId": {"type": "string", "description": "Quest manager identifier."},
                 "displayName": {"type": "string", "description": "Quest display name."},
                 "description": {"type": "string", "description": "Quest description."},
-                "category": {"type": "string", "enum": ["main", "side", "daily", "weekly", "event", "tutorial", "hidden", "custom"], "description": "Quest category."},
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "main",
+                        "side",
+                        "daily",
+                        "weekly",
+                        "event",
+                        "tutorial",
+                        "hidden",
+                        "custom",
+                    ],
+                    "description": "Quest category.",
+                },
                 "objectiveId": {"type": "string", "description": "Objective identifier."},
-                "progressAmount": {"type": "integer", "description": "Progress amount for updateProgress."},
-                "filter": {"type": "string", "enum": ["all", "active", "completed", "failed", "available"], "description": "Filter for listQuests."},
+                "progressAmount": {
+                    "type": "integer",
+                    "description": "Progress amount for updateProgress.",
+                },
+                "filter": {
+                    "type": "string",
+                    "enum": ["all", "active", "completed", "failed", "available"],
+                    "description": "Filter for listQuests.",
+                },
                 "objectiveData": {
                     "type": "object",
                     "properties": {
                         "objectiveId": {"type": "string", "description": "Objective ID."},
-                        "objectiveType": {"type": "string", "enum": ["kill", "collect", "talk", "location", "interact", "escort", "defend", "deliver", "explore", "craft", "custom"], "description": "Objective type."},
+                        "objectiveType": {
+                            "type": "string",
+                            "enum": [
+                                "kill",
+                                "collect",
+                                "talk",
+                                "location",
+                                "interact",
+                                "escort",
+                                "defend",
+                                "deliver",
+                                "explore",
+                                "craft",
+                                "custom",
+                            ],
+                            "description": "Objective type.",
+                        },
                         "description": {"type": "string", "description": "Objective description."},
-                        "targetId": {"type": "string", "description": "Target ID (enemy type, item ID, NPC ID, etc.)."},
-                        "requiredAmount": {"type": "integer", "description": "Required amount to complete."},
-                        "isOptional": {"type": "boolean", "description": "Whether objective is optional."},
-                        "isSilent": {"type": "boolean", "description": "Whether to hide objective from UI."},
+                        "targetId": {
+                            "type": "string",
+                            "description": "Target ID (enemy type, item ID, NPC ID, etc.).",
+                        },
+                        "requiredAmount": {
+                            "type": "integer",
+                            "description": "Required amount to complete.",
+                        },
+                        "isOptional": {
+                            "type": "boolean",
+                            "description": "Whether objective is optional.",
+                        },
+                        "isSilent": {
+                            "type": "boolean",
+                            "description": "Whether to hide objective from UI.",
+                        },
                     },
                     "description": "Objective data for addObjective/updateObjective operations.",
                 },
@@ -2160,8 +3615,23 @@ def register_tools(server: Server) -> None:
                     "type": "object",
                     "properties": {
                         "rewardId": {"type": "string", "description": "Reward ID."},
-                        "rewardType": {"type": "string", "enum": ["resource", "item", "experience", "reputation", "unlock", "dialogue", "custom"], "description": "Reward type."},
-                        "resourceManagerId": {"type": "string", "description": "ResourceManager ID for resource rewards."},
+                        "rewardType": {
+                            "type": "string",
+                            "enum": [
+                                "resource",
+                                "item",
+                                "experience",
+                                "reputation",
+                                "unlock",
+                                "dialogue",
+                                "custom",
+                            ],
+                            "description": "Reward type.",
+                        },
+                        "resourceManagerId": {
+                            "type": "string",
+                            "description": "ResourceManager ID for resource rewards.",
+                        },
                         "resourceName": {"type": "string", "description": "Resource name."},
                         "amount": {"type": "number", "description": "Reward amount."},
                         "itemId": {"type": "string", "description": "Item ID for item rewards."},
@@ -2173,9 +3643,27 @@ def register_tools(server: Server) -> None:
                     "type": "object",
                     "properties": {
                         "prerequisiteId": {"type": "string", "description": "Prerequisite ID."},
-                        "type": {"type": "string", "enum": ["questComplete", "questActive", "level", "resource", "item", "reputation", "custom"], "description": "Prerequisite type."},
-                        "questId": {"type": "string", "description": "Quest ID for quest-based prerequisites."},
-                        "resourceManagerId": {"type": "string", "description": "ResourceManager ID for resource prerequisites."},
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "questComplete",
+                                "questActive",
+                                "level",
+                                "resource",
+                                "item",
+                                "reputation",
+                                "custom",
+                            ],
+                            "description": "Prerequisite type.",
+                        },
+                        "questId": {
+                            "type": "string",
+                            "description": "Quest ID for quest-based prerequisites.",
+                        },
+                        "resourceManagerId": {
+                            "type": "string",
+                            "description": "ResourceManager ID for resource prerequisites.",
+                        },
                         "resourceName": {"type": "string", "description": "Resource name."},
                         "requiredValue": {"type": "number", "description": "Required value."},
                     },
@@ -2193,30 +3681,79 @@ def register_tools(server: Server) -> None:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "defineEffect", "updateEffect", "inspectEffect", "deleteEffect",
-                        "addModifier", "updateModifier", "removeModifier", "clearModifiers",
-                        "create", "update", "inspect", "delete",
-                        "applyEffect", "removeEffect", "clearEffects",
-                        "getActiveEffects", "getStatModifier",
-                        "findByEffectId", "findByReceiverId", "listEffects"
+                        "defineEffect",
+                        "updateEffect",
+                        "inspectEffect",
+                        "deleteEffect",
+                        "addModifier",
+                        "updateModifier",
+                        "removeModifier",
+                        "clearModifiers",
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "applyEffect",
+                        "removeEffect",
+                        "clearEffects",
+                        "getActiveEffects",
+                        "getStatModifier",
+                        "findByEffectId",
+                        "findByReceiverId",
+                        "listEffects",
                     ],
                     "description": "Status effect operation.",
                 },
                 "effectId": {"type": "string", "description": "Effect identifier."},
                 "receiverId": {"type": "string", "description": "Receiver component identifier."},
-                "assetPath": {"type": "string", "description": "Asset path for effect (e.g., 'Assets/Effects/Poison.asset')."},
-                "gameObjectPath": {"type": "string", "description": "GameObject path for receiver component."},
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for effect (e.g., 'Assets/Effects/Poison.asset').",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "GameObject path for receiver component.",
+                },
                 "displayName": {"type": "string", "description": "Effect display name."},
                 "description": {"type": "string", "description": "Effect description."},
-                "effectType": {"type": "string", "enum": ["buff", "debuff", "neutral"], "description": "Effect type."},
-                "category": {"type": "string", "enum": ["generic", "poison", "burn", "freeze", "stun", "slow", "haste", "shield", "regeneration", "invincibility", "weakness", "strength", "custom"], "description": "Effect category."},
+                "effectType": {
+                    "type": "string",
+                    "enum": ["buff", "debuff", "neutral"],
+                    "description": "Effect type.",
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "generic",
+                        "poison",
+                        "burn",
+                        "freeze",
+                        "stun",
+                        "slow",
+                        "haste",
+                        "shield",
+                        "regeneration",
+                        "invincibility",
+                        "weakness",
+                        "strength",
+                        "custom",
+                    ],
+                    "description": "Effect category.",
+                },
                 "duration": {"type": "number", "description": "Effect duration in seconds."},
                 "isPermanent": {"type": "boolean", "description": "Whether effect is permanent."},
                 "stackable": {"type": "boolean", "description": "Whether effect can stack."},
                 "maxStacks": {"type": "integer", "description": "Maximum stacks."},
-                "stackBehavior": {"type": "string", "enum": ["refreshDuration", "addDuration", "independent", "increaseStacks"], "description": "Behavior when effect is applied while active."},
+                "stackBehavior": {
+                    "type": "string",
+                    "enum": ["refreshDuration", "addDuration", "independent", "increaseStacks"],
+                    "description": "Behavior when effect is applied while active.",
+                },
                 "tickInterval": {"type": "number", "description": "Tick interval in seconds."},
-                "tickOnApply": {"type": "boolean", "description": "Whether to tick immediately on apply."},
+                "tickOnApply": {
+                    "type": "boolean",
+                    "description": "Whether to tick immediately on apply.",
+                },
                 "stacks": {"type": "integer", "description": "Number of stacks for applyEffect."},
                 "modifierId": {"type": "string", "description": "Modifier identifier."},
                 "statName": {"type": "string", "description": "Stat name for getStatModifier."},
@@ -2224,15 +3761,60 @@ def register_tools(server: Server) -> None:
                     "type": "object",
                     "properties": {
                         "modifierId": {"type": "string", "description": "Modifier ID."},
-                        "type": {"type": "string", "enum": ["statModifier", "damageOverTime", "healOverTime", "stun", "silence", "invincible", "custom"], "description": "Modifier type."},
-                        "targetHealthId": {"type": "string", "description": "Target health component ID."},
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "statModifier",
+                                "damageOverTime",
+                                "healOverTime",
+                                "stun",
+                                "silence",
+                                "invincible",
+                                "custom",
+                            ],
+                            "description": "Modifier type.",
+                        },
+                        "targetHealthId": {
+                            "type": "string",
+                            "description": "Target health component ID.",
+                        },
                         "targetStat": {"type": "string", "description": "Target stat name."},
                         "value": {"type": "number", "description": "Modifier value."},
-                        "operation": {"type": "string", "enum": ["add", "subtract", "multiply", "divide", "set", "percentAdd", "percentMultiply"], "description": "Modifier operation."},
-                        "scaleWithStacks": {"type": "boolean", "description": "Scale value with stacks."},
-                        "damagePerTick": {"type": "number", "description": "Damage per tick for DoT."},
+                        "operation": {
+                            "type": "string",
+                            "enum": [
+                                "add",
+                                "subtract",
+                                "multiply",
+                                "divide",
+                                "set",
+                                "percentAdd",
+                                "percentMultiply",
+                            ],
+                            "description": "Modifier operation.",
+                        },
+                        "scaleWithStacks": {
+                            "type": "boolean",
+                            "description": "Scale value with stacks.",
+                        },
+                        "damagePerTick": {
+                            "type": "number",
+                            "description": "Damage per tick for DoT.",
+                        },
                         "healPerTick": {"type": "number", "description": "Heal per tick for HoT."},
-                        "damageType": {"type": "string", "enum": ["physical", "magic", "fire", "ice", "lightning", "poison", "true"], "description": "Damage type."},
+                        "damageType": {
+                            "type": "string",
+                            "enum": [
+                                "physical",
+                                "magic",
+                                "fire",
+                                "ice",
+                                "lightning",
+                                "poison",
+                                "true",
+                            ],
+                            "description": "Damage type.",
+                        },
                     },
                     "description": "Modifier data for addModifier/updateModifier operations.",
                 },
@@ -2268,11 +3850,26 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["createSprite", "updateSprite", "inspect", "updateMultiple", "setSortingLayer", "setColor", "sliceSpriteSheet", "createSpriteAtlas"],
+                    "enum": [
+                        "createSprite",
+                        "updateSprite",
+                        "inspect",
+                        "updateMultiple",
+                        "setSortingLayer",
+                        "setColor",
+                        "sliceSpriteSheet",
+                        "createSpriteAtlas",
+                    ],
                     "description": "Sprite2D bundle operation.",
                 },
-                "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
-                "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "gameObjectGlobalObjectId": {
+                    "type": "string",
+                    "description": "Target GameObject GlobalObjectId.",
+                },
                 "gameObjectPaths": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -2280,15 +3877,26 @@ def register_tools(server: Server) -> None:
                 },
                 "pattern": {"type": "string", "description": "Pattern for matching GameObjects."},
                 "useRegex": {"type": "boolean", "description": "Use regex pattern matching."},
-                "maxResults": {"type": "integer", "description": "Maximum results for batch operations."},
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum results for batch operations.",
+                },
                 "name": {"type": "string", "description": "Name for new sprite GameObject."},
                 "parentPath": {"type": "string", "description": "Parent GameObject path."},
                 "spritePath": {"type": "string", "description": "Sprite asset path."},
-                "sortingLayerName": {"type": "string", "description": "Sorting layer name (default: 'Default')."},
+                "sortingLayerName": {
+                    "type": "string",
+                    "description": "Sorting layer name (default: 'Default').",
+                },
                 "sortingOrder": {"type": "integer", "description": "Sorting order within layer."},
                 "color": {
                     "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "properties": {
+                        "r": {"type": "number"},
+                        "g": {"type": "number"},
+                        "b": {"type": "number"},
+                        "a": {"type": "number"},
+                    },
                     "description": "Sprite color (RGBA 0-1).",
                 },
                 "flipX": {"type": "boolean", "description": "Flip sprite horizontally."},
@@ -2311,7 +3919,11 @@ def register_tools(server: Server) -> None:
                 "materialPath": {"type": "string", "description": "Material asset path."},
                 "position": {
                     "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}},
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
                     "description": "Initial position for new sprite.",
                 },
                 "texturePath": {"type": "string", "description": "Texture path for slicing."},
@@ -2327,7 +3939,10 @@ def register_tools(server: Server) -> None:
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
                     "description": "Sprite pivot point (0-1).",
                 },
-                "pixelsPerUnit": {"type": "number", "description": "Pixels per unit for sprite import."},
+                "pixelsPerUnit": {
+                    "type": "number",
+                    "description": "Pixels per unit for sprite import.",
+                },
                 "atlasPath": {"type": "string", "description": "Output path for sprite atlas."},
                 "spritePaths": {
                     "type": "array",
@@ -2348,17 +3963,35 @@ def register_tools(server: Server) -> None:
                     "enum": ["create", "clone", "inspect", "delete", "show", "hide", "toggle"],
                     "description": "UI hierarchy operation.",
                 },
-                "parentPath": {"type": "string", "description": "Parent GameObject path (usually Canvas or Panel)."},
-                "gameObjectPath": {"type": "string", "description": "Target UI hierarchy root path for inspect/delete/show/hide/toggle/clone."},
-                "hierarchyId": {"type": "string", "description": "Optional identifier for the UI hierarchy (used for referencing)."},
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path (usually Canvas or Panel).",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target UI hierarchy root path for inspect/delete/show/hide/toggle/clone.",
+                },
+                "hierarchyId": {
+                    "type": "string",
+                    "description": "Optional identifier for the UI hierarchy (used for referencing).",
+                },
                 "hierarchy": {
                     "type": "object",
                     "description": "Declarative UI hierarchy definition (recursive structure).",
                     "additionalProperties": True,
                 },
-                "recursive": {"type": "boolean", "description": "Apply visibility recursively to children (default: true)."},
-                "interactable": {"type": "boolean", "description": "Set interactable state when showing/hiding."},
-                "blocksRaycasts": {"type": "boolean", "description": "Set blocksRaycasts state when showing/hiding."},
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Apply visibility recursively to children (default: true).",
+                },
+                "interactable": {
+                    "type": "boolean",
+                    "description": "Set interactable state when showing/hiding.",
+                },
+                "blocksRaycasts": {
+                    "type": "boolean",
+                    "description": "Set blocksRaycasts state when showing/hiding.",
+                },
                 "newName": {"type": "string", "description": "New name for cloned hierarchy root."},
             },
         },
@@ -2371,22 +4004,47 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["defineState", "applyState", "saveState", "loadState", "listStates", "deleteState", "createStateGroup", "transitionTo", "getActiveState"],
+                    "enum": [
+                        "defineState",
+                        "applyState",
+                        "saveState",
+                        "loadState",
+                        "listStates",
+                        "deleteState",
+                        "createStateGroup",
+                        "transitionTo",
+                        "getActiveState",
+                    ],
                     "description": "UI state operation.",
                 },
                 "stateName": {"type": "string", "description": "Name of the UI state."},
-                "rootPath": {"type": "string", "description": "Root GameObject path for the UI state."},
+                "rootPath": {
+                    "type": "string",
+                    "description": "Root GameObject path for the UI state.",
+                },
                 "elements": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "path": {"type": "string", "description": "Relative path from root (empty for root itself)."},
-                            "active": {"type": "boolean", "description": "GameObject active state."},
+                            "path": {
+                                "type": "string",
+                                "description": "Relative path from root (empty for root itself).",
+                            },
+                            "active": {
+                                "type": "boolean",
+                                "description": "GameObject active state.",
+                            },
                             "visible": {"type": "boolean", "description": "Visible (alpha > 0)."},
-                            "interactable": {"type": "boolean", "description": "CanvasGroup interactable."},
+                            "interactable": {
+                                "type": "boolean",
+                                "description": "CanvasGroup interactable.",
+                            },
                             "alpha": {"type": "number", "description": "CanvasGroup alpha (0-1)."},
-                            "blocksRaycasts": {"type": "boolean", "description": "CanvasGroup blocksRaycasts."},
+                            "blocksRaycasts": {
+                                "type": "boolean",
+                                "description": "CanvasGroup blocksRaycasts.",
+                            },
                             "anchoredPosition": {
                                 "type": "object",
                                 "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
@@ -2399,8 +4057,14 @@ def register_tools(server: Server) -> None:
                     },
                     "description": "Element states for defineState operation.",
                 },
-                "includeChildren": {"type": "boolean", "description": "Include children when saving state (default: true)."},
-                "maxDepth": {"type": "integer", "description": "Maximum depth for saveState (default: 10)."},
+                "includeChildren": {
+                    "type": "boolean",
+                    "description": "Include children when saving state (default: true).",
+                },
+                "maxDepth": {
+                    "type": "integer",
+                    "description": "Maximum depth for saveState (default: 10).",
+                },
                 "groupName": {"type": "string", "description": "Name for state group."},
                 "states": {
                     "type": "array",
@@ -2419,10 +4083,22 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["configure", "setExplicit", "autoSetup", "createGroup", "setFirstSelected", "inspect", "reset", "disable"],
+                    "enum": [
+                        "configure",
+                        "setExplicit",
+                        "autoSetup",
+                        "createGroup",
+                        "setFirstSelected",
+                        "inspect",
+                        "reset",
+                        "disable",
+                    ],
                     "description": "UI navigation operation.",
                 },
-                "gameObjectPath": {"type": "string", "description": "Target Selectable GameObject path."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target Selectable GameObject path.",
+                },
                 "rootPath": {"type": "string", "description": "Root path for autoSetup operation."},
                 "mode": {
                     "type": "string",
@@ -2435,8 +4111,14 @@ def register_tools(server: Server) -> None:
                     "enum": ["vertical", "horizontal", "grid", "both"],
                     "description": "Navigation direction for autoSetup/createGroup.",
                 },
-                "columns": {"type": "integer", "description": "Number of columns for grid navigation."},
-                "includeDisabled": {"type": "boolean", "description": "Include disabled Selectables in autoSetup."},
+                "columns": {
+                    "type": "integer",
+                    "description": "Number of columns for grid navigation.",
+                },
+                "includeDisabled": {
+                    "type": "boolean",
+                    "description": "Include disabled Selectables in autoSetup.",
+                },
                 "up": {"type": "string", "description": "Path for selectOnUp (explicit)."},
                 "down": {"type": "string", "description": "Path for selectOnDown (explicit)."},
                 "left": {"type": "string", "description": "Path for selectOnLeft (explicit)."},
@@ -2447,8 +4129,14 @@ def register_tools(server: Server) -> None:
                     "items": {"type": "string"},
                     "description": "List of element paths for createGroup.",
                 },
-                "isolate": {"type": "boolean", "description": "Isolate group navigation (default: true)."},
-                "recursive": {"type": "boolean", "description": "Apply recursively for reset/disable."},
+                "isolate": {
+                    "type": "boolean",
+                    "description": "Isolate group navigation (default: true).",
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Apply recursively for reset/disable.",
+                },
             },
         },
         ["operation"],
@@ -2460,12 +4148,33 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["setupAnimator", "updateAnimator", "inspectAnimator", "createController", "addState", "addTransition", "addParameter", "inspectController", "createClipFromSprites", "updateClip", "inspectClip"],
+                    "enum": [
+                        "setupAnimator",
+                        "updateAnimator",
+                        "inspectAnimator",
+                        "createController",
+                        "addState",
+                        "addTransition",
+                        "addParameter",
+                        "inspectController",
+                        "createClipFromSprites",
+                        "updateClip",
+                        "inspectClip",
+                    ],
                     "description": "Animation2D bundle operation.",
                 },
-                "gameObjectPath": {"type": "string", "description": "Target GameObject hierarchy path."},
-                "gameObjectGlobalObjectId": {"type": "string", "description": "Target GameObject GlobalObjectId."},
-                "controllerPath": {"type": "string", "description": "AnimatorController asset path."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "gameObjectGlobalObjectId": {
+                    "type": "string",
+                    "description": "Target GameObject GlobalObjectId.",
+                },
+                "controllerPath": {
+                    "type": "string",
+                    "description": "AnimatorController asset path.",
+                },
                 "clipPath": {"type": "string", "description": "AnimationClip asset path."},
                 "applyRootMotion": {"type": "boolean", "description": "Enable root motion."},
                 "updateMode": {
@@ -2491,9 +4200,15 @@ def register_tools(server: Server) -> None:
                     "description": "Animator parameters to add.",
                 },
                 "stateName": {"type": "string", "description": "Animation state name."},
-                "layerIndex": {"type": "integer", "description": "Animator layer index (default: 0)."},
+                "layerIndex": {
+                    "type": "integer",
+                    "description": "Animator layer index (default: 0).",
+                },
                 "isDefault": {"type": "boolean", "description": "Set as default state."},
-                "fromState": {"type": "string", "description": "Source state for transition ('Any' for AnyState)."},
+                "fromState": {
+                    "type": "string",
+                    "description": "Source state for transition ('Any' for AnyState).",
+                },
                 "toState": {"type": "string", "description": "Destination state for transition."},
                 "hasExitTime": {"type": "boolean", "description": "Transition has exit time."},
                 "exitTime": {"type": "number", "description": "Exit time (0-1)."},
@@ -2504,7 +4219,10 @@ def register_tools(server: Server) -> None:
                         "type": "object",
                         "properties": {
                             "parameter": {"type": "string"},
-                            "mode": {"type": "string", "enum": ["If", "IfNot", "Greater", "Less", "Equals", "NotEqual"]},
+                            "mode": {
+                                "type": "string",
+                                "enum": ["If", "IfNot", "Greater", "Less", "Equals", "NotEqual"],
+                            },
                             "threshold": {"type": "number"},
                         },
                     },
@@ -2521,7 +4239,10 @@ def register_tools(server: Server) -> None:
                     "items": {"type": "string"},
                     "description": "Sprite paths for animation clip creation.",
                 },
-                "frameRate": {"type": "number", "description": "Animation frame rate (default: 12)."},
+                "frameRate": {
+                    "type": "number",
+                    "description": "Animation frame rate (default: 12).",
+                },
                 "loop": {"type": "boolean", "description": "Loop animation."},
             },
         },
@@ -2554,10 +4275,21 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["getRecent", "getErrors", "getWarnings", "getLogs", "clear", "getCompilationErrors", "getSummary"],
+                    "enum": [
+                        "getRecent",
+                        "getErrors",
+                        "getWarnings",
+                        "getLogs",
+                        "clear",
+                        "getCompilationErrors",
+                        "getSummary",
+                    ],
                     "description": "Console log operation.",
                 },
-                "count": {"type": "integer", "description": "Number of logs to retrieve (default: 50 for getRecent, 100 for filtered)."},
+                "count": {
+                    "type": "integer",
+                    "description": "Number of logs to retrieve (default: 50 for getRecent, 100 for filtered).",
+                },
             },
         },
         ["operation"],
@@ -2570,30 +4302,78 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "setTexture", "setColor", "applyPreset", "inspect", "applyToObjects", "delete", "duplicate", "listPresets"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "setTexture",
+                        "setColor",
+                        "applyPreset",
+                        "inspect",
+                        "applyToObjects",
+                        "delete",
+                        "duplicate",
+                        "listPresets",
+                    ],
                     "description": "Material bundle operation.",
                 },
                 "name": {"type": "string", "description": "Material name."},
-                "savePath": {"type": "string", "description": "Save path for material asset (e.g., 'Assets/Materials/MyMat.mat')."},
+                "savePath": {
+                    "type": "string",
+                    "description": "Save path for material asset (e.g., 'Assets/Materials/MyMat.mat').",
+                },
                 "materialPath": {"type": "string", "description": "Existing material asset path."},
                 "preset": {
                     "type": "string",
-                    "enum": ["unlit", "lit", "transparent", "cutout", "fade", "sprite", "ui", "emissive", "metallic", "glass"],
+                    "enum": [
+                        "unlit",
+                        "lit",
+                        "transparent",
+                        "cutout",
+                        "fade",
+                        "sprite",
+                        "ui",
+                        "emissive",
+                        "metallic",
+                        "glass",
+                    ],
                     "description": "Material preset to apply.",
                 },
-                "shader": {"type": "string", "description": "Shader name override (e.g., 'Standard', 'Universal Render Pipeline/Lit')."},
-                "color": {"type": "string", "description": "Main color (hex format: '#RRGGBB' or '#RRGGBBAA')."},
+                "shader": {
+                    "type": "string",
+                    "description": "Shader name override (e.g., 'Standard', 'Universal Render Pipeline/Lit').",
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Main color (hex format: '#RRGGBB' or '#RRGGBBAA').",
+                },
                 "metallic": {"type": "number", "description": "Metallic value (0-1)."},
                 "smoothness": {"type": "number", "description": "Smoothness value (0-1)."},
                 "emission": {"type": "boolean", "description": "Enable emission."},
                 "emissionColor": {"type": "string", "description": "Emission color (hex format)."},
                 "emissionIntensity": {"type": "number", "description": "Emission intensity."},
                 "texturePath": {"type": "string", "description": "Texture asset path."},
-                "textureProperty": {"type": "string", "description": "Texture property name (e.g., '_MainTex', '_BumpMap')."},
-                "tiling": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "description": "Texture tiling."},
-                "offset": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "description": "Texture offset."},
-                "pattern": {"type": "string", "description": "Pattern for applyToObjects (e.g., 'Cube*')."},
-                "targetMaterialPath": {"type": "string", "description": "Target path for duplicate operation."},
+                "textureProperty": {
+                    "type": "string",
+                    "description": "Texture property name (e.g., '_MainTex', '_BumpMap').",
+                },
+                "tiling": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Texture tiling.",
+                },
+                "offset": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Texture offset.",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "Pattern for applyToObjects (e.g., 'Cube*').",
+                },
+                "targetMaterialPath": {
+                    "type": "string",
+                    "description": "Target path for duplicate operation.",
+                },
             },
         },
         ["operation"],
@@ -2606,11 +4386,22 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "applyPreset", "createLightingSetup", "listPresets"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "applyPreset",
+                        "createLightingSetup",
+                        "listPresets",
+                    ],
                     "description": "Light bundle operation.",
                 },
                 "name": {"type": "string", "description": "Light GameObject name."},
-                "gameObjectPath": {"type": "string", "description": "Existing light GameObject path."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Existing light GameObject path.",
+                },
                 "lightType": {
                     "type": "string",
                     "enum": ["Directional", "Point", "Spot", "Area"],
@@ -2618,7 +4409,15 @@ def register_tools(server: Server) -> None:
                 },
                 "preset": {
                     "type": "string",
-                    "enum": ["daylight", "moonlight", "warm", "cool", "spotlight", "candle", "neon"],
+                    "enum": [
+                        "daylight",
+                        "moonlight",
+                        "warm",
+                        "cool",
+                        "spotlight",
+                        "candle",
+                        "neon",
+                    ],
                     "description": "Light preset to apply.",
                 },
                 "setupPreset": {
@@ -2635,14 +4434,33 @@ def register_tools(server: Server) -> None:
                     "enum": ["none", "hard", "soft"],
                     "description": "Shadow type.",
                 },
-                "position": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}, "description": "Light position."},
-                "rotation": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}, "description": "Light rotation."},
+                "position": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "Light position.",
+                },
+                "rotation": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "Light rotation.",
+                },
                 "renderMode": {
                     "type": "string",
                     "enum": ["Auto", "ForcePixel", "ForceVertex"],
                     "description": "Light render mode.",
                 },
-                "bounceIntensity": {"type": "number", "description": "Bounce intensity for indirect lighting."},
+                "bounceIntensity": {
+                    "type": "number",
+                    "description": "Bounce intensity for indirect lighting.",
+                },
             },
         },
         ["operation"],
@@ -2655,17 +4473,52 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "applyPreset", "play", "stop", "pause", "inspect", "delete", "duplicate", "listPresets"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "applyPreset",
+                        "play",
+                        "stop",
+                        "pause",
+                        "inspect",
+                        "delete",
+                        "duplicate",
+                        "listPresets",
+                    ],
                     "description": "Particle bundle operation.",
                 },
                 "name": {"type": "string", "description": "ParticleSystem GameObject name."},
-                "gameObjectPath": {"type": "string", "description": "Existing ParticleSystem GameObject path."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Existing ParticleSystem GameObject path.",
+                },
                 "preset": {
                     "type": "string",
-                    "enum": ["explosion", "fire", "smoke", "sparkle", "rain", "snow", "dust", "trail", "hit", "heal", "magic", "leaves"],
+                    "enum": [
+                        "explosion",
+                        "fire",
+                        "smoke",
+                        "sparkle",
+                        "rain",
+                        "snow",
+                        "dust",
+                        "trail",
+                        "hit",
+                        "heal",
+                        "magic",
+                        "leaves",
+                    ],
                     "description": "Particle preset to apply.",
                 },
-                "position": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}, "description": "Particle system position."},
+                "position": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "Particle system position.",
+                },
                 "startSize": {"type": "number", "description": "Start size."},
                 "startLifetime": {"type": "number", "description": "Start lifetime."},
                 "startSpeed": {"type": "number", "description": "Start speed."},
@@ -2688,7 +4541,10 @@ def register_tools(server: Server) -> None:
                 },
                 "shapeRadius": {"type": "number", "description": "Shape radius."},
                 "shapeAngle": {"type": "number", "description": "Shape angle (for Cone)."},
-                "targetPath": {"type": "string", "description": "Target path for duplicate operation."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target path for duplicate operation.",
+                },
             },
         },
         ["operation"],
@@ -2701,11 +4557,29 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["setupAnimator", "createController", "addState", "addTransition", "setParameter", "addBlendTree", "createAvatarMask", "inspect", "delete", "listParameters", "listStates"],
+                    "enum": [
+                        "setupAnimator",
+                        "createController",
+                        "addState",
+                        "addTransition",
+                        "setParameter",
+                        "addBlendTree",
+                        "createAvatarMask",
+                        "inspect",
+                        "delete",
+                        "listParameters",
+                        "listStates",
+                    ],
                     "description": "Animation3D bundle operation.",
                 },
-                "gameObjectPath": {"type": "string", "description": "Target GameObject for setupAnimator."},
-                "controllerPath": {"type": "string", "description": "AnimatorController asset path."},
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject for setupAnimator.",
+                },
+                "controllerPath": {
+                    "type": "string",
+                    "description": "AnimatorController asset path.",
+                },
                 "name": {"type": "string", "description": "Name for new controller/mask."},
                 "savePath": {"type": "string", "description": "Save path for asset."},
                 "applyRootMotion": {"type": "boolean", "description": "Apply root motion."},
@@ -2764,7 +4638,10 @@ def register_tools(server: Server) -> None:
                 "layerIndex": {"type": "integer", "description": "Layer index (default: 0)."},
                 "isDefault": {"type": "boolean", "description": "Set as default state."},
                 "speed": {"type": "number", "description": "State playback speed."},
-                "fromState": {"type": "string", "description": "Source state for transition ('Any' for AnyState)."},
+                "fromState": {
+                    "type": "string",
+                    "description": "Source state for transition ('Any' for AnyState).",
+                },
                 "toState": {"type": "string", "description": "Destination state for transition."},
                 "hasExitTime": {"type": "boolean", "description": "Transition has exit time."},
                 "exitTime": {"type": "number", "description": "Exit time (0-1)."},
@@ -2775,19 +4652,31 @@ def register_tools(server: Server) -> None:
                         "type": "object",
                         "properties": {
                             "param": {"type": "string"},
-                            "mode": {"type": "string", "enum": ["if", "ifnot", "greater", "less", "equals", "notequal"]},
+                            "mode": {
+                                "type": "string",
+                                "enum": ["if", "ifnot", "greater", "less", "equals", "notequal"],
+                            },
                             "value": {"type": "number"},
                         },
                     },
                     "description": "Transition conditions.",
                 },
                 "parameterName": {"type": "string", "description": "Parameter name."},
-                "parameterType": {"type": "string", "enum": ["float", "int", "bool", "trigger"], "description": "Parameter type."},
+                "parameterType": {
+                    "type": "string",
+                    "enum": ["float", "int", "bool", "trigger"],
+                    "description": "Parameter type.",
+                },
                 "defaultValue": {"description": "Default parameter value."},
                 "blendTreeName": {"type": "string", "description": "BlendTree name."},
                 "blendType": {
                     "type": "string",
-                    "enum": ["Simple1D", "SimpleDirectional2D", "FreeformDirectional2D", "FreeformCartesian2D"],
+                    "enum": [
+                        "Simple1D",
+                        "SimpleDirectional2D",
+                        "FreeformDirectional2D",
+                        "FreeformCartesian2D",
+                    ],
                     "description": "BlendTree type.",
                 },
                 "blendParameter": {"type": "string", "description": "Blend parameter name."},
@@ -2827,15 +4716,28 @@ def register_tools(server: Server) -> None:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["wire", "unwire", "inspect", "listEvents", "clearEvent", "wireMultiple"],
+                    "enum": [
+                        "wire",
+                        "unwire",
+                        "inspect",
+                        "listEvents",
+                        "clearEvent",
+                        "wireMultiple",
+                    ],
                     "description": "Event wiring operation.",
                 },
                 "source": {
                     "type": "object",
                     "properties": {
                         "gameObject": {"type": "string", "description": "Source GameObject path."},
-                        "component": {"type": "string", "description": "Source component type (e.g., 'Button', 'UnityEngine.UI.Button')."},
-                        "event": {"type": "string", "description": "Event name (e.g., 'onClick', 'm_OnClick')."},
+                        "component": {
+                            "type": "string",
+                            "description": "Source component type (e.g., 'Button', 'UnityEngine.UI.Button').",
+                        },
+                        "event": {
+                            "type": "string",
+                            "description": "Event name (e.g., 'onClick', 'm_OnClick').",
+                        },
                     },
                     "description": "Event source.",
                 },
@@ -2843,7 +4745,10 @@ def register_tools(server: Server) -> None:
                     "type": "object",
                     "properties": {
                         "gameObject": {"type": "string", "description": "Target GameObject path."},
-                        "component": {"type": "string", "description": "Target component type (optional, defaults to searching GameObject)."},
+                        "component": {
+                            "type": "string",
+                            "description": "Target component type (optional, defaults to searching GameObject).",
+                        },
                         "method": {"type": "string", "description": "Target method name."},
                         "mode": {
                             "type": "string",
@@ -2855,10 +4760,22 @@ def register_tools(server: Server) -> None:
                     "description": "Event target.",
                 },
                 "gameObjectPath": {"type": "string", "description": "GameObject for listEvents."},
-                "componentType": {"type": "string", "description": "Component type for listEvents (optional)."},
-                "targetGameObject": {"type": "string", "description": "Target GameObject for unwire filtering."},
-                "targetMethod": {"type": "string", "description": "Target method for unwire filtering."},
-                "listenerIndex": {"type": "integer", "description": "Specific listener index for unwire."},
+                "componentType": {
+                    "type": "string",
+                    "description": "Component type for listEvents (optional).",
+                },
+                "targetGameObject": {
+                    "type": "string",
+                    "description": "Target GameObject for unwire filtering.",
+                },
+                "targetMethod": {
+                    "type": "string",
+                    "description": "Target method for unwire filtering.",
+                },
+                "listenerIndex": {
+                    "type": "integer",
+                    "description": "Specific listener index for unwire.",
+                },
                 "wirings": {
                     "type": "array",
                     "items": {
@@ -2878,7 +4795,15 @@ def register_tools(server: Server) -> None:
     tool_definitions = [
         types.Tool(
             name="unity_ping",
-            description="Verify bridge connectivity and return the latest heartbeat information.",
+            description="""Verify Unity bridge connectivity and return heartbeat information.
+
+Use this tool to:
+- Check if Unity Editor bridge is running and responsive
+- Diagnose connection issues before running other tools
+- Get bridge version and status information
+
+Returns connection status, last heartbeat timestamp, and bridge version.
+If the bridge is not connected, other unity_* tools will fail with connection errors.""",
             inputSchema=ping_schema,
         ),
         types.Tool(
@@ -3010,17 +4935,157 @@ Essential for configuring GameObject behavior and wiring up component references
         ),
         types.Tool(
             name="unity_gamekit_ui_command",
-            description="High-level GameKit UI Command: create command panels with buttons that send commands to GameKitActors (move/jump/action) or GameKitManagers (resources/state/turn/scene). Supports both actor control and manager control via targetType parameter.",
+            description="""High-level GameKit UI Command: create command panels with buttons that send commands to GameKitActors or GameKitManagers.
+
+**Operations:**
+- createCommandPanel: Create a new command panel with buttons
+- addCommand: Add a command button to existing panel
+- inspect: View panel configuration
+- delete: Remove command panel
+
+**Actor Commands:** move, jump, action, look, custom
+**Manager Commands:** addResource, setResource, consumeResource, changeState, nextTurn, triggerScene
+
+**Example:**
+```python
+# Create movement controls for a player
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "MovementPanel",
+    "canvasPath": "Canvas",
+    "targetType": "actor",
+    "targetActorId": "player",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "Left", "commandType": "move", "moveDirection": {"x": -1, "y": 0, "z": 0}},
+        {"name": "Right", "commandType": "move", "moveDirection": {"x": 1, "y": 0, "z": 0}},
+        {"name": "Jump", "commandType": "jump"}
+    ]
+})
+
+# Create resource controls for a manager
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "ResourcePanel",
+    "canvasPath": "Canvas",
+    "targetType": "manager",
+    "targetManagerId": "game_manager",
+    "commands": [
+        {"name": "AddGold", "commandType": "addResource", "commandParameter": "gold", "resourceAmount": 10},
+        {"name": "NextTurn", "commandType": "nextTurn"}
+    ]
+})
+```""",
             inputSchema=gamekit_ui_command_schema,
         ),
         types.Tool(
             name="unity_gamekit_machinations",
-            description="High-level GameKit Machinations: create and manage Machinations diagram assets for economic systems. Define resource pools, flows (automatic generation/consumption), converters (resource transformation), and triggers (threshold events). Apply diagrams to ResourceManagers or export current manager state to assets.",
+            description="""High-level GameKit Machinations: create and manage Machinations diagram assets for economic systems.
+
+**Operations:**
+- create: Create a new Machinations asset (ScriptableObject)
+- update: Update asset properties (pools, flows, converters, triggers)
+- inspect: View diagram configuration
+- delete: Delete Machinations asset
+- apply: Apply diagram to a ResourceManager
+- export: Export ResourceManager state to asset
+
+**Components:**
+- **Resource Pools:** Define resources with initial/min/max values (health, mana, gold)
+- **Flows:** Automatic generation/consumption over time (mana regen, hunger drain)
+- **Converters:** Transform resources (gold → health potion)
+- **Triggers:** Threshold events (HP≤0 → death event)
+
+**Example:**
+```python
+# Create an RPG resource economy
+unity_gamekit_machinations({
+    "operation": "create",
+    "diagramId": "player_economy",
+    "assetPath": "Assets/Economy/PlayerEconomy.asset",
+    "initialResources": [
+        {"name": "health", "initialAmount": 100, "minValue": 0, "maxValue": 100},
+        {"name": "mana", "initialAmount": 50, "minValue": 0, "maxValue": 100},
+        {"name": "gold", "initialAmount": 0, "minValue": 0, "maxValue": 9999}
+    ],
+    "flows": [
+        {"flowId": "manaRegen", "resourceName": "mana", "ratePerSecond": 1.0, "isSource": True}
+    ],
+    "converters": [
+        {"converterId": "buyPotion", "fromResource": "gold", "toResource": "health", "inputCost": 10, "conversionRate": 25}
+    ],
+    "triggers": [
+        {"triggerName": "death", "resourceName": "health", "thresholdType": "below", "thresholdValue": 1}
+    ]
+})
+
+# Apply to a ResourceManager
+unity_gamekit_machinations({
+    "operation": "apply",
+    "assetPath": "Assets/Economy/PlayerEconomy.asset",
+    "managerId": "player_resources"
+})
+```""",
             inputSchema=gamekit_machinations_schema,
         ),
         types.Tool(
             name="unity_gamekit_sceneflow",
-            description="High-level GameKit SceneFlow: manage scene transitions with granular control. Use 'create' to initialize, then 'addScene' to add individual scenes with load modes and shared scenes. Use 'addTransition' to define state machine transitions between scenes. Use 'removeScene'/'removeTransition' to modify flow. Each scene can have its own transitions - same trigger can lead to different destinations per scene. Perfect for level progression, menu systems, and complex scene workflows.",
+            description="""High-level GameKit SceneFlow: manage scene transitions with granular control.
+
+**Operations:**
+- create: Initialize a new SceneFlow
+- inspect: View flow configuration
+- delete: Delete SceneFlow
+- transition: Execute a transition at runtime
+- addScene: Add a scene to the flow
+- removeScene: Remove a scene
+- updateScene: Update scene settings
+- addTransition: Add transition between scenes
+- removeTransition: Remove a transition
+- addSharedScene: Add shared scene (UI, Audio overlay)
+- removeSharedScene: Remove shared scene
+
+**Load Modes:**
+- single: Unload all scenes, load new one
+- additive: Load on top of existing scenes
+
+**Example:**
+```python
+# Create a game scene flow
+unity_gamekit_sceneflow({
+    "operation": "create",
+    "flowId": "MainGameFlow"
+})
+
+# Add scenes
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Title",
+    "scenePath": "Assets/Scenes/Title.unity",
+    "loadMode": "single"
+})
+
+unity_gamekit_sceneflow({
+    "operation": "addScene",
+    "flowId": "MainGameFlow",
+    "sceneName": "Level1",
+    "scenePath": "Assets/Scenes/Level1.unity",
+    "loadMode": "single",
+    "sharedScenePaths": ["Assets/Scenes/GameUI.unity"]
+})
+
+# Add transition
+unity_gamekit_sceneflow({
+    "operation": "addTransition",
+    "flowId": "MainGameFlow",
+    "fromScene": "Title",
+    "toScene": "Level1",
+    "trigger": "StartGame"
+})
+```
+
+Perfect for level progression, menu systems, and complex scene workflows.""",
             inputSchema=gamekit_sceneflow_schema,
         ),
         types.Tool(
@@ -4460,7 +6525,9 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
                 total_elapsed = time.time() - start_time
                 # Add wasCompiling flag for consistency with original API
                 compilation_result["wasCompiling"] = True
-                compilation_result["compilationCompleted"] = compilation_result.get("completed", True)
+                compilation_result["compilationCompleted"] = compilation_result.get(
+                    "completed", True
+                )
                 compilation_result["waitTimeSeconds"] = total_elapsed
                 return [types.TextContent(type="text", text=as_pretty_json(compilation_result))]
             except TimeoutError as exc:
@@ -4514,13 +6581,16 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
                     # Add compilation result to the response
                     if isinstance(result[0].text, str):
                         import json
+
                         try:
                             result_data = json.loads(result[0].text)
                             result_data["compilation"] = compilation_result
                             result[0].text = as_pretty_json(result_data)
                         except (json.JSONDecodeError, AttributeError):
                             # If we can't parse the result, just append compilation info
-                            result[0].text += f"\n\nCompilation: {as_pretty_json(compilation_result)}"
+                            result[
+                                0
+                            ].text += f"\n\nCompilation: {as_pretty_json(compilation_result)}"
 
                 except TimeoutError as exc:
                     logger.warning("Compilation wait timed out: %s", exc)
@@ -4680,4 +6750,3 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
             return await handle_batch_sequential(args, bridge_manager)
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")
-

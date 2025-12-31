@@ -69,4 +69,3 @@ async def read_batch_queue_resource(uri: str) -> str:
             return json.dumps(status, indent=2, ensure_ascii=False)
 
     return json.dumps({"error": f"Unknown resource URI: {uri}"}, indent=2)
-

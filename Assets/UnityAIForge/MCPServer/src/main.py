@@ -75,7 +75,7 @@ async def health_endpoint(_: Request) -> JSONResponse:
             "server": SERVER_NAME,
             "version": SERVER_VERSION,
         }
-)
+    )
 
 
 async def bridge_status_endpoint(_: Request) -> JSONResponse:
@@ -91,9 +91,7 @@ async def bridge_status_endpoint(_: Request) -> JSONResponse:
 
 async def bridge_command_endpoint(request: Request) -> JSONResponse:
     if not bridge_manager.is_connected():
-        return JSONResponse(
-            {"error": "Unity bridge is not connected"}, status_code=503
-        )
+        return JSONResponse({"error": "Unity bridge is not connected"}, status_code=503)
 
     try:
         body = await request.json()
@@ -102,15 +100,11 @@ async def bridge_command_endpoint(request: Request) -> JSONResponse:
 
     tool_name = body.get("toolName")
     if not tool_name:
-        return JSONResponse(
-            {"error": "Field 'toolName' is required"}, status_code=400
-        )
+        return JSONResponse({"error": "Field 'toolName' is required"}, status_code=400)
 
     payload = body.get("payload")
     timeout_ms = body.get("timeoutMs")
-    resolved_timeout = (
-        timeout_ms if isinstance(timeout_ms, int) and timeout_ms > 0 else 30_000
-    )
+    resolved_timeout = timeout_ms if isinstance(timeout_ms, int) and timeout_ms > 0 else 30_000
 
     try:
         result = await bridge_manager.send_command(
@@ -129,9 +123,7 @@ async def bridge_command_endpoint(request: Request) -> JSONResponse:
         )
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("Bridge command failed: %s", exc)
-        return JSONResponse(
-            {"error": f"Bridge command failed: {exc}"}, status_code=500
-        )
+        return JSONResponse({"error": f"Bridge command failed: {exc}"}, status_code=500)
 
     return JSONResponse({"ok": True, "result": result})
 
@@ -174,7 +166,11 @@ async def startup() -> None:
         "Unity Bridge target: %s:%s (token=%s)",
         env.unity_bridge_host,
         env.unity_bridge_port,
-        "****" + env.bridge_token[-4:] if env.bridge_token and len(env.bridge_token) > 4 else ("set" if env.bridge_token else "not set"),
+        (
+            "****" + env.bridge_token[-4:]
+            if env.bridge_token and len(env.bridge_token) > 4
+            else ("set" if env.bridge_token else "not set")
+        ),
     )
     await editor_log_watcher.start()
     bridge_connector.start()
@@ -278,6 +274,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # Apply CLI argument overrides before accessing env
     from config.env import apply_cli_overrides
+
     apply_cli_overrides(
         bridge_token=args.bridge_token,
         bridge_host=args.bridge_host,

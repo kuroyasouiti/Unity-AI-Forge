@@ -160,9 +160,7 @@ class BridgeManager:
             pending = self._pending_commands.pop(command_id, None)
             if pending and not pending.future.done():
                 pending.future.set_exception(
-                    TimeoutError(
-                        f'Bridge command "{tool_name}" timed out after {timeout_ms}ms'
-                    )
+                    TimeoutError(f'Bridge command "{tool_name}" timed out after {timeout_ms}ms')
                 )
 
         timeout_handle = loop.call_later(timeout_ms / 1000, on_timeout)

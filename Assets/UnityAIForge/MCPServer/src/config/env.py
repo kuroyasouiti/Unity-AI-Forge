@@ -141,6 +141,7 @@ def _find_unity_project_root() -> Path:
 
 _project_root = _find_unity_project_root()
 
+
 def _load_bridge_token() -> str | None:
     """Load bridge token from environment variable.
 

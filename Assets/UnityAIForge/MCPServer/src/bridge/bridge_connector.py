@@ -42,7 +42,11 @@ class BridgeConnector:
         try:
             while not self._stop_event.is_set():
                 if delay_seconds > 0:
-                    logger.debug("Waiting %.2fs before reconnecting Unity bridge (attempt %d)", delay_seconds, attempt_count + 1)
+                    logger.debug(
+                        "Waiting %.2fs before reconnecting Unity bridge (attempt %d)",
+                        delay_seconds,
+                        attempt_count + 1,
+                    )
                     try:
                         await asyncio.wait_for(self._stop_event.wait(), delay_seconds)
                         break
@@ -60,11 +64,21 @@ class BridgeConnector:
                     if attempt_count <= 3:
                         # Quick retries: 0.5s, 1s, 2s
                         delay_seconds = 0.5 * (2 ** (attempt_count - 1))
-                        logger.info("Unity bridge connection attempt %d failed: %s (retrying in %.1fs)", attempt_count, exc, delay_seconds)
+                        logger.info(
+                            "Unity bridge connection attempt %d failed: %s (retrying in %.1fs)",
+                            attempt_count,
+                            exc,
+                            delay_seconds,
+                        )
                     else:
                         # After 3 attempts, use configured delay (default 5s)
                         delay_seconds = max(1.0, env.bridge_reconnect_ms / 1000)
-                        logger.warning("Unity bridge connection attempt %d failed: %s (retrying in %.1fs)", attempt_count, exc, delay_seconds)
+                        logger.warning(
+                            "Unity bridge connection attempt %d failed: %s (retrying in %.1fs)",
+                            attempt_count,
+                            exc,
+                            delay_seconds,
+                        )
         finally:
             self._task = None
 
@@ -93,14 +107,21 @@ class BridgeConnector:
                 logger.debug("WebSocket connection established, waiting for authentication...")
                 # Attach with auth headers
                 await bridge_manager.attach(socket)
-                logger.info("✅ Connected to Unity bridge successfully (session: %s)", bridge_manager.get_session_id())
+                logger.info(
+                    "✅ Connected to Unity bridge successfully (session: %s)",
+                    bridge_manager.get_session_id(),
+                )
                 await self._monitor_connection(socket)
                 logger.info("Unity bridge connection closed")
         except asyncio.TimeoutError:
-            logger.warning("❌ Unity bridge connection timeout - is Unity Editor running with MCP Assistant started?")
+            logger.warning(
+                "❌ Unity bridge connection timeout - is Unity Editor running with MCP Assistant started?"
+            )
             raise
         except ConnectionRefusedError:
-            logger.warning("❌ Unity bridge connection refused - is Unity Editor running with MCP Assistant started?")
+            logger.warning(
+                "❌ Unity bridge connection refused - is Unity Editor running with MCP Assistant started?"
+            )
             raise
         except Exception as exc:
             logger.warning("❌ Unity bridge connection error: %s", exc)
@@ -120,9 +141,17 @@ class BridgeConnector:
                     consecutive_failures = 0  # Reset on success
                 except Exception as exc:  # pragma: no cover - defensive
                     consecutive_failures += 1
-                    logger.warning("Unity bridge ping failed (attempt %d/%d): %s", consecutive_failures, max_failures, exc)
+                    logger.warning(
+                        "Unity bridge ping failed (attempt %d/%d): %s",
+                        consecutive_failures,
+                        max_failures,
+                        exc,
+                    )
                     if consecutive_failures >= max_failures:
-                        logger.error("Unity bridge ping failed %d times consecutively - closing connection", max_failures)
+                        logger.error(
+                            "Unity bridge ping failed %d times consecutively - closing connection",
+                            max_failures,
+                        )
                         return
 
         ping_task = asyncio.create_task(ping_loop())
@@ -154,11 +183,7 @@ class BridgeConnector:
         if stop_task in done:
             logger.info("Unity bridge connector stopping on request")
 
-        if (
-            wait_task in done
-            and not self._intentional_close
-            and not self._stop_event.is_set()
-        ):
+        if wait_task in done and not self._intentional_close and not self._stop_event.is_set():
             logger.warning("Unity bridge connection closed unexpectedly")
 
 

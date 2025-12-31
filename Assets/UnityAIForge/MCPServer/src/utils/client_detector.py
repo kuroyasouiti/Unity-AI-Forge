@@ -48,7 +48,9 @@ def _is_claude_code() -> bool:
 
     for indicator in vscode_indicators:
         value = os.environ.get(indicator, "")
-        if value and ("vscode" in value.lower() or "code" in value.lower() or "cursor" in value.lower()):
+        if value and (
+            "vscode" in value.lower() or "code" in value.lower() or "cursor" in value.lower()
+        ):
             return True
 
     # Check TERM_PROGRAM specifically

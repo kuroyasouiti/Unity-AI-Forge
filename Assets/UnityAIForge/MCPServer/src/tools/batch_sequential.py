@@ -97,6 +97,7 @@ def resolve_tool_name(tool_name: str) -> str:
         f"Available tools: {', '.join(sorted(TOOL_NAME_MAPPING.keys()))}"
     )
 
+
 class BatchQueueState:
     """Manages the state of the batch queue.
 
@@ -281,9 +282,7 @@ async def execute_batch_sequential(
             state.last_error = None
             state.last_error_index = None
             state.started_at = current_time
-            logger.info(
-                "Starting new batch execution with %d operations", len(operations)
-            )
+            logger.info("Starting new batch execution with %d operations", len(operations))
         else:
             # Resume from saved state
             logger.info(
@@ -382,8 +381,7 @@ async def execute_batch_sequential(
                             "stopped_at_index": idx,
                             "completed": results,
                             "errors": errors,
-                            "remaining_operations": len(state.operations)
-                            - state.current_index,
+                            "remaining_operations": len(state.operations) - state.current_index,
                             "message": f"Execution stopped at operation {idx + 1} due to error. Use resume=true to continue.",
                             "last_error": error_msg,
                         }
@@ -409,8 +407,7 @@ async def execute_batch_sequential(
                         "stopped_at_index": idx,
                         "completed": results,
                         "errors": errors,
-                        "remaining_operations": len(state.operations)
-                        - state.current_index,
+                        "remaining_operations": len(state.operations) - state.current_index,
                         "message": f"Execution stopped at operation {idx + 1} due to exception. Use resume=true to continue.",
                         "last_error": error_msg,
                     }
@@ -464,29 +461,29 @@ Use cases:
                     "properties": {
                         "tool": {
                             "type": "string",
-                            "description": "Tool name (e.g., 'unity_gameobject_crud', 'unity_component_crud')"
+                            "description": "Tool name (e.g., 'unity_gameobject_crud', 'unity_component_crud')",
                         },
                         "arguments": {
                             "type": "object",
-                            "description": "Tool arguments as a dictionary"
-                        }
+                            "description": "Tool arguments as a dictionary",
+                        },
                     },
-                    "required": ["tool", "arguments"]
-                }
+                    "required": ["tool", "arguments"],
+                },
             },
             "resume": {
                 "type": "boolean",
                 "description": "If true, resume from previous failure point. If false, start fresh (clears saved queue).",
-                "default": False
+                "default": False,
             },
             "stop_on_error": {
                 "type": "boolean",
                 "description": "If true, stop on first error. If false, continue (not recommended for sequential workflows).",
-                "default": True
-            }
+                "default": True,
+            },
         },
-        "required": []
-    }
+        "required": [],
+    },
 )
 
 
@@ -522,4 +519,3 @@ async def handle_batch_sequential(
     )
 
     return [TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False))]
-
