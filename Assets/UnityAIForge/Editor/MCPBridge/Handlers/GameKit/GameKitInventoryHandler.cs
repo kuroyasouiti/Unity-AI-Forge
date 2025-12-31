@@ -264,6 +264,19 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"Item asset already exists at: {assetPath}");
             }
 
+            // Check for any existing asset with the same itemId (at any path) and delete it
+            // This prevents stale assets from interfering with FindItemAssetById
+            var existingGuids = AssetDatabase.FindAssets("t:GameKitItemAsset");
+            foreach (var guid in existingGuids)
+            {
+                var existingPath = AssetDatabase.GUIDToAssetPath(guid);
+                var existingItem = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(existingPath);
+                if (existingItem != null && existingItem.ItemId == itemId)
+                {
+                    AssetDatabase.DeleteAsset(existingPath);
+                }
+            }
+
             // Create ScriptableObject instance
             var item = ScriptableObject.CreateInstance<GameKitItemAsset>();
 
@@ -287,38 +300,33 @@ namespace MCP.Editor.Handlers.GameKit
 
             var category = ParseItemCategory(categoryStr);
 
-            // First, create the asset to register it with Unity's AssetDatabase
-            AssetDatabase.CreateAsset(item, assetPath);
+            // Initialize basic properties on the in-memory instance BEFORE CreateAsset
+            item.Initialize(itemId, displayName, description, category);
 
-            // Now use SerializedObject to set ALL properties (this guarantees proper serialization)
-            var serializedObject = new SerializedObject(item);
-
-            // Set basic properties
-            serializedObject.FindProperty("itemId").stringValue = itemId;
-            serializedObject.FindProperty("displayName").stringValue = displayName;
-            serializedObject.FindProperty("description").stringValue = description;
-            serializedObject.FindProperty("category").enumValueIndex = (int)category;
-
-            // Set stacking properties
+            // Set stacking properties BEFORE CreateAsset
             if (itemData != null && itemData.TryGetValue("stackable", out var stackableObj))
             {
-                serializedObject.FindProperty("stackable").boolValue = Convert.ToBoolean(stackableObj);
-                var maxStack = itemData.TryGetValue("maxStack", out var maxStackObj) ? Convert.ToInt32(maxStackObj) : 99;
-                serializedObject.FindProperty("maxStack").intValue = Mathf.Max(1, maxStack);
+                bool isStackable = Convert.ToBoolean(stackableObj);
+                int maxStack = itemData.TryGetValue("maxStack", out var maxStackObj) ? Convert.ToInt32(maxStackObj) : 99;
+                item.SetStacking(isStackable, maxStack);
             }
 
-            // Set extended properties via serialized object
+            // Set prices BEFORE CreateAsset
             if (itemData != null)
             {
-                // Prices
-                if (itemData.TryGetValue("buyPrice", out var buyObj))
-                {
-                    serializedObject.FindProperty("buyPrice").intValue = Convert.ToInt32(buyObj);
-                }
-                if (itemData.TryGetValue("sellPrice", out var sellObj))
-                {
-                    serializedObject.FindProperty("sellPrice").intValue = Convert.ToInt32(sellObj);
-                }
+                int buyPrice = itemData.TryGetValue("buyPrice", out var buyObj) ? Convert.ToInt32(buyObj) : 0;
+                int sellPrice = itemData.TryGetValue("sellPrice", out var sellObj) ? Convert.ToInt32(sellObj) : 0;
+                item.SetPrices(buyPrice, sellPrice);
+            }
+
+            // Now create the asset with fully configured instance
+            AssetDatabase.CreateAsset(item, assetPath);
+
+            // Use SerializedObject for equipment and use action (complex nested types)
+            if (itemData != null)
+            {
+                var serializedObject = new SerializedObject(item);
+                bool needsApply = false;
 
                 // Equipment
                 if (itemData.TryGetValue("equippable", out var equipObj) && Convert.ToBoolean(equipObj))
@@ -347,6 +355,7 @@ namespace MCP.Editor.Handlers.GameKit
                             }
                         }
                     }
+                    needsApply = true;
                 }
 
                 // Use action
@@ -356,30 +365,48 @@ namespace MCP.Editor.Handlers.GameKit
                     if (useData.TryGetValue("type", out var typeObj))
                     {
                         var useType = ParseUseActionType(typeObj.ToString());
-                        onUseProp.FindPropertyRelative("actionType").enumValueIndex = (int)useType;
+                        onUseProp.FindPropertyRelative("type").enumValueIndex = (int)useType;
                     }
                     if (useData.TryGetValue("amount", out var amountObj))
                     {
-                        onUseProp.FindPropertyRelative("amount").floatValue = Convert.ToSingle(amountObj);
+                        onUseProp.FindPropertyRelative("healAmount").floatValue = Convert.ToSingle(amountObj);
+                        onUseProp.FindPropertyRelative("resourceAmount").floatValue = Convert.ToSingle(amountObj);
+                    }
+                    if (useData.TryGetValue("healthId", out var healthIdObj))
+                    {
+                        onUseProp.FindPropertyRelative("healthId").stringValue = healthIdObj.ToString();
                     }
                     if (useData.TryGetValue("consumeOnUse", out var consumeObj))
                     {
                         onUseProp.FindPropertyRelative("consumeOnUse").boolValue = Convert.ToBoolean(consumeObj);
                     }
+                    needsApply = true;
+                }
+
+                if (needsApply)
+                {
+                    serializedObject.ApplyModifiedPropertiesWithoutUndo();
                 }
             }
 
-            // Apply all changes
-            serializedObject.ApplyModifiedPropertiesWithoutUndo();
-
-            // Save to disk
+            // Mark dirty and save to disk
             EditorUtility.SetDirty(item);
             AssetDatabase.SaveAssets();
 
-            // Force reimport to ensure disk state is up-to-date
+            // Force reserialize to ensure binary data is written to disk
+            AssetDatabase.ForceReserializeAssets(
+                new[] { assetPath },
+                ForceReserializeAssetsOptions.ReserializeAssetsAndMetadata
+            );
+
+            // Release cached file handles and refresh asset database
+            AssetDatabase.ReleaseCachedFileHandles();
+            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+
+            // Force reimport to ensure disk state is loaded fresh
             AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
 
-            // Reload the asset to verify
+            // Reload the asset fresh from disk
             var savedItem = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(assetPath);
 
             return CreateSuccessResponse(
@@ -819,6 +846,8 @@ namespace MCP.Editor.Handlers.GameKit
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
+                // Force reimport to get fresh data from disk
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
                 var item = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(path);
                 if (item != null && item.ItemId == itemId)
                 {

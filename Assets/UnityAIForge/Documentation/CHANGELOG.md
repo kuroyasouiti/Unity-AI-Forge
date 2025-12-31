@@ -9,6 +9,25 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.5.2] - 2026-01-01
+
+### 修正
+
+- **MaterialBundleHandler のパス構築バグを修正**
+  - `directory.Replace("Assets", Application.dataPath)` が "TestAssets" 等のフォルダ名に含まれる "Assets" も置換してしまう問題を修正
+  - 先頭の "Assets" プレフィックスのみを置換するよう修正
+  - シェーダーフォールバックチェーンを追加（Standard → URP/Lit → Unlit/Color → UI/Default → Sprites/Default → Hidden/InternalErrorShader）
+
+- **GameKitInventoryHandler のスタッカブルアイテム処理を修正**
+  - stackable=true のアイテムが新しいスロットに追加されず、既存スロットにスタックされるよう修正
+  - 既存スロット検索時の条件判定を修正
+
+### テスト
+
+- **MaterialBundleHandlerTests の改善**
+  - File.Exists を使用せず AssetDatabase.LoadAssetAtPath で検証するよう変更
+  - エラーメッセージの診断出力を追加
+
 ## [2.5.1] - 2025-12-29
 
 ### ドキュメント

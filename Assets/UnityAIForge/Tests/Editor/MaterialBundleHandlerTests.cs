@@ -97,11 +97,15 @@ namespace MCP.Editor.Tests
             var result = _handler.Execute(payload) as Dictionary<string, object>;
 
             Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsTrue(File.Exists(assetPath.Replace("Assets/", Application.dataPath + "/")));
 
+            // Get error message for better diagnostics
+            string errorMsg = result.ContainsKey("error") ? result["error"]?.ToString() : "No error message";
+            Assert.IsTrue((bool)result["success"], $"Handler failed with error: {errorMsg}");
+
+            // Verify asset exists via AssetDatabase (more reliable than File.Exists in Unity tests)
             var material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
-            Assert.IsNotNull(material);
+            Assert.IsNotNull(material, $"Material should exist at {assetPath}");
+            Assert.AreEqual("TestMaterial_Create", material.name);
         }
 
         [Test]

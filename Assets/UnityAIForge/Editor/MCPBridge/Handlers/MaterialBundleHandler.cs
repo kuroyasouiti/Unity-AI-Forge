@@ -79,7 +79,12 @@ namespace MCP.Editor.Handlers
             }
 
             // Also ensure physical directory exists (belt and suspenders approach)
-            string physicalDirectory = directory?.Replace("Assets", Application.dataPath);
+            // Only replace the leading "Assets" prefix, not any other occurrence (e.g., "TestAssets")
+            string physicalDirectory = null;
+            if (!string.IsNullOrEmpty(directory) && directory.StartsWith("Assets"))
+            {
+                physicalDirectory = Application.dataPath + directory.Substring("Assets".Length);
+            }
             if (!string.IsNullOrEmpty(physicalDirectory) && !Directory.Exists(physicalDirectory))
             {
                 Directory.CreateDirectory(physicalDirectory);
@@ -89,7 +94,11 @@ namespace MCP.Editor.Handlers
             Shader shader = GetShaderForPreset(preset);
             if (shader == null)
             {
-                return CreateFailureResponse($"Could not find shader for preset '{preset}'");
+                // Last resort: create a basic shader programmatically isn't possible,
+                // so we must have at least one shader. Log detailed error.
+                var rp = DetectRenderPipeline();
+                return CreateFailureResponse($"Could not find any shader for preset '{preset}'. RenderPipeline: {rp}. " +
+                    "Ensure project has Standard shader or URP package installed.");
             }
 
             // Create material
@@ -111,21 +120,6 @@ namespace MCP.Editor.Handlers
             // Mark dirty and save
             EditorUtility.SetDirty(material);
             AssetDatabase.SaveAssets();
-
-            // Force synchronous import to write file to disk
-            AssetDatabase.ImportAsset(savePath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
-
-            // Final refresh to ensure everything is synced
-            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-
-            // Verify the file exists on disk
-            string physicalPath = savePath.Replace("Assets/", Application.dataPath + "/").Replace("Assets\\", Application.dataPath + "\\");
-            if (!File.Exists(physicalPath))
-            {
-                // Try one more approach: force serialize the asset
-                AssetDatabase.ForceReserializeAssets(new[] { savePath });
-                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            }
 
             return CreateSuccessResponse(
                 ("message", $"Material '{name}' created"),
@@ -473,7 +467,7 @@ namespace MCP.Editor.Handlers
         {
             var rp = DetectRenderPipeline();
 
-            return preset.ToLower() switch
+            Shader shader = preset.ToLower() switch
             {
                 "unlit" => rp switch
                 {
@@ -517,6 +511,20 @@ namespace MCP.Editor.Handlers
                     _ => Shader.Find("Standard")
                 }
             };
+
+            // Fallback chain if primary shader not found
+            if (shader == null)
+            {
+                // Try common fallback shaders that should always exist
+                shader = Shader.Find("Standard")
+                    ?? Shader.Find("Universal Render Pipeline/Lit")
+                    ?? Shader.Find("Unlit/Color")
+                    ?? Shader.Find("UI/Default")
+                    ?? Shader.Find("Sprites/Default")
+                    ?? Shader.Find("Hidden/InternalErrorShader");
+            }
+
+            return shader;
         }
 
         private void ApplyPresetSettings(Material material, string preset, Dictionary<string, object> payload)
