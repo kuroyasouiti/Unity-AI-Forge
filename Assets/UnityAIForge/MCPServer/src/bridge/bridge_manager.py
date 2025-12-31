@@ -91,6 +91,10 @@ class BridgeManager:
         """
         Wait for the next compilation to complete.
 
+        This method waits for compilation to complete even if the bridge connection
+        is temporarily disconnected (which is common during Unity domain reload).
+        It will wait for reconnection and the bridge:restarted message.
+
         Args:
             timeout_seconds: Maximum time to wait in seconds (default: 60, increased from 30)
 
@@ -109,15 +113,17 @@ class BridgeManager:
             - message: str
 
         Raises:
-            RuntimeError: If bridge is not connected
             TimeoutError: If compilation does not complete within timeout
 
         Note:
             The default timeout has been increased to 60 seconds to accommodate
             large projects. If you receive compilation:progress messages every
             5 seconds, the compilation is still active and not stuck.
+
+            During compilation, Unity may disconnect the bridge due to domain reload.
+            This is expected behavior and this method will wait for reconnection.
         """
-        self._ensure_socket()
+        # Don't require socket - we may be waiting for reconnection after domain reload
         loop = asyncio.get_running_loop()
 
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
@@ -414,12 +420,33 @@ class BridgeManager:
         if self._socket is not socket:
             return
 
-        logger.warning("Unity bridge disconnected")
+        # Check if we have pending compilation waiters
+        has_compilation_waiters = bool(self._compilation_waiters)
+        was_compiling = self._is_compiling
+
+        if has_compilation_waiters or was_compiling:
+            logger.info(
+                "Unity bridge disconnected during compilation - will wait for reconnection "
+                "(waiters=%d, was_compiling=%s)",
+                len(self._compilation_waiters),
+                was_compiling,
+            )
+            # Keep _is_compiling flag True so reconnection logic knows to wait
+            # The _compilation_waiters will be resolved when bridge:restarted is received
+        else:
+            logger.warning("Unity bridge disconnected")
+
         self._socket = None
         self._session_id = None
         self._last_heartbeat_at = None
         self._emit("disconnected")
         self._flush_pending_commands(RuntimeError("Bridge disconnected"))
+
+        # Note: We intentionally do NOT clear _compilation_waiters here.
+        # They will be resolved when:
+        # 1. bridge:restarted message is received after reconnection
+        # 2. compilation:complete message is received after reconnection
+        # 3. Timeout occurs
 
     def _flush_pending_commands(self, error: Exception) -> None:
         for command_id, pending in list(self._pending_commands.items()):

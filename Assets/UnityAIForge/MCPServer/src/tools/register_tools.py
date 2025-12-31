@@ -6448,7 +6448,8 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
 
         if name == "unity_compilation_await":
             # Async polling approach: wait for compilation to start, then wait for completion
-            _ensure_bridge_connected()
+            # NOTE: We don't require bridge connection here because disconnection during
+            # compilation is expected (Unity domain reload disconnects the bridge).
             timeout_seconds = args.get("timeoutSeconds", 60)
             poll_interval = 0.5  # Poll every 500ms
             poll_timeout = 5.0  # Wait up to 5 seconds for compilation to start
@@ -6457,40 +6458,64 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
             is_compiling = False
             unity_status: dict[str, Any] = {}
 
-            # Phase 1: Poll until compilation starts or timeout
-            logger.info(
-                "Polling for compilation start (poll_timeout: %.1fs, total_timeout: %ds)...",
-                poll_timeout,
-                timeout_seconds,
-            )
-
-            while time.time() - start_time < poll_timeout:
-                # Check local state first (faster)
+            # Check if bridge is already disconnected (likely compiling)
+            if not bridge_manager.is_connected():
+                # Bridge is disconnected - likely due to compilation/domain reload
+                # Check if we have a compilation in progress flag or pending waiters
                 if bridge_manager.is_compiling():
                     is_compiling = True
-                    logger.info("Compilation detected via local state")
-                    break
-
-                # Query Unity for actual compilation status
-                try:
-                    unity_status = await bridge_manager.send_command(
-                        "compilationAwait", {"operation": "status"}
+                    logger.info(
+                        "Bridge disconnected but compilation flag set - waiting for reconnection"
                     )
-                    if unity_status.get("isCompiling", False):
+                else:
+                    # Bridge disconnected but no compilation flag - could be starting compilation
+                    # Wait for reconnection or timeout
+                    is_compiling = True
+                    logger.info(
+                        "Bridge disconnected - assuming compilation in progress, waiting for reconnection"
+                    )
+
+            # Phase 1: Poll until compilation starts or timeout (only if connected)
+            if not is_compiling:
+                logger.info(
+                    "Polling for compilation start (poll_timeout: %.1fs, total_timeout: %ds)...",
+                    poll_timeout,
+                    timeout_seconds,
+                )
+
+                while time.time() - start_time < poll_timeout:
+                    # Check local state first (faster)
+                    if bridge_manager.is_compiling():
                         is_compiling = True
-                        logger.info("Compilation detected via Unity query")
+                        logger.info("Compilation detected via local state")
                         break
-                except Exception as exc:
-                    # Bridge might be disconnected during compilation
-                    logger.debug("Unity query failed (may be compiling): %s", exc)
-                    # If bridge disconnected, assume compilation started
+
+                    # Check if bridge disconnected during polling
                     if not bridge_manager.is_connected():
                         is_compiling = True
-                        logger.info("Bridge disconnected - assuming compilation started")
+                        logger.info("Bridge disconnected during polling - assuming compilation started")
                         break
 
-                # Wait before next poll
-                await asyncio.sleep(poll_interval)
+                    # Query Unity for actual compilation status
+                    try:
+                        unity_status = await bridge_manager.send_command(
+                            "compilationAwait", {"operation": "status"}
+                        )
+                        if unity_status.get("isCompiling", False):
+                            is_compiling = True
+                            logger.info("Compilation detected via Unity query")
+                            break
+                    except Exception as exc:
+                        # Bridge might be disconnected during compilation
+                        logger.debug("Unity query failed (may be compiling): %s", exc)
+                        # If bridge disconnected, assume compilation started
+                        if not bridge_manager.is_connected():
+                            is_compiling = True
+                            logger.info("Bridge disconnected - assuming compilation started")
+                            break
+
+                    # Wait before next poll
+                    await asyncio.sleep(poll_interval)
 
             poll_elapsed = time.time() - start_time
 
@@ -6514,10 +6539,13 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
                 return [types.TextContent(type="text", text=as_pretty_json(result))]
 
             # Phase 2: Compilation in progress - wait for completion asynchronously
+            # This works even when bridge is disconnected - it will wait for reconnection
+            # and the bridge:restarted message which signals compilation completion
             remaining_timeout = max(1, timeout_seconds - int(poll_elapsed))
             logger.info(
-                "Compilation in progress - waiting for completion (timeout: %ds)...",
+                "Compilation in progress - waiting for completion (timeout: %ds, bridge_connected: %s)...",
                 remaining_timeout,
+                bridge_manager.is_connected(),
             )
 
             try:
