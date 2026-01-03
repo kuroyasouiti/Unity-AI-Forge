@@ -218,7 +218,9 @@ namespace MCP.Editor.Handlers
                 StartGettingEntriesMethod?.Invoke(null, null);
 
                 int totalCount = (int)GetCountMethod.Invoke(null, null);
-                int startIndex = Math.Max(0, totalCount - maxCount * 3); // Get more to filter
+                // When filtering by type, scan all entries to find matching logs
+                // When not filtering, limit to recent entries (maxCount * 3) for performance
+                int startIndex = filterType.HasValue ? 0 : Math.Max(0, totalCount - maxCount * 3);
 
                 // Use LogEntry structure via reflection
                 var logEntryType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.LogEntry");
@@ -252,14 +254,6 @@ namespace MCP.Editor.Handlers
                             mode = (int)modeField.GetValue(logEntry);
                         }
 
-                        LogType logType = GetLogTypeFromMode(mode);
-
-                        // Filter by type if specified
-                        if (filterType.HasValue && logType != filterType.Value)
-                        {
-                            continue;
-                        }
-
                         string message = "";
                         if (conditionField != null)
                         {
@@ -268,6 +262,15 @@ namespace MCP.Editor.Handlers
                         else if (messageField != null)
                         {
                             message = messageField.GetValue(logEntry)?.ToString() ?? "";
+                        }
+
+                        // Get log type from mode flags, with message-based fallback for compilation logs
+                        LogType logType = GetLogTypeFromMode(mode, message);
+
+                        // Filter by type if specified
+                        if (filterType.HasValue && logType != filterType.Value)
+                        {
+                            continue;
                         }
 
                         string file = fileField?.GetValue(logEntry)?.ToString() ?? "";
@@ -310,9 +313,9 @@ namespace MCP.Editor.Handlers
         }
 
         /// <summary>
-        /// Convert Unity internal mode to LogType.
+        /// Convert Unity internal mode to LogType, with message-based fallback for compilation logs.
         /// </summary>
-        private LogType GetLogTypeFromMode(int mode)
+        private LogType GetLogTypeFromMode(int mode, string message = null)
         {
             // Unity mode flags:
             // 1 = Error, 2 = Warning, 4 = Log, 8 = Exception
@@ -325,6 +328,26 @@ namespace MCP.Editor.Handlers
             {
                 return LogType.Warning;
             }
+
+            // Fallback: Check message content for compilation warnings/errors
+            // Compilation logs may not have proper mode flags set
+            if (!string.IsNullOrEmpty(message))
+            {
+                // Check for compilation error patterns (e.g., "error CS0001:", "error UnityEngine")
+                if (message.Contains(": error CS") || message.Contains(": error UnityEngine") ||
+                    message.Contains("): error "))
+                {
+                    return LogType.Error;
+                }
+
+                // Check for compilation warning patterns (e.g., "warning CS0108:")
+                if (message.Contains(": warning CS") || message.Contains(": warning UnityEngine") ||
+                    message.Contains("): warning "))
+                {
+                    return LogType.Warning;
+                }
+            }
+
             return LogType.Log;
         }
 

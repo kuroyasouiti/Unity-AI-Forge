@@ -609,6 +609,7 @@ namespace MCP.Editor.ServerManager
         /// <summary>
         /// JSONファイルを直接編集してMCPサーバーを登録（CLIを使用しない）
         /// トークンを確実に登録するために使用
+        /// 注意: 既存のトークンがある場合は上書きしない
         /// </summary>
         public static CliResult RegisterProjectViaJson(AITool tool, ProjectRegistrationOptions options)
         {
@@ -646,8 +647,25 @@ namespace MCP.Editor.ServerManager
                     config = new JObject();
                 }
 
+                // 既存のサーバーエントリからトークンを取得（上書き防止）
+                string existingToken = GetExistingToken(config, options.ServerName, options.Scope, options.ProjectPath);
+
                 // サーバーエントリを作成
                 var serverEntry = CreateServerEntry(options);
+
+                // 既存のトークンがある場合は保持（上書きしない）
+                if (!string.IsNullOrEmpty(existingToken) && options.Scope != RegistrationScope.Project)
+                {
+                    Debug.Log($"[McpCliRegistry] Preserving existing token (not overwriting)");
+                    if (serverEntry["env"] is JObject envObj)
+                    {
+                        envObj["MCP_BRIDGE_TOKEN"] = existingToken;
+                    }
+                    else
+                    {
+                        serverEntry["env"] = new JObject { ["MCP_BRIDGE_TOKEN"] = existingToken };
+                    }
+                }
 
                 // スコープに応じて適切な場所に登録
                 switch (options.Scope)
@@ -709,7 +727,8 @@ namespace MCP.Editor.ServerManager
                 return new CliResult
                 {
                     Success = true,
-                    Output = $"Registered {options.ServerName} to {configPath}",
+                    Output = $"Registered {options.ServerName} to {configPath}" +
+                             (existingToken != null ? " (existing token preserved)" : ""),
                     ExitCode = 0
                 };
             }
@@ -723,6 +742,69 @@ namespace MCP.Editor.ServerManager
                     ExitCode = -1
                 };
             }
+        }
+
+        /// <summary>
+        /// 既存のサーバーエントリからMCP_BRIDGE_TOKENを取得
+        /// </summary>
+        private static string GetExistingToken(JObject config, string serverName, RegistrationScope scope, string projectPath)
+        {
+            try
+            {
+                JObject mcpServers = null;
+
+                switch (scope)
+                {
+                    case RegistrationScope.User:
+                    case RegistrationScope.Project:
+                        // User/Project scope: ルートレベルの mcpServers
+                        if (config.TryGetValue("mcpServers", out var serversToken) &&
+                            serversToken is JObject servers)
+                        {
+                            mcpServers = servers;
+                        }
+                        break;
+
+                    case RegistrationScope.Local:
+                        // Local scope: projects -> [projectPath] -> mcpServers
+                        if (config.TryGetValue("projects", out var projectsToken) &&
+                            projectsToken is JObject projects)
+                        {
+                            var normalizedProjectPath = NormalizePath(projectPath);
+                            foreach (var property in projects.Properties())
+                            {
+                                if (ArePathsEqual(property.Name, normalizedProjectPath))
+                                {
+                                    if (property.Value is JObject projectConfig &&
+                                        projectConfig.TryGetValue("mcpServers", out var localServersToken) &&
+                                        localServersToken is JObject localServers)
+                                    {
+                                        mcpServers = localServers;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                }
+
+                // サーバーエントリからトークンを取得
+                if (mcpServers != null &&
+                    mcpServers.TryGetValue(serverName, out var serverToken) &&
+                    serverToken is JObject serverEntry &&
+                    serverEntry.TryGetValue("env", out var envToken) &&
+                    envToken is JObject env &&
+                    env.TryGetValue("MCP_BRIDGE_TOKEN", out var tokenValue))
+                {
+                    return tokenValue.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[McpCliRegistry] Failed to get existing token: {ex.Message}");
+            }
+
+            return null;
         }
 
         /// <summary>
