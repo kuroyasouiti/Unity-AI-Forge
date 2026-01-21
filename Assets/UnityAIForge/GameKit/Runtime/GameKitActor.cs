@@ -91,6 +91,26 @@ namespace UnityAIForge.GameKit
             OnLookInput?.Invoke(lookDelta);
         }
 
+        /// <summary>
+        /// Gets the movement strategy component attached to this actor.
+        /// Returns null if no movement strategy is attached.
+        /// </summary>
+        /// <returns>The IMovementStrategy component, or null if not found.</returns>
+        public IMovementStrategy GetMovementStrategy()
+        {
+            return GetComponent<IMovementStrategy>();
+        }
+
+        /// <summary>
+        /// Gets a specific type of movement strategy component.
+        /// </summary>
+        /// <typeparam name="T">The specific movement strategy type (must implement IMovementStrategy).</typeparam>
+        /// <returns>The movement strategy component of type T, or null if not found.</returns>
+        public T GetMovementStrategy<T>() where T : class, IMovementStrategy
+        {
+            return GetComponent<T>();
+        }
+
         public enum BehaviorProfile
         {
             TwoDLinear,

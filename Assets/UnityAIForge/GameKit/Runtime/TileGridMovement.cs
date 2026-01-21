@@ -8,9 +8,10 @@ namespace UnityAIForge.GameKit
     /// Tile-based grid movement component for 2D games.
     /// Moves in discrete grid units with smooth interpolation.
     /// Supports Unity Tilemap integration for grid size and collision detection.
+    /// Implements IMovementStrategy for unified movement handling.
     /// </summary>
     [RequireComponent(typeof(GameKitActor))]
-    public class TileGridMovement : MonoBehaviour
+    public class TileGridMovement : MonoBehaviour, IMovementStrategy
     {
         [Header("Tilemap Reference")]
         [Tooltip("Reference to the Grid component (parent of Tilemaps). If set, gridSize is derived from Grid.cellSize.")]
@@ -64,6 +65,16 @@ namespace UnityAIForge.GameKit
         /// Whether the actor is currently moving.
         /// </summary>
         public bool IsMoving => isMoving;
+
+        /// <summary>
+        /// Movement speed (time to move between tiles).
+        /// IMovementStrategy implementation.
+        /// </summary>
+        float IMovementStrategy.MoveSpeed
+        {
+            get => moveSpeed;
+            set => moveSpeed = value;
+        }
 
         /// <summary>
         /// Effective grid cell size (from Grid component or manual setting).
@@ -154,8 +165,9 @@ namespace UnityAIForge.GameKit
 
         /// <summary>
         /// Handles move input from the actor hub.
+        /// IMovementStrategy implementation.
         /// </summary>
-        private void HandleMoveInput(Vector3 direction)
+        public void HandleMoveInput(Vector3 direction)
         {
             // Normalize to grid directions
             Vector2Int gridDirection = NormalizeToGridDirection(direction);
@@ -402,6 +414,67 @@ namespace UnityAIForge.GameKit
             targetPosition = transform.position;
             queuedDirection = Vector3.zero;
         }
+
+        #region IMovementStrategy Implementation
+
+        /// <summary>
+        /// Teleports to a world position (snaps to nearest grid cell).
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void TeleportTo(Vector3 position)
+        {
+            if (moveCoroutine != null)
+            {
+                StopCoroutine(moveCoroutine);
+                isMoving = false;
+            }
+
+            transform.position = position;
+            SnapToGrid();
+            queuedDirection = Vector3.zero;
+        }
+
+        /// <summary>
+        /// Stops any ongoing movement.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void StopMovement()
+        {
+            if (moveCoroutine != null)
+            {
+                StopCoroutine(moveCoroutine);
+                moveCoroutine = null;
+            }
+            isMoving = false;
+            queuedDirection = Vector3.zero;
+        }
+
+        /// <summary>
+        /// Initializes the movement strategy.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        void IMovementStrategy.Initialize()
+        {
+            if (snapToGridOnStart)
+            {
+                SnapToGrid();
+            }
+        }
+
+        /// <summary>
+        /// Cleans up resources.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        void IMovementStrategy.Cleanup()
+        {
+            StopMovement();
+            if (actor != null && actor.OnMoveInput != null)
+            {
+                actor.OnMoveInput.RemoveListener(HandleMoveInput);
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Gets the world position of a grid coordinate.

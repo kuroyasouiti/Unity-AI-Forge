@@ -8,9 +8,10 @@ namespace UnityAIForge.GameKit
     /// <summary>
     /// GameKit Event Manager: event hub for game-wide events.
     /// Automatically added by GameKitManager when ManagerType.EventHub is selected.
+    /// Implements IGameManager for factory-based creation.
     /// </summary>
     [AddComponentMenu("")]
-    public class GameKitEventManager : MonoBehaviour
+    public class GameKitEventManager : MonoBehaviour, IGameManager
     {
         [Header("Registered Events")]
         [SerializeField] private List<string> registeredEventNames = new List<string>();
@@ -90,6 +91,52 @@ namespace UnityAIForge.GameKit
         {
             return new List<string>(registeredEventNames);
         }
+
+        #region IGameManager Implementation
+
+        private string _managerId;
+
+        /// <summary>
+        /// IGameManager: Manager type identifier.
+        /// </summary>
+        public string ManagerTypeId => "EventHub";
+
+        /// <summary>
+        /// The manager instance ID.
+        /// </summary>
+        public string ManagerId => _managerId;
+
+        /// <summary>
+        /// Initializes the manager with the specified ID.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Initialize(string managerId)
+        {
+            _managerId = managerId;
+            Debug.Log($"[GameKitEventManager] Initialized with ID: {managerId}");
+        }
+
+        /// <summary>
+        /// Resets the manager to its initial state.
+        /// IGameManager implementation.
+        /// </summary>
+        void IGameManager.Reset()
+        {
+            ClearAllEvents();
+            Debug.Log($"[GameKitEventManager] Reset manager: {_managerId}");
+        }
+
+        /// <summary>
+        /// Cleans up resources when the manager is no longer needed.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Cleanup()
+        {
+            ClearAllEvents();
+            Debug.Log($"[GameKitEventManager] Cleaned up manager: {_managerId}");
+        }
+
+        #endregion
     }
 }
 

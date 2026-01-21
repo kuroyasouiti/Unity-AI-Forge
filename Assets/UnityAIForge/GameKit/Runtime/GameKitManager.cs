@@ -20,10 +20,16 @@ namespace UnityAIForge.GameKit
 
         // Component references (populated based on manager type)
         private Component modeComponent;
+        private IGameManager modeManager;
 
         public string ManagerId => managerId;
         public ManagerType Type => managerType;
         public bool IsPersistent => persistent;
+
+        /// <summary>
+        /// Gets the mode-specific manager implementing IGameManager.
+        /// </summary>
+        public IGameManager ModeManager => modeManager;
 
         private void Awake()
         {
@@ -50,57 +56,32 @@ namespace UnityAIForge.GameKit
 
         private void AttachModeComponent()
         {
-            // Remove existing mode component if type changed
+            // Clean up existing mode component if type changed
             if (modeComponent != null)
             {
+                // Cleanup through IGameManager interface if available
+                modeManager?.Cleanup();
+
                 if (Application.isPlaying)
                     Destroy(modeComponent);
                 else
                     DestroyImmediate(modeComponent);
+
+                modeComponent = null;
+                modeManager = null;
             }
 
-            // Add mode-specific component
-            switch (managerType)
+            // Use factory to create mode-specific component
+            modeManager = GameManagerFactory.CreateManager(gameObject, managerType, managerId);
+
+            if (modeManager != null)
             {
-                case ManagerType.TurnBased:
-                    var turnType = System.Type.GetType("UnityAIForge.GameKit.GameKitTurnManager, UnityAIForge.GameKit.Runtime");
-                    if (turnType != null)
-                    {
-                        modeComponent = gameObject.AddComponent(turnType);
-                    }
-                    break;
-
-                case ManagerType.ResourcePool:
-                    var resourceType = System.Type.GetType("UnityAIForge.GameKit.GameKitResourceManager, UnityAIForge.GameKit.Runtime");
-                    if (resourceType != null)
-                    {
-                        modeComponent = gameObject.AddComponent(resourceType);
-                    }
-                    break;
-
-                case ManagerType.EventHub:
-                    var eventType = System.Type.GetType("UnityAIForge.GameKit.GameKitEventManager, UnityAIForge.GameKit.Runtime");
-                    if (eventType != null)
-                    {
-                        modeComponent = gameObject.AddComponent(eventType);
-                    }
-                    break;
-
-                case ManagerType.StateManager:
-                    var stateType = System.Type.GetType("UnityAIForge.GameKit.GameKitStateManager, UnityAIForge.GameKit.Runtime");
-                    if (stateType != null)
-                    {
-                        modeComponent = gameObject.AddComponent(stateType);
-                    }
-                    break;
-
-                case ManagerType.Realtime:
-                    var realtimeType = System.Type.GetType("UnityAIForge.GameKit.GameKitRealtimeManager, UnityAIForge.GameKit.Runtime");
-                    if (realtimeType != null)
-                    {
-                        modeComponent = gameObject.AddComponent(realtimeType);
-                    }
-                    break;
+                modeComponent = modeManager as Component;
+                Debug.Log($"[GameKitManager] Attached {managerType} manager via factory");
+            }
+            else
+            {
+                Debug.LogError($"[GameKitManager] Failed to create manager of type: {managerType}");
             }
         }
 

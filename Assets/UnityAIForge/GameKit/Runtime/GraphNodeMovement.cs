@@ -9,9 +9,10 @@ namespace UnityAIForge.GameKit
     /// Node-based graph movement component for games with discrete movement spaces.
     /// Works in both 2D and 3D by treating positions as abstract nodes in a graph.
     /// Ideal for board games, tactical RPGs, puzzle games, and adventure games.
+    /// Implements IMovementStrategy for unified movement handling.
     /// </summary>
     [RequireComponent(typeof(GameKitActor))]
-    public class GraphNodeMovement : MonoBehaviour
+    public class GraphNodeMovement : MonoBehaviour, IMovementStrategy
     {
         [Header("Movement Settings")]
         [Tooltip("Time to move from one node to another")]
@@ -51,8 +52,22 @@ namespace UnityAIForge.GameKit
         // Public properties
         public GraphNode CurrentNode => currentNode;
         public bool IsMoving => isMoving;
-        public float MoveSpeed => moveSpeed;
         public List<GraphNode> CurrentPath => currentPath;
+
+        /// <summary>
+        /// Movement speed (time to move between nodes).
+        /// IMovementStrategy implementation.
+        /// </summary>
+        float IMovementStrategy.MoveSpeed
+        {
+            get => moveSpeed;
+            set => moveSpeed = value;
+        }
+
+        /// <summary>
+        /// Public getter for movement speed.
+        /// </summary>
+        public float MoveSpeedValue => moveSpeed;
 
         private void Awake()
         {
@@ -89,8 +104,9 @@ namespace UnityAIForge.GameKit
         /// <summary>
         /// Handles move input from the actor hub.
         /// Input direction is used to select adjacent node or trigger pathfinding.
+        /// IMovementStrategy implementation.
         /// </summary>
-        private void HandleMoveInput(Vector3 direction)
+        public void HandleMoveInput(Vector3 direction)
         {
             if (currentNode == null || direction.magnitude < 0.1f)
                 return;
@@ -231,14 +247,14 @@ namespace UnityAIForge.GameKit
             var reachable = new List<GraphNode>();
             var visited = new HashSet<GraphNode>();
             var queue = new Queue<(GraphNode node, int distance)>();
-            
+
             queue.Enqueue((currentNode, 0));
             visited.Add(currentNode);
 
             while (queue.Count > 0)
             {
                 var (node, distance) = queue.Dequeue();
-                
+
                 if (distance > 0) // Don't include starting node
                     reachable.Add(node);
 
@@ -257,6 +273,82 @@ namespace UnityAIForge.GameKit
 
             return reachable;
         }
+
+        #region IMovementStrategy Implementation
+
+        /// <summary>
+        /// Stops any ongoing movement.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void StopMovement()
+        {
+            if (moveCoroutine != null)
+            {
+                StopCoroutine(moveCoroutine);
+                moveCoroutine = null;
+            }
+            isMoving = false;
+            currentPath = null;
+            currentPathIndex = 0;
+        }
+
+        /// <summary>
+        /// Teleports to a world position (finds nearest node).
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void TeleportTo(Vector3 position)
+        {
+            StopMovement();
+
+            // Find nearest node to target position
+            var allNodes = FindObjectsByType<GraphNode>(FindObjectsSortMode.None);
+            GraphNode nearest = null;
+            float nearestDist = float.MaxValue;
+
+            foreach (var node in allNodes)
+            {
+                float dist = Vector3.Distance(position, node.Position);
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearest = node;
+                }
+            }
+
+            if (nearest != null)
+            {
+                TeleportToNode(nearest);
+            }
+            else
+            {
+                // No nodes in scene, just set position directly
+                transform.position = position;
+            }
+        }
+
+        /// <summary>
+        /// Initializes the movement strategy.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        void IMovementStrategy.Initialize()
+        {
+            SnapToNearestNode();
+        }
+
+        /// <summary>
+        /// Cleans up resources.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        void IMovementStrategy.Cleanup()
+        {
+            StopMovement();
+            if (actor != null && actor.OnMoveInput != null)
+            {
+                actor.OnMoveInput.RemoveListener(HandleMoveInput);
+            }
+        }
+
+        #endregion
 
         private GraphNode FindBestAdjacentNode(Vector3 direction)
         {

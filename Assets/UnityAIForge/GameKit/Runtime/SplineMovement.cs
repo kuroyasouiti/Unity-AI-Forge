@@ -7,9 +7,10 @@ namespace UnityAIForge.GameKit
     /// <summary>
     /// Spline/rail-based movement component for 2.5D games, rail shooters, and side-scrollers.
     /// Moves along a curved path defined by control points (Catmull-Rom spline).
+    /// Implements IMovementStrategy for unified movement handling.
     /// </summary>
     [RequireComponent(typeof(GameKitActor))]
-    public class SplineMovement : MonoBehaviour
+    public class SplineMovement : MonoBehaviour, IMovementStrategy
     {
         [Header("Spline Settings")]
         [Tooltip("Control points defining the spline path")]
@@ -77,6 +78,16 @@ namespace UnityAIForge.GameKit
         public bool IsMoving => isMoving;
         public float CurrentSpeed => currentSpeed;
         public float SplineLength => totalSplineLength;
+
+        /// <summary>
+        /// Movement speed (units per second).
+        /// IMovementStrategy implementation.
+        /// </summary>
+        float IMovementStrategy.MoveSpeed
+        {
+            get => moveSpeed;
+            set => moveSpeed = value;
+        }
 
         public enum RotationAxis
         {
@@ -196,7 +207,11 @@ namespace UnityAIForge.GameKit
             }
         }
 
-        private void HandleMoveInput(Vector3 direction)
+        /// <summary>
+        /// Handles move input from the actor hub.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void HandleMoveInput(Vector3 direction)
         {
             if (!allowManualControl)
                 return;
@@ -480,6 +495,93 @@ namespace UnityAIForge.GameKit
                 inputSpeed = -inputSpeed;
             }
         }
+
+        #region IMovementStrategy Implementation
+
+        /// <summary>
+        /// Stops any ongoing movement.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void StopMovement()
+        {
+            StopMoving();
+        }
+
+        /// <summary>
+        /// Teleports to a world position (finds nearest point on spline).
+        /// IMovementStrategy implementation.
+        /// </summary>
+        public void TeleportTo(Vector3 position)
+        {
+            // Find the closest point on the spline to the target position
+            if (splinePoints == null || splinePoints.Count == 0)
+            {
+                transform.position = position;
+                return;
+            }
+
+            float closestDistance = float.MaxValue;
+            float closestT = 0f;
+            float accumulatedDist = 0f;
+
+            for (int i = 1; i < splinePoints.Count; i++)
+            {
+                float segmentLength = Vector3.Distance(splinePoints[i - 1], splinePoints[i]);
+
+                // Check distance to this segment
+                Vector3 closestPoint = ClosestPointOnSegment(splinePoints[i - 1], splinePoints[i], position);
+                float dist = Vector3.Distance(position, closestPoint);
+
+                if (dist < closestDistance)
+                {
+                    closestDistance = dist;
+                    float t = Vector3.Distance(splinePoints[i - 1], closestPoint) / segmentLength;
+                    closestT = accumulatedDist + segmentLength * t;
+                }
+
+                accumulatedDist += segmentLength;
+            }
+
+            currentDistance = closestT;
+            currentSpeed = 0f;
+            inputSpeed = 0f;
+            transform.position = GetPointAtDistance(currentDistance) + lateralOffset;
+        }
+
+        private Vector3 ClosestPointOnSegment(Vector3 a, Vector3 b, Vector3 p)
+        {
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / ab.sqrMagnitude);
+            return a + t * ab;
+        }
+
+        /// <summary>
+        /// Initializes the movement strategy.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        void IMovementStrategy.Initialize()
+        {
+            RebuildSpline();
+            if (splinePoints != null && splinePoints.Count > 0)
+            {
+                transform.position = splinePoints[0] + lateralOffset;
+            }
+        }
+
+        /// <summary>
+        /// Cleans up resources.
+        /// IMovementStrategy implementation.
+        /// </summary>
+        void IMovementStrategy.Cleanup()
+        {
+            StopMovement();
+            if (actor != null && actor.OnMoveInput != null)
+            {
+                actor.OnMoveInput.RemoveListener(HandleMoveInput);
+            }
+        }
+
+        #endregion
 
         private void OnDrawGizmos()
         {

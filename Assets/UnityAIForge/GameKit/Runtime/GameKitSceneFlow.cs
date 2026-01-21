@@ -3,15 +3,17 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityAIForge.GameKit.SceneFlow;
 
 namespace UnityAIForge.GameKit
 {
     /// <summary>
     /// GameKit SceneFlow component: manages scene transitions with scene-centric state machine.
     /// Each scene defines its own transitions and shared scene groups.
+    /// Implements ISceneFlowContext for state pattern integration.
     /// </summary>
     [AddComponentMenu("SkillForUnity/GameKit/SceneFlow")]
-    public class GameKitSceneFlow : MonoBehaviour
+    public class GameKitSceneFlow : MonoBehaviour, ISceneFlowContext
     {
         [Header("Identity")]
         [SerializeField] private string flowId;
@@ -27,9 +29,15 @@ namespace UnityAIForge.GameKit
 
         private static GameKitSceneFlow instance;
         private Dictionary<string, SceneDefinition> sceneLookup;
+        private ISceneState currentState;
 
         public string FlowId => flowId;
         public string CurrentScene => currentSceneName;
+
+        /// <summary>
+        /// The current scene flow state.
+        /// </summary>
+        public ISceneState CurrentState => currentState;
 
         private void Awake()
         {
@@ -549,6 +557,216 @@ namespace UnityAIForge.GameKit
         /// Check if the SceneFlow has been initialized.
         /// </summary>
         public bool IsInitialized => isInitialized;
+
+        #region ISceneFlowContext Implementation
+
+        /// <summary>
+        /// ISceneFlowContext: The name of the currently active scene.
+        /// </summary>
+        string ISceneFlowContext.CurrentSceneName => currentSceneName;
+
+        /// <summary>
+        /// ISceneFlowContext: List of currently loaded shared scenes.
+        /// </summary>
+        List<string> ISceneFlowContext.LoadedSharedScenes => new List<string>(loadedSharedScenes);
+
+        /// <summary>
+        /// Sets a new state for the scene flow.
+        /// ISceneFlowContext implementation.
+        /// </summary>
+        /// <param name="newState">The new state to transition to.</param>
+        public void SetState(ISceneState newState)
+        {
+            if (newState == null)
+            {
+                Debug.LogWarning("[GameKitSceneFlow] Cannot set null state");
+                return;
+            }
+
+            // Exit current state
+            currentState?.Exit(this);
+
+            // Set and enter new state
+            var oldState = currentState;
+            currentState = newState;
+            currentState.Enter(this);
+
+            Debug.Log($"[GameKitSceneFlow] State changed: {oldState?.StateId ?? "null"} → {newState.StateId}");
+        }
+
+        /// <summary>
+        /// Requests a scene to be loaded.
+        /// ISceneFlowContext implementation.
+        /// </summary>
+        /// <param name="sceneName">The name of the scene to load.</param>
+        public void RequestSceneLoad(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName))
+            {
+                Debug.LogWarning("[GameKitSceneFlow] Cannot load scene with null or empty name");
+                return;
+            }
+
+            // Create transitioning state and start transition
+            var transitioningState = new TransitioningState(currentSceneName, sceneName);
+            SetState(transitioningState);
+
+            // Start the actual scene transition
+            StartCoroutine(TransitionToSceneWithState(sceneName, transitioningState));
+        }
+
+        /// <summary>
+        /// Gets a list of available triggers from the current scene.
+        /// ISceneFlowContext implementation.
+        /// </summary>
+        public List<string> GetAvailableTriggersForState()
+        {
+            return GetAvailableTriggers();
+        }
+
+        /// <summary>
+        /// Gets the target scene for a given trigger from the current scene.
+        /// ISceneFlowContext implementation.
+        /// </summary>
+        /// <param name="trigger">The trigger name.</param>
+        /// <returns>The target scene name, or null if not found.</returns>
+        public string GetTargetSceneForTrigger(string trigger)
+        {
+            if (string.IsNullOrEmpty(currentSceneName))
+                return null;
+
+            if (sceneLookup == null)
+                BuildSceneLookup();
+
+            if (sceneLookup.TryGetValue(currentSceneName, out var currentScene))
+            {
+                foreach (var transition in currentScene.transitions)
+                {
+                    if (transition.trigger == trigger)
+                    {
+                        return transition.toScene;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private IEnumerator TransitionToSceneWithState(string targetSceneName, TransitioningState transitioningState)
+        {
+            Debug.Log($"[GameKitSceneFlow] State-based transition from '{currentSceneName}' to '{targetSceneName}'");
+
+            if (sceneLookup == null)
+                BuildSceneLookup();
+
+            // Find target scene definition
+            if (!sceneLookup.TryGetValue(targetSceneName, out var targetScene))
+            {
+                Debug.LogError($"[GameKitSceneFlow] Target scene '{targetSceneName}' not found in flow");
+                SetState(new PlayingState());
+                yield break;
+            }
+
+            // Get current scene definition
+            SceneDefinition currentSceneDef = null;
+            if (!string.IsNullOrEmpty(currentSceneName))
+            {
+                sceneLookup.TryGetValue(currentSceneName, out currentSceneDef);
+            }
+
+            // Unload current scene if exists and is additive
+            if (currentSceneDef != null && currentSceneDef.loadMode == SceneLoadMode.Additive)
+            {
+                Debug.Log($"[GameKitSceneFlow] Unloading current scene: {currentSceneDef.scenePath}");
+                yield return SceneManager.UnloadSceneAsync(currentSceneDef.scenePath);
+            }
+
+            // Determine which shared scenes need to be loaded/unloaded
+            var targetSharedScenes = new HashSet<string>(targetScene.sharedScenePaths);
+
+            // Unload shared scenes that are not needed in target
+            var scenesToUnload = new List<string>();
+            foreach (var loadedScene in loadedSharedScenes)
+            {
+                if (!targetSharedScenes.Contains(loadedScene))
+                {
+                    scenesToUnload.Add(loadedScene);
+                }
+            }
+
+            foreach (var sceneToUnload in scenesToUnload)
+            {
+                Debug.Log($"[GameKitSceneFlow] Unloading shared scene: {sceneToUnload}");
+                yield return SceneManager.UnloadSceneAsync(sceneToUnload);
+                loadedSharedScenes.Remove(sceneToUnload);
+            }
+
+            // Load target scene
+            if (targetScene.loadMode == SceneLoadMode.Single)
+            {
+                Debug.Log($"[GameKitSceneFlow] Loading scene (Single): {targetScene.scenePath}");
+                yield return SceneManager.LoadSceneAsync(targetScene.scenePath, LoadSceneMode.Single);
+            }
+            else
+            {
+                Debug.Log($"[GameKitSceneFlow] Loading scene (Additive): {targetScene.scenePath}");
+                yield return SceneManager.LoadSceneAsync(targetScene.scenePath, LoadSceneMode.Additive);
+            }
+
+            currentSceneName = targetSceneName;
+
+            // Load new shared scenes that aren't already loaded
+            foreach (var sharedScenePath in targetSharedScenes)
+            {
+                if (!loadedSharedScenes.Contains(sharedScenePath))
+                {
+                    Debug.Log($"[GameKitSceneFlow] Loading shared scene: {sharedScenePath}");
+                    yield return SceneManager.LoadSceneAsync(sharedScenePath, LoadSceneMode.Additive);
+                    loadedSharedScenes.Add(sharedScenePath);
+                }
+            }
+
+            // Mark transition complete and switch to playing state
+            transitioningState.MarkTransitionComplete();
+            SetState(new PlayingState());
+
+            Debug.Log($"[GameKitSceneFlow] State-based transition complete. Current scene: {currentSceneName}");
+        }
+
+        /// <summary>
+        /// Triggers a transition using the state pattern.
+        /// </summary>
+        /// <param name="triggerName">The trigger name.</param>
+        public void TriggerTransitionWithState(string triggerName)
+        {
+            if (currentState == null)
+            {
+                // Initialize with PlayingState if no state is set
+                currentState = new PlayingState();
+                currentState.Enter(this);
+            }
+
+            currentState.HandleTrigger(this, triggerName);
+        }
+
+        /// <summary>
+        /// Pauses the scene flow.
+        /// </summary>
+        /// <param name="freezeTime">If true, Time.timeScale will be set to 0.</param>
+        public void Pause(bool freezeTime = true)
+        {
+            SetState(new PausedState(freezeTime));
+        }
+
+        /// <summary>
+        /// Resumes the scene flow from a paused state.
+        /// </summary>
+        public void Resume()
+        {
+            SetState(new PlayingState());
+        }
+
+        #endregion
 
         [Serializable]
         public class SceneDefinition

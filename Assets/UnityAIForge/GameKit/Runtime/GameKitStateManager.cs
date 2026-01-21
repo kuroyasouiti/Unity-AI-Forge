@@ -7,9 +7,10 @@ namespace UnityAIForge.GameKit
     /// <summary>
     /// GameKit State Manager: manages game states (menu, playing, paused, etc.)
     /// Automatically added by GameKitManager when ManagerType.StateManager is selected.
+    /// Implements IGameManager for factory-based creation.
     /// </summary>
     [AddComponentMenu("")]
-    public class GameKitStateManager : MonoBehaviour
+    public class GameKitStateManager : MonoBehaviour, IGameManager
     {
         [Header("State Management")]
         [SerializeField] private string currentState;
@@ -73,6 +74,57 @@ namespace UnityAIForge.GameKit
         {
             stateHistory.Clear();
         }
+
+        #region IGameManager Implementation
+
+        private string _managerId;
+
+        /// <summary>
+        /// IGameManager: Manager type identifier.
+        /// </summary>
+        public string ManagerTypeId => "StateManager";
+
+        /// <summary>
+        /// The manager instance ID.
+        /// </summary>
+        public string ManagerId => _managerId;
+
+        /// <summary>
+        /// Initializes the manager with the specified ID.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Initialize(string managerId)
+        {
+            _managerId = managerId;
+            Debug.Log($"[GameKitStateManager] Initialized with ID: {managerId}");
+        }
+
+        /// <summary>
+        /// Resets the manager to its initial state.
+        /// IGameManager implementation.
+        /// </summary>
+        void IGameManager.Reset()
+        {
+            currentState = null;
+            previousState = null;
+            ClearHistory();
+            Debug.Log($"[GameKitStateManager] Reset manager: {_managerId}");
+        }
+
+        /// <summary>
+        /// Cleans up resources when the manager is no longer needed.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Cleanup()
+        {
+            currentState = null;
+            previousState = null;
+            ClearHistory();
+            OnStateChanged?.RemoveAllListeners();
+            Debug.Log($"[GameKitStateManager] Cleaned up manager: {_managerId}");
+        }
+
+        #endregion
 
         [Serializable]
         public class StateChangedEvent : UnityEngine.Events.UnityEvent<string, string> { }

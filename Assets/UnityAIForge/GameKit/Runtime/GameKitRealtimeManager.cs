@@ -7,9 +7,10 @@ namespace UnityAIForge.GameKit
     /// <summary>
     /// GameKit Realtime Manager: manages real-time game flow (timers, time scale, etc.)
     /// Automatically added by GameKitManager when ManagerType.Realtime is selected.
+    /// Implements IGameManager for factory-based creation.
     /// </summary>
     [AddComponentMenu("")]
-    public class GameKitRealtimeManager : MonoBehaviour
+    public class GameKitRealtimeManager : MonoBehaviour, IGameManager
     {
         [Header("Time Management")]
         [SerializeField] private float gameTimeScale = 1f;
@@ -116,6 +117,59 @@ namespace UnityAIForge.GameKit
             elapsedTime = 0f;
         }
 
+        #region IGameManager Implementation
+
+        private string _managerId;
+
+        /// <summary>
+        /// IGameManager: Manager type identifier.
+        /// </summary>
+        public string ManagerTypeId => "Realtime";
+
+        /// <summary>
+        /// The manager instance ID.
+        /// </summary>
+        public string ManagerId => _managerId;
+
+        /// <summary>
+        /// Initializes the manager with the specified ID.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Initialize(string managerId)
+        {
+            _managerId = managerId;
+            Debug.Log($"[GameKitRealtimeManager] Initialized with ID: {managerId}");
+        }
+
+        /// <summary>
+        /// Resets the manager to its initial state.
+        /// IGameManager implementation.
+        /// </summary>
+        void IGameManager.Reset()
+        {
+            ResetElapsedTime();
+            timers.Clear();
+            gameTimeScale = 1f;
+            isPaused = false;
+            Time.timeScale = 1f;
+            Debug.Log($"[GameKitRealtimeManager] Reset manager: {_managerId}");
+        }
+
+        /// <summary>
+        /// Cleans up resources when the manager is no longer needed.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Cleanup()
+        {
+            timers.Clear();
+            Time.timeScale = 1f;
+            OnTimeScaleChanged?.RemoveAllListeners();
+            OnPauseChanged?.RemoveAllListeners();
+            Debug.Log($"[GameKitRealtimeManager] Cleaned up manager: {_managerId}");
+        }
+
+        #endregion
+
         [Serializable]
         public class TimerEntry
         {
@@ -128,7 +182,7 @@ namespace UnityAIForge.GameKit
 
         [Serializable]
         public class TimeScaleChangedEvent : UnityEngine.Events.UnityEvent<float> { }
-        
+
         [Serializable]
         public class PauseChangedEvent : UnityEngine.Events.UnityEvent<bool> { }
     }

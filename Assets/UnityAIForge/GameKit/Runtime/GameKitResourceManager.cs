@@ -10,12 +10,13 @@ namespace UnityAIForge.GameKit
     /// Stores resource amounts and fires events when resources change.
     /// Can use Machinations Asset to initialize resource pools.
     /// Automatically added by GameKitManager when ManagerType.ResourcePool is selected.
-    /// 
+    /// Implements IGameManager for factory-based creation.
+    ///
     /// Note: Complex logic (flows, converters, triggers) should be implemented externally
     /// or via GameKitMachinationsAsset with a separate controller component.
     /// </summary>
     [AddComponentMenu("")]
-    public class GameKitResourceManager : MonoBehaviour
+    public class GameKitResourceManager : MonoBehaviour, IGameManager
     {
         [Header("Identity")]
         [Tooltip("Unique identifier for this resource manager")]
@@ -707,9 +708,72 @@ namespace UnityAIForge.GameKit
             }
         }
 
+        #region IGameManager Implementation
+
+        /// <summary>
+        /// IGameManager: Manager type identifier.
+        /// </summary>
+        public string ManagerTypeId => "ResourcePool";
+
+        /// <summary>
+        /// Initializes the manager with the specified ID.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Initialize(string id)
+        {
+            managerId = id;
+            if (!string.IsNullOrEmpty(managerId))
+            {
+                _registry[managerId] = this;
+            }
+            Debug.Log($"[GameKitResourceManager] Initialized with ID: {id}");
+        }
+
+        /// <summary>
+        /// Resets the manager to its initial state.
+        /// IGameManager implementation.
+        /// </summary>
+        void IGameManager.Reset()
+        {
+            ClearAllResources();
+            flowStates.Clear();
+            lastTriggerValues.Clear();
+
+            // Re-initialize from machinations asset if available
+            if (machinationsAsset != null)
+            {
+                ApplyMachinationsAsset(machinationsAsset, true);
+                InitializeFlowStates();
+            }
+
+            Debug.Log($"[GameKitResourceManager] Reset manager: {managerId}");
+        }
+
+        /// <summary>
+        /// Cleans up resources when the manager is no longer needed.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Cleanup()
+        {
+            ClearAllResources();
+            flowStates.Clear();
+            lastTriggerValues.Clear();
+            OnResourceChanged?.RemoveAllListeners();
+            OnTriggerFired?.RemoveAllListeners();
+
+            if (!string.IsNullOrEmpty(managerId))
+            {
+                _registry.Remove(managerId);
+            }
+
+            Debug.Log($"[GameKitResourceManager] Cleaned up manager: {managerId}");
+        }
+
+        #endregion
+
         [Serializable]
         public class ResourceChangedEvent : UnityEngine.Events.UnityEvent<string, float> { }
-        
+
         [Serializable]
         public class TriggerFiredEvent : UnityEngine.Events.UnityEvent<string, string, float> { }
     }

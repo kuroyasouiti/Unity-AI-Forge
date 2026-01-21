@@ -7,9 +7,10 @@ namespace UnityAIForge.GameKit
     /// <summary>
     /// GameKit Turn Manager: manages turn-based game flow.
     /// Automatically added by GameKitManager when ManagerType.TurnBased is selected.
+    /// Implements IGameManager for factory-based creation.
     /// </summary>
     [AddComponentMenu("")]
-    public class GameKitTurnManager : MonoBehaviour
+    public class GameKitTurnManager : MonoBehaviour, IGameManager
     {
         [Header("Turn Phases")]
         [SerializeField] private List<string> turnPhases = new List<string>();
@@ -97,9 +98,58 @@ namespace UnityAIForge.GameKit
             return new List<string>(turnPhases);
         }
 
+        #region IGameManager Implementation
+
+        private string _managerId;
+
+        /// <summary>
+        /// IGameManager: Manager type identifier.
+        /// </summary>
+        public string ManagerTypeId => "TurnBased";
+
+        /// <summary>
+        /// The manager instance ID.
+        /// </summary>
+        public string ManagerId => _managerId;
+
+        /// <summary>
+        /// Initializes the manager with the specified ID.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Initialize(string managerId)
+        {
+            _managerId = managerId;
+            Debug.Log($"[GameKitTurnManager] Initialized with ID: {managerId}");
+        }
+
+        /// <summary>
+        /// Resets the manager to its initial state.
+        /// IGameManager implementation.
+        /// </summary>
+        void IGameManager.Reset()
+        {
+            ResetTurn();
+        }
+
+        /// <summary>
+        /// Cleans up resources when the manager is no longer needed.
+        /// IGameManager implementation.
+        /// </summary>
+        public void Cleanup()
+        {
+            turnPhases.Clear();
+            currentPhaseIndex = 0;
+            currentTurn = 1;
+            OnPhaseChanged?.RemoveAllListeners();
+            OnTurnAdvanced?.RemoveAllListeners();
+            Debug.Log($"[GameKitTurnManager] Cleaned up manager: {_managerId}");
+        }
+
+        #endregion
+
         [Serializable]
         public class PhaseChangedEvent : UnityEngine.Events.UnityEvent<string> { }
-        
+
         [Serializable]
         public class TurnAdvancedEvent : UnityEngine.Events.UnityEvent<int> { }
     }
