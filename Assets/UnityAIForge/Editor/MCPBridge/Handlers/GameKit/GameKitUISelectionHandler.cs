@@ -104,10 +104,19 @@ namespace MCP.Editor.Handlers.GameKit
 
             serializedSelection.FindProperty("selectionId").stringValue = selectionId;
 
-            // Auto-set itemContainer reference to self transform
+            // Auto-set itemContainer reference to Content child (inside Viewport for ScrollView)
             if (createdNewUI)
             {
-                serializedSelection.FindProperty("itemContainer").objectReferenceValue = targetGo.transform;
+                var contentTransform = targetGo.transform.Find("Viewport/Content");
+                if (contentTransform != null)
+                {
+                    serializedSelection.FindProperty("itemContainer").objectReferenceValue = contentTransform;
+                }
+                else
+                {
+                    // Fallback to self if Content not found
+                    serializedSelection.FindProperty("itemContainer").objectReferenceValue = targetGo.transform;
+                }
             }
 
             if (payload.TryGetValue("selectionType", out var typeObj))
@@ -586,14 +595,6 @@ namespace MCP.Editor.Handlers.GameKit
 
         private GameObject CreateSelectionUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
         {
-            // Create the selection container GameObject
-            var selectionGo = new GameObject(name, typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(selectionGo, "Create UI Selection");
-            selectionGo.transform.SetParent(parent.transform, false);
-
-            // Setup RectTransform
-            var rectTransform = selectionGo.GetComponent<RectTransform>();
-
             // Get size from payload or use defaults
             float width = 300f;
             float height = 50f;
@@ -606,20 +607,7 @@ namespace MCP.Editor.Handlers.GameKit
                 height = Convert.ToSingle(heightObj);
             }
 
-            rectTransform.sizeDelta = new Vector2(width, height);
-            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            rectTransform.anchoredPosition = Vector2.zero;
-
-            // Add Image component for background (optional)
-            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
-            {
-                var image = Undo.AddComponent<Image>(selectionGo);
-                image.color = GetColorFromDict(bgColorDict);
-            }
-
-            // Add LayoutGroup based on layout type
+            // Get layout type
             var layoutType = GameKitUISelection.LayoutType.Horizontal;
             if (payload.TryGetValue("layout", out var layoutObj))
             {
@@ -632,10 +620,82 @@ namespace MCP.Editor.Handlers.GameKit
                 spacing = Convert.ToSingle(spacingObj);
             }
 
+            // === Create ScrollView Structure ===
+
+            // 1. Create main ScrollView container
+            var scrollViewGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(scrollViewGo, "Create UI Selection ScrollView");
+            scrollViewGo.transform.SetParent(parent.transform, false);
+
+            var scrollViewRect = scrollViewGo.GetComponent<RectTransform>();
+            scrollViewRect.sizeDelta = new Vector2(width, height);
+            scrollViewRect.anchorMin = new Vector2(0.5f, 0.5f);
+            scrollViewRect.anchorMax = new Vector2(0.5f, 0.5f);
+            scrollViewRect.pivot = new Vector2(0.5f, 0.5f);
+            scrollViewRect.anchoredPosition = Vector2.zero;
+
+            // Add background image
+            var bgImage = Undo.AddComponent<Image>(scrollViewGo);
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                bgImage.color = GetColorFromDict(bgColorDict);
+            }
+            else
+            {
+                bgImage.color = new Color(0.15f, 0.15f, 0.15f, 0.9f);
+            }
+
+            // Add ScrollRect component
+            var scrollRect = Undo.AddComponent<ScrollRect>(scrollViewGo);
+
+            // 2. Create Viewport
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform));
+            viewportGo.transform.SetParent(scrollViewGo.transform, false);
+
+            var viewportRect = viewportGo.GetComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.offsetMin = Vector2.zero;
+            viewportRect.offsetMax = Vector2.zero;
+            viewportRect.pivot = new Vector2(0f, 1f);
+
+            // Add Mask and Image to viewport
+            var viewportImage = viewportGo.AddComponent<Image>();
+            viewportImage.color = Color.white;
+            var mask = viewportGo.AddComponent<Mask>();
+            mask.showMaskGraphic = false;
+
+            // 3. Create Content container
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewportGo.transform, false);
+
+            var contentRect = contentGo.GetComponent<RectTransform>();
+            // For horizontal scroll: stretch height, flexible width at left
+            // For vertical scroll: stretch width, flexible height at top
+            if (layoutType == GameKitUISelection.LayoutType.Horizontal)
+            {
+                contentRect.anchorMin = new Vector2(0f, 0f);
+                contentRect.anchorMax = new Vector2(0f, 1f);
+                contentRect.pivot = new Vector2(0f, 0.5f);
+                contentRect.offsetMin = Vector2.zero;
+                contentRect.offsetMax = Vector2.zero;
+                contentRect.sizeDelta = new Vector2(0, 0);
+            }
+            else // Vertical or Grid
+            {
+                contentRect.anchorMin = new Vector2(0f, 1f);
+                contentRect.anchorMax = new Vector2(1f, 1f);
+                contentRect.pivot = new Vector2(0.5f, 1f);
+                contentRect.offsetMin = Vector2.zero;
+                contentRect.offsetMax = Vector2.zero;
+                contentRect.sizeDelta = new Vector2(0, 0);
+            }
+
+            // Add LayoutGroup to Content based on layout type
             switch (layoutType)
             {
                 case GameKitUISelection.LayoutType.Horizontal:
-                    var hlg = Undo.AddComponent<HorizontalLayoutGroup>(selectionGo);
+                    var hlg = contentGo.AddComponent<HorizontalLayoutGroup>();
                     hlg.spacing = spacing;
                     hlg.padding = new RectOffset(10, 10, 5, 5);
                     hlg.childAlignment = TextAnchor.MiddleLeft;
@@ -646,7 +706,7 @@ namespace MCP.Editor.Handlers.GameKit
                     break;
 
                 case GameKitUISelection.LayoutType.Vertical:
-                    var vlg = Undo.AddComponent<VerticalLayoutGroup>(selectionGo);
+                    var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
                     vlg.spacing = spacing;
                     vlg.padding = new RectOffset(10, 10, 5, 5);
                     vlg.childAlignment = TextAnchor.UpperLeft;
@@ -657,7 +717,7 @@ namespace MCP.Editor.Handlers.GameKit
                     break;
 
                 case GameKitUISelection.LayoutType.Grid:
-                    var glg = Undo.AddComponent<GridLayoutGroup>(selectionGo);
+                    var glg = contentGo.AddComponent<GridLayoutGroup>();
                     var cellSize = new Vector2(80, 40);
                     if (payload.TryGetValue("cellSize", out var cellSizeObj) && cellSizeObj is Dictionary<string, object> cellDict)
                     {
@@ -678,12 +738,31 @@ namespace MCP.Editor.Handlers.GameKit
                     break;
             }
 
-            // Add ContentSizeFitter
-            var fitter = Undo.AddComponent<ContentSizeFitter>(selectionGo);
-            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            // Add ContentSizeFitter to Content
+            var fitter = contentGo.AddComponent<ContentSizeFitter>();
+            if (layoutType == GameKitUISelection.LayoutType.Horizontal)
+            {
+                fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+                fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+            }
+            else
+            {
+                fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            }
 
-            return selectionGo;
+            // 4. Configure ScrollRect
+            scrollRect.content = contentRect;
+            scrollRect.viewport = viewportRect;
+            scrollRect.horizontal = (layoutType == GameKitUISelection.LayoutType.Horizontal);
+            scrollRect.vertical = (layoutType != GameKitUISelection.LayoutType.Horizontal);
+            scrollRect.movementType = ScrollRect.MovementType.Elastic;
+            scrollRect.elasticity = 0.1f;
+            scrollRect.inertia = true;
+            scrollRect.decelerationRate = 0.135f;
+            scrollRect.scrollSensitivity = 1f;
+
+            return scrollViewGo;
         }
 
         #endregion

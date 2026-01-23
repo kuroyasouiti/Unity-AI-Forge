@@ -101,10 +101,19 @@ namespace MCP.Editor.Handlers.GameKit
 
             serializedList.FindProperty("listId").stringValue = listId;
 
-            // Auto-set itemContainer reference to self transform
+            // Auto-set itemContainer reference to Content child (inside Viewport for ScrollView)
             if (createdNewUI)
             {
-                serializedList.FindProperty("itemContainer").objectReferenceValue = targetGo.transform;
+                var contentTransform = targetGo.transform.Find("Viewport/Content");
+                if (contentTransform != null)
+                {
+                    serializedList.FindProperty("itemContainer").objectReferenceValue = contentTransform;
+                }
+                else
+                {
+                    // Fallback to self if Content not found
+                    serializedList.FindProperty("itemContainer").objectReferenceValue = targetGo.transform;
+                }
             }
 
             if (payload.TryGetValue("layout", out var layoutObj))
@@ -464,14 +473,6 @@ namespace MCP.Editor.Handlers.GameKit
 
         private GameObject CreateListUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
         {
-            // Create the list container GameObject
-            var listGo = new GameObject(name, typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(listGo, "Create UI List");
-            listGo.transform.SetParent(parent.transform, false);
-
-            // Setup RectTransform
-            var rectTransform = listGo.GetComponent<RectTransform>();
-
             // Get size from payload or use defaults
             float width = 300f;
             float height = 400f;
@@ -484,24 +485,7 @@ namespace MCP.Editor.Handlers.GameKit
                 height = Convert.ToSingle(heightObj);
             }
 
-            rectTransform.sizeDelta = new Vector2(width, height);
-            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            rectTransform.anchoredPosition = Vector2.zero;
-
-            // Add Image component for background
-            var image = Undo.AddComponent<Image>(listGo);
-            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
-            {
-                image.color = GetColorFromDict(bgColorDict, new Color(0.1f, 0.1f, 0.1f, 0.8f));
-            }
-            else
-            {
-                image.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
-            }
-
-            // Add LayoutGroup based on layout type
+            // Get layout type
             var layoutType = GameKitUIList.LayoutType.Vertical;
             if (payload.TryGetValue("layout", out var layoutObj))
             {
@@ -514,10 +498,82 @@ namespace MCP.Editor.Handlers.GameKit
                 spacing = GetVector2FromDict(spaceDict, spacing);
             }
 
+            // === Create ScrollView Structure ===
+
+            // 1. Create main ScrollView container
+            var scrollViewGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(scrollViewGo, "Create UI List ScrollView");
+            scrollViewGo.transform.SetParent(parent.transform, false);
+
+            var scrollViewRect = scrollViewGo.GetComponent<RectTransform>();
+            scrollViewRect.sizeDelta = new Vector2(width, height);
+            scrollViewRect.anchorMin = new Vector2(0.5f, 0.5f);
+            scrollViewRect.anchorMax = new Vector2(0.5f, 0.5f);
+            scrollViewRect.pivot = new Vector2(0.5f, 0.5f);
+            scrollViewRect.anchoredPosition = Vector2.zero;
+
+            // Add background image
+            var bgImage = Undo.AddComponent<Image>(scrollViewGo);
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                bgImage.color = GetColorFromDict(bgColorDict, new Color(0.1f, 0.1f, 0.1f, 0.8f));
+            }
+            else
+            {
+                bgImage.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+            }
+
+            // Add ScrollRect component
+            var scrollRect = Undo.AddComponent<ScrollRect>(scrollViewGo);
+
+            // 2. Create Viewport
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform));
+            viewportGo.transform.SetParent(scrollViewGo.transform, false);
+
+            var viewportRect = viewportGo.GetComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.offsetMin = Vector2.zero;
+            viewportRect.offsetMax = Vector2.zero;
+            viewportRect.pivot = new Vector2(0f, 1f);
+
+            // Add Mask and Image to viewport
+            var viewportImage = viewportGo.AddComponent<Image>();
+            viewportImage.color = Color.white;
+            var mask = viewportGo.AddComponent<Mask>();
+            mask.showMaskGraphic = false;
+
+            // 3. Create Content container
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewportGo.transform, false);
+
+            var contentRect = contentGo.GetComponent<RectTransform>();
+            // For vertical scroll: stretch width, flexible height at top
+            // For horizontal scroll: stretch height, flexible width at left
+            if (layoutType == GameKitUIList.LayoutType.Horizontal)
+            {
+                contentRect.anchorMin = new Vector2(0f, 0f);
+                contentRect.anchorMax = new Vector2(0f, 1f);
+                contentRect.pivot = new Vector2(0f, 0.5f);
+                contentRect.offsetMin = Vector2.zero;
+                contentRect.offsetMax = Vector2.zero;
+                contentRect.sizeDelta = new Vector2(0, 0);
+            }
+            else // Vertical or Grid
+            {
+                contentRect.anchorMin = new Vector2(0f, 1f);
+                contentRect.anchorMax = new Vector2(1f, 1f);
+                contentRect.pivot = new Vector2(0.5f, 1f);
+                contentRect.offsetMin = Vector2.zero;
+                contentRect.offsetMax = Vector2.zero;
+                contentRect.sizeDelta = new Vector2(0, 0);
+            }
+
+            // Add LayoutGroup to Content based on layout type
             switch (layoutType)
             {
                 case GameKitUIList.LayoutType.Vertical:
-                    var vlg = Undo.AddComponent<VerticalLayoutGroup>(listGo);
+                    var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
                     vlg.spacing = spacing.y;
                     vlg.padding = new RectOffset(10, 10, 10, 10);
                     vlg.childAlignment = TextAnchor.UpperLeft;
@@ -528,7 +584,7 @@ namespace MCP.Editor.Handlers.GameKit
                     break;
 
                 case GameKitUIList.LayoutType.Horizontal:
-                    var hlg = Undo.AddComponent<HorizontalLayoutGroup>(listGo);
+                    var hlg = contentGo.AddComponent<HorizontalLayoutGroup>();
                     hlg.spacing = spacing.x;
                     hlg.padding = new RectOffset(10, 10, 10, 10);
                     hlg.childAlignment = TextAnchor.MiddleLeft;
@@ -539,7 +595,7 @@ namespace MCP.Editor.Handlers.GameKit
                     break;
 
                 case GameKitUIList.LayoutType.Grid:
-                    var glg = Undo.AddComponent<GridLayoutGroup>(listGo);
+                    var glg = contentGo.AddComponent<GridLayoutGroup>();
                     var cellSize = new Vector2(80, 80);
                     if (payload.TryGetValue("cellSize", out var cellSizeObj) && cellSizeObj is Dictionary<string, object> cellDict)
                     {
@@ -558,11 +614,31 @@ namespace MCP.Editor.Handlers.GameKit
                     break;
             }
 
-            // Add ContentSizeFitter if desired
-            var fitter = Undo.AddComponent<ContentSizeFitter>(listGo);
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            // Add ContentSizeFitter to Content
+            var fitter = contentGo.AddComponent<ContentSizeFitter>();
+            if (layoutType == GameKitUIList.LayoutType.Horizontal)
+            {
+                fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+                fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+            }
+            else
+            {
+                fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            }
 
-            return listGo;
+            // 4. Configure ScrollRect
+            scrollRect.content = contentRect;
+            scrollRect.viewport = viewportRect;
+            scrollRect.horizontal = (layoutType == GameKitUIList.LayoutType.Horizontal);
+            scrollRect.vertical = (layoutType != GameKitUIList.LayoutType.Horizontal);
+            scrollRect.movementType = ScrollRect.MovementType.Elastic;
+            scrollRect.elasticity = 0.1f;
+            scrollRect.inertia = true;
+            scrollRect.decelerationRate = 0.135f;
+            scrollRect.scrollSensitivity = 1f;
+
+            return scrollViewGo;
         }
 
         private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
