@@ -50,7 +50,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ShouldReturnLightBundle()
         {
-            Assert.AreEqual("LightBundle", _handler.Category);
+            Assert.AreEqual("lightBundle", _handler.Category);
         }
 
         [Test]

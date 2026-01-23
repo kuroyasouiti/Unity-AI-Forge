@@ -26,7 +26,7 @@ namespace MCP.Editor.Handlers
             "listPresets"
         };
 
-        public override string Category => "ParticleBundle";
+        public override string Category => "particleBundle";
         public override string Version => "1.0.0";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)

@@ -55,7 +55,7 @@ namespace MCP.Editor.Handlers
             "getSummary"
         };
 
-        public override string Category => "ConsoleLog";
+        public override string Category => "consoleLog";
         public override string Version => "1.0.0";
 
         protected override bool RequiresCompilationWait(string operation)

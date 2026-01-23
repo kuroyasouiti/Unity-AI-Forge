@@ -24,7 +24,7 @@ namespace MCP.Editor.Handlers
             "listPresets"
         };
 
-        public override string Category => "LightBundle";
+        public override string Category => "lightBundle";
         public override string Version => "1.0.0";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)

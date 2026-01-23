@@ -3844,6 +3844,773 @@ def register_tools(server: Server) -> None:
         ["operation"],
     )
 
+    # ======================================================================
+    # 3-Pillar Architecture Tools (v2.7.0)
+    # UI Pillar: unity_gamekit_ui_binding
+    # Logic Pillar: unity_gamekit_combat
+    # Presentation Pillar: unity_gamekit_feedback, unity_gamekit_vfx, unity_gamekit_audio
+    # ======================================================================
+
+    gamekit_ui_binding_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setRange",
+                        "refresh",
+                        "findByBindingId",
+                    ],
+                    "description": "UI binding operation.",
+                },
+                "bindingId": {"type": "string", "description": "Unique binding identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target UI GameObject path (e.g., 'Canvas/HUD/HPBar').",
+                },
+                "sourceType": {
+                    "type": "string",
+                    "enum": ["health", "economy", "timer", "custom"],
+                    "description": "Data source type: 'health' (GameKitHealth), 'economy' (GameKitManager resource), 'timer' (GameKitTimer), 'custom' (manual updates).",
+                },
+                "sourceId": {
+                    "type": "string",
+                    "description": "Source component ID (healthId, managerId, or timerId).",
+                },
+                "targetProperty": {
+                    "type": "string",
+                    "description": "Resource name for economy source, or property for custom targets.",
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["raw", "percent", "formatted", "ratio"],
+                    "description": "Value display format: 'raw' (75), 'percent' (75%), 'formatted' (custom), 'ratio' (75/100).",
+                },
+                "formatString": {
+                    "type": "string",
+                    "description": "Custom format string for 'formatted' mode (e.g., 'HP: {0}/{1}').",
+                },
+                "minValue": {"type": "number", "description": "Minimum value for range."},
+                "maxValue": {"type": "number", "description": "Maximum value for range."},
+                "updateInterval": {
+                    "type": "number",
+                    "description": "Polling interval in seconds (default: 0.1).",
+                },
+                "smoothTransition": {
+                    "type": "boolean",
+                    "description": "Enable smooth value transitions.",
+                },
+                "smoothSpeed": {
+                    "type": "number",
+                    "description": "Smooth transition speed (default: 5.0).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_ui_list_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setItems",
+                        "addItem",
+                        "removeItem",
+                        "clear",
+                        "selectItem",
+                        "deselectItem",
+                        "clearSelection",
+                        "refreshFromSource",
+                        "findByListId",
+                    ],
+                    "description": "UI list operation.",
+                },
+                "listId": {"type": "string", "description": "Unique list identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for list component.",
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": ["vertical", "horizontal", "grid"],
+                    "description": "Layout type: 'vertical', 'horizontal', or 'grid'.",
+                },
+                "columns": {
+                    "type": "integer",
+                    "description": "Number of columns for grid layout (default: 4).",
+                },
+                "cellSize": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Cell size for grid layout.",
+                },
+                "spacing": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Spacing between items.",
+                },
+                "dataSource": {
+                    "type": "string",
+                    "enum": ["custom", "inventory", "equipment"],
+                    "description": "Data source type: 'custom' (manual), 'inventory' (GameKitInventory), 'equipment' (equipped items).",
+                },
+                "sourceId": {
+                    "type": "string",
+                    "description": "Source ID for inventory/equipment data source.",
+                },
+                "selectable": {
+                    "type": "boolean",
+                    "description": "Allow item selection (default: true).",
+                },
+                "multiSelect": {
+                    "type": "boolean",
+                    "description": "Allow multiple selection (default: false).",
+                },
+                "itemPrefabPath": {
+                    "type": "string",
+                    "description": "Path to item prefab asset.",
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string", "description": "Item unique ID."},
+                            "name": {"type": "string", "description": "Item display name."},
+                            "description": {"type": "string", "description": "Item description."},
+                            "iconPath": {"type": "string", "description": "Path to icon sprite."},
+                            "quantity": {"type": "integer", "description": "Item quantity."},
+                            "enabled": {"type": "boolean", "description": "Item enabled state."},
+                        },
+                    },
+                    "description": "List items for setItems operation.",
+                },
+                "item": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "iconPath": {"type": "string"},
+                        "quantity": {"type": "integer"},
+                        "enabled": {"type": "boolean"},
+                    },
+                    "description": "Item data for addItem operation.",
+                },
+                "index": {
+                    "type": "integer",
+                    "description": "Item index for selection/removal operations.",
+                },
+                "itemId": {
+                    "type": "string",
+                    "description": "Item ID for selection/removal by ID.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_ui_slot_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setItem",
+                        "clearSlot",
+                        "setHighlight",
+                        "createSlotBar",
+                        "updateSlotBar",
+                        "inspectSlotBar",
+                        "deleteSlotBar",
+                        "useSlot",
+                        "refreshFromInventory",
+                        "findBySlotId",
+                        "findByBarId",
+                    ],
+                    "description": "UI slot operation.",
+                },
+                "slotId": {"type": "string", "description": "Unique slot identifier."},
+                "barId": {"type": "string", "description": "Unique slot bar identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path.",
+                },
+                "slotType": {
+                    "type": "string",
+                    "enum": ["storage", "equipment", "quickslot", "trash"],
+                    "description": "Slot type: 'storage', 'equipment', 'quickslot', or 'trash'.",
+                },
+                "acceptedCategories": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Accepted item categories (empty = accept all).",
+                },
+                "equipmentSlot": {
+                    "type": "string",
+                    "description": "Equipment slot name (for equipment type).",
+                },
+                "slotIndex": {
+                    "type": "integer",
+                    "description": "Slot index in slot bar.",
+                },
+                "slotCount": {
+                    "type": "integer",
+                    "description": "Number of slots for createSlotBar.",
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical", "grid"],
+                    "description": "Layout type for slot bar.",
+                },
+                "spacing": {
+                    "type": "number",
+                    "description": "Spacing between slots.",
+                },
+                "slotSize": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Slot size.",
+                },
+                "inventoryId": {
+                    "type": "string",
+                    "description": "Inventory ID to bind to.",
+                },
+                "startIndex": {
+                    "type": "integer",
+                    "description": "Starting inventory slot index.",
+                },
+                "itemId": {"type": "string", "description": "Item ID for setItem."},
+                "quantity": {
+                    "type": "integer",
+                    "description": "Item quantity for setItem.",
+                },
+                "iconPath": {
+                    "type": "string",
+                    "description": "Icon sprite path for setItem.",
+                },
+                "highlighted": {
+                    "type": "boolean",
+                    "description": "Highlight state for setHighlight.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_ui_selection_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setItems",
+                        "addItem",
+                        "removeItem",
+                        "clear",
+                        "selectItem",
+                        "selectItemById",
+                        "deselectItem",
+                        "clearSelection",
+                        "setSelectionActions",
+                        "setItemEnabled",
+                        "findBySelectionId",
+                    ],
+                    "description": "UI selection operation.",
+                },
+                "selectionId": {"type": "string", "description": "Unique selection group identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path.",
+                },
+                "selectionType": {
+                    "type": "string",
+                    "enum": ["radio", "toggle", "checkbox", "tab"],
+                    "description": "Selection type: 'radio' (single), 'toggle' (single+off), 'checkbox' (multi), 'tab' (with panels).",
+                },
+                "allowNone": {
+                    "type": "boolean",
+                    "description": "Allow no selection (default: false).",
+                },
+                "defaultIndex": {
+                    "type": "integer",
+                    "description": "Default selected index.",
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical", "grid"],
+                    "description": "Layout type.",
+                },
+                "spacing": {
+                    "type": "number",
+                    "description": "Spacing between items.",
+                },
+                "itemPrefabPath": {
+                    "type": "string",
+                    "description": "Path to item prefab asset.",
+                },
+                "normalColor": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Normal state color.",
+                },
+                "selectedColor": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Selected state color.",
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string", "description": "Item ID."},
+                            "label": {"type": "string", "description": "Item display label."},
+                            "iconPath": {"type": "string", "description": "Icon sprite path."},
+                            "enabled": {"type": "boolean", "description": "Item enabled state."},
+                            "defaultSelected": {"type": "boolean", "description": "Default selected."},
+                            "associatedPanelPath": {"type": "string", "description": "Panel path for tab type."},
+                        },
+                    },
+                    "description": "Selection items for setItems.",
+                },
+                "item": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "label": {"type": "string"},
+                        "iconPath": {"type": "string"},
+                        "enabled": {"type": "boolean"},
+                        "defaultSelected": {"type": "boolean"},
+                        "associatedPanelPath": {"type": "string"},
+                    },
+                    "description": "Item data for addItem.",
+                },
+                "index": {
+                    "type": "integer",
+                    "description": "Item index.",
+                },
+                "itemId": {
+                    "type": "string",
+                    "description": "Item ID.",
+                },
+                "fireEvents": {
+                    "type": "boolean",
+                    "description": "Fire selection events (default: true).",
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Enabled state for setItemEnabled.",
+                },
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "selectedId": {"type": "string", "description": "Selection ID that triggers this action."},
+                            "showPaths": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "GameObject paths to show.",
+                            },
+                            "hidePaths": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "GameObject paths to hide.",
+                            },
+                        },
+                    },
+                    "description": "Selection actions for setSelectionActions.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_combat_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "addTargetTag",
+                        "removeTargetTag",
+                        "resetCooldown",
+                        "findByCombatId",
+                    ],
+                    "description": "Combat operation.",
+                },
+                "combatId": {"type": "string", "description": "Unique combat identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for combat component.",
+                },
+                "attackType": {
+                    "type": "string",
+                    "enum": ["melee", "ranged", "aoe", "projectile"],
+                    "description": "Attack type: 'melee' (close-range hitbox), 'ranged' (raycast), 'aoe' (area damage), 'projectile' (spawns projectile).",
+                },
+                "baseDamage": {"type": "number", "description": "Base damage amount."},
+                "damageVariance": {
+                    "type": "number",
+                    "description": "Random damage variance (+/-).",
+                },
+                "critChance": {
+                    "type": "number",
+                    "description": "Critical hit chance (0-1).",
+                },
+                "critMultiplier": {
+                    "type": "number",
+                    "description": "Critical hit damage multiplier (default: 2.0).",
+                },
+                "hitbox": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["sphere", "box", "capsule", "cone"],
+                            "description": "Hitbox shape.",
+                        },
+                        "radius": {"type": "number", "description": "Hitbox radius."},
+                        "size": {
+                            "type": "object",
+                            "properties": {
+                                "x": {"type": "number"},
+                                "y": {"type": "number"},
+                                "z": {"type": "number"},
+                            },
+                            "description": "Hitbox size for box/capsule.",
+                        },
+                        "offset": {
+                            "type": "object",
+                            "properties": {
+                                "x": {"type": "number"},
+                                "y": {"type": "number"},
+                                "z": {"type": "number"},
+                            },
+                            "description": "Hitbox position offset.",
+                        },
+                    },
+                    "description": "Hitbox configuration.",
+                },
+                "targetTags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Tags to target (e.g., ['Enemy', 'Destructible']).",
+                },
+                "hitMultipleTargets": {
+                    "type": "boolean",
+                    "description": "Allow hitting multiple targets (default: true).",
+                },
+                "maxTargets": {
+                    "type": "integer",
+                    "description": "Maximum targets per attack (default: 10).",
+                },
+                "attackCooldown": {
+                    "type": "number",
+                    "description": "Cooldown between attacks in seconds.",
+                },
+                "onHitEffectId": {
+                    "type": "string",
+                    "description": "Effect ID to play on hit.",
+                },
+                "onCritEffectId": {
+                    "type": "string",
+                    "description": "Effect ID to play on critical hit.",
+                },
+                "projectileSpeed": {
+                    "type": "number",
+                    "description": "Projectile speed for projectile attack type.",
+                },
+                "tag": {
+                    "type": "string",
+                    "description": "Tag for addTargetTag/removeTargetTag operations.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_feedback_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "addComponent",
+                        "clearComponents",
+                        "setIntensity",
+                        "findByFeedbackId",
+                    ],
+                    "description": "Feedback operation.",
+                },
+                "feedbackId": {"type": "string", "description": "Unique feedback identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for feedback component.",
+                },
+                "playOnEnable": {
+                    "type": "boolean",
+                    "description": "Play feedback when GameObject becomes active.",
+                },
+                "globalIntensityMultiplier": {
+                    "type": "number",
+                    "description": "Global intensity multiplier (default: 1.0).",
+                },
+                "intensity": {
+                    "type": "number",
+                    "description": "Intensity value for setIntensity operation.",
+                },
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "hitstop",
+                                    "screenShake",
+                                    "flash",
+                                    "colorFlash",
+                                    "scale",
+                                    "position",
+                                    "rotation",
+                                    "sound",
+                                    "particle",
+                                    "haptic",
+                                ],
+                                "description": "Feedback component type.",
+                            },
+                            "delay": {"type": "number", "description": "Delay before effect."},
+                            "duration": {"type": "number", "description": "Effect duration."},
+                            "intensity": {"type": "number", "description": "Effect intensity."},
+                            "hitstopTimeScale": {
+                                "type": "number",
+                                "description": "Time scale during hitstop (0 = frozen).",
+                            },
+                            "shakeFrequency": {
+                                "type": "number",
+                                "description": "Shake frequency in Hz.",
+                            },
+                            "color": {
+                                "type": "object",
+                                "properties": {
+                                    "r": {"type": "number"},
+                                    "g": {"type": "number"},
+                                    "b": {"type": "number"},
+                                    "a": {"type": "number"},
+                                },
+                                "description": "Flash color.",
+                            },
+                            "fadeTime": {"type": "number", "description": "Flash fade time."},
+                            "scaleAmount": {
+                                "type": "object",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                                "description": "Scale punch amount.",
+                            },
+                            "positionAmount": {
+                                "type": "object",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                                "description": "Position shake amount.",
+                            },
+                            "soundVolume": {"type": "number", "description": "Sound volume."},
+                            "hapticIntensity": {
+                                "type": "number",
+                                "description": "Controller haptic intensity.",
+                            },
+                        },
+                    },
+                    "description": "Feedback components for create operation.",
+                },
+                "component": {
+                    "type": "object",
+                    "description": "Single component for addComponent operation.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_vfx_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setMultipliers",
+                        "setColor",
+                        "setLoop",
+                        "findByVFXId",
+                    ],
+                    "description": "VFX operation.",
+                },
+                "vfxId": {"type": "string", "description": "Unique VFX identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for VFX component.",
+                },
+                "autoPlay": {
+                    "type": "boolean",
+                    "description": "Auto-play on enable (default: false).",
+                },
+                "loop": {"type": "boolean", "description": "Loop the effect."},
+                "usePooling": {
+                    "type": "boolean",
+                    "description": "Enable object pooling (default: true).",
+                },
+                "poolSize": {"type": "integer", "description": "Pool size (default: 5)."},
+                "attachToParent": {
+                    "type": "boolean",
+                    "description": "Attach to parent transform when playing.",
+                },
+                "durationMultiplier": {
+                    "type": "number",
+                    "description": "Duration multiplier (default: 1.0).",
+                },
+                "sizeMultiplier": {
+                    "type": "number",
+                    "description": "Size multiplier (default: 1.0).",
+                },
+                "emissionMultiplier": {
+                    "type": "number",
+                    "description": "Emission rate multiplier (default: 1.0).",
+                },
+                "particlePrefabPath": {
+                    "type": "string",
+                    "description": "Particle prefab asset path.",
+                },
+                "duration": {
+                    "type": "number",
+                    "description": "Duration for setMultipliers operation.",
+                },
+                "size": {
+                    "type": "number",
+                    "description": "Size for setMultipliers operation.",
+                },
+                "emission": {
+                    "type": "number",
+                    "description": "Emission for setMultipliers operation.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    gamekit_audio_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "setVolume",
+                        "setPitch",
+                        "setLoop",
+                        "setClip",
+                        "findByAudioId",
+                    ],
+                    "description": "Audio operation.",
+                },
+                "audioId": {"type": "string", "description": "Unique audio identifier."},
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for audio component.",
+                },
+                "audioType": {
+                    "type": "string",
+                    "enum": ["sfx", "music", "ambient", "voice", "ui"],
+                    "description": "Audio type category.",
+                },
+                "audioClipPath": {
+                    "type": "string",
+                    "description": "Audio clip asset path.",
+                },
+                "playOnEnable": {
+                    "type": "boolean",
+                    "description": "Auto-play on enable.",
+                },
+                "loop": {"type": "boolean", "description": "Loop playback."},
+                "volume": {"type": "number", "description": "Volume (0-1)."},
+                "pitch": {"type": "number", "description": "Pitch (default: 1.0)."},
+                "pitchVariation": {
+                    "type": "number",
+                    "description": "Random pitch variation (+/-).",
+                },
+                "spatialBlend": {
+                    "type": "number",
+                    "description": "2D/3D blend (0=2D, 1=3D).",
+                },
+                "fadeInDuration": {
+                    "type": "number",
+                    "description": "Fade in duration in seconds.",
+                },
+                "fadeOutDuration": {
+                    "type": "number",
+                    "description": "Fade out duration in seconds.",
+                },
+                "minDistance": {
+                    "type": "number",
+                    "description": "3D audio min distance.",
+                },
+                "maxDistance": {
+                    "type": "number",
+                    "description": "3D audio max distance.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
     sprite2d_bundle_schema = _schema_with_required(
         {
             "type": "object",
@@ -6241,6 +7008,463 @@ unity_gamekit_status_effect({
             inputSchema=gamekit_status_effect_schema,
         ),
         # ======================================================================
+        # 3-Pillar Architecture Tools (v2.7.0)
+        # ======================================================================
+        types.Tool(
+            name="unity_gamekit_ui_binding",
+            description="""High-level GameKit UI Binding: declarative UI data binding system.
+
+**Operations:**
+- create: Create UI binding component
+- update: Update binding configuration
+- inspect: View binding status
+- delete: Remove binding component
+- setRange: Set min/max value range
+- refresh: Force refresh from source
+- findByBindingId: Find binding by ID
+
+**Source Types:**
+- health: Bind to GameKitHealth (current/max HP)
+- economy: Bind to GameKitManager resource (gold, mana, etc.)
+- timer: Bind to GameKitTimer countdown
+- custom: Manual value updates via script
+
+**Value Formats:**
+- raw: Direct value (e.g., 75)
+- percent: Percentage (e.g., 75%)
+- ratio: Current/Max (e.g., 75/100)
+- formatted: Custom format string
+
+**Auto-detected UI Components:** Slider, Image (fill), Text, TMP_Text
+
+**Example:**
+```python
+# Bind HP bar to player health
+unity_gamekit_ui_binding({
+    "operation": "create",
+    "targetPath": "Canvas/HUD/HPBar",
+    "bindingId": "player_hp_bar",
+    "sourceType": "health",
+    "sourceId": "player_health",
+    "format": "percent",
+    "smoothTransition": True
+})
+
+# Bind gold counter to economy
+unity_gamekit_ui_binding({
+    "operation": "create",
+    "targetPath": "Canvas/HUD/GoldText",
+    "bindingId": "gold_counter",
+    "sourceType": "economy",
+    "sourceId": "game_manager",
+    "targetProperty": "gold",
+    "format": "raw"
+})
+```""",
+            inputSchema=gamekit_ui_binding_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_ui_list",
+            description="""High-level GameKit UI List: dynamic list/grid for displaying collections.
+
+**Operations:**
+- create: Create UI list component
+- update: Update list configuration
+- inspect: View list status and items
+- delete: Remove list component
+- setItems: Set all items at once
+- addItem: Add single item
+- removeItem: Remove item by index or ID
+- clear: Clear all items
+- selectItem: Select item at index
+- deselectItem: Deselect item at index
+- clearSelection: Clear all selections
+- refreshFromSource: Refresh from data source
+- findByListId: Find list by ID
+
+**Layout Types:**
+- vertical: Vertical scrolling list
+- horizontal: Horizontal scrolling list
+- grid: Grid layout with columns
+
+**Data Sources:**
+- custom: Manual item management
+- inventory: Bind to GameKitInventory
+- equipment: Bind to equipped items
+
+**Item Data:**
+- id: Unique identifier
+- name: Display name
+- description: Item description
+- iconPath: Sprite asset path
+- quantity: Stack count
+- enabled: Interaction state
+
+**Example:**
+```python
+# Create inventory display
+unity_gamekit_ui_list({
+    "operation": "create",
+    "targetPath": "Canvas/Inventory/ItemList",
+    "listId": "player_inventory",
+    "layout": "grid",
+    "columns": 5,
+    "dataSource": "inventory",
+    "sourceId": "player_inv",
+    "selectable": True,
+    "multiSelect": False
+})
+
+# Manually set items
+unity_gamekit_ui_list({
+    "operation": "setItems",
+    "listId": "skill_list",
+    "items": [
+        {"id": "fireball", "name": "Fireball", "iconPath": "Assets/Icons/fireball.png"},
+        {"id": "heal", "name": "Heal", "iconPath": "Assets/Icons/heal.png"}
+    ]
+})
+```""",
+            inputSchema=gamekit_ui_list_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_ui_slot",
+            description="""High-level GameKit UI Slot: slot-based UI for equipment, quickslots, and drag-drop.
+
+**Slot Operations:**
+- create: Create single slot component
+- update: Update slot configuration
+- inspect: View slot status
+- delete: Remove slot component
+- setItem: Set item in slot
+- clearSlot: Clear slot contents
+- setHighlight: Set highlight state
+
+**Slot Bar Operations:**
+- createSlotBar: Create slot bar with multiple slots
+- updateSlotBar: Update slot bar settings
+- inspectSlotBar: View slot bar status
+- deleteSlotBar: Remove slot bar
+- useSlot: Use/activate slot
+- refreshFromInventory: Refresh from inventory
+
+**Find Operations:**
+- findBySlotId: Find slot by ID
+- findByBarId: Find slot bar by ID
+
+**Slot Types:**
+- storage: General storage slot
+- equipment: Equipment slot (weapon, armor, etc.)
+- quickslot: Quick access slot (hotbar)
+- trash: Trash/discard slot
+
+**Features:**
+- Drag-and-drop support
+- Category filtering (acceptedCategories)
+- Inventory binding
+- Keyboard shortcuts for quickslots
+
+**Example:**
+```python
+# Create equipment slot
+unity_gamekit_ui_slot({
+    "operation": "create",
+    "targetPath": "Canvas/Equipment/WeaponSlot",
+    "slotId": "weapon_slot",
+    "slotType": "equipment",
+    "equipmentSlot": "weapon",
+    "acceptedCategories": ["weapon", "tool"]
+})
+
+# Create quickslot bar
+unity_gamekit_ui_slot({
+    "operation": "createSlotBar",
+    "targetPath": "Canvas/HUD/Quickslots",
+    "barId": "quickbar",
+    "slotCount": 10,
+    "layout": "horizontal",
+    "inventoryId": "player_inv",
+    "startIndex": 0
+})
+
+# Set item in slot
+unity_gamekit_ui_slot({
+    "operation": "setItem",
+    "slotId": "weapon_slot",
+    "itemId": "iron_sword",
+    "quantity": 1,
+    "iconPath": "Assets/Icons/iron_sword.png"
+})
+```""",
+            inputSchema=gamekit_ui_slot_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_ui_selection",
+            description="""High-level GameKit UI Selection: selection group management for toggles, radios, checkboxes, and tabs.
+
+**Operations:**
+- create: Create selection group
+- update: Update selection settings
+- inspect: View selection status
+- delete: Remove selection component
+- setItems: Set selection items
+- addItem: Add single item
+- removeItem: Remove item
+- clear: Clear all items
+- selectItem: Select by index
+- selectItemById: Select by ID
+- deselectItem: Deselect by index or ID
+- clearSelection: Clear all selections
+- setSelectionActions: Set show/hide actions
+- setItemEnabled: Enable/disable item
+- findBySelectionId: Find selection by ID
+
+**Selection Types:**
+- radio: Single selection (only one can be selected)
+- toggle: Single selection with toggle-off capability
+- checkbox: Multiple selection
+- tab: Tab-style with associated panels
+
+**Features:**
+- Visual state management (normal, selected, hover, disabled colors)
+- Associated panels for tab mode (auto show/hide)
+- Selection actions (show/hide GameObjects on selection)
+- Default selection support
+
+**Example:**
+```python
+# Create tab selection
+unity_gamekit_ui_selection({
+    "operation": "create",
+    "targetPath": "Canvas/Menu/Tabs",
+    "selectionId": "menu_tabs",
+    "selectionType": "tab",
+    "layout": "horizontal"
+})
+
+# Set tab items with panels
+unity_gamekit_ui_selection({
+    "operation": "setItems",
+    "selectionId": "menu_tabs",
+    "items": [
+        {"id": "inventory", "label": "Inventory", "associatedPanelPath": "Canvas/Menu/InventoryPanel"},
+        {"id": "skills", "label": "Skills", "associatedPanelPath": "Canvas/Menu/SkillsPanel"},
+        {"id": "map", "label": "Map", "associatedPanelPath": "Canvas/Menu/MapPanel"}
+    ]
+})
+
+# Create checkbox group
+unity_gamekit_ui_selection({
+    "operation": "create",
+    "targetPath": "Canvas/Settings/Options",
+    "selectionId": "game_options",
+    "selectionType": "checkbox",
+    "layout": "vertical"
+})
+
+# Set selection actions
+unity_gamekit_ui_selection({
+    "operation": "setSelectionActions",
+    "selectionId": "menu_tabs",
+    "actions": [
+        {"selectedId": "inventory", "showPaths": ["Canvas/Menu/InventoryPanel"], "hidePaths": ["Canvas/Menu/SkillsPanel", "Canvas/Menu/MapPanel"]}
+    ]
+})
+```""",
+            inputSchema=gamekit_ui_selection_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_combat",
+            description="""High-level GameKit Combat: unified damage calculation and attack system.
+
+**Operations:**
+- create: Create combat component
+- update: Update combat settings
+- inspect: View combat status
+- delete: Remove combat component
+- addTargetTag: Add target tag to filter
+- removeTargetTag: Remove target tag
+- resetCooldown: Reset attack cooldown
+- findByCombatId: Find combat by ID
+
+**Attack Types:**
+- melee: Close-range hitbox attack
+- ranged: Instant raycast attack
+- aoe: Area of effect damage
+- projectile: Spawns projectile prefab
+
+**Hitbox Shapes:** sphere, box, capsule, cone
+
+**Features:**
+- Damage variance for random damage
+- Critical hit system (chance + multiplier)
+- Multi-target support with limits
+- Cooldown management
+- Integration with GameKitHealth
+- Effect triggers on hit/crit
+
+**Example:**
+```python
+# Create melee attack
+unity_gamekit_combat({
+    "operation": "create",
+    "targetPath": "Player",
+    "combatId": "player_melee",
+    "attackType": "melee",
+    "baseDamage": 25,
+    "critChance": 0.1,
+    "critMultiplier": 2.0,
+    "hitbox": {"type": "sphere", "radius": 1.5},
+    "targetTags": ["Enemy"],
+    "attackCooldown": 0.5,
+    "onHitEffectId": "slash_effect"
+})
+```""",
+            inputSchema=gamekit_combat_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_feedback",
+            description="""High-level GameKit Feedback: game feel effects system.
+
+**Operations:**
+- create: Create feedback component with multiple effects
+- update: Update feedback settings
+- inspect: View feedback configuration
+- delete: Remove feedback component
+- addComponent: Add effect component
+- clearComponents: Remove all effect components
+- setIntensity: Set global intensity multiplier
+- findByFeedbackId: Find feedback by ID
+
+**Component Types:**
+- hitstop: Time pause effect (freeze frame)
+- screenShake: Camera shake
+- flash: Screen flash overlay
+- colorFlash: Object color flash
+- scale: Scale punch effect
+- position: Position shake/punch
+- rotation: Rotation shake
+- sound: Play audio clip
+- particle: Spawn particle effect
+- haptic: Controller vibration
+
+**Example:**
+```python
+# Create hit feedback
+unity_gamekit_feedback({
+    "operation": "create",
+    "targetPath": "FeedbackManager",
+    "feedbackId": "hit_feedback",
+    "components": [
+        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
+        {"type": "screenShake", "duration": 0.1, "intensity": 0.3},
+        {"type": "flash", "duration": 0.05, "color": {"r": 1, "g": 1, "b": 1, "a": 0.5}}
+    ]
+})
+
+# Trigger feedback from code:
+# GameKitFeedback.Play("hit_feedback");
+```""",
+            inputSchema=gamekit_feedback_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_vfx",
+            description="""High-level GameKit VFX: visual effects wrapper with pooling.
+
+**Operations:**
+- create: Create VFX component
+- update: Update VFX settings
+- inspect: View VFX status
+- delete: Remove VFX component
+- setMultipliers: Set duration/size/emission multipliers
+- setColor: Set particle color
+- setLoop: Enable/disable looping
+- findByVFXId: Find VFX by ID
+
+**Features:**
+- Object pooling for performance
+- Duration/size/emission multipliers
+- Auto-play on enable
+- Attach to parent transform
+- Registry-based lookup by ID
+
+**Example:**
+```python
+# Create pooled explosion effect
+unity_gamekit_vfx({
+    "operation": "create",
+    "targetPath": "VFXManager/Explosion",
+    "vfxId": "explosion_vfx",
+    "particlePrefabPath": "Assets/VFX/Explosion.prefab",
+    "usePooling": True,
+    "poolSize": 10,
+    "sizeMultiplier": 1.5
+})
+
+# Play from code:
+# GameKitVFX.Play("explosion_vfx", position);
+```""",
+            inputSchema=gamekit_vfx_schema,
+        ),
+        types.Tool(
+            name="unity_gamekit_audio",
+            description="""High-level GameKit Audio: sound effect and music wrapper.
+
+**Operations:**
+- create: Create audio component
+- update: Update audio settings
+- inspect: View audio status
+- delete: Remove audio component
+- setVolume: Set volume level
+- setPitch: Set pitch
+- setLoop: Enable/disable looping
+- setClip: Change audio clip
+- findByAudioId: Find audio by ID
+
+**Audio Types:**
+- sfx: One-shot sound effects
+- music: Background music (fadeable)
+- ambient: Environment sounds
+- voice: Dialogue/voice lines
+- ui: UI feedback sounds
+
+**Features:**
+- Pitch variation for variety
+- Fade in/out controls
+- 2D/3D spatial blend
+- Registry-based lookup by ID
+- Cross-fade support
+
+**Example:**
+```python
+# Create background music
+unity_gamekit_audio({
+    "operation": "create",
+    "targetPath": "AudioManager/BGM",
+    "audioId": "main_bgm",
+    "audioType": "music",
+    "audioClipPath": "Assets/Audio/MainTheme.mp3",
+    "loop": True,
+    "volume": 0.8,
+    "fadeInDuration": 2.0
+})
+
+# Create SFX with pitch variation
+unity_gamekit_audio({
+    "operation": "create",
+    "targetPath": "AudioManager/SFX",
+    "audioId": "sword_swing",
+    "audioType": "sfx",
+    "audioClipPath": "Assets/Audio/SwordSwing.wav",
+    "pitchVariation": 0.1
+})
+
+# Play from code:
+# GameKitAudio.Play("sword_swing");
+```""",
+            inputSchema=gamekit_audio_schema,
+        ),
+        # ======================================================================
         # Development Cycle & Visual Tools (ROADMAP_MCP_TOOLS.md)
         # ======================================================================
         types.Tool(
@@ -6735,6 +7959,31 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
 
         if name == "unity_gamekit_status_effect":
             return await _call_bridge_tool("gamekitStatusEffect", args)
+
+        # 3-Pillar Architecture Tools (v2.7.0)
+        if name == "unity_gamekit_ui_binding":
+            return await _call_bridge_tool("gamekitUIBinding", args)
+
+        if name == "unity_gamekit_ui_list":
+            return await _call_bridge_tool("gamekitUIList", args)
+
+        if name == "unity_gamekit_ui_slot":
+            return await _call_bridge_tool("gamekitUISlot", args)
+
+        if name == "unity_gamekit_ui_selection":
+            return await _call_bridge_tool("gamekitUISelection", args)
+
+        if name == "unity_gamekit_combat":
+            return await _call_bridge_tool("gamekitCombat", args)
+
+        if name == "unity_gamekit_feedback":
+            return await _call_bridge_tool("gamekitFeedback", args)
+
+        if name == "unity_gamekit_vfx":
+            return await _call_bridge_tool("gamekitVFX", args)
+
+        if name == "unity_gamekit_audio":
+            return await _call_bridge_tool("gamekitAudio", args)
 
         if name == "unity_sprite2d_bundle":
             return await _call_bridge_tool("sprite2DBundle", args)

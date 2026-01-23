@@ -164,10 +164,13 @@ Scene, GameObject, Component, Asset, ScriptableObject, Prefab, VectorSprite, Pro
 Transform, RectTransform, Physics, Camera, UI Foundation, Audio, Input, CharacterController, Tilemap, Sprite2D, Animation2D, UI Hierarchy, UI State, UI Navigation
 用途: 複数オブジェクト一括処理、プリセット適用、レイアウト調整、2Dスプライト/アニメーション管理、宣言的UI構築
 
-### High-Level GameKit (14ツール) - ゲームシステム構築
+### High-Level GameKit (19ツール) - ゲームシステム構築
 
-Actor, Manager, Interaction, UICommand, Machinations, SceneFlow, Health, Spawner, Timer, AI, Collectible, Projectile, Waypoint, TriggerZone
-用途: ゲームメカニクス、ターン制御、リソース経済、シーン遷移、インタラクション、HP/ダメージ、スポーン、タイマー/クールダウン、AI行動、収集アイテム、弾丸/ミサイル、パス追従、トリガーゾーン
+**Logic Pillar (12):** Actor, Manager, Health, Combat, Spawner, AI, TriggerZone, Timer, Machinations, SceneFlow, Save, StatusEffect
+**UI Pillar (3):** UICommand, UIBinding, Dialogue
+**Presentation Pillar (4):** Effect, AnimationSync, VFX, Audio, Feedback
+
+用途: ゲームメカニクス、ターン制御、リソース経済、シーン遷移、インタラクション、HP/ダメージ、戦闘システム、スポーン、タイマー/クールダウン、AI行動、UIデータバインディング、視覚/聴覚フィードバック
 
 ## 基本ワークフロー
 
@@ -507,6 +510,144 @@ unity_gamekit_trigger_zone(
 )
 ```
 
+## 🎨 3-Pillar Architecture Tools (v2.7.0)
+
+### GameKit UI Binding - 宣言的UIデータバインディング
+
+ゲーム状態（Health, Economy, Timer等）をUI要素に自動バインド。
+
+```python
+# HPバーをプレイヤーHealthにバインド
+unity_gamekit_ui_binding(
+    operation='create',
+    targetPath='Canvas/HUD/HPBar',
+    bindingId='player_hp_bar',
+    sourceType='health',      # 'health'|'economy'|'timer'|'custom'
+    sourceId='player_health',
+    format='percent',         # 'raw'|'percent'|'ratio'|'formatted'
+    smoothTransition=True,
+    transitionSpeed=5.0
+)
+
+# 経済リソース（Gold）をテキストにバインド
+unity_gamekit_ui_binding(
+    operation='create',
+    targetPath='Canvas/HUD/GoldText',
+    bindingId='gold_counter',
+    sourceType='economy',
+    sourceId='game_manager',
+    targetProperty='gold',
+    format='raw'
+)
+```
+
+**自動検出UIコンポーネント:** Slider, Image (fill), Text, TMP_Text
+
+### GameKit Combat - 統合ダメージ計算システム
+
+```python
+# 近接攻撃作成
+unity_gamekit_combat(
+    operation='create',
+    targetPath='Player',
+    combatId='player_melee',
+    attackType='melee',       # 'melee'|'ranged'|'aoe'|'projectile'
+    baseDamage=25,
+    critChance=0.1,
+    critMultiplier=2.0,
+    hitbox={'type': 'sphere', 'radius': 1.5},  # 'sphere'|'box'|'capsule'|'cone'
+    targetTags=['Enemy'],
+    attackCooldown=0.5,
+    onHitEffectId='slash_effect',
+    onCritEffectId='crit_effect'
+)
+
+# ターゲットタグ追加/削除
+unity_gamekit_combat(operation='addTargetTag', combatId='player_melee', tag='Boss')
+unity_gamekit_combat(operation='resetCooldown', combatId='player_melee')
+```
+
+**UnityEvents:** OnHit, OnCrit, OnMiss, OnKill
+
+### GameKit Feedback - ゲームフィール演出
+
+ヒットストップ、画面シェイク、フラッシュ等のゲームフィール演出。
+
+```python
+# フィードバック作成
+unity_gamekit_feedback(
+    operation='create',
+    targetPath='FeedbackManager',
+    feedbackId='hit_feedback',
+    playOnEnable=False,
+    globalIntensityMultiplier=1.0,
+    components=[
+        {'type': 'hitstop', 'duration': 0.05, 'hitstopTimeScale': 0.0},
+        {'type': 'screenShake', 'intensity': 0.3, 'duration': 0.15, 'shakeFrequency': 25},
+        {'type': 'flash', 'color': {'r': 1, 'g': 1, 'b': 1, 'a': 0.5}, 'duration': 0.05}
+    ]
+)
+
+# コンポーネント追加
+unity_gamekit_feedback(
+    operation='addComponent',
+    feedbackId='hit_feedback',
+    component={'type': 'scale', 'scaleAmount': {'x': 1.2, 'y': 1.2, 'z': 1.2}, 'duration': 0.1}
+)
+```
+
+**コンポーネントタイプ:** hitstop, screenShake, flash, colorFlash, scale, position, rotation, sound, particle, haptic
+
+### GameKit VFX - ビジュアルエフェクト
+
+パーティクルシステムのラッパー（プーリング、ライフサイクル管理）。
+
+```python
+# VFX作成
+unity_gamekit_vfx(
+    operation='create',
+    targetPath='Effects/Explosion',
+    vfxId='explosion_vfx',
+    particlePrefabPath='Assets/Prefabs/Explosion.prefab',
+    autoPlay=False,
+    loop=False,
+    usePooling=True,
+    poolSize=10,
+    durationMultiplier=1.0,
+    sizeMultiplier=1.0,
+    emissionMultiplier=1.0
+)
+
+# 乗数設定
+unity_gamekit_vfx(operation='setMultipliers', vfxId='explosion_vfx', duration=1.5, size=2.0, emission=1.0)
+```
+
+### GameKit Audio - オーディオ再生
+
+フェード制御付きオーディオラッパー。
+
+```python
+# オーディオ作成
+unity_gamekit_audio(
+    operation='create',
+    targetPath='AudioManager/BGM',
+    audioId='bgm_main',
+    audioType='music',        # 'sfx'|'music'|'ambient'|'voice'|'ui'
+    audioClipPath='Assets/Audio/BGM/Main.mp3',
+    playOnEnable=True,
+    loop=True,
+    volume=0.8,
+    fadeInDuration=2.0,
+    fadeOutDuration=1.0
+)
+
+# 操作
+unity_gamekit_audio(operation='setVolume', audioId='bgm_main', volume=0.5)
+unity_gamekit_audio(operation='setClip', audioId='bgm_main', audioClipPath='Assets/Audio/BGM/Battle.mp3')
+```
+
+**オーディオタイプ:** sfx, music, ambient, voice, ui
+
 ## ⚡ Mid-Level Batch Tools (推奨: バッチ操作)
 
 ### Transform Batch - 配置とリネーム
@@ -833,10 +974,19 @@ unity_compilation_await(operation='await', timeoutSeconds=60)
 
 ## 📋 Quick Reference
 
-### 全39ツール一覧
+### 全44ツール一覧
 
-**High-Level GameKit (14):**
-unity_gamekit_actor, unity_gamekit_manager, unity_gamekit_interaction, unity_gamekit_ui_command, unity_gamekit_machinations, unity_gamekit_sceneflow, unity_gamekit_health, unity_gamekit_spawner, unity_gamekit_timer, unity_gamekit_ai, unity_gamekit_collectible, unity_gamekit_projectile, unity_gamekit_waypoint, unity_gamekit_trigger_zone
+**High-Level GameKit - Logic (12):**
+unity_gamekit_actor, unity_gamekit_manager, unity_gamekit_health, unity_gamekit_combat, unity_gamekit_spawner, unity_gamekit_ai, unity_gamekit_trigger_zone, unity_gamekit_timer, unity_gamekit_machinations, unity_gamekit_sceneflow, unity_gamekit_save, unity_gamekit_status_effect
+
+**High-Level GameKit - UI (4):**
+unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_dialogue, unity_gamekit_inventory
+
+**High-Level GameKit - Presentation (5):**
+unity_gamekit_effect, unity_gamekit_animation_sync, unity_gamekit_vfx, unity_gamekit_audio, unity_gamekit_feedback
+
+**High-Level GameKit - Legacy (3):**
+unity_gamekit_interaction, unity_gamekit_collectible, unity_gamekit_projectile, unity_gamekit_waypoint
 
 **Mid-Level Batch (14):**
 unity_transform_batch, unity_rectTransform_batch, unity_physics_bundle, unity_camera_rig, unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation, unity_audio_source_bundle, unity_input_profile, unity_character_controller_bundle, unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle
@@ -869,4 +1019,4 @@ unity_ping, unity_compilation_await
 
 ---
 
-Unity-AI-Forge v{VERSION} - 39 Tools, 100+ Operations, 3-Layer Architecture + UI-First Design + Batch Processing + Machinations Economics + 2D Sprite/Animation + Physics2D + Sorting Layers + Declarative UI + GameKit Phase 1 & 2
+Unity-AI-Forge v{VERSION} - 50+ Tools, 120+ Operations, 3-Pillar Architecture (UI: Binding/List/Slot/Selection, Logic: Combat/Health/AI, Presentation: VFX/Audio/Feedback) + Reorganized Handler Structure (LowLevel/MidLevel/Utility) + UI-First Design + Batch Processing + Machinations Economics + Physics2D

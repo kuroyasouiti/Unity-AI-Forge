@@ -30,7 +30,7 @@ namespace MCP.Editor.Handlers
             "listStates"
         };
 
-        public override string Category => "Animation3DBundle";
+        public override string Category => "animation3DBundle";
         public override string Version => "1.0.0";
 
         protected override bool RequiresCompilationWait(string operation)

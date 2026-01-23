@@ -75,7 +75,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ShouldReturnAnimation3DBundle()
         {
-            Assert.AreEqual("Animation3DBundle", _handler.Category);
+            Assert.AreEqual("animation3DBundle", _handler.Category);
         }
 
         [Test]

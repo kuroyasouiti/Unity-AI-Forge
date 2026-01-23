@@ -54,7 +54,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ShouldReturnMaterialBundle()
         {
-            Assert.AreEqual("MaterialBundle", _handler.Category);
+            Assert.AreEqual("materialBundle", _handler.Category);
         }
 
         [Test]

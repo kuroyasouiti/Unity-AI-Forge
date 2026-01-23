@@ -28,7 +28,7 @@ namespace MCP.Editor.Handlers
             "listPresets"
         };
 
-        public override string Category => "MaterialBundle";
+        public override string Category => "materialBundle";
         public override string Version => "1.0.0";
 
         // Render pipeline detection

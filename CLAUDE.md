@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 24+ tools for AI-driven game development, including a GameKit framework for rapid prototyping.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 50+ tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation) for rapid prototyping.
 
 ## Requirements
 
@@ -63,27 +63,38 @@ The bridge enables WebSocket communication between AI clients and Unity Editor:
 
 ### Command Handlers
 
-Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, each handler processes specific MCP tool commands:
+Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organized into categories:
 
-- `PingHandler.cs` - Bridge connectivity check (unity_ping)
-- `CompilationAwaitHandler.cs` - Compilation status monitoring
-- `SceneCommandHandler.cs` - Scene management (create, load, save, delete, duplicate, inspect)
-- `GameObjectCommandHandler.cs` - GameObject operations (create, find, modify, delete)
-- `ComponentCommandHandler.cs` - Component manipulation (add, configure, remove)
+**LowLevel/** - Basic Unity operations:
+- `SceneCommandHandler.cs` - Scene management
+- `GameObjectCommandHandler.cs` - GameObject operations
+- `ComponentCommandHandler.cs` - Component manipulation
 - `AssetCommandHandler.cs` - Asset management
 - `PrefabCommandHandler.cs` - Prefab operations
-- `ProjectSettingsManageHandler.cs` - Project settings and build settings management
-- `PhysicsBundleHandler.cs` - Physics2D/3D setup
-- `TransformBatchHandler.cs` - Batch transform operations
-- `UIFoundationHandler.cs` - UI element creation
+- `ScriptableObjectCommandHandler.cs` - ScriptableObject management
+- `VectorSpriteConvertHandler.cs` - Sprite generation
 
-GameKit-specific handlers in `Handlers/GameKit/`:
-- `GameKitActorHandler.cs` - Actor component setup with movement profiles
-- `GameKitMachinationsHandler.cs` - Economic system configuration
-- `GameKitSceneFlowHandler.cs` - State machine transitions
-- `GameKitUICommandHandler.cs` - UI-to-logic binding
-- `GameKitManagerHandler.cs` - Manager component setup
-- `GameKitInteractionHandler.cs` - Interaction system configuration
+**MidLevel/** - Batch operations and presets:
+- `TransformBatchHandler.cs`, `RectTransformBatchHandler.cs` - Transform batching
+- `PhysicsBundleHandler.cs` - Physics2D/3D setup
+- `UIFoundationHandler.cs`, `UIHierarchyHandler.cs`, `UIStateHandler.cs`, `UINavigationHandler.cs` - UI systems
+- `CameraRigHandler.cs` - Camera presets
+- `AudioSourceBundleHandler.cs` - Audio setup
+- Animation, Sprite, Material, Light, Particle bundle handlers
+
+**Utility/** - Helper tools:
+- `PingHandler.cs` - Bridge connectivity check
+- `CompilationAwaitHandler.cs` - Compilation monitoring
+- `ConsoleLogHandler.cs` - Console log retrieval
+- `PlayModeControlHandler.cs` - Play mode control
+- `EventWiringHandler.cs` - UnityEvent wiring
+
+**GameKit/** - Game systems (3-Pillar Architecture):
+- UI Pillar: `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`, `GameKitUICommandHandler.cs`
+- Logic Pillar: `GameKitActorHandler.cs`, `GameKitCombatHandler.cs`, `GameKitHealthHandler.cs`, `GameKitManagerHandler.cs`, `GameKitAIHandler.cs`, `GameKitTimerHandler.cs`, `GameKitSpawnerHandler.cs`
+- Presentation Pillar: `GameKitFeedbackHandler.cs`, `GameKitVFXHandler.cs`, `GameKitAudioHandler.cs`, `GameKitProjectileHandler.cs`, `GameKitEffectHandler.cs`
+- Economy: `GameKitMachinationsHandler.cs`, `GameKitInventoryHandler.cs`
+- Flow: `GameKitSceneFlowHandler.cs`, `GameKitInteractionHandler.cs`, `GameKitDialogueHandler.cs`
 
 ### MCP Server (Python)
 
@@ -95,19 +106,37 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `bridge/` - WebSocket client to Unity Bridge
 - `server/` - MCP server implementation
 
-### GameKit Runtime Components
+### GameKit Runtime Components (3-Pillar Architecture)
 
-Located in `Assets/UnityAIForge/GameKit/Runtime/`:
+GameKit uses a 3-pillar architecture separating UI, Logic, and Presentation concerns:
 
-- `GameKitActor.cs` - Character controller with 8 movement profile types
-- `GameKitManager.cs` - Central game management
-- `GameKitResourceManager.cs` - Resource pool management
-- `GameKitStateManager.cs` - Game state tracking
-- `GameKitTurnManager.cs` - Turn-based game support
-- `GameKitSceneFlow.cs` - State machine scene transitions
+**UI Pillar** (`Assets/UnityAIForge/GameKit/Runtime/UI/`):
+- `GameKitUIBinding.cs` - Declarative UI data binding to game state
+- `GameKitUIList.cs` - Dynamic list/grid for collections
+- `GameKitUISlot.cs` - Item slots for inventory/equipment
+- `GameKitUISelection.cs` - Selection groups (radio, toggle, tabs)
 - `GameKitUICommand.cs` - UI button to command binding
-- `GameKitMachinationsAsset.cs` - Economic system ScriptableObject
-- `GameKitInteraction.cs` - Interaction system
+
+**Logic Pillar** (`Assets/UnityAIForge/GameKit/Runtime/Logic/`):
+- `GameKitActor.cs` - Character controller with 8 movement profiles
+- `GameKitCombat.cs` - Unified damage calculation and attack system
+- `GameKitHealth.cs` - HP/damage system with UnityEvents
+- `GameKitManager.cs` - Central game management
+- `GameKitSpawner.cs`, `GameKitTimer.cs`, `GameKitAIBehavior.cs`
+- `GameKitMachinationsAsset.cs` - Economic system
+- `GameKitInventory.cs`, `GameKitInteraction.cs`, `GameKitDialogueManager.cs`
+
+**Presentation Pillar** (`Assets/UnityAIForge/GameKit/Runtime/Presentation/`):
+- `GameKitFeedback.cs` - Game feel effects (hitstop, screen shake, flash)
+- `GameKitVFX.cs` - Visual effects wrapper with pooling
+- `GameKitAudio.cs` - Audio wrapper with fade controls
+- `GameKitProjectile.cs`, `GameKitWaypoint.cs`, `GameKitEffectManager.cs`
+
+**Supporting Modules**:
+- `Managers/` - GameKitResourceManager, StateManager, TurnManager, EventManager
+- `Movement/` - GraphNodeMovement, SplineMovement, TileGridMovement
+- `SceneFlow/` - GameKitSceneFlow and state classes
+- `Input/` - GameKitInputSystemController, GameKitSimpleInput
 
 ## Key Patterns
 

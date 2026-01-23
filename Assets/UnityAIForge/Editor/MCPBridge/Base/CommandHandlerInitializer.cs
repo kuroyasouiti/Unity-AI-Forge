@@ -224,6 +224,21 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("gamekitDialogue", new Handlers.GameKit.GameKitDialogueHandler());
             CommandHandlerFactory.Register("gamekitQuest", new Handlers.GameKit.GameKitQuestHandler());
             CommandHandlerFactory.Register("gamekitStatusEffect", new Handlers.GameKit.GameKitStatusEffectHandler());
+
+            // 3-Pillar Architecture handlers (v2.7.0)
+            // UI Pillar
+            CommandHandlerFactory.Register("gamekitUIBinding", new Handlers.GameKit.GameKitUIBindingHandler());
+            CommandHandlerFactory.Register("gamekitUIList", new Handlers.GameKit.GameKitUIListHandler());
+            CommandHandlerFactory.Register("gamekitUISlot", new Handlers.GameKit.GameKitUISlotHandler());
+            CommandHandlerFactory.Register("gamekitUISelection", new Handlers.GameKit.GameKitUISelectionHandler());
+
+            // Logic Pillar
+            CommandHandlerFactory.Register("gamekitCombat", new Handlers.GameKit.GameKitCombatHandler());
+
+            // Presentation Pillar
+            CommandHandlerFactory.Register("gamekitFeedback", new Handlers.GameKit.GameKitFeedbackHandler());
+            CommandHandlerFactory.Register("gamekitVFX", new Handlers.GameKit.GameKitVFXHandler());
+            CommandHandlerFactory.Register("gamekitAudio", new Handlers.GameKit.GameKitAudioHandler());
         }
     }
 }

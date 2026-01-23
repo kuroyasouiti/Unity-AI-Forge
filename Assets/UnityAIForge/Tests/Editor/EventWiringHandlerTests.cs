@@ -97,7 +97,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ShouldReturnEventWiring()
         {
-            Assert.AreEqual("EventWiring", _handler.Category);
+            Assert.AreEqual("eventWiring", _handler.Category);
         }
 
         [Test]

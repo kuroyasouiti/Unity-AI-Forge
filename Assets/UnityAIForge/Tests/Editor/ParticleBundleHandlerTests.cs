@@ -50,7 +50,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ShouldReturnParticleBundle()
         {
-            Assert.AreEqual("ParticleBundle", _handler.Category);
+            Assert.AreEqual("particleBundle", _handler.Category);
         }
 
         [Test]

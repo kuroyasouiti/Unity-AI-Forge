@@ -22,7 +22,7 @@ namespace MCP.Editor.Handlers
             "getState"
         };
 
-        public override string Category => "PlayModeControl";
+        public override string Category => "playModeControl";
         public override string Version => "1.0.0";
 
         protected override bool RequiresCompilationWait(string operation)

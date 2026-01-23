@@ -26,7 +26,7 @@ namespace MCP.Editor.Handlers
             "wireMultiple"
         };
 
-        public override string Category => "EventWiring";
+        public override string Category => "eventWiring";
         public override string Version => "1.0.0";
 
         protected override bool RequiresCompilationWait(string operation)

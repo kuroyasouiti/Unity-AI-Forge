@@ -36,6 +36,13 @@ class PendingCommand:
     timeout_handle: asyncio.TimerHandle
 
 
+@dataclass
+class CompilationWaiter:
+    future: asyncio.Future[Any]
+    timeout_handle: asyncio.TimerHandle
+    timeout_seconds: int
+
+
 class BridgeManager:
     def __init__(self) -> None:
         self._socket: ClientConnection | None = None
@@ -43,7 +50,7 @@ class BridgeManager:
         self._last_heartbeat_at: int | None = None
         self._context: UnityContextPayload | None = None
         self._pending_commands: dict[str, PendingCommand] = {}
-        self._compilation_waiters: list[asyncio.Future[dict[str, Any]]] = []
+        self._compilation_waiters: list[CompilationWaiter] = []
         self._is_compiling: bool = False
         self._compilation_start_time: float | None = None
         self._listeners: dict[str, list[Callable[..., None]]] = {
@@ -127,13 +134,13 @@ class BridgeManager:
         loop = asyncio.get_running_loop()
 
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
-        self._compilation_waiters.append(future)
 
         def on_timeout() -> None:
             if not future.done():
                 # Remove from waiters list
-                with contextlib.suppress(ValueError):
-                    self._compilation_waiters.remove(future)
+                self._compilation_waiters[:] = [
+                    w for w in self._compilation_waiters if w.future is not future
+                ]
                 future.set_exception(
                     TimeoutError(
                         f"Compilation did not complete within {timeout_seconds} seconds. "
@@ -144,6 +151,12 @@ class BridgeManager:
                 )
 
         timeout_handle = loop.call_later(timeout_seconds, on_timeout)
+        waiter = CompilationWaiter(
+            future=future,
+            timeout_handle=timeout_handle,
+            timeout_seconds=timeout_seconds,
+        )
+        self._compilation_waiters.append(waiter)
 
         try:
             return await future
@@ -314,11 +327,29 @@ class BridgeManager:
 
         # Reset timeout for all pending compilation waiters
         # This prevents timeout while compilation is actively progressing
-        for future in self._compilation_waiters:
-            if not future.done():
-                # The mere fact that we received a progress update means compilation is still active
-                # and not stuck, so we can be patient
-                pass
+        loop = asyncio.get_running_loop()
+        for waiter in self._compilation_waiters:
+            if not waiter.future.done():
+                # Cancel old timeout and create a new one
+                waiter.timeout_handle.cancel()
+
+                def make_timeout_callback(w: CompilationWaiter) -> Callable[[], None]:
+                    def on_timeout() -> None:
+                        if not w.future.done():
+                            self._compilation_waiters[:] = [
+                                x for x in self._compilation_waiters if x.future is not w.future
+                            ]
+                            w.future.set_exception(
+                                TimeoutError(
+                                    f"Compilation did not complete within {w.timeout_seconds} seconds."
+                                )
+                            )
+                    return on_timeout
+
+                waiter.timeout_handle = loop.call_later(
+                    waiter.timeout_seconds, make_timeout_callback(waiter)
+                )
+                logger.debug("Reset compilation timeout for waiter (timeout=%ds)", waiter.timeout_seconds)
 
     def _handle_compilation_complete(self, message: dict[str, Any]) -> None:
         """Handle compilation:complete message from Unity bridge."""
@@ -340,9 +371,10 @@ class BridgeManager:
         waiters = self._compilation_waiters[:]
         self._compilation_waiters.clear()
 
-        for future in waiters:
-            if not future.done():
-                future.set_result(result)
+        for waiter in waiters:
+            waiter.timeout_handle.cancel()
+            if not waiter.future.done():
+                waiter.future.set_result(result)
 
     def _handle_bridge_restarted(self, message: BridgeRestartedMessage) -> None:
         """Handle bridge:restarted message from Unity bridge."""
@@ -380,9 +412,10 @@ class BridgeManager:
             waiters = self._compilation_waiters[:]
             self._compilation_waiters.clear()
 
-            for future in waiters:
-                if not future.done():
-                    future.set_result(result)
+            for waiter in waiters:
+                waiter.timeout_handle.cancel()
+                if not waiter.future.done():
+                    waiter.future.set_result(result)
 
     def _emit(self, event: str, *args) -> None:
         for callback in list(self._listeners.get(event, [])):
