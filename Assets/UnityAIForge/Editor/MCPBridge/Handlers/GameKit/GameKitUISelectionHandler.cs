@@ -21,7 +21,8 @@ namespace MCP.Editor.Handlers.GameKit
             "setItems", "addItem", "removeItem", "clear",
             "selectItem", "selectItemById", "deselectItem", "clearSelection",
             "setSelectionActions", "setItemEnabled",
-            "findBySelectionId"
+            "findBySelectionId",
+            "createItemPrefab"
         };
 
         public override string Category => "gamekitUISelection";
@@ -49,6 +50,7 @@ namespace MCP.Editor.Handlers.GameKit
                 "setSelectionActions" => SetSelectionActions(payload),
                 "setItemEnabled" => SetItemEnabled(payload),
                 "findBySelectionId" => FindBySelectionId(payload),
+                "createItemPrefab" => CreateItemPrefab(payload),
                 _ => throw new InvalidOperationException($"Unsupported GameKit UI Selection operation: {operation}")
             };
         }
@@ -763,6 +765,231 @@ namespace MCP.Editor.Handlers.GameKit
             scrollRect.scrollSensitivity = 1f;
 
             return scrollViewGo;
+        }
+
+        #endregion
+
+        #region Prefab Creation
+
+        private object CreateItemPrefab(Dictionary<string, object> payload)
+        {
+            var prefabPath = GetString(payload, "prefabPath");
+            if (string.IsNullOrEmpty(prefabPath))
+            {
+                throw new InvalidOperationException("prefabPath is required for createItemPrefab.");
+            }
+
+            // Ensure path ends with .prefab
+            if (!prefabPath.EndsWith(".prefab"))
+            {
+                prefabPath += ".prefab";
+            }
+
+            // Ensure directory exists
+            var directory = System.IO.Path.GetDirectoryName(prefabPath);
+            if (!string.IsNullOrEmpty(directory) && !AssetDatabase.IsValidFolder(directory))
+            {
+                CreateFolderRecursively(directory);
+            }
+
+            // Get prefab configuration
+            var prefabName = GetString(payload, "name") ?? System.IO.Path.GetFileNameWithoutExtension(prefabPath);
+            float width = payload.TryGetValue("width", out var widthObj) ? Convert.ToSingle(widthObj) : 120f;
+            float height = payload.TryGetValue("height", out var heightObj) ? Convert.ToSingle(heightObj) : 40f;
+            bool includeIcon = payload.TryGetValue("includeIcon", out var iconObj) && Convert.ToBoolean(iconObj);
+            var style = GetString(payload, "style") ?? "button"; // "button" | "tab" | "radio" | "toggle"
+
+            // Create the item GameObject
+            var itemGo = new GameObject(prefabName, typeof(RectTransform));
+
+            var itemRect = itemGo.GetComponent<RectTransform>();
+            itemRect.sizeDelta = new Vector2(width, height);
+
+            // Get colors from payload or use defaults
+            Color normalColor = new Color(0.25f, 0.25f, 0.25f, 1f);
+            Color selectedColor = new Color(0.3f, 0.5f, 0.8f, 1f);
+            Color highlightedColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+            Color pressedColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+            Color disabledColor = new Color(0.25f, 0.25f, 0.25f, 0.5f);
+
+            if (payload.TryGetValue("normalColor", out var ncObj) && ncObj is Dictionary<string, object> ncDict)
+                normalColor = GetColorFromDict(ncDict);
+            if (payload.TryGetValue("selectedColor", out var scObj) && scObj is Dictionary<string, object> scDict)
+                selectedColor = GetColorFromDict(scDict);
+            if (payload.TryGetValue("highlightedColor", out var hcObj) && hcObj is Dictionary<string, object> hcDict)
+                highlightedColor = GetColorFromDict(hcDict);
+
+            // Add background Image
+            var bgImage = itemGo.AddComponent<Image>();
+            bgImage.color = normalColor;
+
+            // Style-specific setup
+            if (style == "tab")
+            {
+                // Tab style: no rounded corners simulation, border at bottom when selected
+                bgImage.type = Image.Type.Sliced;
+            }
+            else if (style == "radio" || style == "toggle")
+            {
+                // Radio/Toggle: smaller, circular indicator
+                itemRect.sizeDelta = new Vector2(width, height);
+            }
+
+            // Add Button component for interactivity
+            var button = itemGo.AddComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = normalColor;
+            colors.highlightedColor = highlightedColor;
+            colors.pressedColor = pressedColor;
+            colors.selectedColor = selectedColor;
+            colors.disabledColor = disabledColor;
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.1f;
+            button.colors = colors;
+
+            // Add content layout
+            var hlg = itemGo.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(10, 10, 5, 5);
+            hlg.spacing = 8;
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = true;
+
+            // Create indicator for radio/toggle style
+            if (style == "radio" || style == "toggle")
+            {
+                var indicatorGo = new GameObject("Indicator", typeof(RectTransform));
+                indicatorGo.transform.SetParent(itemGo.transform, false);
+
+                var indicatorRect = indicatorGo.GetComponent<RectTransform>();
+                indicatorRect.sizeDelta = new Vector2(20, 20);
+
+                var indicatorBg = indicatorGo.AddComponent<Image>();
+                indicatorBg.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+
+                // Inner check/dot
+                var checkGo = new GameObject("Check", typeof(RectTransform));
+                checkGo.transform.SetParent(indicatorGo.transform, false);
+
+                var checkRect = checkGo.GetComponent<RectTransform>();
+                checkRect.anchorMin = new Vector2(0.2f, 0.2f);
+                checkRect.anchorMax = new Vector2(0.8f, 0.8f);
+                checkRect.offsetMin = Vector2.zero;
+                checkRect.offsetMax = Vector2.zero;
+
+                var checkImage = checkGo.AddComponent<Image>();
+                checkImage.color = selectedColor;
+                checkGo.SetActive(false); // Hidden by default, shown when selected
+
+                var indicatorLayout = indicatorGo.AddComponent<LayoutElement>();
+                indicatorLayout.preferredWidth = 20;
+                indicatorLayout.preferredHeight = 20;
+            }
+
+            // Create Icon (optional)
+            if (includeIcon)
+            {
+                var iconGo = new GameObject("Icon", typeof(RectTransform));
+                iconGo.transform.SetParent(itemGo.transform, false);
+
+                var iconRect = iconGo.GetComponent<RectTransform>();
+                iconRect.sizeDelta = new Vector2(height - 16, height - 16);
+
+                var iconImage = iconGo.AddComponent<Image>();
+                iconImage.color = Color.white;
+
+                var iconLayout = iconGo.AddComponent<LayoutElement>();
+                iconLayout.preferredWidth = height - 16;
+                iconLayout.preferredHeight = height - 16;
+            }
+
+            // Create Label Text
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(itemGo.transform, false);
+
+            var labelText = labelGo.AddComponent<Text>();
+            labelText.text = "Option";
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 16;
+            labelText.color = Color.white;
+            labelText.alignment = TextAnchor.MiddleCenter;
+
+            var labelLayout = labelGo.AddComponent<LayoutElement>();
+            labelLayout.flexibleWidth = 1;
+            labelLayout.minWidth = 40;
+
+            // Create Selection highlight overlay
+            var highlightGo = new GameObject("SelectionHighlight", typeof(RectTransform));
+            highlightGo.transform.SetParent(itemGo.transform, false);
+            highlightGo.transform.SetAsLastSibling();
+
+            var highlightRect = highlightGo.GetComponent<RectTransform>();
+            highlightRect.anchorMin = Vector2.zero;
+            highlightRect.anchorMax = Vector2.one;
+            highlightRect.offsetMin = Vector2.zero;
+            highlightRect.offsetMax = Vector2.zero;
+
+            var highlightImage = highlightGo.AddComponent<Image>();
+            highlightImage.color = new Color(selectedColor.r, selectedColor.g, selectedColor.b, 0.3f);
+            highlightImage.raycastTarget = false;
+            highlightGo.SetActive(false); // Hidden by default
+
+            // Save as prefab
+            var prefab = PrefabUtility.SaveAsPrefabAsset(itemGo, prefabPath);
+
+            // Clean up scene object
+            Object.DestroyImmediate(itemGo);
+
+            // Optionally assign to a selection
+            var selectionId = GetString(payload, "selectionId");
+            var targetPath = GetString(payload, "targetPath");
+            if (!string.IsNullOrEmpty(selectionId) || !string.IsNullOrEmpty(targetPath))
+            {
+                try
+                {
+                    var selection = ResolveSelectionComponent(payload);
+                    var serializedSelection = new SerializedObject(selection);
+                    serializedSelection.FindProperty("itemPrefab").objectReferenceValue = prefab;
+                    serializedSelection.ApplyModifiedProperties();
+                    EditorSceneManager.MarkSceneDirty(selection.gameObject.scene);
+
+                    return CreateSuccessResponse(
+                        ("prefabPath", prefabPath),
+                        ("style", style),
+                        ("assignedToSelection", selection.SelectionId)
+                    );
+                }
+                catch
+                {
+                    // Selection not found, just return prefab path
+                }
+            }
+
+            AssetDatabase.Refresh();
+
+            return CreateSuccessResponse(
+                ("prefabPath", prefabPath),
+                ("prefabName", prefabName),
+                ("style", style)
+            );
+        }
+
+        private void CreateFolderRecursively(string path)
+        {
+            var parts = path.Replace("\\", "/").Split('/');
+            var currentPath = parts[0];
+
+            for (int i = 1; i < parts.Length; i++)
+            {
+                var nextPath = currentPath + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(nextPath))
+                {
+                    AssetDatabase.CreateFolder(currentPath, parts[i]);
+                }
+                currentPath = nextPath;
+            }
         }
 
         #endregion

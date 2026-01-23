@@ -3934,10 +3934,23 @@ def register_tools(server: Server) -> None:
                         "clearSelection",
                         "refreshFromSource",
                         "findByListId",
+                        "createItemPrefab",
                     ],
                     "description": "UI list operation.",
                 },
                 "listId": {"type": "string", "description": "Unique list identifier."},
+                "prefabPath": {
+                    "type": "string",
+                    "description": "Path to save item prefab (for createItemPrefab).",
+                },
+                "includeIcon": {
+                    "type": "boolean",
+                    "description": "Include icon Image in item prefab (for createItemPrefab).",
+                },
+                "includeQuantity": {
+                    "type": "boolean",
+                    "description": "Include quantity Text in item prefab (for createItemPrefab).",
+                },
                 "targetPath": {
                     "type": "string",
                     "description": "Target GameObject path for list component (use existing GameObject).",
@@ -4183,6 +4196,7 @@ def register_tools(server: Server) -> None:
                         "setSelectionActions",
                         "setItemEnabled",
                         "findBySelectionId",
+                        "createItemPrefab",
                     ],
                     "description": "UI selection operation.",
                 },
@@ -4199,13 +4213,26 @@ def register_tools(server: Server) -> None:
                     "type": "string",
                     "description": "Name for the created GameObject when using parentPath.",
                 },
+                "prefabPath": {
+                    "type": "string",
+                    "description": "Path to save item prefab (for createItemPrefab).",
+                },
+                "style": {
+                    "type": "string",
+                    "enum": ["button", "tab", "radio", "toggle"],
+                    "description": "Visual style for prefab: 'button', 'tab', 'radio', 'toggle' (for createItemPrefab).",
+                },
+                "includeIcon": {
+                    "type": "boolean",
+                    "description": "Include icon Image in item prefab (for createItemPrefab).",
+                },
                 "width": {
                     "type": "number",
-                    "description": "Width of the selection UI when using parentPath (default: 300).",
+                    "description": "Width of the selection UI when using parentPath (default: 300), or item width for createItemPrefab (default: 120).",
                 },
                 "height": {
                     "type": "number",
-                    "description": "Height of the selection UI when using parentPath (default: 50).",
+                    "description": "Height of the selection UI when using parentPath (default: 50), or item height for createItemPrefab (default: 40).",
                 },
                 "backgroundColor": {
                     "type": "object",
@@ -7148,6 +7175,7 @@ unity_gamekit_ui_binding({
 - clearSelection: Clear all selections
 - refreshFromSource: Refresh from data source
 - findByListId: Find list by ID
+- createItemPrefab: Create item prefab for list items
 
 **Layout Types:**
 - vertical: Vertical scrolling list
@@ -7166,6 +7194,16 @@ unity_gamekit_ui_binding({
 - iconPath: Sprite asset path
 - quantity: Stack count
 - enabled: Interaction state
+
+**createItemPrefab Parameters:**
+- prefabPath: Path to save prefab (e.g., "Assets/Prefabs/UI/ListItem.prefab")
+- name: Prefab name (optional)
+- width: Item width (default: 280)
+- height: Item height (default: 60)
+- includeIcon: Add icon Image child (default: false)
+- includeQuantity: Add quantity Text child (default: false)
+- backgroundColor: Background color {r, g, b, a}
+- listId/targetPath: Optionally assign to existing list
 
 **Example:**
 ```python
@@ -7189,6 +7227,17 @@ unity_gamekit_ui_list({
     "targetPath": "Canvas/Inventory/ItemList",
     "listId": "player_inventory",
     "layout": "grid"
+})
+
+# Create item prefab and assign to list
+unity_gamekit_ui_list({
+    "operation": "createItemPrefab",
+    "prefabPath": "Assets/Prefabs/UI/InventoryItem.prefab",
+    "width": 280,
+    "height": 60,
+    "includeIcon": true,
+    "includeQuantity": true,
+    "listId": "player_inventory"
 })
 
 # Manually set items
@@ -7307,6 +7356,7 @@ unity_gamekit_ui_slot({
 - setSelectionActions: Set show/hide actions
 - setItemEnabled: Enable/disable item
 - findBySelectionId: Find selection by ID
+- createItemPrefab: Create selection item prefab
 
 **Selection Types:**
 - radio: Single selection (only one can be selected)
@@ -7320,6 +7370,16 @@ unity_gamekit_ui_slot({
 - Selection actions (show/hide GameObjects on selection)
 - Default selection support
 
+**createItemPrefab Parameters:**
+- prefabPath: Path to save prefab (e.g., "Assets/Prefabs/UI/SelectionItem.prefab")
+- name: Prefab name (optional)
+- width: Item width (default: 120)
+- height: Item height (default: 40)
+- style: Visual style - "button" | "tab" | "radio" | "toggle" (default: "button")
+- includeIcon: Add icon Image child (default: false)
+- normalColor, selectedColor, highlightedColor: Color customization {r, g, b, a}
+- selectionId/targetPath: Optionally assign to existing selection
+
 **Example:**
 ```python
 # Create tab selection with auto-generated UI (recommended)
@@ -7331,6 +7391,25 @@ unity_gamekit_ui_selection({
     "selectionType": "tab",
     "layout": "horizontal",
     "width": 400
+})
+
+# Create tab item prefab
+unity_gamekit_ui_selection({
+    "operation": "createItemPrefab",
+    "prefabPath": "Assets/Prefabs/UI/TabItem.prefab",
+    "style": "tab",
+    "width": 100,
+    "height": 40,
+    "selectionId": "menu_tabs"
+})
+
+# Create radio button prefab with indicator
+unity_gamekit_ui_selection({
+    "operation": "createItemPrefab",
+    "prefabPath": "Assets/Prefabs/UI/RadioButton.prefab",
+    "style": "radio",
+    "width": 150,
+    "height": 30
 })
 
 # Or attach to existing GameObject

@@ -20,7 +20,8 @@ namespace MCP.Editor.Handlers.GameKit
             "create", "update", "inspect", "delete",
             "setItems", "addItem", "removeItem", "clear",
             "selectItem", "deselectItem", "clearSelection",
-            "refreshFromSource", "findByListId"
+            "refreshFromSource", "findByListId",
+            "createItemPrefab"
         };
 
         public override string Category => "gamekitUIList";
@@ -46,6 +47,7 @@ namespace MCP.Editor.Handlers.GameKit
                 "clearSelection" => ClearSelection(payload),
                 "refreshFromSource" => RefreshFromSource(payload),
                 "findByListId" => FindByListId(payload),
+                "createItemPrefab" => CreateItemPrefab(payload),
                 _ => throw new InvalidOperationException($"Unsupported GameKit UI List operation: {operation}")
             };
         }
@@ -648,6 +650,194 @@ namespace MCP.Editor.Handlers.GameKit
             float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
             float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
             return new Color(r, g, b, a);
+        }
+
+        #endregion
+
+        #region Prefab Creation
+
+        private object CreateItemPrefab(Dictionary<string, object> payload)
+        {
+            var prefabPath = GetString(payload, "prefabPath");
+            if (string.IsNullOrEmpty(prefabPath))
+            {
+                throw new InvalidOperationException("prefabPath is required for createItemPrefab.");
+            }
+
+            // Ensure path ends with .prefab
+            if (!prefabPath.EndsWith(".prefab"))
+            {
+                prefabPath += ".prefab";
+            }
+
+            // Ensure directory exists
+            var directory = System.IO.Path.GetDirectoryName(prefabPath);
+            if (!string.IsNullOrEmpty(directory) && !AssetDatabase.IsValidFolder(directory))
+            {
+                CreateFolderRecursively(directory);
+            }
+
+            // Get prefab configuration
+            var prefabName = GetString(payload, "name") ?? System.IO.Path.GetFileNameWithoutExtension(prefabPath);
+            float width = payload.TryGetValue("width", out var widthObj) ? Convert.ToSingle(widthObj) : 280f;
+            float height = payload.TryGetValue("height", out var heightObj) ? Convert.ToSingle(heightObj) : 60f;
+            bool includeIcon = payload.TryGetValue("includeIcon", out var iconObj) && Convert.ToBoolean(iconObj);
+            bool includeQuantity = payload.TryGetValue("includeQuantity", out var qtyObj) && Convert.ToBoolean(qtyObj);
+
+            // Create the item GameObject
+            var itemGo = new GameObject(prefabName, typeof(RectTransform));
+
+            var itemRect = itemGo.GetComponent<RectTransform>();
+            itemRect.sizeDelta = new Vector2(width, height);
+
+            // Add background Image
+            var bgImage = itemGo.AddComponent<Image>();
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                bgImage.color = GetColorFromDict(bgColorDict, new Color(0.2f, 0.2f, 0.2f, 0.9f));
+            }
+            else
+            {
+                bgImage.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+            }
+
+            // Add Button component for interactivity
+            var button = itemGo.AddComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+            colors.highlightedColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            colors.pressedColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+            colors.selectedColor = new Color(0.25f, 0.4f, 0.6f, 1f);
+            colors.disabledColor = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+            button.colors = colors;
+
+            // Add horizontal layout for content
+            var hlg = itemGo.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(10, 10, 5, 5);
+            hlg.spacing = 10;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = true;
+
+            // Create Icon (optional)
+            if (includeIcon)
+            {
+                var iconGo = new GameObject("Icon", typeof(RectTransform));
+                iconGo.transform.SetParent(itemGo.transform, false);
+
+                var iconRect = iconGo.GetComponent<RectTransform>();
+                iconRect.sizeDelta = new Vector2(height - 10, height - 10);
+
+                var iconImage = iconGo.AddComponent<Image>();
+                iconImage.color = Color.white;
+
+                // Add LayoutElement to control size
+                var iconLayout = iconGo.AddComponent<LayoutElement>();
+                iconLayout.preferredWidth = height - 10;
+                iconLayout.preferredHeight = height - 10;
+            }
+
+            // Create Label Text
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(itemGo.transform, false);
+
+            var labelText = labelGo.AddComponent<Text>();
+            labelText.text = "Item";
+            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelText.fontSize = 18;
+            labelText.color = Color.white;
+            labelText.alignment = TextAnchor.MiddleLeft;
+
+            var labelLayout = labelGo.AddComponent<LayoutElement>();
+            labelLayout.flexibleWidth = 1;
+
+            // Create Quantity Text (optional)
+            if (includeQuantity)
+            {
+                var qtyGo = new GameObject("Quantity", typeof(RectTransform));
+                qtyGo.transform.SetParent(itemGo.transform, false);
+
+                var qtyText = qtyGo.AddComponent<Text>();
+                qtyText.text = "x1";
+                qtyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                qtyText.fontSize = 16;
+                qtyText.color = new Color(0.8f, 0.8f, 0.8f, 1f);
+                qtyText.alignment = TextAnchor.MiddleRight;
+
+                var qtyLayout = qtyGo.AddComponent<LayoutElement>();
+                qtyLayout.preferredWidth = 50;
+            }
+
+            // Create Highlight overlay (for selection state)
+            var highlightGo = new GameObject("Highlight", typeof(RectTransform));
+            highlightGo.transform.SetParent(itemGo.transform, false);
+            highlightGo.transform.SetAsLastSibling();
+
+            var highlightRect = highlightGo.GetComponent<RectTransform>();
+            highlightRect.anchorMin = Vector2.zero;
+            highlightRect.anchorMax = Vector2.one;
+            highlightRect.offsetMin = Vector2.zero;
+            highlightRect.offsetMax = Vector2.zero;
+
+            var highlightImage = highlightGo.AddComponent<Image>();
+            highlightImage.color = new Color(0.3f, 0.6f, 1f, 0.3f);
+            highlightImage.raycastTarget = false;
+            highlightGo.SetActive(false);
+
+            // Save as prefab
+            var prefab = PrefabUtility.SaveAsPrefabAsset(itemGo, prefabPath);
+
+            // Clean up scene object
+            Object.DestroyImmediate(itemGo);
+
+            // Optionally assign to a list
+            var listId = GetString(payload, "listId");
+            var targetPath = GetString(payload, "targetPath");
+            if (!string.IsNullOrEmpty(listId) || !string.IsNullOrEmpty(targetPath))
+            {
+                try
+                {
+                    var list = ResolveListComponent(payload);
+                    var serializedList = new SerializedObject(list);
+                    serializedList.FindProperty("itemPrefab").objectReferenceValue = prefab;
+                    serializedList.ApplyModifiedProperties();
+                    EditorSceneManager.MarkSceneDirty(list.gameObject.scene);
+
+                    return CreateSuccessResponse(
+                        ("prefabPath", prefabPath),
+                        ("assignedToList", list.ListId)
+                    );
+                }
+                catch
+                {
+                    // List not found, just return prefab path
+                }
+            }
+
+            AssetDatabase.Refresh();
+
+            return CreateSuccessResponse(
+                ("prefabPath", prefabPath),
+                ("prefabName", prefabName)
+            );
+        }
+
+        private void CreateFolderRecursively(string path)
+        {
+            var parts = path.Replace("\\", "/").Split('/');
+            var currentPath = parts[0];
+
+            for (int i = 1; i < parts.Length; i++)
+            {
+                var nextPath = currentPath + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(nextPath))
+                {
+                    AssetDatabase.CreateFolder(currentPath, parts[i]);
+                }
+                currentPath = nextPath;
+            }
         }
 
         #endregion
