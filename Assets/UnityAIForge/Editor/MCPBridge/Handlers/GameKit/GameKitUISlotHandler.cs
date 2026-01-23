@@ -62,6 +62,7 @@ namespace MCP.Editor.Handlers.GameKit
             var name = GetString(payload, "name");
 
             GameObject targetGo;
+            bool createdNewUI = false;
 
             // If targetPath is provided, use existing GameObject
             if (!string.IsNullOrEmpty(targetPath))
@@ -89,6 +90,7 @@ namespace MCP.Editor.Handlers.GameKit
 
                 var slotName = name ?? "UISlot";
                 targetGo = CreateSlotUIGameObject(parent, slotName, payload);
+                createdNewUI = true;
             }
             else
             {
@@ -101,6 +103,48 @@ namespace MCP.Editor.Handlers.GameKit
             var serializedSlot = new SerializedObject(slot);
 
             serializedSlot.FindProperty("slotId").stringValue = slotId;
+
+            // Auto-set UI references when creating new UI
+            if (createdNewUI)
+            {
+                // Background image is on the slot itself
+                var bgImage = targetGo.GetComponent<Image>();
+                if (bgImage != null)
+                {
+                    serializedSlot.FindProperty("backgroundImage").objectReferenceValue = bgImage;
+                }
+
+                // Find child elements by name
+                var iconTransform = targetGo.transform.Find("Icon");
+                if (iconTransform != null)
+                {
+                    var iconImage = iconTransform.GetComponent<Image>();
+                    if (iconImage != null)
+                    {
+                        serializedSlot.FindProperty("iconImage").objectReferenceValue = iconImage;
+                    }
+                }
+
+                var quantityTransform = targetGo.transform.Find("QuantityText");
+                if (quantityTransform != null)
+                {
+                    var quantityText = quantityTransform.GetComponent<Text>();
+                    if (quantityText != null)
+                    {
+                        serializedSlot.FindProperty("quantityText").objectReferenceValue = quantityText;
+                    }
+                }
+
+                var highlightTransform = targetGo.transform.Find("Highlight");
+                if (highlightTransform != null)
+                {
+                    var highlightImage = highlightTransform.GetComponent<Image>();
+                    if (highlightImage != null)
+                    {
+                        serializedSlot.FindProperty("highlightImage").objectReferenceValue = highlightImage;
+                    }
+                }
+            }
 
             if (payload.TryGetValue("slotIndex", out var indexObj))
             {
@@ -609,6 +653,18 @@ namespace MCP.Editor.Handlers.GameKit
             quantityText.fontSize = 12;
             quantityText.color = Color.white;
             quantityText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            // Create highlight overlay (hidden by default)
+            var highlightGo = new GameObject("Highlight", typeof(RectTransform));
+            highlightGo.transform.SetParent(slotGo.transform, false);
+            var highlightRect = highlightGo.GetComponent<RectTransform>();
+            highlightRect.anchorMin = Vector2.zero;
+            highlightRect.anchorMax = Vector2.one;
+            highlightRect.offsetMin = Vector2.zero;
+            highlightRect.offsetMax = Vector2.zero;
+            var highlightImage = highlightGo.AddComponent<Image>();
+            highlightImage.color = new Color(0.5f, 0.7f, 1f, 0.3f);
+            highlightGo.SetActive(false);
 
             return slotGo;
         }

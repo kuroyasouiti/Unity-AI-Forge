@@ -101,6 +101,12 @@ namespace MCP.Editor.Handlers.GameKit
 
             serializedList.FindProperty("listId").stringValue = listId;
 
+            // Auto-set itemContainer reference to self transform
+            if (createdNewUI)
+            {
+                serializedList.FindProperty("itemContainer").objectReferenceValue = targetGo.transform;
+            }
+
             if (payload.TryGetValue("layout", out var layoutObj))
             {
                 var layoutType = ParseLayoutType(layoutObj.ToString());

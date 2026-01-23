@@ -62,6 +62,7 @@ namespace MCP.Editor.Handlers.GameKit
             var name = GetString(payload, "name");
 
             GameObject targetGo;
+            bool createdNewUI = false;
 
             // If targetPath is provided, use existing GameObject
             if (!string.IsNullOrEmpty(targetPath))
@@ -89,6 +90,7 @@ namespace MCP.Editor.Handlers.GameKit
 
                 var selectionName = name ?? "UISelection";
                 targetGo = CreateSelectionUIGameObject(parent, selectionName, payload);
+                createdNewUI = true;
             }
             else
             {
@@ -101,6 +103,12 @@ namespace MCP.Editor.Handlers.GameKit
             var serializedSelection = new SerializedObject(selection);
 
             serializedSelection.FindProperty("selectionId").stringValue = selectionId;
+
+            // Auto-set itemContainer reference to self transform
+            if (createdNewUI)
+            {
+                serializedSelection.FindProperty("itemContainer").objectReferenceValue = targetGo.transform;
+            }
 
             if (payload.TryGetValue("selectionType", out var typeObj))
             {
