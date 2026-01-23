@@ -3940,7 +3940,28 @@ def register_tools(server: Server) -> None:
                 "listId": {"type": "string", "description": "Unique list identifier."},
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path for list component.",
+                    "description": "Target GameObject path for list component (use existing GameObject).",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path to create new UI list under (auto-creates UI elements).",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the created GameObject when using parentPath.",
+                },
+                "width": {
+                    "type": "number",
+                    "description": "Width of the list UI (default: 300).",
+                },
+                "height": {
+                    "type": "number",
+                    "description": "Height of the list UI (default: 400).",
+                },
+                "backgroundColor": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Background color (RGBA).",
                 },
                 "layout": {
                     "type": "string",
@@ -4051,7 +4072,32 @@ def register_tools(server: Server) -> None:
                 "barId": {"type": "string", "description": "Unique slot bar identifier."},
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path.",
+                    "description": "Target GameObject path (use existing GameObject).",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path to create new UI slot under (auto-creates UI elements).",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the created GameObject when using parentPath.",
+                },
+                "size": {
+                    "type": "number",
+                    "description": "Slot size (width and height) when using parentPath (default: 64).",
+                },
+                "width": {
+                    "type": "number",
+                    "description": "Width of the slot UI (overrides size).",
+                },
+                "height": {
+                    "type": "number",
+                    "description": "Height of the slot UI (overrides size).",
+                },
+                "backgroundColor": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Background color (RGBA).",
                 },
                 "slotType": {
                     "type": "string",
@@ -4143,7 +4189,28 @@ def register_tools(server: Server) -> None:
                 "selectionId": {"type": "string", "description": "Unique selection group identifier."},
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path.",
+                    "description": "Target GameObject path (use existing GameObject).",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path to create new UI selection under (auto-creates UI elements).",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the created GameObject when using parentPath.",
+                },
+                "width": {
+                    "type": "number",
+                    "description": "Width of the selection UI when using parentPath (default: 300).",
+                },
+                "height": {
+                    "type": "number",
+                    "description": "Height of the selection UI when using parentPath (default: 50).",
+                },
+                "backgroundColor": {
+                    "type": "object",
+                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
+                    "description": "Background color (RGBA, optional).",
                 },
                 "selectionType": {
                     "type": "string",
@@ -7102,17 +7169,26 @@ unity_gamekit_ui_binding({
 
 **Example:**
 ```python
-# Create inventory display
+# Create inventory display with auto-generated UI (recommended)
+unity_gamekit_ui_list({
+    "operation": "create",
+    "parentPath": "Canvas/Inventory",
+    "name": "ItemList",
+    "listId": "player_inventory",
+    "layout": "grid",
+    "columns": 5,
+    "width": 400,
+    "height": 300,
+    "dataSource": "inventory",
+    "sourceId": "player_inv"
+})
+
+# Or attach to existing GameObject
 unity_gamekit_ui_list({
     "operation": "create",
     "targetPath": "Canvas/Inventory/ItemList",
     "listId": "player_inventory",
-    "layout": "grid",
-    "columns": 5,
-    "dataSource": "inventory",
-    "sourceId": "player_inv",
-    "selectable": True,
-    "multiSelect": False
+    "layout": "grid"
 })
 
 # Manually set items
@@ -7166,34 +7242,47 @@ unity_gamekit_ui_list({
 
 **Example:**
 ```python
-# Create equipment slot
+# Create equipment slot with auto-generated UI (recommended)
+unity_gamekit_ui_slot({
+    "operation": "create",
+    "parentPath": "Canvas/Equipment",
+    "name": "WeaponSlot",
+    "slotId": "weapon_slot",
+    "slotType": "equipment",
+    "equipmentSlot": "weapon",
+    "size": 80,
+    "acceptedCategories": ["weapon", "tool"]
+})
+
+# Create quickslot bar with auto-generated UI
+unity_gamekit_ui_slot({
+    "operation": "createSlotBar",
+    "parentPath": "Canvas/HUD",
+    "name": "Quickslots",
+    "barId": "quickbar",
+    "slotCount": 10,
+    "layout": "horizontal",
+    "inventoryId": "player_inv"
+})
+
+# Or attach to existing GameObject
 unity_gamekit_ui_slot({
     "operation": "create",
     "targetPath": "Canvas/Equipment/WeaponSlot",
     "slotId": "weapon_slot",
-    "slotType": "equipment",
-    "equipmentSlot": "weapon",
-    "acceptedCategories": ["weapon", "tool"]
-})
-
-# Create quickslot bar
-unity_gamekit_ui_slot({
-    "operation": "createSlotBar",
-    "targetPath": "Canvas/HUD/Quickslots",
-    "barId": "quickbar",
-    "slotCount": 10,
-    "layout": "horizontal",
-    "inventoryId": "player_inv",
-    "startIndex": 0
+    "slotType": "equipment"
 })
 
 # Set item in slot
 unity_gamekit_ui_slot({
     "operation": "setItem",
     "slotId": "weapon_slot",
-    "itemId": "iron_sword",
-    "quantity": 1,
-    "iconPath": "Assets/Icons/iron_sword.png"
+    "item": {
+        "itemId": "iron_sword",
+        "itemName": "Iron Sword",
+        "quantity": 1,
+        "iconPath": "Assets/Icons/iron_sword.png"
+    }
 })
 ```""",
             inputSchema=gamekit_ui_slot_schema,
@@ -7233,13 +7322,23 @@ unity_gamekit_ui_slot({
 
 **Example:**
 ```python
-# Create tab selection
+# Create tab selection with auto-generated UI (recommended)
+unity_gamekit_ui_selection({
+    "operation": "create",
+    "parentPath": "Canvas/Menu",
+    "name": "Tabs",
+    "selectionId": "menu_tabs",
+    "selectionType": "tab",
+    "layout": "horizontal",
+    "width": 400
+})
+
+# Or attach to existing GameObject
 unity_gamekit_ui_selection({
     "operation": "create",
     "targetPath": "Canvas/Menu/Tabs",
     "selectionId": "menu_tabs",
-    "selectionType": "tab",
-    "layout": "horizontal"
+    "selectionType": "tab"
 })
 
 # Set tab items with panels
@@ -7253,22 +7352,14 @@ unity_gamekit_ui_selection({
     ]
 })
 
-# Create checkbox group
+# Create checkbox group with auto-generated UI
 unity_gamekit_ui_selection({
     "operation": "create",
-    "targetPath": "Canvas/Settings/Options",
+    "parentPath": "Canvas/Settings",
+    "name": "Options",
     "selectionId": "game_options",
     "selectionType": "checkbox",
     "layout": "vertical"
-})
-
-# Set selection actions
-unity_gamekit_ui_selection({
-    "operation": "setSelectionActions",
-    "selectionId": "menu_tabs",
-    "actions": [
-        {"selectedId": "inventory", "showPaths": ["Canvas/Menu/InventoryPanel"], "hidePaths": ["Canvas/Menu/SkillsPanel", "Canvas/Menu/MapPanel"]}
-    ]
 })
 ```""",
             inputSchema=gamekit_ui_selection_schema,

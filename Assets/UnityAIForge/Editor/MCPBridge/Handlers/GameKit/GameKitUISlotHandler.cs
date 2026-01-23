@@ -5,6 +5,7 @@ using UnityAIForge.GameKit;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MCP.Editor.Handlers.GameKit
 {
@@ -57,21 +58,41 @@ namespace MCP.Editor.Handlers.GameKit
         private object CreateSlot(Dictionary<string, object> payload)
         {
             var targetPath = GetString(payload, "targetPath");
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for create operation.");
-            }
+            var parentPath = GetString(payload, "parentPath");
+            var name = GetString(payload, "name");
 
-            var targetGo = ResolveGameObject(targetPath);
-            if (targetGo == null)
-            {
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
+            GameObject targetGo;
 
-            var existingSlot = targetGo.GetComponent<GameKitUISlot>();
-            if (existingSlot != null)
+            // If targetPath is provided, use existing GameObject
+            if (!string.IsNullOrEmpty(targetPath))
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISlot component.");
+                targetGo = ResolveGameObject(targetPath);
+                if (targetGo == null)
+                {
+                    throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+                }
+
+                var existingSlot = targetGo.GetComponent<GameKitUISlot>();
+                if (existingSlot != null)
+                {
+                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISlot component.");
+                }
+            }
+            // If parentPath is provided, create new UI GameObject
+            else if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = ResolveGameObject(parentPath);
+                if (parent == null)
+                {
+                    throw new InvalidOperationException($"Parent GameObject not found at path: {parentPath}");
+                }
+
+                var slotName = name ?? "UISlot";
+                targetGo = CreateSlotUIGameObject(parent, slotName, payload);
+            }
+            else
+            {
+                throw new InvalidOperationException("Either targetPath or parentPath is required for create operation.");
             }
 
             var slotId = GetString(payload, "slotId") ?? $"Slot_{Guid.NewGuid().ToString().Substring(0, 8)}";
@@ -270,21 +291,41 @@ namespace MCP.Editor.Handlers.GameKit
         private object CreateSlotBar(Dictionary<string, object> payload)
         {
             var targetPath = GetString(payload, "targetPath");
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for createSlotBar operation.");
-            }
+            var parentPath = GetString(payload, "parentPath");
+            var name = GetString(payload, "name");
 
-            var targetGo = ResolveGameObject(targetPath);
-            if (targetGo == null)
-            {
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
+            GameObject targetGo;
 
-            var existingBar = targetGo.GetComponent<GameKitUISlotBar>();
-            if (existingBar != null)
+            // If targetPath is provided, use existing GameObject
+            if (!string.IsNullOrEmpty(targetPath))
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISlotBar component.");
+                targetGo = ResolveGameObject(targetPath);
+                if (targetGo == null)
+                {
+                    throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+                }
+
+                var existingBar = targetGo.GetComponent<GameKitUISlotBar>();
+                if (existingBar != null)
+                {
+                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISlotBar component.");
+                }
+            }
+            // If parentPath is provided, create new UI GameObject
+            else if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = ResolveGameObject(parentPath);
+                if (parent == null)
+                {
+                    throw new InvalidOperationException($"Parent GameObject not found at path: {parentPath}");
+                }
+
+                var barName = name ?? "UISlotBar";
+                targetGo = CreateSlotBarUIGameObject(parent, barName, payload);
+            }
+            else
+            {
+                throw new InvalidOperationException("Either targetPath or parentPath is required for createSlotBar operation.");
             }
 
             var barId = GetString(payload, "barId") ?? $"Bar_{Guid.NewGuid().ToString().Substring(0, 8)}";
@@ -500,6 +541,194 @@ namespace MCP.Editor.Handlers.GameKit
                 ("path", BuildGameObjectPath(bar.gameObject)),
                 ("slotCount", bar.SlotCount)
             );
+        }
+
+        #endregion
+
+        #region UI Creation Helpers
+
+        private GameObject CreateSlotUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
+        {
+            // Create the slot GameObject
+            var slotGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(slotGo, "Create UI Slot");
+            slotGo.transform.SetParent(parent.transform, false);
+
+            // Setup RectTransform
+            var rectTransform = slotGo.GetComponent<RectTransform>();
+
+            // Get size from payload or use defaults
+            float size = 64f;
+            if (payload.TryGetValue("size", out var sizeObj))
+            {
+                size = Convert.ToSingle(sizeObj);
+            }
+            float width = payload.TryGetValue("width", out var widthObj) ? Convert.ToSingle(widthObj) : size;
+            float height = payload.TryGetValue("height", out var heightObj) ? Convert.ToSingle(heightObj) : size;
+
+            rectTransform.sizeDelta = new Vector2(width, height);
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.anchoredPosition = Vector2.zero;
+
+            // Add Image component for background
+            var image = Undo.AddComponent<Image>(slotGo);
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                image.color = GetColorFromDict(bgColorDict, new Color(0.2f, 0.2f, 0.2f, 0.9f));
+            }
+            else
+            {
+                image.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+            }
+
+            // Create icon child for item display
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(slotGo.transform, false);
+            var iconRect = iconGo.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.1f, 0.1f);
+            iconRect.anchorMax = new Vector2(0.9f, 0.9f);
+            iconRect.offsetMin = Vector2.zero;
+            iconRect.offsetMax = Vector2.zero;
+            var iconImage = iconGo.AddComponent<Image>();
+            iconImage.color = Color.white;
+            iconImage.preserveAspect = true;
+
+            // Create quantity text child
+            var quantityGo = new GameObject("QuantityText", typeof(RectTransform));
+            quantityGo.transform.SetParent(slotGo.transform, false);
+            var quantityRect = quantityGo.GetComponent<RectTransform>();
+            quantityRect.anchorMin = new Vector2(0.5f, 0f);
+            quantityRect.anchorMax = new Vector2(1f, 0.3f);
+            quantityRect.offsetMin = Vector2.zero;
+            quantityRect.offsetMax = Vector2.zero;
+            var quantityText = quantityGo.AddComponent<Text>();
+            quantityText.text = "";
+            quantityText.alignment = TextAnchor.LowerRight;
+            quantityText.fontSize = 12;
+            quantityText.color = Color.white;
+            quantityText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            return slotGo;
+        }
+
+        private GameObject CreateSlotBarUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
+        {
+            // Create the slot bar container GameObject
+            var barGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(barGo, "Create UI Slot Bar");
+            barGo.transform.SetParent(parent.transform, false);
+
+            // Setup RectTransform
+            var rectTransform = barGo.GetComponent<RectTransform>();
+
+            int slotCount = 8;
+            if (payload.TryGetValue("slotCount", out var countObj))
+            {
+                slotCount = Convert.ToInt32(countObj);
+            }
+
+            float slotSize = 64f;
+            if (payload.TryGetValue("slotSize", out var slotSizeObj))
+            {
+                slotSize = Convert.ToSingle(slotSizeObj);
+            }
+
+            float spacing = 5f;
+            if (payload.TryGetValue("spacing", out var spacingObj))
+            {
+                spacing = Convert.ToSingle(spacingObj);
+            }
+
+            // Calculate size based on layout and slot count
+            var layoutType = GameKitUISlotBar.LayoutType.Horizontal;
+            if (payload.TryGetValue("layout", out var layoutObj))
+            {
+                layoutType = ParseBarLayoutType(layoutObj.ToString());
+            }
+
+            float width, height;
+            switch (layoutType)
+            {
+                case GameKitUISlotBar.LayoutType.Horizontal:
+                    width = slotCount * slotSize + (slotCount - 1) * spacing + 20;
+                    height = slotSize + 20;
+                    break;
+                case GameKitUISlotBar.LayoutType.Vertical:
+                    width = slotSize + 20;
+                    height = slotCount * slotSize + (slotCount - 1) * spacing + 20;
+                    break;
+                default: // Grid - assume 4 columns
+                    int columns = 4;
+                    int rows = (slotCount + columns - 1) / columns;
+                    width = columns * slotSize + (columns - 1) * spacing + 20;
+                    height = rows * slotSize + (rows - 1) * spacing + 20;
+                    break;
+            }
+
+            rectTransform.sizeDelta = new Vector2(width, height);
+            rectTransform.anchorMin = new Vector2(0.5f, 0f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            rectTransform.pivot = new Vector2(0.5f, 0f);
+            rectTransform.anchoredPosition = new Vector2(0, 20);
+
+            // Add Image component for background
+            var image = Undo.AddComponent<Image>(barGo);
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                image.color = GetColorFromDict(bgColorDict, new Color(0.1f, 0.1f, 0.1f, 0.8f));
+            }
+            else
+            {
+                image.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+            }
+
+            // Add LayoutGroup based on layout type
+            switch (layoutType)
+            {
+                case GameKitUISlotBar.LayoutType.Horizontal:
+                    var hlg = Undo.AddComponent<HorizontalLayoutGroup>(barGo);
+                    hlg.spacing = spacing;
+                    hlg.padding = new RectOffset(10, 10, 10, 10);
+                    hlg.childAlignment = TextAnchor.MiddleCenter;
+                    hlg.childControlWidth = false;
+                    hlg.childControlHeight = false;
+                    hlg.childForceExpandWidth = false;
+                    hlg.childForceExpandHeight = false;
+                    break;
+
+                case GameKitUISlotBar.LayoutType.Vertical:
+                    var vlg = Undo.AddComponent<VerticalLayoutGroup>(barGo);
+                    vlg.spacing = spacing;
+                    vlg.padding = new RectOffset(10, 10, 10, 10);
+                    vlg.childAlignment = TextAnchor.UpperCenter;
+                    vlg.childControlWidth = false;
+                    vlg.childControlHeight = false;
+                    vlg.childForceExpandWidth = false;
+                    vlg.childForceExpandHeight = false;
+                    break;
+
+                case GameKitUISlotBar.LayoutType.Grid:
+                    var glg = Undo.AddComponent<GridLayoutGroup>(barGo);
+                    glg.cellSize = new Vector2(slotSize, slotSize);
+                    glg.spacing = new Vector2(spacing, spacing);
+                    glg.padding = new RectOffset(10, 10, 10, 10);
+                    glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                    glg.constraintCount = 4;
+                    break;
+            }
+
+            return barGo;
+        }
+
+        private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
+        {
+            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : fallback.r;
+            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : fallback.g;
+            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
+            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
+            return new Color(r, g, b, a);
         }
 
         #endregion

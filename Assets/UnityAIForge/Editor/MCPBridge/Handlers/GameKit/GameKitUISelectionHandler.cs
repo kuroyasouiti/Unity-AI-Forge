@@ -5,6 +5,7 @@ using UnityAIForge.GameKit;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MCP.Editor.Handlers.GameKit
 {
@@ -57,21 +58,41 @@ namespace MCP.Editor.Handlers.GameKit
         private object CreateSelection(Dictionary<string, object> payload)
         {
             var targetPath = GetString(payload, "targetPath");
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for create operation.");
-            }
+            var parentPath = GetString(payload, "parentPath");
+            var name = GetString(payload, "name");
 
-            var targetGo = ResolveGameObject(targetPath);
-            if (targetGo == null)
-            {
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
+            GameObject targetGo;
 
-            var existingSelection = targetGo.GetComponent<GameKitUISelection>();
-            if (existingSelection != null)
+            // If targetPath is provided, use existing GameObject
+            if (!string.IsNullOrEmpty(targetPath))
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISelection component.");
+                targetGo = ResolveGameObject(targetPath);
+                if (targetGo == null)
+                {
+                    throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+                }
+
+                var existingSelection = targetGo.GetComponent<GameKitUISelection>();
+                if (existingSelection != null)
+                {
+                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISelection component.");
+                }
+            }
+            // If parentPath is provided, create new UI GameObject
+            else if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = ResolveGameObject(parentPath);
+                if (parent == null)
+                {
+                    throw new InvalidOperationException($"Parent GameObject not found at path: {parentPath}");
+                }
+
+                var selectionName = name ?? "UISelection";
+                targetGo = CreateSelectionUIGameObject(parent, selectionName, payload);
+            }
+            else
+            {
+                throw new InvalidOperationException("Either targetPath or parentPath is required for create operation.");
             }
 
             var selectionId = GetString(payload, "selectionId") ?? $"Selection_{Guid.NewGuid().ToString().Substring(0, 8)}";
@@ -549,6 +570,112 @@ namespace MCP.Editor.Handlers.GameKit
                 ("itemCount", selection.ItemCount),
                 ("selectedIndex", selection.GetSelectedIndex())
             );
+        }
+
+        #endregion
+
+        #region UI Creation Helpers
+
+        private GameObject CreateSelectionUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
+        {
+            // Create the selection container GameObject
+            var selectionGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(selectionGo, "Create UI Selection");
+            selectionGo.transform.SetParent(parent.transform, false);
+
+            // Setup RectTransform
+            var rectTransform = selectionGo.GetComponent<RectTransform>();
+
+            // Get size from payload or use defaults
+            float width = 300f;
+            float height = 50f;
+            if (payload.TryGetValue("width", out var widthObj))
+            {
+                width = Convert.ToSingle(widthObj);
+            }
+            if (payload.TryGetValue("height", out var heightObj))
+            {
+                height = Convert.ToSingle(heightObj);
+            }
+
+            rectTransform.sizeDelta = new Vector2(width, height);
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.anchoredPosition = Vector2.zero;
+
+            // Add Image component for background (optional)
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                var image = Undo.AddComponent<Image>(selectionGo);
+                image.color = GetColorFromDict(bgColorDict);
+            }
+
+            // Add LayoutGroup based on layout type
+            var layoutType = GameKitUISelection.LayoutType.Horizontal;
+            if (payload.TryGetValue("layout", out var layoutObj))
+            {
+                layoutType = ParseLayoutType(layoutObj.ToString());
+            }
+
+            float spacing = 10f;
+            if (payload.TryGetValue("spacing", out var spacingObj))
+            {
+                spacing = Convert.ToSingle(spacingObj);
+            }
+
+            switch (layoutType)
+            {
+                case GameKitUISelection.LayoutType.Horizontal:
+                    var hlg = Undo.AddComponent<HorizontalLayoutGroup>(selectionGo);
+                    hlg.spacing = spacing;
+                    hlg.padding = new RectOffset(10, 10, 5, 5);
+                    hlg.childAlignment = TextAnchor.MiddleLeft;
+                    hlg.childControlWidth = false;
+                    hlg.childControlHeight = true;
+                    hlg.childForceExpandWidth = false;
+                    hlg.childForceExpandHeight = true;
+                    break;
+
+                case GameKitUISelection.LayoutType.Vertical:
+                    var vlg = Undo.AddComponent<VerticalLayoutGroup>(selectionGo);
+                    vlg.spacing = spacing;
+                    vlg.padding = new RectOffset(10, 10, 5, 5);
+                    vlg.childAlignment = TextAnchor.UpperLeft;
+                    vlg.childControlWidth = true;
+                    vlg.childControlHeight = false;
+                    vlg.childForceExpandWidth = true;
+                    vlg.childForceExpandHeight = false;
+                    break;
+
+                case GameKitUISelection.LayoutType.Grid:
+                    var glg = Undo.AddComponent<GridLayoutGroup>(selectionGo);
+                    var cellSize = new Vector2(80, 40);
+                    if (payload.TryGetValue("cellSize", out var cellSizeObj) && cellSizeObj is Dictionary<string, object> cellDict)
+                    {
+                        float cx = cellDict.TryGetValue("x", out var cxObj) ? Convert.ToSingle(cxObj) : cellSize.x;
+                        float cy = cellDict.TryGetValue("y", out var cyObj) ? Convert.ToSingle(cyObj) : cellSize.y;
+                        cellSize = new Vector2(cx, cy);
+                    }
+                    glg.cellSize = cellSize;
+                    glg.spacing = new Vector2(spacing, spacing);
+                    glg.padding = new RectOffset(10, 10, 5, 5);
+                    glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                    int columns = 4;
+                    if (payload.TryGetValue("columns", out var columnsObj))
+                    {
+                        columns = Convert.ToInt32(columnsObj);
+                    }
+                    glg.constraintCount = columns;
+                    break;
+            }
+
+            // Add ContentSizeFitter
+            var fitter = Undo.AddComponent<ContentSizeFitter>(selectionGo);
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            return selectionGo;
         }
 
         #endregion

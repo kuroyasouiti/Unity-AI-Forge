@@ -5,6 +5,7 @@ using UnityAIForge.GameKit;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace MCP.Editor.Handlers.GameKit
 {
@@ -54,21 +55,43 @@ namespace MCP.Editor.Handlers.GameKit
         private object CreateList(Dictionary<string, object> payload)
         {
             var targetPath = GetString(payload, "targetPath");
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for create operation.");
-            }
+            var parentPath = GetString(payload, "parentPath");
+            var name = GetString(payload, "name");
 
-            var targetGo = ResolveGameObject(targetPath);
-            if (targetGo == null)
-            {
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
+            GameObject targetGo;
+            bool createdNewUI = false;
 
-            var existingList = targetGo.GetComponent<GameKitUIList>();
-            if (existingList != null)
+            // If targetPath is provided, use existing GameObject
+            if (!string.IsNullOrEmpty(targetPath))
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUIList component.");
+                targetGo = ResolveGameObject(targetPath);
+                if (targetGo == null)
+                {
+                    throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+                }
+
+                var existingList = targetGo.GetComponent<GameKitUIList>();
+                if (existingList != null)
+                {
+                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUIList component.");
+                }
+            }
+            // If parentPath is provided, create new UI GameObject
+            else if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = ResolveGameObject(parentPath);
+                if (parent == null)
+                {
+                    throw new InvalidOperationException($"Parent GameObject not found at path: {parentPath}");
+                }
+
+                var listName = name ?? "UIList";
+                targetGo = CreateListUIGameObject(parent, listName, payload);
+                createdNewUI = true;
+            }
+            else
+            {
+                throw new InvalidOperationException("Either targetPath or parentPath is required for create operation.");
             }
 
             var listId = GetString(payload, "listId") ?? $"List_{Guid.NewGuid().ToString().Substring(0, 8)}";
@@ -427,6 +450,122 @@ namespace MCP.Editor.Handlers.GameKit
                 ("path", BuildGameObjectPath(list.gameObject)),
                 ("itemCount", list.ItemCount)
             );
+        }
+
+        #endregion
+
+        #region UI Creation Helpers
+
+        private GameObject CreateListUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
+        {
+            // Create the list container GameObject
+            var listGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(listGo, "Create UI List");
+            listGo.transform.SetParent(parent.transform, false);
+
+            // Setup RectTransform
+            var rectTransform = listGo.GetComponent<RectTransform>();
+
+            // Get size from payload or use defaults
+            float width = 300f;
+            float height = 400f;
+            if (payload.TryGetValue("width", out var widthObj))
+            {
+                width = Convert.ToSingle(widthObj);
+            }
+            if (payload.TryGetValue("height", out var heightObj))
+            {
+                height = Convert.ToSingle(heightObj);
+            }
+
+            rectTransform.sizeDelta = new Vector2(width, height);
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.anchoredPosition = Vector2.zero;
+
+            // Add Image component for background
+            var image = Undo.AddComponent<Image>(listGo);
+            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
+            {
+                image.color = GetColorFromDict(bgColorDict, new Color(0.1f, 0.1f, 0.1f, 0.8f));
+            }
+            else
+            {
+                image.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+            }
+
+            // Add LayoutGroup based on layout type
+            var layoutType = GameKitUIList.LayoutType.Vertical;
+            if (payload.TryGetValue("layout", out var layoutObj))
+            {
+                layoutType = ParseLayoutType(layoutObj.ToString());
+            }
+
+            var spacing = new Vector2(10, 10);
+            if (payload.TryGetValue("spacing", out var spacingObj) && spacingObj is Dictionary<string, object> spaceDict)
+            {
+                spacing = GetVector2FromDict(spaceDict, spacing);
+            }
+
+            switch (layoutType)
+            {
+                case GameKitUIList.LayoutType.Vertical:
+                    var vlg = Undo.AddComponent<VerticalLayoutGroup>(listGo);
+                    vlg.spacing = spacing.y;
+                    vlg.padding = new RectOffset(10, 10, 10, 10);
+                    vlg.childAlignment = TextAnchor.UpperLeft;
+                    vlg.childControlWidth = true;
+                    vlg.childControlHeight = false;
+                    vlg.childForceExpandWidth = true;
+                    vlg.childForceExpandHeight = false;
+                    break;
+
+                case GameKitUIList.LayoutType.Horizontal:
+                    var hlg = Undo.AddComponent<HorizontalLayoutGroup>(listGo);
+                    hlg.spacing = spacing.x;
+                    hlg.padding = new RectOffset(10, 10, 10, 10);
+                    hlg.childAlignment = TextAnchor.MiddleLeft;
+                    hlg.childControlWidth = false;
+                    hlg.childControlHeight = true;
+                    hlg.childForceExpandWidth = false;
+                    hlg.childForceExpandHeight = true;
+                    break;
+
+                case GameKitUIList.LayoutType.Grid:
+                    var glg = Undo.AddComponent<GridLayoutGroup>(listGo);
+                    var cellSize = new Vector2(80, 80);
+                    if (payload.TryGetValue("cellSize", out var cellSizeObj) && cellSizeObj is Dictionary<string, object> cellDict)
+                    {
+                        cellSize = GetVector2FromDict(cellDict, cellSize);
+                    }
+                    glg.cellSize = cellSize;
+                    glg.spacing = spacing;
+                    glg.padding = new RectOffset(10, 10, 10, 10);
+                    glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                    int columns = 4;
+                    if (payload.TryGetValue("columns", out var columnsObj))
+                    {
+                        columns = Convert.ToInt32(columnsObj);
+                    }
+                    glg.constraintCount = columns;
+                    break;
+            }
+
+            // Add ContentSizeFitter if desired
+            var fitter = Undo.AddComponent<ContentSizeFitter>(listGo);
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            return listGo;
+        }
+
+        private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
+        {
+            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : fallback.r;
+            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : fallback.g;
+            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
+            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
+            return new Color(r, g, b, a);
         }
 
         #endregion
