@@ -790,7 +790,7 @@ namespace MCP.Editor.Handlers.GameKit
             var prefab = PrefabUtility.SaveAsPrefabAsset(itemGo, prefabPath);
 
             // Clean up scene object
-            Object.DestroyImmediate(itemGo);
+            UnityEngine.Object.DestroyImmediate(itemGo);
 
             // Optionally assign to a list
             var listId = GetString(payload, "listId");
