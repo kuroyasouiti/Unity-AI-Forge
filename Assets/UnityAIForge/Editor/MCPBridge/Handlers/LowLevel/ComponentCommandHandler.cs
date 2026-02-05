@@ -114,7 +114,7 @@ namespace MCP.Editor.Handlers
             }
 
             var response = CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(gameObject)),
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
                 ("instanceID", component.GetInstanceID())
             );
@@ -146,14 +146,14 @@ namespace MCP.Editor.Handlers
             if (component == null)
             {
                 throw new InvalidOperationException(
-                    $"Component {componentType} not found on GameObject {GetGameObjectPath(gameObject)}"
+                    $"Component {componentType} not found on GameObject {BuildGameObjectPath(gameObject)}"
                 );
             }
             
             Undo.DestroyObjectImmediate(component);
             
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(gameObject)),
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
                 ("message", "Component removed successfully")
             );
@@ -178,7 +178,7 @@ namespace MCP.Editor.Handlers
             if (component == null)
             {
                 throw new InvalidOperationException(
-                    $"Component {componentType} not found on GameObject {GetGameObjectPath(gameObject)}"
+                    $"Component {componentType} not found on GameObject {BuildGameObjectPath(gameObject)}"
                 );
             }
             
@@ -192,7 +192,7 @@ namespace MCP.Editor.Handlers
             var result = _propertyApplier.ApplyProperties(component, propertyChanges);
 
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(gameObject)),
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
                 ("updated", result.Updated)
             );
@@ -217,7 +217,7 @@ namespace MCP.Editor.Handlers
             if (component == null)
             {
                 throw new InvalidOperationException(
-                    $"Component {componentType} not found on GameObject {GetGameObjectPath(gameObject)}"
+                    $"Component {componentType} not found on GameObject {BuildGameObjectPath(gameObject)}"
                 );
             }
             
@@ -227,7 +227,7 @@ namespace MCP.Editor.Handlers
             var info = new Dictionary<string, object>
             {
                 ["success"] = true,
-                ["gameObjectPath"] = GetGameObjectPath(gameObject),
+                ["gameObjectPath"] = BuildGameObjectPath(gameObject),
                 ["componentType"] = type.FullName,
                 ["instanceID"] = component.GetInstanceID()
             };
@@ -296,7 +296,7 @@ namespace MCP.Editor.Handlers
                     var resultEntry = new Dictionary<string, object>
                     {
                         ["success"] = true,
-                        ["gameObjectPath"] = GetGameObjectPath(go),
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["instanceID"] = component.GetInstanceID()
                     };
 
@@ -314,7 +314,7 @@ namespace MCP.Editor.Handlers
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = false,
-                        ["gameObjectPath"] = GetGameObjectPath(go),
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["error"] = ex.Message
                     });
                     
@@ -377,7 +377,7 @@ namespace MCP.Editor.Handlers
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = true,
-                        ["gameObjectPath"] = GetGameObjectPath(go)
+                        ["gameObjectPath"] = BuildGameObjectPath(go)
                     });
                 }
                 catch (Exception ex)
@@ -387,7 +387,7 @@ namespace MCP.Editor.Handlers
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = false,
-                        ["gameObjectPath"] = GetGameObjectPath(go),
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["error"] = ex.Message
                     });
                     
@@ -452,7 +452,7 @@ namespace MCP.Editor.Handlers
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = true,
-                        ["gameObjectPath"] = GetGameObjectPath(go),
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["updated"] = applyResult.Updated
                     });
                 }
@@ -463,7 +463,7 @@ namespace MCP.Editor.Handlers
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = false,
-                        ["gameObjectPath"] = GetGameObjectPath(go),
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["error"] = ex.Message
                     });
                     
@@ -511,7 +511,7 @@ namespace MCP.Editor.Handlers
                 {
                     var info = new Dictionary<string, object>
                     {
-                        ["gameObjectPath"] = GetGameObjectPath(go),
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["instanceID"] = component.GetInstanceID()
                     };
                     
@@ -533,28 +533,6 @@ namespace MCP.Editor.Handlers
         #endregion
         
         #region Helper Methods
-
-        /// <summary>
-        /// Gets the hierarchical path of a GameObject.
-        /// </summary>
-        private string GetGameObjectPath(GameObject go)
-        {
-            if (go == null)
-            {
-                return null;
-            }
-
-            var path = go.name;
-            var parent = go.transform.parent;
-
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-
-            return path;
-        }
 
         /// <summary>
         /// Serializes component properties to a dictionary.

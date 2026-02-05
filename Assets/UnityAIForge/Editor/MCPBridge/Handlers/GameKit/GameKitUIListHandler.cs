@@ -643,15 +643,6 @@ namespace MCP.Editor.Handlers.GameKit
             return scrollViewGo;
         }
 
-        private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : fallback.r;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : fallback.g;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
-            return new Color(r, g, b, a);
-        }
-
         #endregion
 
         #region Prefab Creation
@@ -915,25 +906,6 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             return item;
-        }
-
-        private Vector2 GetVector2FromDict(Dictionary<string, object> dict, Vector2 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            return new Vector2(x, y);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

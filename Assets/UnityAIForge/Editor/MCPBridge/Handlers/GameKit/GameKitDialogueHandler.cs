@@ -801,18 +801,6 @@ namespace MCP.Editor.Handlers.GameKit
             return dict;
         }
 
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
         #endregion
     }
 }

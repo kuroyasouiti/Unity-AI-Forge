@@ -379,34 +379,6 @@ namespace MCP.Editor.Handlers
             return result;
         }
 
-        private Vector2 GetVector2(Dictionary<string, object> payload, string key, Vector2 fallback)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return fallback;
-            }
-
-            if (value is Dictionary<string, object> dict)
-            {
-                float x = GetFloat(dict, "x", fallback.x);
-                float y = GetFloat(dict, "y", fallback.y);
-                return new Vector2(x, y);
-            }
-
-            return fallback;
-        }
-
-        // Note: Using 'new' to explicitly hide the inherited GetFloat for local use with dict parameter naming
-        private new float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
-        {
-            if (!dict.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            return Convert.ToSingle(value);
-        }
-
         private float GetFloatPayload(Dictionary<string, object> payload, string key, float defaultValue)
         {
             if (!payload.TryGetValue(key, out var value) || value == null)
@@ -415,26 +387,6 @@ namespace MCP.Editor.Handlers
             }
 
             return Convert.ToSingle(value);
-        }
-
-        private List<string> GetStringList(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return new List<string>();
-            }
-
-            if (value is List<object> list)
-            {
-                return list.Select(v => v?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            }
-
-            if (value is string single)
-            {
-                return new List<string> { single };
-            }
-
-            return new List<string>();
         }
 
         private void MarkScenesDirty(IEnumerable<RectTransform> rects)

@@ -628,53 +628,6 @@ namespace MCP.Editor.Handlers.GameKit
             };
         }
 
-        private Vector3 GetVector3(Dictionary<string, object> payload, string key, Vector3 fallback)
-        {
-            if (payload.TryGetValue(key, out var value) && value is Dictionary<string, object> dict)
-            {
-                return GetVector3FromDict(dict, fallback);
-            }
-            return fallback;
-        }
-
-        private Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-            return new Vector3(x, y, z);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        private float GetFloat(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToSingle(value);
-            }
-            return defaultValue;
-        }
-
-        private bool GetBool(Dictionary<string, object> payload, string key, bool defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToBoolean(value);
-            }
-            return defaultValue;
-        }
-
         #endregion
     }
 }

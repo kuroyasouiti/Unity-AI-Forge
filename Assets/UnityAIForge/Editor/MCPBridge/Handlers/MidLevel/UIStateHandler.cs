@@ -89,19 +89,19 @@ namespace MCP.Editor.Handlers
                     var elementState = new UIElementState
                     {
                         Path = GetString(elemDict, "path") ?? "",
-                        Active = GetBoolOrDefault(elemDict, "active", true),
-                        Visible = GetBoolOrDefault(elemDict, "visible", true),
-                        Interactable = GetBoolOrDefault(elemDict, "interactable", true),
-                        Alpha = GetFloatOrDefault(elemDict, "alpha", 1f),
-                        BlocksRaycasts = GetBoolOrDefault(elemDict, "blocksRaycasts", true)
+                        Active = GetBool(elemDict, "active", true),
+                        Visible = GetBool(elemDict, "visible", true),
+                        Interactable = GetBool(elemDict, "interactable", true),
+                        Alpha = GetFloat(elemDict, "alpha", 1f),
+                        BlocksRaycasts = GetBool(elemDict, "blocksRaycasts", true)
                     };
 
                     // Optional position/size overrides
                     if (elemDict.TryGetValue("anchoredPosition", out var posObj) && posObj is Dictionary<string, object> posDict)
                     {
                         elementState.AnchoredPosition = new Vector2(
-                            GetFloatOrDefault(posDict, "x", 0),
-                            GetFloatOrDefault(posDict, "y", 0)
+                            GetFloat(posDict, "x", 0),
+                            GetFloat(posDict, "y", 0)
                         );
                         elementState.HasPositionOverride = true;
                     }
@@ -109,8 +109,8 @@ namespace MCP.Editor.Handlers
                     if (elemDict.TryGetValue("sizeDelta", out var sizeObj) && sizeObj is Dictionary<string, object> sizeDict)
                     {
                         elementState.SizeDelta = new Vector2(
-                            GetFloatOrDefault(sizeDict, "x", 0),
-                            GetFloatOrDefault(sizeDict, "y", 0)
+                            GetFloat(sizeDict, "x", 0),
+                            GetFloat(sizeDict, "y", 0)
                         );
                         elementState.HasSizeOverride = true;
                     }
@@ -254,8 +254,8 @@ namespace MCP.Editor.Handlers
             }
 
             var rootGo = ResolveGameObject(rootPath);
-            var includeChildren = GetBoolOrDefault(payload, "includeChildren", true);
-            var maxDepth = GetIntOrDefault(payload, "maxDepth", 10);
+            var includeChildren = GetBool(payload, "includeChildren", true);
+            var maxDepth = GetInt(payload, "maxDepth", 10);
 
             var stateData = new UIStateData
             {
@@ -618,53 +618,10 @@ namespace MCP.Editor.Handlers
             return EditorPrefs.GetString(activeKey, "");
         }
 
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var parent = go.transform.parent;
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            return path;
-        }
-
-        private bool GetBoolOrDefault(Dictionary<string, object> dict, string key, bool defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                if (value is bool boolVal) return boolVal;
-                if (value is string strVal && bool.TryParse(strVal, out var parsed)) return parsed;
-            }
-            return defaultValue;
-        }
-
-        private float GetFloatOrDefault(Dictionary<string, object> dict, string key, float defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                if (value is float floatVal) return floatVal;
-                if (value is double doubleVal) return (float)doubleVal;
-                if (value is int intVal) return intVal;
-                if (value is long longVal) return longVal;
-                if (value is string strVal && float.TryParse(strVal, out var parsed)) return parsed;
-            }
-            return defaultValue;
-        }
-
-        private int GetIntOrDefault(Dictionary<string, object> dict, string key, int defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                if (value is int intVal) return intVal;
-                if (value is long longVal) return (int)longVal;
-                if (value is float floatVal) return (int)floatVal;
-                if (value is double doubleVal) return (int)doubleVal;
-                if (value is string strVal && int.TryParse(strVal, out var parsed)) return parsed;
-            }
-            return defaultValue;
-        }
+        // BuildGameObjectPath is inherited from BaseCommandHandler
+        // GetBool (GetBoolOrDefault) is inherited from BaseCommandHandler
+        // GetFloat (GetFloatOrDefault) is inherited from BaseCommandHandler
+        // GetInt (GetIntOrDefault) is inherited from BaseCommandHandler
 
         #endregion
 

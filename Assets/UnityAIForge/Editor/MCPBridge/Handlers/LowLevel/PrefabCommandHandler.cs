@@ -235,7 +235,7 @@ namespace MCP.Editor.Handlers
             
             return CreateSuccessResponse(
                 ("prefabPath", prefabPath),
-                ("instancePath", GetGameObjectPath(instance)),
+                ("instancePath", BuildGameObjectPath(instance)),
                 ("name", instance.name),
                 ("instanceID", instance.GetInstanceID())
             );
@@ -348,29 +348,9 @@ namespace MCP.Editor.Handlers
         #endregion
         
         #region Helper Methods
-        
-        /// <summary>
-        /// Gets the hierarchical path of a GameObject.
-        /// </summary>
-        private string GetGameObjectPath(GameObject go)
-        {
-            if (go == null)
-            {
-                return null;
-            }
-            
-            var path = go.name;
-            var parent = go.transform.parent;
-            
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            
-            return path;
-        }
-        
+
+        // GetGameObjectPath is inherited from BaseCommandHandler as BuildGameObjectPath
+
         #endregion
     }
 }

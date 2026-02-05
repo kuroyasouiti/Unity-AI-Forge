@@ -82,6 +82,11 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `AudioSourceBundleHandler.cs` - Audio setup
 - Animation, Sprite, Material, Light, Particle bundle handlers
 
+**HighLevel/** - Analysis and graph tools:
+- `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
+- `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
+- `SceneRelationshipGraphHandler.cs` - Comprehensive scene relationship analysis
+
 **Utility/** - Helper tools:
 - `PingHandler.cs` - Bridge connectivity check
 - `CompilationAwaitHandler.cs` - Compilation monitoring
@@ -157,3 +162,13 @@ ComponentCommandHandler supports multiple reference formats:
 ### Wildcard Matching
 
 `McpWildcardUtility.cs` provides pattern matching for batch operations using `*` and `?` wildcards.
+
+### Utilities
+
+**GraphAnalysis/** (`Assets/UnityAIForge/Editor/MCPBridge/Utilities/GraphAnalysis/`):
+- `GraphNode.cs`, `GraphEdge.cs`, `GraphResult.cs` - Graph data structures
+- `SceneReferenceAnalyzer.cs` - Analyzes component references in scene
+- `ClassDependencyAnalyzer.cs` - Analyzes C# class dependencies
+- `SceneRelationshipAnalyzer.cs` - Combines multiple relationship types
+
+**HandlerUtilities.cs** - Common utilities for command handlers (GameObject finding, component operations).

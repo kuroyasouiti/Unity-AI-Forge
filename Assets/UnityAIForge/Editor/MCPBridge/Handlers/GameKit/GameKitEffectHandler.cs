@@ -261,7 +261,7 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("'effectId' is required for play.");
             }
 
-            var position = GetVector3FromPayload(payload, "position", Vector3.zero);
+            var position = GetVector3(payload, "position", Vector3.zero);
 
             GameKitEffectManager.Instance.PlayEffect(effectId, position);
 
@@ -355,7 +355,7 @@ namespace MCP.Editor.Handlers.GameKit
                 );
             }
 
-            var color = GetColorFromPayload(payload, "color", new Color(1f, 1f, 1f, 0.5f));
+            var color = GetColor(payload, "color", new Color(1f, 1f, 1f, 0.5f));
             var duration = GetFloat(payload, "duration", 0.1f);
             var fadeTime = GetFloat(payload, "fadeTime", 0.05f);
 
@@ -820,53 +820,6 @@ namespace MCP.Editor.Handlers.GameKit
                 "timescale" or "slowmo" or "hitpause" => GameKitEffectAsset.EffectType.TimeScale,
                 _ => GameKitEffectAsset.EffectType.Particle
             };
-        }
-
-        private Vector3 GetVector3FromPayload(Dictionary<string, object> payload, string key, Vector3 fallback)
-        {
-            if (payload.TryGetValue(key, out var obj) && obj is Dictionary<string, object> dict)
-            {
-                return GetVector3FromDict(dict, fallback);
-            }
-            return fallback;
-        }
-
-        private Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-            return new Vector3(x, y, z);
-        }
-
-        private Color GetColorFromPayload(Dictionary<string, object> payload, string key, Color fallback)
-        {
-            if (payload.TryGetValue(key, out var obj) && obj is Dictionary<string, object> dict)
-            {
-                return GetColorFromDict(dict, fallback);
-            }
-            return fallback;
-        }
-
-        private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : fallback.r;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : fallback.g;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
-            return new Color(r, g, b, a);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

@@ -277,21 +277,6 @@ namespace MCP.Editor.Handlers
 
         #endregion
 
-        #region Helpers
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        #endregion
     }
 }
 

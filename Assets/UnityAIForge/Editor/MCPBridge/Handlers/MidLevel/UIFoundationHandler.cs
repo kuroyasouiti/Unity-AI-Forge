@@ -166,8 +166,8 @@ namespace MCP.Editor.Handlers
             ApplyAnchorPreset(rectTransform, payload);
 
             // Set size
-            var width = GetFloatFromPayload(payload, "width", 400f);
-            var height = GetFloatFromPayload(payload, "height", 300f);
+            var width = GetFloat(payload, "width", 400f);
+            var height = GetFloat(payload, "height", 300f);
             rectTransform.sizeDelta = new Vector2(width, height);
 
             // Set color
@@ -211,8 +211,8 @@ namespace MCP.Editor.Handlers
             ApplyAnchorPreset(rectTransform, payload);
 
             // Set size
-            var width = GetFloatFromPayload(payload, "width", 160f);
-            var height = GetFloatFromPayload(payload, "height", 30f);
+            var width = GetFloat(payload, "width", 160f);
+            var height = GetFloat(payload, "height", 30f);
             rectTransform.sizeDelta = new Vector2(width, height);
 
             // Set color
@@ -285,8 +285,8 @@ namespace MCP.Editor.Handlers
             ApplyAnchorPreset(rectTransform, payload);
 
             // Set size
-            var width = GetFloatFromPayload(payload, "width", 160f);
-            var height = GetFloatFromPayload(payload, "height", 30f);
+            var width = GetFloat(payload, "width", 160f);
+            var height = GetFloat(payload, "height", 30f);
             rectTransform.sizeDelta = new Vector2(width, height);
 
             // Try TextMeshPro first, fallback to legacy Text
@@ -341,8 +341,8 @@ namespace MCP.Editor.Handlers
             ApplyAnchorPreset(rectTransform, payload);
 
             // Set size
-            var width = GetFloatFromPayload(payload, "width", 100f);
-            var height = GetFloatFromPayload(payload, "height", 100f);
+            var width = GetFloat(payload, "width", 100f);
+            var height = GetFloat(payload, "height", 100f);
             rectTransform.sizeDelta = new Vector2(width, height);
 
             // Set color
@@ -392,8 +392,8 @@ namespace MCP.Editor.Handlers
             ApplyAnchorPreset(rectTransform, payload);
 
             // Set size
-            var width = GetFloatFromPayload(payload, "width", 160f);
-            var height = GetFloatFromPayload(payload, "height", 30f);
+            var width = GetFloat(payload, "width", 160f);
+            var height = GetFloat(payload, "height", 30f);
             rectTransform.sizeDelta = new Vector2(width, height);
 
             image.color = Color.white;
@@ -478,8 +478,8 @@ namespace MCP.Editor.Handlers
             var rectTransform = scrollViewGo.GetComponent<RectTransform>();
             ApplyAnchorPreset(rectTransform, payload);
 
-            var width = GetFloatFromPayload(payload, "width", 400f);
-            var height = GetFloatFromPayload(payload, "height", 300f);
+            var width = GetFloat(payload, "width", 400f);
+            var height = GetFloat(payload, "height", 300f);
             rectTransform.sizeDelta = new Vector2(width, height);
 
             // Create Viewport
@@ -818,7 +818,7 @@ namespace MCP.Editor.Handlers
             // Spacing
             if (payload.ContainsKey("spacing"))
             {
-                lg.spacing = GetFloatFromPayload(payload, "spacing", lg.spacing);
+                lg.spacing = GetFloat(payload, "spacing", lg.spacing);
             }
 
             // Child alignment
@@ -902,7 +902,7 @@ namespace MCP.Editor.Handlers
             }
             else if (payload.ContainsKey("spacingAll"))
             {
-                var s = GetFloatFromPayload(payload, "spacingAll", 0);
+                var s = GetFloat(payload, "spacingAll", 0);
                 glg.spacing = new Vector2(s, s);
             }
 
@@ -1032,8 +1032,8 @@ namespace MCP.Editor.Handlers
             dialogRect.anchorMax = new Vector2(0.5f, 0.5f);
             dialogRect.pivot = new Vector2(0.5f, 0.5f);
             dialogRect.sizeDelta = new Vector2(
-                GetFloatFromPayload(payload, "width", 400f),
-                GetFloatFromPayload(payload, "height", 300f)
+                GetFloat(payload, "width", 400f),
+                GetFloat(payload, "height", 300f)
             );
 
             var dialogImage = Undo.AddComponent<Image>(dialogGo);
@@ -1316,8 +1316,8 @@ namespace MCP.Editor.Handlers
             menuRect.anchorMax = new Vector2(0.5f, 0.5f);
             menuRect.pivot = new Vector2(0.5f, 0.5f);
             menuRect.sizeDelta = new Vector2(
-                GetFloatFromPayload(payload, "width", 300f),
-                GetFloatFromPayload(payload, "height", 400f)
+                GetFloat(payload, "width", 300f),
+                GetFloat(payload, "height", 400f)
             );
 
             var menuImage = Undo.AddComponent<Image>(menuGo);
@@ -1438,7 +1438,7 @@ namespace MCP.Editor.Handlers
                 statusBarRect.anchorMax = new Vector2(1, 1);
                 statusBarRect.pivot = new Vector2(0.5f, 1);
             }
-            statusBarRect.sizeDelta = new Vector2(0, GetFloatFromPayload(payload, "height", 50f));
+            statusBarRect.sizeDelta = new Vector2(0, GetFloat(payload, "height", 50f));
 
             var statusBarImage = Undo.AddComponent<Image>(statusBarGo);
             statusBarImage.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
@@ -1473,8 +1473,8 @@ namespace MCP.Editor.Handlers
             inventoryRect.anchorMax = new Vector2(0.5f, 0.5f);
             inventoryRect.pivot = new Vector2(0.5f, 0.5f);
             inventoryRect.sizeDelta = new Vector2(
-                GetFloatFromPayload(payload, "width", 400f),
-                GetFloatFromPayload(payload, "height", 300f)
+                GetFloat(payload, "width", 400f),
+                GetFloat(payload, "height", 300f)
             );
 
             var inventoryImage = Undo.AddComponent<Image>(inventoryGo);
@@ -1546,7 +1546,7 @@ namespace MCP.Editor.Handlers
             contentRect.sizeDelta = new Vector2(0, 0);
 
             var columns = GetInt(payload, "columns", 5);
-            var cellSize = GetFloatFromPayload(payload, "cellSize", 60f);
+            var cellSize = GetFloat(payload, "cellSize", 60f);
 
             var glg = Undo.AddComponent<GridLayoutGroup>(contentGo);
             glg.cellSize = new Vector2(cellSize, cellSize);
@@ -1870,46 +1870,6 @@ namespace MCP.Editor.Handlers
             }
 
             return true;
-        }
-
-        private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : fallback.r;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : fallback.g;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
-            return new Color(r, g, b, a);
-        }
-
-        private float GetFloatFromPayload(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-            return Convert.ToSingle(value);
-        }
-
-        // Note: Using 'new' to explicitly hide inherited method for local use
-        private new int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-            return Convert.ToInt32(value);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

@@ -1200,25 +1200,6 @@ namespace MCP.Editor.Handlers
             };
         }
 
-        private Color GetColorFromDict(Dictionary<string, object> dict, Color defaultColor)
-        {
-            return new Color(
-                GetFloatFromDict(dict, "r", defaultColor.r),
-                GetFloatFromDict(dict, "g", defaultColor.g),
-                GetFloatFromDict(dict, "b", defaultColor.b),
-                GetFloatFromDict(dict, "a", defaultColor.a)
-            );
-        }
-
-        private float GetFloatFromDict(Dictionary<string, object> dict, string key, float defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                return Convert.ToSingle(value);
-            }
-            return defaultValue;
-        }
-
         private int GetIntFromDict(Dictionary<string, object> dict, string key, int defaultValue)
         {
             if (dict.TryGetValue(key, out var value))
@@ -1235,18 +1216,6 @@ namespace MCP.Editor.Handlers
                 return Convert.ToSingle(value);
             }
             return defaultValue;
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

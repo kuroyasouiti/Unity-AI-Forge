@@ -80,7 +80,7 @@ namespace MCP.Editor.Handlers
             };
 
             // Set wrap around if applicable
-            if (GetBoolOrDefault(payload, "wrapAround", false))
+            if (GetBool(payload, "wrapAround", false))
             {
                 navigation.wrapAround = true;
             }
@@ -219,8 +219,8 @@ namespace MCP.Editor.Handlers
 
             var rootGo = ResolveGameObject(rootPath);
             var direction = GetString(payload, "direction") ?? "vertical";
-            var wrapAround = GetBoolOrDefault(payload, "wrapAround", false);
-            var includeDisabled = GetBoolOrDefault(payload, "includeDisabled", false);
+            var wrapAround = GetBool(payload, "wrapAround", false);
+            var includeDisabled = GetBool(payload, "includeDisabled", false);
 
             // Find all Selectables under root
             var selectables = rootGo.GetComponentsInChildren<Selectable>(includeDisabled)
@@ -281,7 +281,7 @@ namespace MCP.Editor.Handlers
                 else if (direction == "grid")
                 {
                     // Grid navigation - detect columns
-                    var columnsPerRow = GetIntOrDefault(payload, "columns", DetectColumns(selectables));
+                    var columnsPerRow = GetInt(payload, "columns", DetectColumns(selectables));
                     var row = i / columnsPerRow;
                     var col = i % columnsPerRow;
                     var totalRows = (selectables.Count + columnsPerRow - 1) / columnsPerRow;
@@ -377,8 +377,8 @@ namespace MCP.Editor.Handlers
 
             var elementPaths = elementsList.Select(e => e.ToString()).ToList();
             var direction = GetString(payload, "direction") ?? "vertical";
-            var wrapAround = GetBoolOrDefault(payload, "wrapAround", false);
-            var isolate = GetBoolOrDefault(payload, "isolate", true);
+            var wrapAround = GetBool(payload, "wrapAround", false);
+            var isolate = GetBool(payload, "isolate", true);
 
             var selectables = new List<Selectable>();
             foreach (var path in elementPaths)
@@ -529,7 +529,7 @@ namespace MCP.Editor.Handlers
         private object ResetNavigation(Dictionary<string, object> payload)
         {
             var gameObjectPath = GetString(payload, "gameObjectPath");
-            var recursive = GetBoolOrDefault(payload, "recursive", false);
+            var recursive = GetBool(payload, "recursive", false);
 
             if (string.IsNullOrEmpty(gameObjectPath))
             {
@@ -589,7 +589,7 @@ namespace MCP.Editor.Handlers
         private object DisableNavigation(Dictionary<string, object> payload)
         {
             var gameObjectPath = GetString(payload, "gameObjectPath");
-            var recursive = GetBoolOrDefault(payload, "recursive", false);
+            var recursive = GetBool(payload, "recursive", false);
 
             if (string.IsNullOrEmpty(gameObjectPath))
             {
@@ -639,40 +639,9 @@ namespace MCP.Editor.Handlers
 
         #region Helper Methods
 
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var parent = go.transform.parent;
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            return path;
-        }
-
-        private bool GetBoolOrDefault(Dictionary<string, object> dict, string key, bool defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                if (value is bool boolVal) return boolVal;
-                if (value is string strVal && bool.TryParse(strVal, out var parsed)) return parsed;
-            }
-            return defaultValue;
-        }
-
-        private int GetIntOrDefault(Dictionary<string, object> dict, string key, int defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                if (value is int intVal) return intVal;
-                if (value is long longVal) return (int)longVal;
-                if (value is float floatVal) return (int)floatVal;
-                if (value is double doubleVal) return (int)doubleVal;
-                if (value is string strVal && int.TryParse(strVal, out var parsed)) return parsed;
-            }
-            return defaultValue;
-        }
+        // BuildGameObjectPath is inherited from BaseCommandHandler
+        // GetBool (GetBoolOrDefault) is inherited from BaseCommandHandler
+        // GetInt (GetIntOrDefault) is inherited from BaseCommandHandler
 
         #endregion
     }

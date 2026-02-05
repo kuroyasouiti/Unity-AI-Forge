@@ -760,30 +760,6 @@ namespace MCP.Editor.Handlers
             };
         }
 
-        private List<string> GetStringList(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value)) return new List<string>();
-
-            if (value is List<object> list)
-            {
-                return list.Select(o => o?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            }
-
-            return new List<string>();
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
         #endregion
     }
 }

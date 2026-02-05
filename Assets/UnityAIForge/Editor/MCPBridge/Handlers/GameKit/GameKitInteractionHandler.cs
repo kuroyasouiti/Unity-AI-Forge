@@ -60,7 +60,7 @@ namespace MCP.Editor.Handlers.GameKit
             if (trigger == GameKitInteraction.TriggerType.Trigger || trigger == GameKitInteraction.TriggerType.Collision)
             {
                 var shapeStr = GetString(payload, "triggerShape") ?? "box";
-                var is2D = GetBoolOrDefault(payload, "is2D", false);
+                var is2D = GetBool(payload, "is2D", false);
                 AddCollider(interactionGo, shapeStr, trigger == GameKitInteraction.TriggerType.Trigger, is2D, payload);
             }
 
@@ -358,43 +358,6 @@ namespace MCP.Editor.Handlers.GameKit
         private string GetStringFromDict(Dictionary<string, object> dict, string key)
         {
             return dict.TryGetValue(key, out var value) ? value?.ToString() : null;
-        }
-
-        private Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-            return new Vector3(x, y, z);
-        }
-
-        private Vector2 GetVector2FromDict(Dictionary<string, object> dict, Vector2 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            return new Vector2(x, y);
-        }
-
-        private bool GetBoolOrDefault(Dictionary<string, object> dict, string key, bool defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                if (value is bool boolVal) return boolVal;
-                if (value is string strVal && bool.TryParse(strVal, out var parsed)) return parsed;
-            }
-            return defaultValue;
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

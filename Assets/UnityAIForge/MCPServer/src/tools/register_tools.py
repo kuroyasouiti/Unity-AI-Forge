@@ -5111,6 +5111,139 @@ def register_tools(server: Server) -> None:
     )
 
     # ======================================================================
+    # Relationship Graph Analysis Tools
+    # ======================================================================
+
+    class_dependency_graph_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyzeClass",
+                        "analyzeAssembly",
+                        "analyzeNamespace",
+                        "findDependents",
+                        "findDependencies",
+                    ],
+                    "description": "Class dependency graph operation.",
+                },
+                "target": {
+                    "type": "string",
+                    "description": "Target class name, assembly name, or namespace to analyze.",
+                },
+                "depth": {
+                    "type": "integer",
+                    "description": "Analysis depth for recursive dependency traversal (default: 1).",
+                    "default": 1,
+                },
+                "includeUnityTypes": {
+                    "type": "boolean",
+                    "description": "Include Unity/System types in the graph (default: false).",
+                    "default": False,
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["json", "dot", "mermaid", "summary"],
+                    "description": "Output format (default: json).",
+                    "default": "json",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    scene_reference_graph_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyzeScene",
+                        "analyzeObject",
+                        "findReferencesTo",
+                        "findReferencesFrom",
+                        "findOrphans",
+                    ],
+                    "description": "Scene reference graph operation.",
+                },
+                "scenePath": {
+                    "type": "string",
+                    "description": "Scene path to analyze (e.g., 'Assets/Scenes/Main.unity'). If omitted, uses active scene.",
+                },
+                "objectPath": {
+                    "type": "string",
+                    "description": "GameObject path for object-specific operations (e.g., '/Player/Weapon').",
+                },
+                "includeHierarchy": {
+                    "type": "boolean",
+                    "description": "Include parent-child hierarchy relationships (default: true).",
+                    "default": True,
+                },
+                "includeEvents": {
+                    "type": "boolean",
+                    "description": "Include UnityEvent listener references (default: true).",
+                    "default": True,
+                },
+                "includeChildren": {
+                    "type": "boolean",
+                    "description": "Include child objects when analyzing a specific object (default: true).",
+                    "default": True,
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["json", "dot", "mermaid", "summary"],
+                    "description": "Output format (default: json).",
+                    "default": "json",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    scene_relationship_graph_schema = _schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyzeAll",
+                        "analyzeScene",
+                        "findTransitionsTo",
+                        "findTransitionsFrom",
+                        "validateBuildSettings",
+                    ],
+                    "description": "Scene relationship graph operation.",
+                },
+                "scenePath": {
+                    "type": "string",
+                    "description": "Scene path for scene-specific operations.",
+                },
+                "includeScriptReferences": {
+                    "type": "boolean",
+                    "description": "Include SceneManager.LoadScene calls in scripts (default: true).",
+                    "default": True,
+                },
+                "includeSceneFlow": {
+                    "type": "boolean",
+                    "description": "Include GameKitSceneFlow transitions (default: true).",
+                    "default": True,
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["json", "dot", "mermaid", "summary"],
+                    "description": "Output format (default: json).",
+                    "default": "json",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+    # ======================================================================
     # Development Cycle & Visual Tools (ROADMAP_MCP_TOOLS.md)
     # ======================================================================
 
@@ -7814,6 +7947,137 @@ unity_event_wiring({
 Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom UnityEvents.""",
             inputSchema=event_wiring_schema,
         ),
+        # Relationship Graph Analysis Tools
+        types.Tool(
+            name="unity_class_dependency_graph",
+            description="""Analyze class/script dependency relationships in the Unity project.
+
+**Operations:**
+- analyzeClass: Analyze a single class and its dependencies (fields, inheritance, interfaces, RequireComponent)
+- analyzeAssembly: Analyze all classes in an assembly
+- analyzeNamespace: Analyze all classes in a namespace
+- findDependents: Find classes that depend on the specified class
+- findDependencies: Find classes that the specified class depends on
+
+**Dependency Types Detected:**
+- field_reference: Field/property type references
+- inherits: Base class inheritance
+- implements: Interface implementation
+- requires_component: [RequireComponent] attribute
+
+**Output Formats:**
+- json: Structured JSON with nodes and edges
+- dot: Graphviz DOT format for visualization
+- mermaid: Mermaid diagram format for markdown
+- summary: Text summary with statistics
+
+**Example:**
+```python
+# Analyze PlayerController class with depth 2
+unity_class_dependency_graph({
+    "operation": "analyzeClass",
+    "target": "MyGame.PlayerController",
+    "depth": 2,
+    "includeUnityTypes": False
+})
+
+# Find all classes that depend on Health component
+unity_class_dependency_graph({
+    "operation": "findDependents",
+    "target": "GameKit.Health"
+})
+```""",
+            inputSchema=class_dependency_graph_schema,
+        ),
+        types.Tool(
+            name="unity_scene_reference_graph",
+            description="""Analyze object reference relationships within a Unity scene.
+
+**Operations:**
+- analyzeScene: Analyze all references in the current or specified scene
+- analyzeObject: Analyze references for a specific GameObject
+- findReferencesTo: Find all objects that reference the specified object
+- findReferencesFrom: Find all objects that the specified object references
+- findOrphans: Find objects not referenced by anything
+
+**Reference Types Detected:**
+- component_reference: SerializedField references to GameObjects/Components
+- unity_event: UnityEvent listener references (Button.onClick, etc.)
+- hierarchy_child: Parent-child hierarchy relationships
+- prefab_source: Prefab instance to prefab asset relationship
+
+**Output Formats:**
+- json: Structured JSON with nodes and edges
+- dot: Graphviz DOT format for visualization
+- mermaid: Mermaid diagram format for markdown
+- summary: Text summary with statistics
+
+**Example:**
+```python
+# Analyze full scene references
+unity_scene_reference_graph({
+    "operation": "analyzeScene",
+    "includeHierarchy": True,
+    "includeEvents": True
+})
+
+# Find what references the Player object
+unity_scene_reference_graph({
+    "operation": "findReferencesTo",
+    "objectPath": "/Player"
+})
+
+# Find orphan objects (cleanup candidates)
+unity_scene_reference_graph({
+    "operation": "findOrphans"
+})
+```""",
+            inputSchema=scene_reference_graph_schema,
+        ),
+        types.Tool(
+            name="unity_scene_relationship_graph",
+            description="""Analyze relationships between Unity scenes (transitions, dependencies).
+
+**Operations:**
+- analyzeAll: Analyze all scene relationships in the project
+- analyzeScene: Analyze transitions from a specific scene
+- findTransitionsTo: Find all scenes that can transition to the specified scene
+- findTransitionsFrom: Find all scenes that the specified scene can transition to
+- validateBuildSettings: Validate that referenced scenes are in Build Settings
+
+**Transition Types Detected:**
+- scene_load: SceneManager.LoadScene() calls in scripts
+- scene_load_additive: Additive scene loading
+- sceneflow_transition: GameKitSceneFlow transitions
+
+**Output Formats:**
+- json: Structured JSON with nodes, edges, and build order
+- dot: Graphviz DOT format for visualization
+- mermaid: Mermaid diagram format for markdown
+- summary: Text summary with statistics
+
+**Example:**
+```python
+# Analyze all scene relationships
+unity_scene_relationship_graph({
+    "operation": "analyzeAll",
+    "includeScriptReferences": True,
+    "includeSceneFlow": True
+})
+
+# Validate build settings
+unity_scene_relationship_graph({
+    "operation": "validateBuildSettings"
+})
+
+# Find scenes that load MainMenu
+unity_scene_relationship_graph({
+    "operation": "findTransitionsTo",
+    "scenePath": "Assets/Scenes/MainMenu.unity"
+})
+```""",
+            inputSchema=scene_relationship_graph_schema,
+        ),
     ]
 
     tool_map = {tool.name: tool for tool in tool_definitions}
@@ -8191,6 +8455,16 @@ Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom U
 
         if name == "unity_event_wiring":
             return await _call_bridge_tool("eventWiring", args)
+
+        # Relationship Graph Analysis Tools
+        if name == "unity_class_dependency_graph":
+            return await _call_bridge_tool("classDependencyGraph", args)
+
+        if name == "unity_scene_reference_graph":
+            return await _call_bridge_tool("sceneReferenceGraph", args)
+
+        if name == "unity_scene_relationship_graph":
+            return await _call_bridge_tool("sceneRelationshipGraph", args)
 
         if name == "unity_batch_sequential_execute":
             # Special handling for batch sequential tool (doesn't use bridge directly)

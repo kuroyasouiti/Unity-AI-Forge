@@ -216,11 +216,11 @@ namespace MCP.Editor.Handlers
 
                     if (!string.IsNullOrEmpty(targetGameObjectPath) && target is Component comp)
                     {
-                        matchTarget = GetGameObjectPath(comp.gameObject) == targetGameObjectPath;
+                        matchTarget = BuildGameObjectPath(comp.gameObject) == targetGameObjectPath;
                     }
                     else if (!string.IsNullOrEmpty(targetGameObjectPath) && target is GameObject go)
                     {
-                        matchTarget = GetGameObjectPath(go) == targetGameObjectPath;
+                        matchTarget = BuildGameObjectPath(go) == targetGameObjectPath;
                     }
 
                     if (!string.IsNullOrEmpty(targetMethodName))
@@ -298,12 +298,12 @@ namespace MCP.Editor.Handlers
 
                 if (target is Component comp)
                 {
-                    targetPath = GetGameObjectPath(comp.gameObject);
+                    targetPath = BuildGameObjectPath(comp.gameObject);
                     targetType = comp.GetType().Name;
                 }
                 else if (target is GameObject go)
                 {
-                    targetPath = GetGameObjectPath(go);
+                    targetPath = BuildGameObjectPath(go);
                     targetType = "GameObject";
                 }
 
@@ -798,17 +798,7 @@ namespace MCP.Editor.Handlers
             return null;
         }
 
-        private string GetGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var parent = go.transform.parent;
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            return path;
-        }
+        // GetGameObjectPath is inherited from BaseCommandHandler as BuildGameObjectPath
 
         #endregion
     }

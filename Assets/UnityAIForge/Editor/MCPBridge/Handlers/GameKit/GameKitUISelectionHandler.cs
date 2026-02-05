@@ -160,12 +160,12 @@ namespace MCP.Editor.Handlers.GameKit
             // Visual colors
             if (payload.TryGetValue("normalColor", out var normalObj) && normalObj is Dictionary<string, object> normalDict)
             {
-                serializedSelection.FindProperty("normalColor").colorValue = GetColorFromDict(normalDict);
+                serializedSelection.FindProperty("normalColor").colorValue = GetColorFromDict(normalDict, Color.white);
             }
 
             if (payload.TryGetValue("selectedColor", out var selectedObj) && selectedObj is Dictionary<string, object> selectedDict)
             {
-                serializedSelection.FindProperty("selectedColor").colorValue = GetColorFromDict(selectedDict);
+                serializedSelection.FindProperty("selectedColor").colorValue = GetColorFromDict(selectedDict, Color.white);
             }
 
             serializedSelection.ApplyModifiedProperties();
@@ -640,7 +640,7 @@ namespace MCP.Editor.Handlers.GameKit
             var bgImage = Undo.AddComponent<Image>(scrollViewGo);
             if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
             {
-                bgImage.color = GetColorFromDict(bgColorDict);
+                bgImage.color = GetColorFromDict(bgColorDict, new Color(0.15f, 0.15f, 0.15f, 0.9f));
             }
             else
             {
@@ -813,11 +813,11 @@ namespace MCP.Editor.Handlers.GameKit
             Color disabledColor = new Color(0.25f, 0.25f, 0.25f, 0.5f);
 
             if (payload.TryGetValue("normalColor", out var ncObj) && ncObj is Dictionary<string, object> ncDict)
-                normalColor = GetColorFromDict(ncDict);
+                normalColor = GetColorFromDict(ncDict, normalColor);
             if (payload.TryGetValue("selectedColor", out var scObj) && scObj is Dictionary<string, object> scDict)
-                selectedColor = GetColorFromDict(scDict);
+                selectedColor = GetColorFromDict(scDict, selectedColor);
             if (payload.TryGetValue("highlightedColor", out var hcObj) && hcObj is Dictionary<string, object> hcDict)
-                highlightedColor = GetColorFromDict(hcDict);
+                highlightedColor = GetColorFromDict(hcDict, highlightedColor);
 
             // Add background Image
             var bgImage = itemGo.AddComponent<Image>();
@@ -1071,27 +1071,6 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             return item;
-        }
-
-        private Color GetColorFromDict(Dictionary<string, object> dict)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : 1f;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : 1f;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : 1f;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : 1f;
-            return new Color(r, g, b, a);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

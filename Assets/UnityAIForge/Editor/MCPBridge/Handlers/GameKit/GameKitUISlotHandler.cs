@@ -778,15 +778,6 @@ namespace MCP.Editor.Handlers.GameKit
             return barGo;
         }
 
-        private Color GetColorFromDict(Dictionary<string, object> dict, Color fallback)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : fallback.r;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : fallback.g;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : fallback.b;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : fallback.a;
-            return new Color(r, g, b, a);
-        }
-
         #endregion
 
         #region Helpers
@@ -874,18 +865,6 @@ namespace MCP.Editor.Handlers.GameKit
                 "grid" => GameKitUISlotBar.LayoutType.Grid,
                 _ => GameKitUISlotBar.LayoutType.Horizontal
             };
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

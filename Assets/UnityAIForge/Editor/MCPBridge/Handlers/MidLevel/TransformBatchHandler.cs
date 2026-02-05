@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MCP.Editor.Base;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace MCP.Editor.Handlers
@@ -52,8 +50,8 @@ namespace MCP.Editor.Handlers
             }
 
             var center = GetVector3(payload, "center", Vector3.zero);
-            var radius = GetFloatPayload(payload, "radius", 1f);
-            var startAngleDeg = GetFloatPayload(payload, "startAngle", 0f);
+            var radius = GetFloat(payload, "radius", 1f);
+            var startAngleDeg = GetFloat(payload, "startAngle", 0f);
             var clockwise = GetBool(payload, "clockwise");
             var plane = GetString(payload, "plane")?.ToUpperInvariant() ?? "XZ";
             var localSpace = GetBool(payload, "localSpace");
@@ -202,8 +200,8 @@ namespace MCP.Editor.Handlers
             var parent = ResolveGameObject(parentPath);
             var prefabPath = GetString(payload, "prefabPath");
             var axis = (GetString(payload, "axis") ?? "vertical").ToLowerInvariant();
-            var spacing = GetFloatPayload(payload, "spacing", 40f);
-            var offset = GetFloatPayload(payload, "offset", 0f);
+            var spacing = GetFloat(payload, "spacing", 40f);
+            var offset = GetFloat(payload, "offset", 0f);
             var created = new List<string>();
 
             bool parentIsUI = parent.GetComponent<RectTransform>() != null;
@@ -289,75 +287,6 @@ namespace MCP.Editor.Handlers
             return result;
         }
 
-        private Vector3 GetVector3(Dictionary<string, object> payload, string key, Vector3 fallback)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return fallback;
-            }
-
-            if (value is Dictionary<string, object> dict)
-            {
-                float x = GetFloat(dict, "x", fallback.x);
-                float y = GetFloat(dict, "y", fallback.y);
-                float z = GetFloat(dict, "z", fallback.z);
-                return new Vector3(x, y, z);
-            }
-
-            return fallback;
-        }
-
-        // Note: Using 'new' to explicitly hide the inherited methods for local use
-        private new float GetFloat(Dictionary<string, object> dict, string key, float defaultValue)
-        {
-            if (!dict.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            return Convert.ToSingle(value);
-        }
-
-        private float GetFloatPayload(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            return Convert.ToSingle(value);
-        }
-
-        private new int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            return Convert.ToInt32(value);
-        }
-
-        private List<string> GetStringList(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return new List<string>();
-            }
-
-            if (value is List<object> list)
-            {
-                return list.Select(v => v?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            }
-
-            if (value is string single)
-            {
-                return new List<string> { single };
-            }
-
-            return new List<string>();
-        }
-
         private void ApplyPosition(GameObject go, Vector3 targetPosition, bool localSpace)
         {
             Undo.RecordObject(go.transform, "Arrange Transform");
@@ -369,34 +298,6 @@ namespace MCP.Editor.Handlers
             {
                 go.transform.position = targetPosition;
             }
-        }
-
-        private void MarkScenesDirty(IEnumerable<GameObject> objects)
-        {
-            foreach (var scene in objects.Select(o => o.scene).Distinct())
-            {
-                if (scene.IsValid())
-                {
-                    EditorSceneManager.MarkSceneDirty(scene);
-                }
-            }
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            if (go == null)
-            {
-                return string.Empty;
-            }
-
-            var path = go.name;
-            var parent = go.transform.parent;
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            return path;
         }
 
         #endregion

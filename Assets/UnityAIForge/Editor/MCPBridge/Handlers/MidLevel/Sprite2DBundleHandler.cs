@@ -625,18 +625,6 @@ namespace MCP.Editor.Handlers
             throw new InvalidOperationException("No target GameObjects specified");
         }
 
-        private void MarkScenesDirty(IEnumerable<GameObject> gameObjects)
-        {
-            var scenes = gameObjects.Select(go => go.scene).Distinct();
-            foreach (var scene in scenes)
-            {
-                if (scene.IsValid())
-                {
-                    EditorSceneManager.MarkSceneDirty(scene);
-                }
-            }
-        }
-
         private SpriteDrawMode ParseDrawMode(string value)
         {
             if (string.IsNullOrEmpty(value)) return SpriteDrawMode.Simple;
@@ -661,78 +649,6 @@ namespace MCP.Editor.Handlers
                 "visibleoutsidemask" => SpriteMaskInteraction.VisibleOutsideMask,
                 _ => SpriteMaskInteraction.None
             };
-        }
-
-        private Color GetColor(Dictionary<string, object> payload, string key, Color defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value)) return defaultValue;
-
-            if (value is Dictionary<string, object> dict)
-            {
-                return new Color(
-                    dict.TryGetValue("r", out var r) ? Convert.ToSingle(r) : defaultValue.r,
-                    dict.TryGetValue("g", out var g) ? Convert.ToSingle(g) : defaultValue.g,
-                    dict.TryGetValue("b", out var b) ? Convert.ToSingle(b) : defaultValue.b,
-                    dict.TryGetValue("a", out var a) ? Convert.ToSingle(a) : defaultValue.a
-                );
-            }
-
-            return defaultValue;
-        }
-
-        private Vector3 GetVector3(Dictionary<string, object> payload, string key, Vector3 defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value)) return defaultValue;
-
-            if (value is Dictionary<string, object> dict)
-            {
-                return new Vector3(
-                    dict.TryGetValue("x", out var x) ? Convert.ToSingle(x) : defaultValue.x,
-                    dict.TryGetValue("y", out var y) ? Convert.ToSingle(y) : defaultValue.y,
-                    dict.TryGetValue("z", out var z) ? Convert.ToSingle(z) : defaultValue.z
-                );
-            }
-
-            return defaultValue;
-        }
-
-        private Vector2 GetVector2(Dictionary<string, object> payload, string key, Vector2 defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value)) return defaultValue;
-
-            if (value is Dictionary<string, object> dict)
-            {
-                return new Vector2(
-                    dict.TryGetValue("x", out var x) ? Convert.ToSingle(x) : defaultValue.x,
-                    dict.TryGetValue("y", out var y) ? Convert.ToSingle(y) : defaultValue.y
-                );
-            }
-
-            return defaultValue;
-        }
-
-        private List<string> GetStringList(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value)) return new List<string>();
-
-            if (value is List<object> list)
-            {
-                return list.Select(o => o?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            }
-
-            return new List<string>();
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

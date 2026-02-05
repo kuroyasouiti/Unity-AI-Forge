@@ -337,7 +337,7 @@ namespace MCP.Editor.Handlers.GameKit
             // Flash
             if (compDict.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
             {
-                var color = GetColorFromDict(colorDict);
+                var color = GetColorFromDict(colorDict, Color.white);
                 element.FindPropertyRelative("flashColor").colorValue = color;
             }
 
@@ -437,43 +437,6 @@ namespace MCP.Editor.Handlers.GameKit
             };
         }
 
-        private Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-            return new Vector3(x, y, z);
-        }
-
-        private Color GetColorFromDict(Dictionary<string, object> dict)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : 1f;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : 1f;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : 1f;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : 1f;
-            return new Color(r, g, b, a);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        private float GetFloat(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToSingle(value);
-            }
-            return defaultValue;
-        }
 
         #endregion
     }

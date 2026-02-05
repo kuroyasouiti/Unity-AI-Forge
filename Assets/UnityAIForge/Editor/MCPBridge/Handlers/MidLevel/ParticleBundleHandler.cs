@@ -95,7 +95,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Particle System '{name}' created"),
-                ("gameObjectPath", GetGameObjectPath(particleGO)),
+                ("gameObjectPath", BuildGameObjectPath(particleGO)),
                 ("preset", preset ?? "custom")
             );
         }
@@ -118,7 +118,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Particle System updated"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -146,7 +146,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Preset '{preset}' applied"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -168,7 +168,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", "Particle System playing"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -192,7 +192,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", "Particle System stopped"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -214,7 +214,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", "Particle System paused"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -236,7 +236,7 @@ namespace MCP.Editor.Handlers
             var shape = ps.shape;
 
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(go)),
+                ("gameObjectPath", BuildGameObjectPath(go)),
                 ("isPlaying", ps.isPlaying),
                 ("isPaused", ps.isPaused),
                 ("isStopped", ps.isStopped),
@@ -274,7 +274,7 @@ namespace MCP.Editor.Handlers
         private object HandleDelete(Dictionary<string, object> payload)
         {
             GameObject go = ResolveGameObjectFromPayload(payload);
-            string path = GetGameObjectPath(go);
+            string path = BuildGameObjectPath(go);
 
             Undo.DestroyObjectImmediate(go);
 
@@ -299,8 +299,8 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Particle System duplicated"),
-                ("sourcePath", GetGameObjectPath(go)),
-                ("newPath", GetGameObjectPath(duplicate))
+                ("sourcePath", BuildGameObjectPath(go)),
+                ("newPath", BuildGameObjectPath(duplicate))
             );
         }
 
@@ -868,17 +868,7 @@ namespace MCP.Editor.Handlers
             };
         }
 
-        private string GetGameObjectPath(GameObject go)
-        {
-            string path = go.name;
-            Transform parent = go.transform.parent;
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            return path;
-        }
+        // GetGameObjectPath is inherited from BaseCommandHandler as BuildGameObjectPath
 
         #endregion
     }

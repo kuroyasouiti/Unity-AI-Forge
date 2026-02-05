@@ -239,6 +239,19 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("gamekitFeedback", new Handlers.GameKit.GameKitFeedbackHandler());
             CommandHandlerFactory.Register("gamekitVFX", new Handlers.GameKit.GameKitVFXHandler());
             CommandHandlerFactory.Register("gamekitAudio", new Handlers.GameKit.GameKitAudioHandler());
+
+            // Graph Analysis handlers
+            RegisterGraphAnalysisHandlers();
+        }
+
+        /// <summary>
+        /// 関係性グラフ解析ツールのハンドラーを登録します。
+        /// </summary>
+        private static void RegisterGraphAnalysisHandlers()
+        {
+            CommandHandlerFactory.Register("classDependencyGraph", new Handlers.HighLevel.ClassDependencyGraphHandler());
+            CommandHandlerFactory.Register("sceneReferenceGraph", new Handlers.HighLevel.SceneReferenceGraphHandler());
+            CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
         }
     }
 }

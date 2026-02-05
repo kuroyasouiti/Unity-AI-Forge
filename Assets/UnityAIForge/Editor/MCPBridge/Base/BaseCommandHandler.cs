@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Interfaces;
+using MCP.Editor.Utilities;
 using UnityEditor;
 using UnityEngine;
 
@@ -431,7 +432,134 @@ namespace MCP.Editor.Base
         }
 
         #endregion
-        
+
+        #region HandlerUtilities Delegates
+
+        /// <summary>
+        /// Builds the full hierarchy path for a GameObject.
+        /// Delegates to HandlerUtilities.BuildGameObjectPath.
+        /// </summary>
+        /// <param name="go">The GameObject to get the path for.</param>
+        /// <returns>The full path (e.g., "Parent/Child/Grandchild"), or empty string if null.</returns>
+        protected string BuildGameObjectPath(GameObject go) => HandlerUtilities.BuildGameObjectPath(go);
+
+        /// <summary>
+        /// Extracts a Vector3 from a payload dictionary at a specific key.
+        /// Delegates to HandlerUtilities.GetVector3FromPayload.
+        /// </summary>
+        protected Vector3 GetVector3(Dictionary<string, object> payload, string key, Vector3 fallback = default)
+            => HandlerUtilities.GetVector3FromPayload(payload, key, fallback);
+
+        /// <summary>
+        /// Extracts a Vector3 from a dictionary with x, y, z keys.
+        /// Delegates to HandlerUtilities.GetVector3FromDict.
+        /// </summary>
+        protected Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback = default)
+            => HandlerUtilities.GetVector3FromDict(dict, fallback);
+
+        /// <summary>
+        /// Extracts a Vector2 from a payload dictionary at a specific key.
+        /// Delegates to HandlerUtilities.GetVector2FromPayload.
+        /// </summary>
+        protected Vector2 GetVector2(Dictionary<string, object> payload, string key, Vector2 fallback = default)
+            => HandlerUtilities.GetVector2FromPayload(payload, key, fallback);
+
+        /// <summary>
+        /// Extracts a Vector2 from a dictionary with x, y keys.
+        /// Delegates to HandlerUtilities.GetVector2FromDict.
+        /// </summary>
+        protected Vector2 GetVector2FromDict(Dictionary<string, object> dict, Vector2 fallback = default)
+            => HandlerUtilities.GetVector2FromDict(dict, fallback);
+
+        /// <summary>
+        /// Extracts a Color from a payload dictionary at a specific key.
+        /// Delegates to HandlerUtilities.GetColorFromPayload.
+        /// </summary>
+        protected Color GetColor(Dictionary<string, object> payload, string key, Color fallback = default)
+            => HandlerUtilities.GetColorFromPayload(payload, key, fallback);
+
+        /// <summary>
+        /// Extracts a Color from a dictionary with r, g, b, a keys.
+        /// Delegates to HandlerUtilities.GetColorFromDict.
+        /// </summary>
+        protected Color GetColorFromDict(Dictionary<string, object> dict, Color fallback = default)
+            => HandlerUtilities.GetColorFromDict(dict, fallback);
+
+        /// <summary>
+        /// Extracts a float value from a dictionary at a specific key.
+        /// </summary>
+        protected float GetFloatFromDict(Dictionary<string, object> dict, string key, float defaultValue = 0f)
+        {
+            if (dict == null || !dict.TryGetValue(key, out var value) || value == null)
+            {
+                return defaultValue;
+            }
+            return System.Convert.ToSingle(value);
+        }
+
+        /// <summary>
+        /// Extracts an int value from a dictionary at a specific key.
+        /// </summary>
+        protected int GetIntFromDict(Dictionary<string, object> dict, string key, int defaultValue = 0)
+        {
+            if (dict == null || !dict.TryGetValue(key, out var value) || value == null)
+            {
+                return defaultValue;
+            }
+            return System.Convert.ToInt32(value);
+        }
+
+        /// <summary>
+        /// Serializes a Vector3 to a dictionary.
+        /// Delegates to HandlerUtilities.SerializeVector3.
+        /// </summary>
+        protected Dictionary<string, object> SerializeVector3(Vector3 vector)
+            => HandlerUtilities.SerializeVector3(vector);
+
+        /// <summary>
+        /// Serializes a Vector2 to a dictionary.
+        /// Delegates to HandlerUtilities.SerializeVector2.
+        /// </summary>
+        protected Dictionary<string, object> SerializeVector2(Vector2 vector)
+            => HandlerUtilities.SerializeVector2(vector);
+
+        /// <summary>
+        /// Serializes a Color to a dictionary.
+        /// Delegates to HandlerUtilities.SerializeColor.
+        /// </summary>
+        protected Dictionary<string, object> SerializeColor(Color color)
+            => HandlerUtilities.SerializeColor(color);
+
+        /// <summary>
+        /// Serializes a Quaternion to a dictionary.
+        /// Delegates to HandlerUtilities.SerializeQuaternion.
+        /// </summary>
+        protected Dictionary<string, object> SerializeQuaternion(Quaternion quaternion)
+            => HandlerUtilities.SerializeQuaternion(quaternion);
+
+        /// <summary>
+        /// Marks the scenes of the specified GameObjects as dirty.
+        /// Delegates to HandlerUtilities.MarkScenesDirty.
+        /// </summary>
+        protected void MarkScenesDirty(IEnumerable<GameObject> gameObjects)
+            => HandlerUtilities.MarkScenesDirty(gameObjects);
+
+        /// <summary>
+        /// Marks the scene of the specified GameObject as dirty.
+        /// Delegates to HandlerUtilities.MarkSceneDirty.
+        /// </summary>
+        protected void MarkSceneDirty(GameObject gameObject)
+            => HandlerUtilities.MarkSceneDirty(gameObject);
+
+        /// <summary>
+        /// Gets a list of strings from a payload.
+        /// Delegates to HandlerUtilities.GetStringList.
+        /// </summary>
+        protected List<string> GetStringList(Dictionary<string, object> payload, string key)
+            => HandlerUtilities.GetStringList(payload, key);
+
+        #endregion
+
         #region Resource Resolution Helper Methods
         
         /// <summary>

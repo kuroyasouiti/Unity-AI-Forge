@@ -196,7 +196,7 @@ namespace MCP.Editor.Handlers
             var response = new Dictionary<string, object>
             {
                 ["success"] = true,
-                ["gameObjectPath"] = GetGameObjectPath(instance),
+                ["gameObjectPath"] = BuildGameObjectPath(instance),
                 ["name"] = instance.name,
                 ["instanceID"] = instance.GetInstanceID()
             };
@@ -215,7 +215,7 @@ namespace MCP.Editor.Handlers
         private object DeleteGameObject(Dictionary<string, object> payload)
         {
             var gameObject = ResolveGameObjectFromPayload(payload);
-            var path = GetGameObjectPath(gameObject);
+            var path = BuildGameObjectPath(gameObject);
             
             Undo.DestroyObjectImmediate(gameObject);
             
@@ -242,8 +242,8 @@ namespace MCP.Editor.Handlers
             Undo.SetTransformParent(gameObject.transform, newParent?.transform, $"Move GameObject: {gameObject.name}");
             
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(gameObject)),
-                ("parentPath", newParent != null ? GetGameObjectPath(newParent) : "root")
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
+                ("parentPath", newParent != null ? BuildGameObjectPath(newParent) : "root")
             );
         }
         
@@ -265,7 +265,7 @@ namespace MCP.Editor.Handlers
             gameObject.name = name;
             
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(gameObject)),
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("oldName", oldName),
                 ("newName", name)
             );
@@ -329,7 +329,7 @@ namespace MCP.Editor.Handlers
             }
             
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(gameObject)),
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("updated", updated)
             );
         }
@@ -345,8 +345,8 @@ namespace MCP.Editor.Handlers
             Undo.RegisterCreatedObjectUndo(duplicate, $"Duplicate GameObject: {gameObject.name}");
             
             return CreateSuccessResponse(
-                ("originalPath", GetGameObjectPath(gameObject)),
-                ("duplicatePath", GetGameObjectPath(duplicate)),
+                ("originalPath", BuildGameObjectPath(gameObject)),
+                ("duplicatePath", BuildGameObjectPath(duplicate)),
                 ("name", duplicate.name),
                 ("instanceID", duplicate.GetInstanceID())
             );
@@ -363,7 +363,7 @@ namespace MCP.Editor.Handlers
             {
                 ["success"] = true,
                 ["name"] = gameObject.name,
-                ["path"] = GetGameObjectPath(gameObject),
+                ["path"] = BuildGameObjectPath(gameObject),
                 ["instanceID"] = gameObject.GetInstanceID(),
                 ["tag"] = gameObject.tag,
                 ["layer"] = LayerMask.LayerToName(gameObject.layer),
@@ -376,11 +376,11 @@ namespace MCP.Editor.Handlers
             // Transform information
             info["transform"] = new Dictionary<string, object>
             {
-                ["position"] = VectorToDict(gameObject.transform.position),
-                ["localPosition"] = VectorToDict(gameObject.transform.localPosition),
-                ["rotation"] = VectorToDict(gameObject.transform.eulerAngles),
-                ["localRotation"] = VectorToDict(gameObject.transform.localEulerAngles),
-                ["localScale"] = VectorToDict(gameObject.transform.localScale)
+                ["position"] = SerializeVector3(gameObject.transform.position),
+                ["localPosition"] = SerializeVector3(gameObject.transform.localPosition),
+                ["rotation"] = SerializeVector3(gameObject.transform.eulerAngles),
+                ["localRotation"] = SerializeVector3(gameObject.transform.localEulerAngles),
+                ["localScale"] = SerializeVector3(gameObject.transform.localScale)
             };
             
             // Components
@@ -423,7 +423,7 @@ namespace MCP.Editor.Handlers
                 var info = new Dictionary<string, object>
                 {
                     ["name"] = go.name,
-                    ["path"] = GetGameObjectPath(go),
+                    ["path"] = BuildGameObjectPath(go),
                     ["instanceID"] = go.GetInstanceID(),
                     ["active"] = go.activeSelf
                 };
@@ -466,7 +466,7 @@ namespace MCP.Editor.Handlers
             
             foreach (var go in gameObjects)
             {
-                var path = GetGameObjectPath(go);
+                var path = BuildGameObjectPath(go);
                 Undo.DestroyObjectImmediate(go);
                 deleted.Add(path);
             }
@@ -500,7 +500,7 @@ namespace MCP.Editor.Handlers
                 var info = new Dictionary<string, object>
                 {
                     ["name"] = go.name,
-                    ["path"] = GetGameObjectPath(go),
+                    ["path"] = BuildGameObjectPath(go),
                     ["instanceID"] = go.GetInstanceID(),
                     ["tag"] = go.tag,
                     ["layer"] = LayerMask.LayerToName(go.layer),
@@ -533,41 +533,6 @@ namespace MCP.Editor.Handlers
         #endregion
         
         #region Helper Methods
-        
-        /// <summary>
-        /// Gets the hierarchical path of a GameObject.
-        /// </summary>
-        private string GetGameObjectPath(GameObject go)
-        {
-            if (go == null)
-            {
-                return null;
-            }
-            
-            var path = go.name;
-            var parent = go.transform.parent;
-            
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            
-            return path;
-        }
-        
-        /// <summary>
-        /// Converts a Vector3 to a dictionary.
-        /// </summary>
-        private Dictionary<string, object> VectorToDict(Vector3 vector)
-        {
-            return new Dictionary<string, object>
-            {
-                ["x"] = vector.x,
-                ["y"] = vector.y,
-                ["z"] = vector.z
-            };
-        }
 
         /// <summary>
         /// Gets the PrimitiveType from a template name (case-insensitive).

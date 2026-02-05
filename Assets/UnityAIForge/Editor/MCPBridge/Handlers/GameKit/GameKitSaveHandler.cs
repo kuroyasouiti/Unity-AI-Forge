@@ -639,18 +639,6 @@ namespace MCP.Editor.Handlers.GameKit
             serialized.ApplyModifiedProperties();
         }
 
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
         private string GetStringFromDict(Dictionary<string, object> dict, string key, string defaultValue)
         {
             return dict.TryGetValue(key, out var value) ? value?.ToString() ?? defaultValue : defaultValue;

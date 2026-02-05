@@ -1080,23 +1080,6 @@ namespace MCP.Editor.Handlers
             return new BoundsInt(position, size);
         }
 
-        private Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-            return new Vector3(x, y, z);
-        }
-
-        private Color GetColorFromDict(Dictionary<string, object> dict)
-        {
-            float r = dict.TryGetValue("r", out var rObj) ? Convert.ToSingle(rObj) : 1f;
-            float g = dict.TryGetValue("g", out var gObj) ? Convert.ToSingle(gObj) : 1f;
-            float b = dict.TryGetValue("b", out var bObj) ? Convert.ToSingle(bObj) : 1f;
-            float a = dict.TryGetValue("a", out var aObj) ? Convert.ToSingle(aObj) : 1f;
-            return new Color(r, g, b, a);
-        }
-
         private Dictionary<string, object> SerializeVector3(Vector3 v)
         {
             return new Dictionary<string, object> { ["x"] = v.x, ["y"] = v.y, ["z"] = v.z };
@@ -1124,26 +1107,6 @@ namespace MCP.Editor.Handlers
         private Dictionary<string, object> SerializeColor(Color c)
         {
             return new Dictionary<string, object> { ["r"] = c.r, ["g"] = c.g, ["b"] = c.b, ["a"] = c.a };
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        private void MarkSceneDirty(GameObject go)
-        {
-            if (go.scene.IsValid())
-            {
-                EditorSceneManager.MarkSceneDirty(go.scene);
-            }
         }
 
         private void CreateFoldersRecursively(string path)

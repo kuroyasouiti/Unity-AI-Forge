@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MCP.Editor.Base;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -347,24 +346,6 @@ namespace MCP.Editor.Handlers
 
         #region Helpers
 
-        private Vector3 GetVector3(Dictionary<string, object> payload, string key, Vector3 fallback)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return fallback;
-            }
-
-            if (value is Dictionary<string, object> dict)
-            {
-                float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-                float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-                float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-                return new Vector3(x, y, z);
-            }
-
-            return fallback;
-        }
-
         private float GetFloatFromPayload(Dictionary<string, object> payload, string key, float defaultValue)
         {
             if (!payload.TryGetValue(key, out var value) || value == null)
@@ -372,20 +353,6 @@ namespace MCP.Editor.Handlers
                 return defaultValue;
             }
             return Convert.ToSingle(value);
-        }
-
-        // GetBool and GetInt are inherited from BaseCommandHandler
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
         }
 
         #endregion

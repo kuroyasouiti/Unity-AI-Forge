@@ -916,64 +916,6 @@ namespace MCP.Editor.Handlers
             return result;
         }
 
-        private List<string> GetStringList(Dictionary<string, object> payload, string key)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return new List<string>();
-            }
-
-            if (value is List<object> list)
-            {
-                return list.Select(v => v?.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            }
-
-            if (value is string single)
-            {
-                return new List<string> { single };
-            }
-
-            return new List<string>();
-        }
-
-        private Vector2 GetVector2FromDict(Dictionary<string, object> dict, Vector2 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            return new Vector2(x, y);
-        }
-
-        private Vector3 GetVector3FromDict(Dictionary<string, object> dict, Vector3 fallback)
-        {
-            float x = dict.TryGetValue("x", out var xObj) ? Convert.ToSingle(xObj) : fallback.x;
-            float y = dict.TryGetValue("y", out var yObj) ? Convert.ToSingle(yObj) : fallback.y;
-            float z = dict.TryGetValue("z", out var zObj) ? Convert.ToSingle(zObj) : fallback.z;
-            return new Vector3(x, y, z);
-        }
-
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        private void MarkScenesDirty(IEnumerable<GameObject> objects)
-        {
-            foreach (var scene in objects.Select(o => o.scene).Distinct())
-            {
-                if (scene.IsValid())
-                {
-                    EditorSceneManager.MarkSceneDirty(scene);
-                }
-            }
-        }
-
         #endregion
     }
 }

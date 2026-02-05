@@ -93,7 +93,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Light '{name}' created"),
-                ("gameObjectPath", GetGameObjectPath(lightGO)),
+                ("gameObjectPath", BuildGameObjectPath(lightGO)),
                 ("lightType", lightType.ToString()),
                 ("preset", preset ?? "none")
             );
@@ -118,7 +118,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Light updated"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -136,7 +136,7 @@ namespace MCP.Editor.Handlers
             }
 
             return CreateSuccessResponse(
-                ("gameObjectPath", GetGameObjectPath(go)),
+                ("gameObjectPath", BuildGameObjectPath(go)),
                 ("lightType", light.type.ToString()),
                 ("color", new Dictionary<string, float>
                 {
@@ -176,7 +176,7 @@ namespace MCP.Editor.Handlers
         private object HandleDelete(Dictionary<string, object> payload)
         {
             GameObject go = ResolveGameObjectFromPayload(payload);
-            string path = GetGameObjectPath(go);
+            string path = BuildGameObjectPath(go);
 
             Undo.DestroyObjectImmediate(go);
 
@@ -210,7 +210,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Preset '{preset}' applied"),
-                ("gameObjectPath", GetGameObjectPath(go))
+                ("gameObjectPath", BuildGameObjectPath(go))
             );
         }
 
@@ -264,7 +264,7 @@ namespace MCP.Editor.Handlers
 
             return CreateSuccessResponse(
                 ("message", $"Lighting setup '{setupType}' created"),
-                ("containerPath", GetGameObjectPath(container)),
+                ("containerPath", BuildGameObjectPath(container)),
                 ("createdLights", createdLights),
                 ("lightCount", createdLights.Count)
             );
@@ -597,17 +597,7 @@ namespace MCP.Editor.Handlers
             }
         }
 
-        private string GetGameObjectPath(GameObject go)
-        {
-            string path = go.name;
-            Transform parent = go.transform.parent;
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-            return path;
-        }
+        // GetGameObjectPath is inherited from BaseCommandHandler as BuildGameObjectPath
 
         #endregion
     }

@@ -1020,27 +1020,6 @@ namespace MCP.Editor.Handlers.GameKit
             };
         }
 
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        private int GetInt(Dictionary<string, object> payload, string key, int defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToInt32(value);
-            }
-            return defaultValue;
-        }
-
         private string GetStringFromDict(Dictionary<string, object> dict, string key, string defaultValue)
         {
             return dict.TryGetValue(key, out var value) ? value?.ToString() ?? defaultValue : defaultValue;

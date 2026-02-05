@@ -558,36 +558,6 @@ namespace MCP.Editor.Handlers.GameKit
             return null;
         }
 
-        private string BuildGameObjectPath(GameObject go)
-        {
-            var path = go.name;
-            var current = go.transform.parent;
-            while (current != null)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-            return path;
-        }
-
-        private float GetFloat(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToSingle(value);
-            }
-            return defaultValue;
-        }
-
-        private bool GetBool(Dictionary<string, object> payload, string key, bool defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToBoolean(value);
-            }
-            return defaultValue;
-        }
-
         #endregion
     }
 }
