@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 50+ tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation) for rapid prototyping.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 64 tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation) for rapid prototyping.
 
 ## Requirements
 
@@ -172,3 +172,22 @@ ComponentCommandHandler supports multiple reference formats:
 - `SceneRelationshipAnalyzer.cs` - Combines multiple relationship types
 
 **HandlerUtilities.cs** - Common utilities for command handlers (GameObject finding, component operations).
+
+### Verifying Changes with Relationship Graphs
+
+After making significant changes (deletion, rename, move, reference changes), use relationship graph tools to check for broken references:
+
+```python
+# Check for broken references after changes
+unity_scene_relationship_graph(operation='analyze', includeReferences=True, includeEvents=True)
+
+# Check incoming references before deleting an object
+unity_scene_reference_graph(operation='analyze', rootPath='TargetObject', direction='incoming')
+```
+
+Use these tools to verify:
+- After deleting GameObjects/Components
+- After renaming objects
+- After changing Prefab references
+- After modifying UnityEvent connections
+- After changing ScriptableObject references

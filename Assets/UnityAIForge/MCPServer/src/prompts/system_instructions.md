@@ -11,6 +11,7 @@ AI駆動型Unity開発ツールキット。MCPサーバー + GameKitフレーム
 5. **コンパイルが必要な操作は自動待機**（ブリッジ再接続で解除）
 6. **UI優先設計**: 人間が操作・確認できるUIから優先的に実装する
 7. **シーン分割**: 機能ごとにシーンを分ける
+8. **変更後は関係性グラフで破損確認**: 重要な変更後は `unity_scene_relationship_graph` で参照破損がないか確認する
 
 ---
 
@@ -165,9 +166,36 @@ unity_gamekit_actor(operation='create', actorId='player', ...)
 unity_gamekit_actor(operation='inspect', actorId='player')
 ```
 
+### 🔍 変更後の破損確認ワークフロー
+
+**重要な変更（削除、移動、リネーム、参照変更）を行った後は、関係性グラフツールで参照破損を確認する。**
+
+```python
+# 変更後に参照破損がないか確認
+unity_scene_relationship_graph(
+    operation='analyze',
+    includeReferences=True,
+    includeEvents=True
+)
+
+# 特定オブジェクトの参照を確認（削除前の影響調査にも使用）
+unity_scene_reference_graph(
+    operation='analyze',
+    rootPath='TargetObject',
+    direction='incoming'  # このオブジェクトを参照しているものを検出
+)
+```
+
+**確認すべきケース:**
+- GameObject/Componentの削除後
+- オブジェクトのリネーム後
+- Prefab参照の変更後
+- UnityEventの接続先変更後
+- ScriptableObjectの参照変更後
+
 ---
 
-## 🔍 High-Level Analysis Tools (NEW)
+## 🔍 High-Level Analysis Tools
 
 ### unity_scene_reference_graph - シーン参照グラフ
 
