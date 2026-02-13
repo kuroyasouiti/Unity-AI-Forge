@@ -275,13 +275,27 @@ namespace MCP.Editor
         {
             EditorGUILayout.HelpBox(_statusMessage, MessageType.Info);
 
+            // Show actual bound port info when available
+            var actualPort = McpBridgeService.ActualPort;
+            if (actualPort > 0)
+            {
+                EditorGUILayout.LabelField("WebSocket URL",
+                    $"ws://{settings.ServerHost}:{actualPort}/bridge");
+                if (actualPort != settings.ServerPort)
+                {
+                    EditorGUILayout.HelpBox(
+                        $"Port {settings.ServerPort} was in use. Auto-assigned: {actualPort}",
+                        MessageType.Info);
+                }
+            }
+
             EditorGUILayout.LabelField("Diagnostics", EditorStyles.boldLabel);
             using (var scroll = new EditorGUILayout.ScrollViewScope(_diagnosticsScroll, GUILayout.Height(180f)))
             {
                 _diagnosticsScroll = scroll.scrollPosition;
                 EditorGUILayout.LabelField($"State     : {McpBridgeService.State}");
                 EditorGUILayout.LabelField($"Session ID: {PreviewSessionId()}");
-                EditorGUILayout.LabelField($"Bridge URL: {settings.BridgeWebSocketUrl}");
+                EditorGUILayout.LabelField($"Bridge URL: {(actualPort > 0 ? $"ws://{settings.ServerHost}:{actualPort}/bridge" : settings.BridgeWebSocketUrl)}");
                 EditorGUILayout.LabelField($"Endpoint  : {settings.McpServerUrl}");
 
                 var clientInfo = McpBridgeService.ConnectedClientInfo;

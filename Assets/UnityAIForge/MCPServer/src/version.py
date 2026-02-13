@@ -1,3 +1,3 @@
 SERVER_NAME = "Unity-AI-Forge"
-SERVER_VERSION = "2.7.1"
+SERVER_VERSION = "2.8.0"
 

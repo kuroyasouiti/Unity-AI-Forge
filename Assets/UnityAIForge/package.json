@@ -1,6 +1,6 @@
 {
   "name": "com.unityaiforge",
-  "version": "2.7.1",
+  "version": "2.8.0",
   "displayName": "Unity-AI-Forge",
   "description": "AI-powered Unity development toolkit. MCP bridge with 64 tools including GameKit 3-Pillar Architecture (UI: Binding/List/Slot/Selection, Logic: Actor/Combat/Health/AI, Presentation: VFX/Audio/Feedback), Machinations economics, scene flow, declarative UI hierarchy, UI state/navigation, graph analysis (class dependency, scene reference, scene relationship), Physics2D/3D, 2D/3D animation, and batch sequential execution for intelligent game creation through AI collaboration.",
   "unity": "2022.3",

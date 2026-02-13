@@ -63,6 +63,10 @@ namespace MCP.Editor
 
         #region Private Fields
 
+        // Port scanning range
+        private const int PortScanStart = 7070;
+        private const int PortScanEnd = 7099;
+
         // Thread-safe collections
         private static readonly ConcurrentQueue<string> IncomingMessages = new();
         private static readonly ConcurrentQueue<PendingSendMessage> PendingSendMessages = new();
@@ -88,6 +92,7 @@ namespace MCP.Editor
         private static string _sessionId = Guid.NewGuid().ToString();
         private static McpConnectionState _state = McpConnectionState.Disconnected;
         private static ClientInfo _clientInfo;
+        private static int _actualBoundPort = -1;
 
         // Timing
         private static DateTime _lastHeartbeatSent = DateTime.MinValue;
@@ -136,6 +141,7 @@ namespace MCP.Editor
         public static bool IsConnected => _socket != null && _socket.State == WebSocketState.Open;
         public static string SessionId => _sessionId;
         public static ClientInfo ConnectedClientInfo => _clientInfo;
+        public static int ActualPort => _actualBoundPort;
 
         #endregion
 
@@ -147,6 +153,7 @@ namespace MCP.Editor
             Selection.selectionChanged += MarkContextDirty;
             EditorApplication.hierarchyChanged += MarkContextDirty;
             EditorApplication.projectChanged += MarkContextDirty;
+            EditorApplication.quitting += () => PortDiscoveryFile.DeletePortFile();
 
             CompilationPipeline.compilationStarted += OnCompilationStarted;
             CompilationPipeline.compilationFinished += OnCompilationFinished;
@@ -214,6 +221,9 @@ namespace MCP.Editor
             }
 
             CloseSocket();
+
+            PortDiscoveryFile.DeletePortFile();
+            _actualBoundPort = -1;
 
             _clientInfo = null;
             _state = McpConnectionState.Disconnected;
@@ -364,22 +374,51 @@ namespace MCP.Editor
         private static void StartListener()
         {
             var settings = McpBridgeSettings.Instance;
-            try
+            var ipAddress = ResolveListenerAddress(settings.ServerHost);
+            var configuredPort = settings.ServerPort;
+
+            // Build port list: configured port first, then scan range (excluding configured)
+            var portsToTry = new List<int> { configuredPort };
+            for (int p = PortScanStart; p <= PortScanEnd; p++)
             {
-                var ipAddress = ResolveListenerAddress(settings.ServerHost);
-                _listener = new TcpListener(ipAddress, settings.ServerPort);
-                _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                _listener.Start();
-                _listenerCts = new CancellationTokenSource();
-                _state = McpConnectionState.Connecting;
-                StateChanged?.Invoke(_state);
-                _ = Task.Run(() => AcceptLoopAsync(_listenerCts.Token));
+                if (p != configuredPort)
+                    portsToTry.Add(p);
             }
-            catch (Exception ex)
+
+            foreach (var port in portsToTry)
             {
-                Debug.LogError($"Failed to start MCP bridge listener: {ex.Message}");
-                Disconnect();
+                try
+                {
+                    _listener = new TcpListener(ipAddress, port);
+                    _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    _listener.Start();
+                    _actualBoundPort = port;
+                    PortDiscoveryFile.WritePortFile(port);
+
+                    if (port != configuredPort)
+                        Debug.Log($"MCP Bridge: Port {configuredPort} in use, bound to {port}");
+
+                    _listenerCts = new CancellationTokenSource();
+                    _state = McpConnectionState.Connecting;
+                    StateChanged?.Invoke(_state);
+                    _ = Task.Run(() => AcceptLoopAsync(_listenerCts.Token));
+                    return;
+                }
+                catch (SocketException)
+                {
+                    _listener?.Stop();
+                    _listener = null;
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"MCP Bridge: Failed to bind port {port}: {ex.Message}");
+                    _listener?.Stop();
+                    _listener = null;
+                }
             }
+
+            Debug.LogError($"MCP Bridge: No available port in range {PortScanStart}-{PortScanEnd}");
+            Disconnect();
         }
 
         private static IPAddress ResolveListenerAddress(string host)

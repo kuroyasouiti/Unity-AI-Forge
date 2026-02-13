@@ -53,8 +53,6 @@ namespace MCP.Editor.Base
 
             try
             {
-                Debug.Log("[CommandHandlerInitializer] Initializing command handlers...");
-
                 // 既存のハンドラーをクリア（再初期化時）
                 CommandHandlerFactory.Clear();
                 
@@ -76,18 +74,10 @@ namespace MCP.Editor.Base
                 // ハイレベルGameKitツールのハンドラーを登録
                 RegisterGameKitHandlers();
                 
-                // 統計情報をログ出力
                 var stats = CommandHandlerFactory.GetStatistics();
-                Debug.Log($"[CommandHandlerInitializer] Initialized {stats["totalHandlers"]} command handlers");
-                
-                // 詳細ログ
-                var handlers = (System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>)stats["registeredHandlers"];
-                foreach (var handlerInfo in handlers)
-                {
-                    Debug.Log($"  - {handlerInfo["toolName"]}: {handlerInfo["category"]} (v{handlerInfo["version"]})");
-                }
-
                 _hasInitialized = true;
+
+                Debug.Log($"[CommandHandlerInitializer] Initialized {stats["totalHandlers"]} command handlers");
             }
             catch (System.Exception ex)
             {

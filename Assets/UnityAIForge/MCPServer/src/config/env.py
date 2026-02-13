@@ -175,8 +175,8 @@ def _create_env() -> ServerEnv:
 
     Priority order (highest to lowest):
     1. CLI arguments (--bridge-token, --bridge-host, --bridge-port)
-    2. Environment variables (MCP_BRIDGE_TOKEN, UNITY_BRIDGE_HOST, UNITY_BRIDGE_PORT)
-    3. Token files (.mcp_bridge_tokens.json, .mcp_bridge_token)
+    2. Port discovery file (for bridge port only)
+    3. Environment variables (MCP_BRIDGE_TOKEN, UNITY_BRIDGE_HOST, UNITY_BRIDGE_PORT)
     4. Default values
     """
     # Resolve bridge token: CLI > env > file
@@ -187,14 +187,21 @@ def _create_env() -> ServerEnv:
     # Resolve bridge host: CLI > env > default
     bridge_host: str = _cli_bridge_host or os.environ.get("UNITY_BRIDGE_HOST", "127.0.0.1")
 
-    # Resolve bridge port: CLI > env > default
+    # Resolve bridge port: CLI > port file > env > default
     resolved_bridge_port: int
     if _cli_bridge_port is not None:
         resolved_bridge_port = _cli_bridge_port
     else:
-        resolved_bridge_port = _parse_int(
-            os.environ.get("UNITY_BRIDGE_PORT"), default=7070, minimum=1, maximum=65535
-        )
+        from config.port_discovery import discover_bridge_port
+
+        discovered = discover_bridge_port(_project_root)
+        if discovered is not None:
+            _config_logger.info("Using discovered bridge port: %d", discovered)
+            resolved_bridge_port = discovered
+        else:
+            resolved_bridge_port = _parse_int(
+                os.environ.get("UNITY_BRIDGE_PORT"), default=7070, minimum=1, maximum=65535
+            )
 
     return ServerEnv(
         port=_parse_int(os.environ.get("MCP_SERVER_PORT"), default=6007, minimum=1, maximum=65535),

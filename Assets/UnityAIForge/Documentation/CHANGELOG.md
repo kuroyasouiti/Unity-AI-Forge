@@ -9,6 +9,32 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.8.0] - 2026-02-13
+
+### 追加
+
+- **自動ポート調整機能（マルチプロジェクト対応）**
+  - 複数のUnityプロジェクトがUnity-AI-Forgeを同時に使用する際のポート競合を自動解決
+  - Unity側: 設定ポート(7070)が使用中なら7071, 7072...7099の範囲で自動探索
+  - Python側: ポートファイルによるブリッジポート自動検出
+  - ポートファイル: `%TEMP%/unity-ai-forge/{project-hash}.port` にJSON形式で書き出し
+  - プロジェクトパスのSHA256ハッシュ（先頭16文字）でC#/Python間の一致を保証
+  - PID生存チェックによる失効ポートファイルの自動クリーンアップ
+  - ポート解決優先順位(Python): CLI `--bridge-port` > ポートファイル > 環境変数 > デフォルト7070
+  - `PortDiscoveryFile.cs` (NEW) - C#ポートファイル読み書きユーティリティ
+  - `port_discovery.py` (NEW) - Pythonポートファイル検出モジュール
+
+### 変更
+
+- **McpBridgeService.cs**: `StartListener()` を自動ポートスキャンに変更、`ActualPort` プロパティ追加、`Disconnect()` / Editor終了時にポートファイル削除
+- **McpBridgeWindow.cs**: 実際のバインドポートをUI表示、設定ポートと異なる場合はInfoBox表示
+- **env.py**: ポート解決チェーンにポートファイル検出を追加（CLI > ポートファイル > 環境変数 > デフォルト）
+
+### テスト
+
+- `PortDiscoveryFileTests.cs` (NEW) - C#ユニットテスト（ハッシュ正規化、ラウンドトリップ、失効PID、エッジケース）
+- `test_port_discovery.py` (NEW) - Pythonユニットテスト13件（ハッシュ整合性、ポート検出、失効クリーンアップ）
+
 ## [2.7.1] - 2026-02-13
 
 ### リファクタリング

@@ -130,7 +130,6 @@ namespace MCP.Editor.Base
             {
                 _handlers.Clear();
                 _initialized = false;
-                CommandHandlerInitializer.ResetInitializationState();
             }
         }
         
@@ -152,8 +151,6 @@ namespace MCP.Editor.Base
         /// </summary>
         public static Dictionary<string, object> GetStatistics()
         {
-            Initialize();
-            
             lock (_lock)
             {
                 var stats = new Dictionary<string, object>
