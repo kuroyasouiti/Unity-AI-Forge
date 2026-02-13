@@ -36,7 +36,7 @@ namespace MCP.Editor.ServerManager
             User,
             /// <summary>ローカル設定（このマシンのみ、.claude.json）</summary>
             Local,
-            /// <summary>プロジェクト設定（チーム共有、.claude/settings.json）</summary>
+            /// <summary>プロジェクト設定（チーム共有、.mcp.json）</summary>
             Project
         }
 
@@ -447,7 +447,7 @@ namespace MCP.Editor.ServerManager
         /// Claude Codeの設定ファイル内でサーバーが登録されているかチェック
         /// - User: ~/.claude.json の mcpServers セクション
         /// - Local: ~/.claude.json の projects.[projectPath].mcpServers セクション
-        /// - Project: [projectDir]/.claude/settings.json の mcpServers セクション
+        /// - Project: [projectDir]/.mcp.json の mcpServers セクション
         /// </summary>
         private static bool IsServerRegisteredInClaudeCodeConfig(string content, string serverName, RegistrationScope scope)
         {
@@ -491,7 +491,7 @@ namespace MCP.Editor.ServerManager
                         return false;
 
                     case RegistrationScope.Project:
-                        // Project scope: .claude/settings.json の mcpServers セクション
+                        // Project scope: .mcp.json の mcpServers セクション
                         if (json.TryGetValue("mcpServers", out var projectMcpServers) &&
                             projectMcpServers is Newtonsoft.Json.Linq.JObject projectServers)
                         {
@@ -562,7 +562,7 @@ namespace MCP.Editor.ServerManager
                 {
                     RegistrationScope.User => System.IO.Path.Combine(userProfile, ".claude.json"),
                     RegistrationScope.Local => System.IO.Path.Combine(userProfile, ".claude.json"),
-                    RegistrationScope.Project => System.IO.Path.Combine(projectDir, ".claude", "settings.json"),
+                    RegistrationScope.Project => System.IO.Path.Combine(projectDir, ".mcp.json"),
                     _ => null
                 },
                 AITool.CodexCli => scope switch

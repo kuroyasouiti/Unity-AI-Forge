@@ -857,7 +857,7 @@ namespace MCP.Editor
             var options = new McpCliRegistry.ProjectRegistrationOptions
             {
                 ServerName = serverName,
-                ServerPath = McpServerManager.SourcePath,
+                ServerPath = McpServerManager.UserInstallPath,
                 BridgeToken = settings.BridgeToken,
                 BridgeHost = settings.ServerHost,
                 BridgePort = settings.ServerPort,
@@ -961,6 +961,15 @@ namespace MCP.Editor
 
         private void RegisterProjectToToolViaCli(AITool tool)
         {
+            if (!McpServerManager.IsInstalled())
+            {
+                EditorUtility.DisplayDialog(
+                    "MCP Server Not Installed",
+                    "MCP Server is not installed. Please install it first using the 'Install Server' button.",
+                    "OK");
+                return;
+            }
+
             try
             {
                 _commandRunning = true;
@@ -971,7 +980,7 @@ namespace MCP.Editor
                 var options = new McpCliRegistry.ProjectRegistrationOptions
                 {
                     ServerName = McpProjectRegistry.GetProjectServerName(),
-                    ServerPath = McpServerManager.SourcePath,
+                    ServerPath = McpServerManager.UserInstallPath,
                     BridgeToken = settings.BridgeToken,
                     BridgeHost = settings.ServerHost,
                     BridgePort = settings.ServerPort,
