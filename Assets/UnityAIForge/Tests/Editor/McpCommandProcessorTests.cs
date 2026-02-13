@@ -92,13 +92,13 @@ namespace MCP.Editor.Tests
         #region GetHandlerMode Tests
 
         [Test]
-        public void GetHandlerMode_UnregisteredTool_ShouldReturnLegacy()
+        public void GetHandlerMode_UnregisteredTool_ShouldReturnUnknown()
         {
             // Act - use a tool name that is not registered
             var mode = McpCommandProcessor.GetHandlerMode("nonExistentTool");
 
             // Assert
-            Assert.AreEqual("Legacy", mode);
+            Assert.AreEqual("Unknown", mode);
         }
 
         [Test]

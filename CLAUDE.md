@@ -106,8 +106,14 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 Located in `Assets/UnityAIForge/MCPServer/src/`:
 
 - `main.py` - Entry point
-- `tools/register_tools.py` - MCP tool definitions (maps to C# handlers)
+- `tools/register_tools.py` - MCP tool registration and dispatch (~240 lines). Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 59 tools via dict lookup.
+- `tools/tool_registry.py` - Single source of truth for 63 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`.
+- `tools/tool_definitions.py` - All 64 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
+- `tools/schemas/` - JSON Schema definitions split into 8 category files:
+  - `common.py` - Shared type helpers (Vector3, Color, etc.)
+  - `utility.py`, `low_level.py`, `mid_level.py`, `visual.py`
+  - `gamekit_core.py`, `gamekit_systems.py`, `gamekit_pillar.py`, `graph.py`
 - `bridge/` - WebSocket client to Unity Bridge
 - `server/` - MCP server implementation
 
@@ -147,9 +153,11 @@ GameKit uses a 3-pillar architecture separating UI, Logic, and Presentation conc
 
 ### Adding New MCP Tools
 
-1. Add tool definition in `Assets/UnityAIForge/MCPServer/src/tools/register_tools.py`
-2. Create or extend a handler in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`
-3. Register the handler in `Assets/UnityAIForge/Editor/MCPBridge/Base/CommandHandlerInitializer.cs`
+1. Add MCP name → bridge name mapping in `Assets/UnityAIForge/MCPServer/src/tools/tool_registry.py`
+2. Add schema function in the appropriate `tools/schemas/*.py` file
+3. Add `types.Tool` entry in `Assets/UnityAIForge/MCPServer/src/tools/tool_definitions.py`
+4. Create or extend a handler in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`
+5. Register the handler in `Assets/UnityAIForge/Editor/MCPBridge/Base/CommandHandlerInitializer.cs`
 
 ### Component Reference Formats
 

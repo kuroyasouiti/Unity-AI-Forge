@@ -21,118 +21,12 @@ from typing import Any
 from mcp.types import TextContent, Tool
 
 from bridge.bridge_manager import BridgeManager
+from tools.tool_registry import resolve_tool_name
 
 logger = logging.getLogger(__name__)
 
 # State file to persist queue
 STATE_FILE = Path(__file__).parent.parent.parent / ".batch_queue_state.json"
-
-# MCP tool name to internal bridge tool name mapping
-# Users can use either the MCP name (e.g., "unity_gameobject_crud")
-# or the internal name (e.g., "gameObject")
-# NOTE: Internal names are taken from handler Category properties
-TOOL_NAME_MAPPING: dict[str, str] = {
-    # Utility
-    "unity_ping": "ping",
-    "unity_compilation_await": "compilationAwait",
-    # Low-Level CRUD
-    "unity_scene_crud": "scene",
-    "unity_gameobject_crud": "gameObject",
-    "unity_component_crud": "component",
-    "unity_asset_crud": "asset",
-    "unity_scriptableObject_crud": "scriptableObject",
-    "unity_prefab_crud": "prefab",
-    "unity_vector_sprite_convert": "sprite",
-    "unity_projectSettings_crud": "projectSettingsManage",
-    # Mid-Level Batch
-    "unity_transform_batch": "transformBatch",
-    "unity_rectTransform_batch": "rectTransformBatch",
-    "unity_physics_bundle": "physicsBundle",
-    "unity_camera_rig": "cameraRig",
-    "unity_ui_foundation": "uiFoundation",
-    "unity_audio_source_bundle": "audioSourceBundle",
-    "unity_input_profile": "inputProfile",
-    "unity_character_controller_bundle": "characterControllerBundle",
-    "unity_tilemap_bundle": "tilemapBundle",
-    "unity_sprite2d_bundle": "sprite2DBundle",
-    "unity_animation2d_bundle": "animation2DBundle",
-    # UI Management
-    "unity_ui_hierarchy": "uiHierarchy",
-    "unity_ui_state": "uiState",
-    "unity_ui_navigation": "uiNavigation",
-    # Development Cycle & Visual Tools
-    "unity_playmode_control": "playModeControl",
-    "unity_console_log": "consoleLog",
-    "unity_material_bundle": "materialBundle",
-    "unity_light_bundle": "lightBundle",
-    "unity_particle_bundle": "particleBundle",
-    "unity_animation3d_bundle": "animation3DBundle",
-    "unity_event_wiring": "eventWiring",
-    # High-Level GameKit - Core
-    "unity_gamekit_actor": "gamekitActor",
-    "unity_gamekit_manager": "gamekitManager",
-    "unity_gamekit_interaction": "gamekitInteraction",
-    "unity_gamekit_ui_command": "gamekitUICommand",
-    "unity_gamekit_machinations": "gamekitMachinations",
-    "unity_gamekit_sceneflow": "gamekitSceneFlow",
-    # High-Level GameKit - Phase 1
-    "unity_gamekit_health": "gamekitHealth",
-    "unity_gamekit_spawner": "gamekitSpawner",
-    "unity_gamekit_timer": "gamekitTimer",
-    "unity_gamekit_ai": "gamekitAI",
-    "unity_gamekit_collectible": "gamekitCollectible",
-    "unity_gamekit_projectile": "gamekitProjectile",
-    "unity_gamekit_waypoint": "gamekitWaypoint",
-    "unity_gamekit_trigger_zone": "gamekitTriggerZone",
-    "unity_gamekit_animation_sync": "gamekitAnimationSync",
-    "unity_gamekit_effect": "gamekitEffect",
-    # High-Level GameKit - Phase 2
-    "unity_gamekit_save": "gamekitSave",
-    "unity_gamekit_inventory": "gamekitInventory",
-    "unity_gamekit_dialogue": "gamekitDialogue",
-    "unity_gamekit_quest": "gamekitQuest",
-    "unity_gamekit_status_effect": "gamekitStatusEffect",
-    # High-Level GameKit - 3-Pillar Architecture (UI)
-    "unity_gamekit_ui_binding": "gamekitUIBinding",
-    "unity_gamekit_ui_list": "gamekitUIList",
-    "unity_gamekit_ui_slot": "gamekitUISlot",
-    "unity_gamekit_ui_selection": "gamekitUISelection",
-    # High-Level GameKit - 3-Pillar Architecture (Logic)
-    "unity_gamekit_combat": "gamekitCombat",
-    # High-Level GameKit - 3-Pillar Architecture (Presentation)
-    "unity_gamekit_feedback": "gamekitFeedback",
-    "unity_gamekit_vfx": "gamekitVFX",
-    "unity_gamekit_audio": "gamekitAudio",
-}
-
-
-def resolve_tool_name(tool_name: str) -> str:
-    """Resolve MCP tool name to internal bridge tool name.
-
-    Args:
-        tool_name: Either MCP name (e.g., "unity_gameobject_crud")
-                   or internal name (e.g., "gameObjectManage")
-
-    Returns:
-        Internal bridge tool name
-
-    Raises:
-        ValueError: If tool name is not recognized
-    """
-    # Check if it's an MCP name that needs mapping
-    if tool_name in TOOL_NAME_MAPPING:
-        return TOOL_NAME_MAPPING[tool_name]
-
-    # Check if it's already an internal name (exists as a value in mapping)
-    if tool_name in TOOL_NAME_MAPPING.values():
-        return tool_name
-
-    # Unknown tool name
-    raise ValueError(
-        f"Unsupported tool name: {tool_name}. "
-        f"Use MCP names (e.g., 'unity_gameobject_crud') or internal names (e.g., 'gameObjectManage'). "
-        f"Available tools: {', '.join(sorted(TOOL_NAME_MAPPING.keys()))}"
-    )
 
 
 class BatchQueueState:

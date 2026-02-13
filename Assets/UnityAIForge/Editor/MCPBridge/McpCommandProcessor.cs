@@ -38,7 +38,6 @@ namespace MCP.Editor
         /// <exception cref="InvalidOperationException">Thrown when tool name is not supported.</exception>
         public static object Execute(McpIncomingCommand command)
         {
-            // Try new handler system first (Phase 3+ handlers)
             if (CommandHandlerFactory.TryGetHandler(command.ToolName, out var handler))
             {
                 try
@@ -51,21 +50,11 @@ namespace MCP.Editor
                     throw;
                 }
             }
-            
-            // Fall back to legacy partial class methods
-            return ExecuteLegacy(command);
+
+            throw new InvalidOperationException(
+                $"Unsupported tool name: {command.ToolName}. Handler not registered in CommandHandlerFactory.");
         }
-        
-        /// <summary>
-        /// Executes legacy partial class methods for backward compatibility.
-        /// All handlers have been migrated to the new CommandHandlerFactory system.
-        /// </summary>
-        private static object ExecuteLegacy(McpIncomingCommand command)
-        {
-            // All handlers have been migrated to new handler system
-            throw new InvalidOperationException($"Unsupported tool name: {command.ToolName}. Handler not registered in CommandHandlerFactory.");
-        }
-        
+
         /// <summary>
         /// Gets handler execution mode for diagnostics.
         /// </summary>
@@ -75,7 +64,7 @@ namespace MCP.Editor
             {
                 return "NewHandler";
             }
-            return "Legacy";
+            return "Unknown";
         }
 
         /// <summary>

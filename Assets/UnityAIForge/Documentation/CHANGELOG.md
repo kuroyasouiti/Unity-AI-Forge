@@ -9,6 +9,40 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 （なし）
 
+## [2.7.1] - 2026-02-13
+
+### リファクタリング
+
+- **MCP登録システムの大規模リファクタリング**
+  - `register_tools.py` を8,473行から241行に97%削減（スキーマ定義・ツール定義を分離）
+  - `tools/tool_registry.py` (NEW) - 63ツールのMCP名→ブリッジ名マッピングの単一ソース
+  - `tools/tool_definitions.py` (NEW) - 64ツールの `types.Tool` 定義を集約
+  - `tools/schemas/` に8カテゴリファイルに分割:
+    - `utility.py`, `low_level.py`, `mid_level.py`, `visual.py`
+    - `gamekit_core.py`, `gamekit_systems.py`, `gamekit_pillar.py`, `graph.py`
+
+### 修正
+
+- **batch_sequential.py の8つの誤ったブリッジ名を修正**
+  - `"scene"` → `"sceneManage"`, `"gameObject"` → `"gameObjectManage"` 等
+  - 3つの欠落ツール（classDependencyGraph, sceneReferenceGraph, sceneRelationshipGraph）を追加
+  - 重複した `TOOL_NAME_MAPPING` と `resolve_tool_name()` を削除し `tool_registry` から統一的にインポート
+
+- **CommandHandlerFactory.Clear() のバグ修正**
+  - `Clear()` メソッドに `CommandHandlerInitializer.ResetInitializationState()` 呼び出しを追加
+  - テスト時のハンドラー再初期化が正しく動作するよう修正
+
+- **McpCommandProcessor.cs のデッドコード削除**
+  - 未使用の `ExecuteLegacy()` メソッドを削除
+  - `GetHandlerMode()` の戻り値を `"Legacy"` → `"Unknown"` に変更
+
+### テスト
+
+- **Python テストの追加**
+  - `test_tool_registry.py` (NEW) - マッピング整合性、resolve_tool_name、ツール数検証（13テスト）
+  - `test_tool_definitions.py` (NEW) - 64ツール定義、スキーマ呼び出し検証（8テスト）
+  - C# テスト `McpCommandProcessorTests.cs` を更新（`"Legacy"` → `"Unknown"`）
+
 ## [2.5.4] - 2026-01-03
 
 ### 修正

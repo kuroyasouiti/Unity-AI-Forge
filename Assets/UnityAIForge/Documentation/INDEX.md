@@ -38,7 +38,7 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | ドキュメント | 内容 |
 |:---|:---|
 | [**MCP Server**](MCPServer/README.md) | MCP サーバーセットアップ |
-| [**24 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
+| [**64 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
 | [**Batch Sequential**](MCPServer/BATCH_SEQUENTIAL.md) | バッチ逐次処理（レジューム対応） |
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
 | [**Claude AI**](CLAUDE.md) | Claude 連携情報 |

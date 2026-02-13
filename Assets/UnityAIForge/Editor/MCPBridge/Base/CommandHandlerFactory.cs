@@ -130,6 +130,7 @@ namespace MCP.Editor.Base
             {
                 _handlers.Clear();
                 _initialized = false;
+                CommandHandlerInitializer.ResetInitializationState();
             }
         }
         
