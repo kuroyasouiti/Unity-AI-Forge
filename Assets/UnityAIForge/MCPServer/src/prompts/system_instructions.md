@@ -735,15 +735,151 @@ unity_batch_sequential_execute(operations=[...])
 
 ---
 
-## 📚 よくあるコンポーネントプロパティ
+## 📚 Unity標準コンポーネント リファレンス
 
-| Component | Properties |
-|-----------|-----------|
-| Transform | position, rotation, localScale |
-| RectTransform | anchoredPosition, sizeDelta, anchorMin, anchorMax, pivot |
-| Rigidbody | mass, drag, useGravity, constraints |
-| Rigidbody2D | mass, linearDamping, angularDamping, gravityScale |
-| Camera | fieldOfView, clearFlags, backgroundColor |
+`unity_component_crud` の `componentType` に指定する完全型名と主要プロパティ一覧。
+数値で示すenum値は `propertyChanges` でint指定可能。
+
+### Transform
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `Transform` | position, rotation, localScale, localPosition, localRotation |
+| `RectTransform` | anchoredPosition, sizeDelta, anchorMin, anchorMax, pivot, offsetMin, offsetMax |
+
+### Physics 2D
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.Rigidbody2D` | bodyType (0=Dynamic,1=Kinematic,2=Static), mass, linearDamping, angularDamping, gravityScale, constraints, collisionDetectionMode |
+| `UnityEngine.BoxCollider2D` | size, offset, isTrigger, usedByComposite |
+| `UnityEngine.CircleCollider2D` | radius, offset, isTrigger |
+| `UnityEngine.CapsuleCollider2D` | size, offset, direction (0=Vertical,1=Horizontal), isTrigger |
+| `UnityEngine.PolygonCollider2D` | points, offset, isTrigger |
+| `UnityEngine.EdgeCollider2D` | points, offset, edgeRadius, isTrigger |
+| `UnityEngine.CompositeCollider2D` | geometryType (0=Outlines,1=Polygons), generationType |
+
+### Physics 3D
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.Rigidbody` | mass, drag, angularDrag, useGravity, isKinematic, constraints, collisionDetectionMode |
+| `UnityEngine.BoxCollider` | center, size, isTrigger |
+| `UnityEngine.SphereCollider` | center, radius, isTrigger |
+| `UnityEngine.CapsuleCollider` | center, radius, height, direction (0=X,1=Y,2=Z), isTrigger |
+| `UnityEngine.MeshCollider` | convex, isTrigger, sharedMesh |
+| `UnityEngine.CharacterController` | center, radius, height, slopeLimit, stepOffset, skinWidth |
+
+### Rendering 2D
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.SpriteRenderer` | sprite, color, flipX, flipY, sortingLayerName, sortingOrder, drawMode, maskInteraction |
+| `UnityEngine.SpriteMask` | sprite, alphaCutoff, isCustomRangeActive |
+
+### Rendering 3D
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.MeshFilter` | sharedMesh |
+| `UnityEngine.MeshRenderer` | sharedMaterials, shadowCastingMode, receiveShadows, sortingLayerName, sortingOrder |
+| `UnityEngine.SkinnedMeshRenderer` | sharedMesh, sharedMaterials, rootBone, quality |
+| `UnityEngine.LineRenderer` | startWidth, endWidth, startColor, endColor, positionCount, useWorldSpace, loop |
+| `UnityEngine.TrailRenderer` | time, startWidth, endWidth, startColor, endColor, minVertexDistance |
+
+### Camera & Light
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.Camera` | fieldOfView, orthographic, orthographicSize, nearClipPlane, farClipPlane, clearFlags (1=Skybox,2=SolidColor,3=Depth,4=Nothing), backgroundColor, cullingMask, depth, targetTexture |
+| `UnityEngine.Light` | type (0=Spot,1=Directional,2=Point,3=Area), color, intensity, range, spotAngle, shadows (0=None,1=Hard,2=Soft) |
+
+### Audio
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.AudioSource` | clip, volume, pitch, loop, playOnAwake, spatialBlend (0=2D,1=3D), minDistance, maxDistance, outputAudioMixerGroup |
+| `UnityEngine.AudioListener` | _(プロパティ変更不要、シーンに1つ)_ |
+
+### Animation
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.Animator` | runtimeAnimatorController, avatar, applyRootMotion, updateMode (0=Normal,1=AnimatePhysics,2=UnscaledTime), cullingMode |
+
+### UI - Canvas構造
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.Canvas` | renderMode (0=ScreenSpaceOverlay,1=ScreenSpaceCamera,2=WorldSpace), sortingOrder, worldCamera, planeDistance |
+| `UnityEngine.CanvasScaler` | uiScaleMode (0=ConstantPixelSize,1=ScaleWithScreenSize,2=ConstantPhysicalSize), referenceResolution, screenMatchMode, matchWidthOrHeight |
+| `UnityEngine.UI.GraphicRaycaster` | ignoreReversedGraphics, blockingObjects |
+
+### UI - 表示要素
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.UI.Image` | sprite, color, type (0=Simple,1=Sliced,2=Tiled,3=Filled), fillAmount, preserveAspect, raycastTarget |
+| `UnityEngine.UI.RawImage` | texture, color, uvRect, raycastTarget |
+| `UnityEngine.UI.Text` | text, font, fontSize, fontStyle, alignment, color, raycastTarget _(レガシー、TMPro推奨)_ |
+| `TMPro.TextMeshProUGUI` | text, fontSize, fontStyle, alignment, color, enableAutoSizing, fontSizeMin, fontSizeMax, raycastTarget |
+
+### UI - 入力要素
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.UI.Button` | interactable, transition (0=None,1=ColorTint,2=SpriteSwap,3=Animation), colors, navigation |
+| `UnityEngine.UI.Toggle` | isOn, interactable, toggleTransition, group |
+| `UnityEngine.UI.Slider` | value, minValue, maxValue, wholeNumbers, direction (0=LeftToRight,1=RightToLeft,2=BottomToTop,3=TopToBottom), interactable |
+| `UnityEngine.UI.Dropdown` | value, options, interactable _(レガシー)_ |
+| `TMPro.TMP_Dropdown` | value, options, interactable |
+| `UnityEngine.UI.InputField` | text, characterLimit, contentType, lineType, interactable _(レガシー)_ |
+| `TMPro.TMP_InputField` | text, characterLimit, contentType, lineType, interactable |
+| `UnityEngine.UI.ScrollRect` | content, horizontal, vertical, movementType, elasticity, inertia, scrollSensitivity |
+| `UnityEngine.UI.Scrollbar` | value, size, numberOfSteps, direction |
+
+### UI - レイアウト
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.UI.HorizontalLayoutGroup` | spacing, padding, childAlignment, childForceExpandWidth, childForceExpandHeight, childControlWidth, childControlHeight |
+| `UnityEngine.UI.VerticalLayoutGroup` | spacing, padding, childAlignment, childForceExpandWidth, childForceExpandHeight, childControlWidth, childControlHeight |
+| `UnityEngine.UI.GridLayoutGroup` | cellSize, spacing, startCorner, startAxis, constraint, constraintCount, padding, childAlignment |
+| `UnityEngine.UI.ContentSizeFitter` | horizontalFit (0=Unconstrained,1=MinSize,2=PreferredSize), verticalFit |
+| `UnityEngine.UI.LayoutElement` | minWidth, minHeight, preferredWidth, preferredHeight, flexibleWidth, flexibleHeight, ignoreLayout |
+
+### UI - マスク
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.UI.Mask` | showMaskGraphic |
+| `UnityEngine.UI.RectMask2D` | padding, softness |
+
+### パーティクル
+
+| componentType | 備考 |
+|--------------|------|
+| `UnityEngine.ParticleSystem` | サブモジュール構造のため `unity_particle_bundle` 推奨 |
+
+### ナビゲーション (AI Pathfinding)
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.AI.NavMeshAgent` | speed, angularSpeed, acceleration, stoppingDistance, radius, height, avoidancePriority, areaMask |
+| `UnityEngine.AI.NavMeshObstacle` | shape (0=Capsule,1=Box), center, size, radius, height, carve, carvingMoveThreshold |
+
+### イベントシステム
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.EventSystems.EventSystem` | firstSelectedGameObject, sendNavigationEvents |
+| `UnityEngine.EventSystems.StandaloneInputModule` | horizontalAxis, verticalAxis, submitButton, cancelButton |
+
+### ビデオ
+
+| componentType | 主要プロパティ |
+|--------------|--------------|
+| `UnityEngine.Video.VideoPlayer` | source, url, clip, playOnAwake, isLooping, renderMode, targetCamera, audioOutputMode |
 
 ---
 
