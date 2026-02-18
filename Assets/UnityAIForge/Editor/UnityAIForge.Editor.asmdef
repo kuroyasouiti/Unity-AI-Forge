@@ -1,9 +1,7 @@
 {
     "name": "UnityAIForge.Editor",
     "rootNamespace": "MCP.Editor",
-    "references": [
-        "UnityAIForge.GameKit.Runtime"
-    ],
+    "references": [],
     "includePlatforms": [
         "Editor"
     ],

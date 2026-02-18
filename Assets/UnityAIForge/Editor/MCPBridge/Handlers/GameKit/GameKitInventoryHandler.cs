@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -12,6 +13,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Inventory handler: create and manage inventory systems.
+    /// Uses code generation to produce standalone Inventory and ItemData scripts with zero package dependency.
     /// Provides item definition, inventory creation, and item management without custom scripts.
     /// </summary>
     public class GameKitInventoryHandler : BaseCommandHandler
@@ -30,7 +32,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create" || operation == "defineItem";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -74,139 +77,226 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
 
-            var existingInventory = targetGo.GetComponent<GameKitInventory>();
+            // Check if already has an inventory component (by checking for inventoryId field)
+            var existingInventory = CodeGenHelper.FindComponentByField(targetGo, "inventoryId", null);
             if (existingInventory != null)
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitInventory component.");
+                throw new InvalidOperationException($"GameObject '{targetPath}' already has an Inventory component.");
             }
 
             var inventoryId = GetString(payload, "inventoryId") ?? $"Inventory_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var maxSlots = GetInt(payload, "maxSlots", 20);
+            var maxStackSize = GetInt(payload, "maxStackSize", 99);
 
             // Parse categories
-            List<string> categories = null;
+            var categoriesStr = "";
             if (payload.TryGetValue("categories", out var catObj) && catObj is List<object> catList)
             {
-                categories = catList.Select(c => c.ToString().ToLowerInvariant()).ToList();
+                var quoted = new List<string>();
+                foreach (var c in catList)
+                    quoted.Add($"\"{c.ToString().ToLowerInvariant()}\"");
+                categoriesStr = string.Join(", ", quoted);
             }
 
             // Parse stackable categories
-            List<string> stackableCategories = null;
+            var stackableCategoriesStr = "";
             if (payload.TryGetValue("stackableCategories", out var stackObj) && stackObj is List<object> stackList)
             {
-                stackableCategories = stackList.Select(s => s.ToString().ToLowerInvariant()).ToList();
+                var quoted = new List<string>();
+                foreach (var s in stackList)
+                    quoted.Add($"\"{s.ToString().ToLowerInvariant()}\"");
+                stackableCategoriesStr = string.Join(", ", quoted);
             }
 
-            var maxStackSize = GetInt(payload, "maxStackSize", 99);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(inventoryId, "Inventory");
 
-            // Create component
-            var inventory = Undo.AddComponent<GameKitInventory>(targetGo);
-            inventory.Initialize(inventoryId, maxSlots, categories, stackableCategories, maxStackSize);
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "INVENTORY_ID", inventoryId },
+                { "MAX_SLOTS", maxSlots },
+                { "DEFAULT_MAX_STACK", maxStackSize }
+            };
+
+            // Build properties to set after component is added (for list fields)
+            var propertiesToSet = new Dictionary<string, object>();
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Inventory", inventoryId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Inventory script.");
+            }
+
+            // If component was added, set list-type properties via SerializedObject
+            if (result.TryGetValue("componentAdded", out var added) && (bool)added)
+            {
+                var component = CodeGenHelper.FindComponentByField(targetGo, "inventoryId", inventoryId);
+                if (component != null)
+                {
+                    var so = new SerializedObject(component);
+
+                    if (payload.TryGetValue("categories", out var catObj2) && catObj2 is List<object> catList2)
+                    {
+                        var prop = so.FindProperty("allowedCategories");
+                        if (prop != null)
+                        {
+                            prop.ClearArray();
+                            foreach (var cat in catList2)
+                            {
+                                prop.InsertArrayElementAtIndex(prop.arraySize);
+                                prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = cat.ToString().ToLowerInvariant();
+                            }
+                        }
+                    }
+
+                    if (payload.TryGetValue("stackableCategories", out var stackObj2) && stackObj2 is List<object> stackList2)
+                    {
+                        var prop = so.FindProperty("stackableCategories");
+                        if (prop != null)
+                        {
+                            prop.ClearArray();
+                            foreach (var stack in stackList2)
+                            {
+                                prop.InsertArrayElementAtIndex(prop.arraySize);
+                                prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = stack.ToString().ToLowerInvariant();
+                            }
+                        }
+                    }
+
+                    so.ApplyModifiedProperties();
+                }
+            }
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("inventoryId", inventoryId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("maxSlots", maxSlots),
-                ("categories", categories ?? new List<string>()),
-                ("stackableCategories", stackableCategories ?? new List<string>())
-            );
+            result["inventoryId"] = inventoryId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["maxSlots"] = maxSlots;
+
+            return result;
         }
 
         private object UpdateInventory(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
 
-            Undo.RecordObject(inventory, "Update GameKitInventory");
+            Undo.RecordObject(component, "Update Inventory");
 
-            var serialized = new SerializedObject(inventory);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("maxSlots", out var slotsObj))
             {
-                serialized.FindProperty("maxSlots").intValue = Convert.ToInt32(slotsObj);
+                so.FindProperty("maxSlots").intValue = Convert.ToInt32(slotsObj);
             }
 
             if (payload.TryGetValue("categories", out var catObj) && catObj is List<object> catList)
             {
-                var prop = serialized.FindProperty("allowedCategories");
-                prop.ClearArray();
-                foreach (var cat in catList)
+                var prop = so.FindProperty("allowedCategories");
+                if (prop != null)
                 {
-                    prop.InsertArrayElementAtIndex(prop.arraySize);
-                    prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = cat.ToString().ToLowerInvariant();
+                    prop.ClearArray();
+                    foreach (var cat in catList)
+                    {
+                        prop.InsertArrayElementAtIndex(prop.arraySize);
+                        prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = cat.ToString().ToLowerInvariant();
+                    }
                 }
             }
 
             if (payload.TryGetValue("stackableCategories", out var stackObj) && stackObj is List<object> stackList)
             {
-                var prop = serialized.FindProperty("stackableCategories");
-                prop.ClearArray();
-                foreach (var stack in stackList)
+                var prop = so.FindProperty("stackableCategories");
+                if (prop != null)
                 {
-                    prop.InsertArrayElementAtIndex(prop.arraySize);
-                    prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = stack.ToString().ToLowerInvariant();
+                    prop.ClearArray();
+                    foreach (var stack in stackList)
+                    {
+                        prop.InsertArrayElementAtIndex(prop.arraySize);
+                        prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = stack.ToString().ToLowerInvariant();
+                    }
                 }
             }
 
             if (payload.TryGetValue("maxStackSize", out var maxStackObj))
             {
-                serialized.FindProperty("defaultMaxStack").intValue = Convert.ToInt32(maxStackObj);
+                so.FindProperty("defaultMaxStack").intValue = Convert.ToInt32(maxStackObj);
             }
 
-            serialized.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var inventoryId = new SerializedObject(component).FindProperty("inventoryId").stringValue;
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
+                ("inventoryId", inventoryId),
                 ("updated", true)
             );
         }
 
         private object InspectInventory(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
+            var component = ResolveInventory(payload);
+            var so = new SerializedObject(component);
+
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
+            var maxSlots = so.FindProperty("maxSlots").intValue;
+
+            // Read slots via SerializedObject
+            var slots = new List<object>();
+            var slotsProp = so.FindProperty("slots");
+            if (slotsProp != null)
             {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
+                for (int i = 0; i < slotsProp.arraySize; i++)
+                {
+                    var slot = slotsProp.GetArrayElementAtIndex(i);
+                    var itemId = slot.FindPropertyRelative("itemId").stringValue;
+                    if (!string.IsNullOrEmpty(itemId))
+                    {
+                        slots.Add(new Dictionary<string, object>
+                        {
+                            { "slotIndex", i },
+                            { "itemId", itemId },
+                            { "quantity", slot.FindPropertyRelative("quantity").intValue },
+                            { "displayName", slot.FindPropertyRelative("displayName").stringValue }
+                        });
+                    }
+                }
             }
 
-            var slots = new List<object>();
-            foreach (var slot in inventory.Slots)
+            // Read equipped items via SerializedObject
+            var equipped = new List<object>();
+            var equippedProp = so.FindProperty("equippedItems");
+            if (equippedProp != null)
             {
-                if (!slot.IsEmpty)
+                for (int i = 0; i < equippedProp.arraySize; i++)
                 {
-                    slots.Add(new Dictionary<string, object>
+                    var item = equippedProp.GetArrayElementAtIndex(i);
+                    equipped.Add(new Dictionary<string, object>
                     {
-                        { "itemId", slot.ItemId },
-                        { "quantity", slot.Quantity },
-                        { "displayName", slot.ItemAsset?.DisplayName ?? "" }
+                        { "equipSlot", item.FindPropertyRelative("equipSlot").stringValue },
+                        { "itemId", item.FindPropertyRelative("itemId").stringValue },
+                        { "displayName", item.FindPropertyRelative("displayName").stringValue }
                     });
                 }
             }
 
-            var equipped = new List<object>();
-            foreach (var item in inventory.EquippedItems)
-            {
-                equipped.Add(new Dictionary<string, object>
-                {
-                    { "equipSlot", item.EquipSlot },
-                    { "itemId", item.ItemId },
-                    { "displayName", item.ItemAsset?.DisplayName ?? "" }
-                });
-            }
+            var usedSlots = slots.Count;
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
-                ("path", BuildGameObjectPath(inventory.gameObject)),
-                ("maxSlots", inventory.MaxSlots),
-                ("usedSlots", inventory.UsedSlots),
-                ("freeSlots", inventory.FreeSlots),
-                ("isFull", inventory.IsFull),
+                ("inventoryId", inventoryId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("maxSlots", maxSlots),
+                ("usedSlots", usedSlots),
+                ("freeSlots", maxSlots - usedSlots),
+                ("isFull", usedSlots >= maxSlots),
                 ("slots", slots),
                 ("equipped", equipped)
             );
@@ -214,17 +304,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteInventory(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var inventoryId = new SerializedObject(component).FindProperty("inventoryId").stringValue;
+            var scene = component.gameObject.scene;
 
-            var path = BuildGameObjectPath(inventory.gameObject);
-            var inventoryId = inventory.InventoryId;
-            var scene = inventory.gameObject.scene;
+            Undo.DestroyObjectImmediate(component);
 
-            Undo.DestroyObjectImmediate(inventory);
+            // Clean up generated script from tracker
+            ScriptGenerator.Delete(inventoryId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -258,27 +347,12 @@ namespace MCP.Editor.Handlers.GameKit
                 Directory.CreateDirectory(directory);
             }
 
-            var existingAsset = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(assetPath);
+            // Check for existing asset at the specified path
+            var existingAsset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
             if (existingAsset != null)
             {
                 throw new InvalidOperationException($"Item asset already exists at: {assetPath}");
             }
-
-            // Check for any existing asset with the same itemId (at any path) and delete it
-            // This prevents stale assets from interfering with FindItemAssetById
-            var existingGuids = AssetDatabase.FindAssets("t:GameKitItemAsset");
-            foreach (var guid in existingGuids)
-            {
-                var existingPath = AssetDatabase.GUIDToAssetPath(guid);
-                var existingItem = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(existingPath);
-                if (existingItem != null && existingItem.ItemId == itemId)
-                {
-                    AssetDatabase.DeleteAsset(existingPath);
-                }
-            }
-
-            // Create ScriptableObject instance
-            var item = ScriptableObject.CreateInstance<GameKitItemAsset>();
 
             // Get basic properties
             string displayName, description, categoryStr;
@@ -300,48 +374,117 @@ namespace MCP.Editor.Handlers.GameKit
 
             var category = ParseItemCategory(categoryStr);
 
-            // Initialize basic properties on the in-memory instance BEFORE CreateAsset
-            item.Initialize(itemId, displayName, description, category);
-
-            // Set stacking properties BEFORE CreateAsset
+            // Stacking
+            bool stackable = false;
+            int maxStack = 1;
             if (itemData != null && itemData.TryGetValue("stackable", out var stackableObj))
             {
-                bool isStackable = Convert.ToBoolean(stackableObj);
-                int maxStack = itemData.TryGetValue("maxStack", out var maxStackObj) ? Convert.ToInt32(maxStackObj) : 99;
-                item.SetStacking(isStackable, maxStack);
+                stackable = Convert.ToBoolean(stackableObj);
+                maxStack = itemData.TryGetValue("maxStack", out var maxStackObj) ? Convert.ToInt32(maxStackObj) : 99;
             }
 
-            // Set prices BEFORE CreateAsset
+            // Prices
+            int buyPrice = 0;
+            int sellPrice = 0;
             if (itemData != null)
             {
-                int buyPrice = itemData.TryGetValue("buyPrice", out var buyObj) ? Convert.ToInt32(buyObj) : 0;
-                int sellPrice = itemData.TryGetValue("sellPrice", out var sellObj) ? Convert.ToInt32(sellObj) : 0;
-                item.SetPrices(buyPrice, sellPrice);
+                buyPrice = itemData.TryGetValue("buyPrice", out var buyObj) ? Convert.ToInt32(buyObj) : 0;
+                sellPrice = itemData.TryGetValue("sellPrice", out var sellObj) ? Convert.ToInt32(sellObj) : 0;
             }
 
-            // Now create the asset with fully configured instance
-            AssetDatabase.CreateAsset(item, assetPath);
-
-            // Use SerializedObject for equipment and use action (complex nested types)
-            if (itemData != null)
+            // Equipment
+            bool equippable = false;
+            string equipSlot = "None";
+            if (itemData != null && itemData.TryGetValue("equippable", out var equipObj) && Convert.ToBoolean(equipObj))
             {
+                equippable = true;
+                equipSlot = ParseEquipmentSlot(GetStringFromDict(itemData, "equipSlot", "none"));
+            }
+
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(itemId, "ItemData");
+
+            // Build template variables for ItemData
+            var variables = new Dictionary<string, object>
+            {
+                { "ITEM_ID", itemId },
+                { "DISPLAY_NAME", displayName },
+                { "DESCRIPTION", description },
+                { "CATEGORY", category },
+                { "STACKABLE", stackable.ToString().ToLowerInvariant() },
+                { "MAX_STACK", maxStack },
+                { "EQUIPPABLE", equippable.ToString().ToLowerInvariant() },
+                { "EQUIP_SLOT", equipSlot },
+                { "BUY_PRICE", buyPrice },
+                { "SELL_PRICE", sellPrice }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate the ItemData script (ScriptableObject - no GameObject target)
+            var genResult = ScriptGenerator.Generate(null, "ItemData", className, itemId, variables, outputDir);
+            if (!genResult.Success)
+            {
+                throw new InvalidOperationException(genResult.ErrorMessage ?? "Failed to generate ItemData script.");
+            }
+
+            // Try to create the asset if the type is already compiled
+            var itemType = ScriptGenerator.ResolveGeneratedType(className);
+            if (itemType != null)
+            {
+                // Delete any existing assets with the same itemId
+                DeleteExistingItemAssets(itemId);
+
+                var item = ScriptableObject.CreateInstance(itemType);
+
+                // Set fields via SerializedObject
                 var serializedObject = new SerializedObject(item);
-                bool needsApply = false;
+                serializedObject.FindProperty("itemId").stringValue = itemId;
+                serializedObject.FindProperty("displayName").stringValue = displayName;
+                serializedObject.FindProperty("description").stringValue = description;
 
-                // Equipment
-                if (itemData.TryGetValue("equippable", out var equipObj) && Convert.ToBoolean(equipObj))
+                // Set category enum
+                var categoryProp = serializedObject.FindProperty("category");
+                if (categoryProp != null)
                 {
-                    serializedObject.FindProperty("equippable").boolValue = true;
-                    if (itemData.TryGetValue("equipSlot", out var slotObj))
+                    var names = categoryProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
                     {
-                        var equipSlot = ParseEquipmentSlot(slotObj.ToString());
-                        serializedObject.FindProperty("equipSlot").enumValueIndex = (int)equipSlot;
+                        if (string.Equals(names[i], category, StringComparison.OrdinalIgnoreCase))
+                        {
+                            categoryProp.enumValueIndex = i;
+                            break;
+                        }
                     }
+                }
 
-                    // Equipment stats
-                    if (itemData.TryGetValue("equipStats", out var statsObj) && statsObj is List<object> statsList)
+                serializedObject.FindProperty("stackable").boolValue = stackable;
+                serializedObject.FindProperty("maxStack").intValue = maxStack;
+                serializedObject.FindProperty("buyPrice").intValue = buyPrice;
+                serializedObject.FindProperty("sellPrice").intValue = sellPrice;
+                serializedObject.FindProperty("equippable").boolValue = equippable;
+
+                // Set equipSlot enum
+                var equipSlotProp = serializedObject.FindProperty("equipSlot");
+                if (equipSlotProp != null)
+                {
+                    var names = equipSlotProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
                     {
-                        var statsProp = serializedObject.FindProperty("equipStats");
+                        if (string.Equals(names[i], equipSlot, StringComparison.OrdinalIgnoreCase))
+                        {
+                            equipSlotProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                // Equipment stats
+                if (equippable && itemData != null && itemData.TryGetValue("equipStats", out var statsObj) && statsObj is List<object> statsList)
+                {
+                    var statsProp = serializedObject.FindProperty("equipStats");
+                    if (statsProp != null)
+                    {
                         statsProp.ClearArray();
                         foreach (var statObj in statsList)
                         {
@@ -350,71 +493,129 @@ namespace MCP.Editor.Handlers.GameKit
                                 statsProp.InsertArrayElementAtIndex(statsProp.arraySize);
                                 var elem = statsProp.GetArrayElementAtIndex(statsProp.arraySize - 1);
                                 elem.FindPropertyRelative("statName").stringValue = GetStringFromDict(statDict, "statName", "");
-                                elem.FindPropertyRelative("modifierType").enumValueIndex = (int)ParseModifierType(GetStringFromDict(statDict, "modifierType", "flat"));
-                                elem.FindPropertyRelative("value").floatValue = statDict.TryGetValue("value", out var valObj) ? Convert.ToSingle(valObj) : 0;
+
+                                var modTypeProp = elem.FindPropertyRelative("modifierType");
+                                if (modTypeProp != null)
+                                {
+                                    var modType = ParseModifierType(GetStringFromDict(statDict, "modifierType", "flat"));
+                                    var modNames = modTypeProp.enumDisplayNames;
+                                    for (int i = 0; i < modNames.Length; i++)
+                                    {
+                                        if (string.Equals(modNames[i], modType, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            modTypeProp.enumValueIndex = i;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                elem.FindPropertyRelative("value").floatValue =
+                                    statDict.TryGetValue("value", out var valObj) ? Convert.ToSingle(valObj) : 0;
                             }
                         }
                     }
-                    needsApply = true;
                 }
 
                 // Use action
-                if (itemData.TryGetValue("onUse", out var useObj) && useObj is Dictionary<string, object> useData)
+                if (itemData != null && itemData.TryGetValue("onUse", out var useObj) && useObj is Dictionary<string, object> useData)
                 {
                     var onUseProp = serializedObject.FindProperty("onUse");
-                    if (useData.TryGetValue("type", out var typeObj))
+                    if (onUseProp != null)
                     {
-                        var useType = ParseUseActionType(typeObj.ToString());
-                        onUseProp.FindPropertyRelative("type").enumValueIndex = (int)useType;
+                        if (useData.TryGetValue("type", out var typeObj))
+                        {
+                            var useType = ParseUseActionType(typeObj.ToString());
+                            var typeProp = onUseProp.FindPropertyRelative("type");
+                            if (typeProp != null)
+                            {
+                                var typeNames = typeProp.enumDisplayNames;
+                                for (int i = 0; i < typeNames.Length; i++)
+                                {
+                                    if (string.Equals(typeNames[i], useType, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        typeProp.enumValueIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (useData.TryGetValue("amount", out var amountObj))
+                        {
+                            var amountProp = onUseProp.FindPropertyRelative("amount");
+                            if (amountProp != null)
+                                amountProp.floatValue = Convert.ToSingle(amountObj);
+                        }
+                        if (useData.TryGetValue("resourceName", out var rnObj))
+                        {
+                            var rnProp = onUseProp.FindPropertyRelative("resourceName");
+                            if (rnProp != null)
+                                rnProp.stringValue = rnObj.ToString();
+                        }
+                        if (useData.TryGetValue("effectId", out var efIdObj))
+                        {
+                            var efProp = onUseProp.FindPropertyRelative("effectId");
+                            if (efProp != null)
+                                efProp.stringValue = efIdObj.ToString();
+                        }
+                        if (useData.TryGetValue("customEventName", out var ceObj))
+                        {
+                            var ceProp = onUseProp.FindPropertyRelative("customEventName");
+                            if (ceProp != null)
+                                ceProp.stringValue = ceObj.ToString();
+                        }
+                        if (useData.TryGetValue("consumeOnUse", out var consumeObj))
+                        {
+                            var consumeProp = onUseProp.FindPropertyRelative("consumeOnUse");
+                            if (consumeProp != null)
+                                consumeProp.boolValue = Convert.ToBoolean(consumeObj);
+                        }
                     }
-                    if (useData.TryGetValue("amount", out var amountObj))
-                    {
-                        onUseProp.FindPropertyRelative("healAmount").floatValue = Convert.ToSingle(amountObj);
-                        onUseProp.FindPropertyRelative("resourceAmount").floatValue = Convert.ToSingle(amountObj);
-                    }
-                    if (useData.TryGetValue("healthId", out var healthIdObj))
-                    {
-                        onUseProp.FindPropertyRelative("healthId").stringValue = healthIdObj.ToString();
-                    }
-                    if (useData.TryGetValue("consumeOnUse", out var consumeObj))
-                    {
-                        onUseProp.FindPropertyRelative("consumeOnUse").boolValue = Convert.ToBoolean(consumeObj);
-                    }
-                    needsApply = true;
                 }
 
-                if (needsApply)
-                {
-                    serializedObject.ApplyModifiedPropertiesWithoutUndo();
-                }
+                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+
+                // Create the asset on disk
+                AssetDatabase.CreateAsset(item, assetPath);
+                EditorUtility.SetDirty(item);
+                AssetDatabase.SaveAssets();
+
+                // Force reserialize to ensure binary data is written to disk
+                AssetDatabase.ForceReserializeAssets(
+                    new[] { assetPath },
+                    ForceReserializeAssetsOptions.ReserializeAssetsAndMetadata
+                );
+
+                AssetDatabase.ReleaseCachedFileHandles();
+                AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+                AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+
+                // Reload the asset fresh from disk
+                var savedItem = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+                var savedSo = savedItem != null ? new SerializedObject(savedItem) : null;
+
+                return CreateSuccessResponse(
+                    ("itemId", itemId),
+                    ("assetPath", assetPath),
+                    ("scriptPath", genResult.ScriptPath),
+                    ("className", genResult.ClassName),
+                    ("displayName", savedSo?.FindProperty("displayName")?.stringValue ?? displayName),
+                    ("stackable", savedSo?.FindProperty("stackable")?.boolValue ?? stackable),
+                    ("maxStack", savedSo?.FindProperty("maxStack")?.intValue ?? maxStack),
+                    ("compilationRequired", false)
+                );
             }
 
-            // Mark dirty and save to disk
-            EditorUtility.SetDirty(item);
-            AssetDatabase.SaveAssets();
-
-            // Force reserialize to ensure binary data is written to disk
-            AssetDatabase.ForceReserializeAssets(
-                new[] { assetPath },
-                ForceReserializeAssetsOptions.ReserializeAssetsAndMetadata
-            );
-
-            // Release cached file handles and refresh asset database
-            AssetDatabase.ReleaseCachedFileHandles();
-            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
-
-            // Force reimport to ensure disk state is loaded fresh
-            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
-
-            // Reload the asset fresh from disk
-            var savedItem = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(assetPath);
-
+            // Type not yet compiled -- asset creation will happen after recompilation
             return CreateSuccessResponse(
                 ("itemId", itemId),
                 ("assetPath", assetPath),
-                ("displayName", savedItem?.DisplayName ?? itemId),
-                ("stackable", savedItem?.Stackable ?? false),
-                ("maxStack", savedItem?.MaxStack ?? 1)
+                ("scriptPath", genResult.ScriptPath),
+                ("className", genResult.ClassName),
+                ("displayName", displayName),
+                ("stackable", stackable),
+                ("maxStack", maxStack),
+                ("compilationRequired", true),
+                ("note", "ItemData script generated. Create the asset after Unity recompiles.")
             );
         }
 
@@ -430,14 +631,16 @@ namespace MCP.Editor.Handlers.GameKit
 
             if (payload.TryGetValue("itemData", out var dataObj) && dataObj is Dictionary<string, object> itemData)
             {
-                ConfigureItemAsset(item, item.ItemId, itemData);
+                ConfigureItemAssetSerialized(item, itemData);
             }
 
             EditorUtility.SetDirty(item);
             AssetDatabase.SaveAssets();
 
+            var itemIdValue = new SerializedObject(item).FindProperty("itemId").stringValue;
+
             return CreateSuccessResponse(
-                ("itemId", item.ItemId),
+                ("itemId", itemIdValue),
                 ("updated", true)
             );
         }
@@ -450,30 +653,52 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("Could not find item asset.");
             }
 
+            var so = new SerializedObject(item);
+
             var equipStats = new List<object>();
-            foreach (var stat in item.EquipStats)
+            var statsProp = so.FindProperty("equipStats");
+            if (statsProp != null)
             {
-                equipStats.Add(new Dictionary<string, object>
+                for (int i = 0; i < statsProp.arraySize; i++)
                 {
-                    { "statName", stat.statName },
-                    { "modifierType", stat.modifierType.ToString() },
-                    { "value", stat.value }
-                });
+                    var elem = statsProp.GetArrayElementAtIndex(i);
+                    var modTypeProp = elem.FindPropertyRelative("modifierType");
+                    var modTypeStr = modTypeProp.enumValueIndex < modTypeProp.enumDisplayNames.Length
+                        ? modTypeProp.enumDisplayNames[modTypeProp.enumValueIndex]
+                        : "Flat";
+
+                    equipStats.Add(new Dictionary<string, object>
+                    {
+                        { "statName", elem.FindPropertyRelative("statName").stringValue },
+                        { "modifierType", modTypeStr },
+                        { "value", elem.FindPropertyRelative("value").floatValue }
+                    });
+                }
             }
 
+            var categoryProp = so.FindProperty("category");
+            var categoryStr = categoryProp.enumValueIndex < categoryProp.enumDisplayNames.Length
+                ? categoryProp.enumDisplayNames[categoryProp.enumValueIndex]
+                : "Misc";
+
+            var equipSlotProp = so.FindProperty("equipSlot");
+            var equipSlotStr = equipSlotProp.enumValueIndex < equipSlotProp.enumDisplayNames.Length
+                ? equipSlotProp.enumDisplayNames[equipSlotProp.enumValueIndex]
+                : "None";
+
             return CreateSuccessResponse(
-                ("itemId", item.ItemId),
+                ("itemId", so.FindProperty("itemId").stringValue),
                 ("assetPath", AssetDatabase.GetAssetPath(item)),
-                ("displayName", item.DisplayName),
-                ("description", item.Description),
-                ("category", item.Category.ToString()),
-                ("stackable", item.Stackable),
-                ("maxStack", item.MaxStack),
-                ("equippable", item.Equippable),
-                ("equipSlot", item.EquipSlot.ToString()),
+                ("displayName", so.FindProperty("displayName").stringValue),
+                ("description", so.FindProperty("description").stringValue),
+                ("category", categoryStr),
+                ("stackable", so.FindProperty("stackable").boolValue),
+                ("maxStack", so.FindProperty("maxStack").intValue),
+                ("equippable", so.FindProperty("equippable").boolValue),
+                ("equipSlot", equipSlotStr),
                 ("equipStats", equipStats),
-                ("buyPrice", item.BuyPrice),
-                ("sellPrice", item.SellPrice)
+                ("buyPrice", so.FindProperty("buyPrice").intValue),
+                ("sellPrice", so.FindProperty("sellPrice").intValue)
             );
         }
 
@@ -486,9 +711,12 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             var assetPath = AssetDatabase.GetAssetPath(item);
-            var itemId = item.ItemId;
+            var itemId = new SerializedObject(item).FindProperty("itemId").stringValue;
 
             AssetDatabase.DeleteAsset(assetPath);
+
+            // Clean up generated script from tracker
+            ScriptGenerator.Delete(itemId);
 
             return CreateSuccessResponse(
                 ("itemId", itemId),
@@ -503,11 +731,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object AddItem(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
 
             var itemId = GetString(payload, "itemId");
             if (string.IsNullOrEmpty(itemId))
@@ -526,26 +750,133 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"Item asset not found: {itemId}");
             }
 
-            Undo.RecordObject(inventory, "Add Item");
-            var added = inventory.AddItem(item, quantity);
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            // Read item data from the ScriptableObject asset
+            var itemSo = new SerializedObject(item);
+            var displayName = itemSo.FindProperty("displayName").stringValue;
+            var category = "";
+            var categoryProp = itemSo.FindProperty("category");
+            if (categoryProp != null)
+            {
+                category = categoryProp.enumValueIndex < categoryProp.enumDisplayNames.Length
+                    ? categoryProp.enumDisplayNames[categoryProp.enumValueIndex].ToLowerInvariant()
+                    : "misc";
+            }
+            var stackable = itemSo.FindProperty("stackable").boolValue;
+            var maxStack = itemSo.FindProperty("maxStack").intValue;
+
+            // Try to call AddItem via reflection on the inventory component
+            Undo.RecordObject(component, "Add Item");
+
+            var addMethod = component.GetType().GetMethod("AddItem",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                new[] { typeof(string), typeof(string), typeof(string), typeof(int), typeof(bool), typeof(int), typeof(string) },
+                null);
+
+            if (addMethod != null)
+            {
+                var added = (bool)addMethod.Invoke(component, new object[] { itemId, displayName, category, quantity, stackable, maxStack, null });
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+                var invSo = new SerializedObject(component);
+                var inventoryId = invSo.FindProperty("inventoryId").stringValue;
+
+                return CreateSuccessResponse(
+                    ("inventoryId", inventoryId),
+                    ("itemId", itemId),
+                    ("requested", quantity),
+                    ("added", added ? quantity : 0),
+                    ("remaining", added ? 0 : quantity)
+                );
+            }
+
+            // Fallback: directly manipulate serialized slots
+            return AddItemViaSerializedObject(component, itemId, displayName, category, quantity, stackable, maxStack);
+        }
+
+        private object AddItemViaSerializedObject(Component component, string itemId, string displayName,
+            string category, int quantity, bool stackable, int maxStack)
+        {
+            var so = new SerializedObject(component);
+            var slotsProp = so.FindProperty("slots");
+            var maxSlots = so.FindProperty("maxSlots").intValue;
+            var defaultMaxStack = so.FindProperty("defaultMaxStack").intValue;
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
+
+            int ms = maxStack > 0 ? maxStack : defaultMaxStack;
+            int remaining = quantity;
+
+            // Ensure we have enough slot entries
+            while (slotsProp.arraySize < maxSlots)
+            {
+                slotsProp.InsertArrayElementAtIndex(slotsProp.arraySize);
+                var newSlot = slotsProp.GetArrayElementAtIndex(slotsProp.arraySize - 1);
+                newSlot.FindPropertyRelative("itemId").stringValue = "";
+                newSlot.FindPropertyRelative("quantity").intValue = 0;
+            }
+
+            // Try to stack into existing slots
+            if (stackable)
+            {
+                for (int i = 0; i < slotsProp.arraySize && remaining > 0; i++)
+                {
+                    var slot = slotsProp.GetArrayElementAtIndex(i);
+                    var slotItemId = slot.FindPropertyRelative("itemId").stringValue;
+                    var slotQty = slot.FindPropertyRelative("quantity").intValue;
+                    if (slotItemId == itemId && slotQty < ms)
+                    {
+                        int canAdd = Mathf.Min(remaining, ms - slotQty);
+                        slot.FindPropertyRelative("quantity").intValue = slotQty + canAdd;
+                        remaining -= canAdd;
+                    }
+                }
+            }
+
+            // Fill empty slots
+            while (remaining > 0)
+            {
+                int emptyIdx = -1;
+                for (int i = 0; i < slotsProp.arraySize; i++)
+                {
+                    var slot = slotsProp.GetArrayElementAtIndex(i);
+                    var slotItemId = slot.FindPropertyRelative("itemId").stringValue;
+                    if (string.IsNullOrEmpty(slotItemId))
+                    {
+                        emptyIdx = i;
+                        break;
+                    }
+                }
+
+                if (emptyIdx < 0) break; // inventory full
+
+                var emptySlot = slotsProp.GetArrayElementAtIndex(emptyIdx);
+                int toAdd = stackable ? Mathf.Min(remaining, ms) : 1;
+                emptySlot.FindPropertyRelative("itemId").stringValue = itemId;
+                emptySlot.FindPropertyRelative("displayName").stringValue = displayName;
+                emptySlot.FindPropertyRelative("category").stringValue = category;
+                emptySlot.FindPropertyRelative("quantity").intValue = toAdd;
+                emptySlot.FindPropertyRelative("stackable").boolValue = stackable;
+                emptySlot.FindPropertyRelative("maxStack").intValue = ms;
+                remaining -= toAdd;
+            }
+
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            int added = quantity - remaining;
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
+                ("inventoryId", inventoryId),
                 ("itemId", itemId),
                 ("requested", quantity),
                 ("added", added),
-                ("remaining", quantity - added)
+                ("remaining", remaining)
             );
         }
 
         private object RemoveItem(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
 
             var itemId = GetString(payload, "itemId");
             if (string.IsNullOrEmpty(itemId))
@@ -555,25 +886,72 @@ namespace MCP.Editor.Handlers.GameKit
 
             var quantity = GetInt(payload, "quantity", 1);
 
-            Undo.RecordObject(inventory, "Remove Item");
-            var removed = inventory.RemoveItem(itemId, quantity);
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            Undo.RecordObject(component, "Remove Item");
+
+            // Try via reflection
+            var removeMethod = component.GetType().GetMethod("RemoveItem",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                new[] { typeof(string), typeof(int) },
+                null);
+
+            if (removeMethod != null)
+            {
+                var removed = (bool)removeMethod.Invoke(component, new object[] { itemId, quantity });
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+                var invSo = new SerializedObject(component);
+                var inventoryId = invSo.FindProperty("inventoryId").stringValue;
+
+                return CreateSuccessResponse(
+                    ("inventoryId", inventoryId),
+                    ("itemId", itemId),
+                    ("requested", quantity),
+                    ("removed", removed ? quantity : 0)
+                );
+            }
+
+            // Fallback: remove via SerializedObject
+            return RemoveItemViaSerializedObject(component, itemId, quantity);
+        }
+
+        private object RemoveItemViaSerializedObject(Component component, string itemId, int quantity)
+        {
+            var so = new SerializedObject(component);
+            var slotsProp = so.FindProperty("slots");
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
+            int remaining = quantity;
+
+            for (int i = slotsProp.arraySize - 1; i >= 0 && remaining > 0; i--)
+            {
+                var slot = slotsProp.GetArrayElementAtIndex(i);
+                if (slot.FindPropertyRelative("itemId").stringValue != itemId) continue;
+
+                int slotQty = slot.FindPropertyRelative("quantity").intValue;
+                int toRemove = Mathf.Min(remaining, slotQty);
+                slot.FindPropertyRelative("quantity").intValue = slotQty - toRemove;
+                remaining -= toRemove;
+
+                if (slotQty - toRemove <= 0)
+                {
+                    ClearSlotProperties(slot);
+                }
+            }
+
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
+                ("inventoryId", inventoryId),
                 ("itemId", itemId),
                 ("requested", quantity),
-                ("removed", removed)
+                ("removed", quantity - remaining)
             );
         }
 
         private object UseItem(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
 
             var slotIndex = GetInt(payload, "slotIndex", -1);
             if (slotIndex < 0)
@@ -581,9 +959,21 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("slotIndex is required to use an item.");
             }
 
-            // Note: Using items in editor mode has limited functionality
-            var slot = inventory.GetSlot(slotIndex);
-            if (slot == null || slot.IsEmpty)
+            var so = new SerializedObject(component);
+            var slotsProp = so.FindProperty("slots");
+
+            if (slotIndex >= slotsProp.arraySize)
+            {
+                return CreateSuccessResponse(
+                    ("used", false),
+                    ("reason", "Slot index out of range")
+                );
+            }
+
+            var slot = slotsProp.GetArrayElementAtIndex(slotIndex);
+            var slotItemId = slot.FindPropertyRelative("itemId").stringValue;
+
+            if (string.IsNullOrEmpty(slotItemId))
             {
                 return CreateSuccessResponse(
                     ("used", false),
@@ -595,17 +985,13 @@ namespace MCP.Editor.Handlers.GameKit
                 ("used", false),
                 ("note", "Item use actions are executed in play mode only."),
                 ("slotIndex", slotIndex),
-                ("itemId", slot.ItemId)
+                ("itemId", slotItemId)
             );
         }
 
         private object Equip(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
 
             var slotIndex = GetInt(payload, "slotIndex", -1);
             if (slotIndex < 0)
@@ -615,15 +1001,90 @@ namespace MCP.Editor.Handlers.GameKit
 
             var equipSlot = GetString(payload, "equipSlot");
 
-            Undo.RecordObject(inventory, "Equip Item");
-            var success = inventory.Equip(slotIndex, equipSlot);
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            Undo.RecordObject(component, "Equip Item");
 
-            var slot = inventory.GetSlot(slotIndex);
+            // Try via reflection
+            var equipMethod = component.GetType().GetMethod("Equip",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                new[] { typeof(int), typeof(string) },
+                null);
+
+            if (equipMethod != null)
+            {
+                var success = (bool)equipMethod.Invoke(component, new object[] { slotIndex, equipSlot });
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+                var invSo = new SerializedObject(component);
+                return CreateSuccessResponse(
+                    ("inventoryId", invSo.FindProperty("inventoryId").stringValue),
+                    ("equipped", success),
+                    ("slotIndex", slotIndex),
+                    ("equipSlot", equipSlot ?? "default")
+                );
+            }
+
+            // Fallback: equip via SerializedObject
+            return EquipViaSerializedObject(component, slotIndex, equipSlot);
+        }
+
+        private object EquipViaSerializedObject(Component component, int slotIndex, string equipSlot)
+        {
+            var so = new SerializedObject(component);
+            var slotsProp = so.FindProperty("slots");
+            var equippedProp = so.FindProperty("equippedItems");
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
+
+            if (slotIndex >= slotsProp.arraySize)
+            {
+                return CreateSuccessResponse(
+                    ("inventoryId", inventoryId),
+                    ("equipped", false),
+                    ("reason", "Slot index out of range")
+                );
+            }
+
+            var slot = slotsProp.GetArrayElementAtIndex(slotIndex);
+            var slotItemId = slot.FindPropertyRelative("itemId").stringValue;
+            if (string.IsNullOrEmpty(slotItemId))
+            {
+                return CreateSuccessResponse(
+                    ("inventoryId", inventoryId),
+                    ("equipped", false),
+                    ("reason", "Slot is empty")
+                );
+            }
+
+            // Unequip any existing item in that slot
+            if (equippedProp != null && !string.IsNullOrEmpty(equipSlot))
+            {
+                for (int i = equippedProp.arraySize - 1; i >= 0; i--)
+                {
+                    var existing = equippedProp.GetArrayElementAtIndex(i);
+                    if (existing.FindPropertyRelative("equipSlot").stringValue == equipSlot)
+                    {
+                        equippedProp.DeleteArrayElementAtIndex(i);
+                    }
+                }
+            }
+
+            // Add new equipped entry
+            if (equippedProp != null)
+            {
+                equippedProp.InsertArrayElementAtIndex(equippedProp.arraySize);
+                var newEntry = equippedProp.GetArrayElementAtIndex(equippedProp.arraySize - 1);
+                newEntry.FindPropertyRelative("equipSlot").stringValue = equipSlot ?? "default";
+                newEntry.FindPropertyRelative("itemId").stringValue = slotItemId;
+                newEntry.FindPropertyRelative("displayName").stringValue =
+                    slot.FindPropertyRelative("displayName").stringValue;
+            }
+
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
-                ("equipped", success),
+                ("inventoryId", inventoryId),
+                ("equipped", true),
                 ("slotIndex", slotIndex),
                 ("equipSlot", equipSlot ?? "default")
             );
@@ -631,11 +1092,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object Unequip(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
 
             var equipSlot = GetString(payload, "equipSlot");
             if (string.IsNullOrEmpty(equipSlot))
@@ -643,96 +1100,195 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("equipSlot is required to unequip an item.");
             }
 
-            Undo.RecordObject(inventory, "Unequip Item");
-            var success = inventory.Unequip(equipSlot);
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            Undo.RecordObject(component, "Unequip Item");
+
+            // Try via reflection
+            var unequipMethod = component.GetType().GetMethod("Unequip",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                new[] { typeof(string) },
+                null);
+
+            if (unequipMethod != null)
+            {
+                var success = (bool)unequipMethod.Invoke(component, new object[] { equipSlot });
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+                var invSo = new SerializedObject(component);
+                return CreateSuccessResponse(
+                    ("inventoryId", invSo.FindProperty("inventoryId").stringValue),
+                    ("unequipped", success),
+                    ("equipSlot", equipSlot)
+                );
+            }
+
+            // Fallback: unequip via SerializedObject
+            var so = new SerializedObject(component);
+            var equippedProp = so.FindProperty("equippedItems");
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
+            bool found = false;
+
+            if (equippedProp != null)
+            {
+                for (int i = equippedProp.arraySize - 1; i >= 0; i--)
+                {
+                    var entry = equippedProp.GetArrayElementAtIndex(i);
+                    if (entry.FindPropertyRelative("equipSlot").stringValue == equipSlot)
+                    {
+                        equippedProp.DeleteArrayElementAtIndex(i);
+                        found = true;
+                    }
+                }
+            }
+
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
-                ("unequipped", success),
+                ("inventoryId", inventoryId),
+                ("unequipped", found),
                 ("equipSlot", equipSlot)
             );
         }
 
         private object GetEquipped(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
-            {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
-            }
+            var component = ResolveInventory(payload);
+            var so = new SerializedObject(component);
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
+            var equippedProp = so.FindProperty("equippedItems");
 
             var equipSlot = GetString(payload, "equipSlot");
-            if (!string.IsNullOrEmpty(equipSlot))
+            if (!string.IsNullOrEmpty(equipSlot) && equippedProp != null)
             {
-                var equipped = inventory.GetEquipped(equipSlot);
-                if (equipped == null)
+                for (int i = 0; i < equippedProp.arraySize; i++)
                 {
-                    return CreateSuccessResponse(
-                        ("equipSlot", equipSlot),
-                        ("equipped", false)
-                    );
+                    var entry = equippedProp.GetArrayElementAtIndex(i);
+                    if (entry.FindPropertyRelative("equipSlot").stringValue == equipSlot)
+                    {
+                        return CreateSuccessResponse(
+                            ("equipSlot", equipSlot),
+                            ("equipped", true),
+                            ("itemId", entry.FindPropertyRelative("itemId").stringValue),
+                            ("displayName", entry.FindPropertyRelative("displayName").stringValue)
+                        );
+                    }
                 }
 
                 return CreateSuccessResponse(
                     ("equipSlot", equipSlot),
-                    ("equipped", true),
-                    ("itemId", equipped.ItemId),
-                    ("displayName", equipped.ItemAsset?.DisplayName ?? "")
+                    ("equipped", false)
                 );
             }
 
             // Return all equipped
             var all = new List<object>();
-            foreach (var item in inventory.EquippedItems)
+            if (equippedProp != null)
             {
-                all.Add(new Dictionary<string, object>
+                for (int i = 0; i < equippedProp.arraySize; i++)
                 {
-                    { "equipSlot", item.EquipSlot },
-                    { "itemId", item.ItemId },
-                    { "displayName", item.ItemAsset?.DisplayName ?? "" }
-                });
+                    var entry = equippedProp.GetArrayElementAtIndex(i);
+                    all.Add(new Dictionary<string, object>
+                    {
+                        { "equipSlot", entry.FindPropertyRelative("equipSlot").stringValue },
+                        { "itemId", entry.FindPropertyRelative("itemId").stringValue },
+                        { "displayName", entry.FindPropertyRelative("displayName").stringValue }
+                    });
+                }
             }
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
+                ("inventoryId", inventoryId),
                 ("equippedItems", all)
             );
         }
 
         private object ClearInventory(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
+            var component = ResolveInventory(payload);
+
+            Undo.RecordObject(component, "Clear Inventory");
+
+            // Try via reflection
+            var clearMethod = component.GetType().GetMethod("Clear",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                Type.EmptyTypes,
+                null);
+
+            if (clearMethod != null)
             {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
+                clearMethod.Invoke(component, null);
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+                var invSo = new SerializedObject(component);
+                return CreateSuccessResponse(
+                    ("inventoryId", invSo.FindProperty("inventoryId").stringValue),
+                    ("cleared", true)
+                );
             }
 
-            Undo.RecordObject(inventory, "Clear Inventory");
-            inventory.Clear();
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            // Fallback: clear via SerializedObject
+            var so = new SerializedObject(component);
+            var slotsProp = so.FindProperty("slots");
+            if (slotsProp != null)
+            {
+                for (int i = 0; i < slotsProp.arraySize; i++)
+                {
+                    ClearSlotProperties(slotsProp.GetArrayElementAtIndex(i));
+                }
+            }
+
+            var equippedProp = so.FindProperty("equippedItems");
+            if (equippedProp != null)
+            {
+                equippedProp.ClearArray();
+            }
+
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
+                ("inventoryId", inventoryId),
                 ("cleared", true)
             );
         }
 
         private object SortInventory(Dictionary<string, object> payload)
         {
-            var inventory = ResolveInventory(payload);
-            if (inventory == null)
+            var component = ResolveInventory(payload);
+
+            Undo.RecordObject(component, "Sort Inventory");
+
+            // Try via reflection
+            var sortMethod = component.GetType().GetMethod("Sort",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                Type.EmptyTypes,
+                null);
+
+            if (sortMethod != null)
             {
-                throw new InvalidOperationException("Could not find GameKitInventory.");
+                sortMethod.Invoke(component, null);
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+                var invSo = new SerializedObject(component);
+                return CreateSuccessResponse(
+                    ("inventoryId", invSo.FindProperty("inventoryId").stringValue),
+                    ("sorted", true)
+                );
             }
 
-            Undo.RecordObject(inventory, "Sort Inventory");
-            inventory.Sort();
-            EditorSceneManager.MarkSceneDirty(inventory.gameObject.scene);
+            // Fallback note: sorting via SerializedObject is complex; recommend using reflection
+            var so = new SerializedObject(component);
+            var inventoryId = so.FindProperty("inventoryId").stringValue;
 
             return CreateSuccessResponse(
-                ("inventoryId", inventory.InventoryId),
-                ("sorted", true)
+                ("inventoryId", inventoryId),
+                ("sorted", false),
+                ("note", "Sort requires the generated component to be compiled. Try again after compilation.")
             );
         }
 
@@ -748,18 +1304,34 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("inventoryId is required for findByInventoryId.");
             }
 
-            var inventory = FindInventoryById(inventoryId);
-            if (inventory == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("inventoryId", inventoryId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("inventoryId", inventoryId));
             }
 
+            var so = new SerializedObject(component);
+            var maxSlots = so.FindProperty("maxSlots").intValue;
+
+            // Count used slots
+            int usedSlots = 0;
+            var slotsProp = so.FindProperty("slots");
+            if (slotsProp != null)
+            {
+                for (int i = 0; i < slotsProp.arraySize; i++)
+                {
+                    var slot = slotsProp.GetArrayElementAtIndex(i);
+                    if (!string.IsNullOrEmpty(slot.FindPropertyRelative("itemId").stringValue))
+                        usedSlots++;
+                }
+            }
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("inventoryId", inventory.InventoryId),
-                ("path", BuildGameObjectPath(inventory.gameObject)),
-                ("usedSlots", inventory.UsedSlots),
-                ("maxSlots", inventory.MaxSlots)
+                ("inventoryId", inventoryId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("usedSlots", usedSlots),
+                ("maxSlots", maxSlots)
             );
         }
 
@@ -777,11 +1349,13 @@ namespace MCP.Editor.Handlers.GameKit
                 return CreateSuccessResponse(("found", false), ("itemId", itemId));
             }
 
+            var so = new SerializedObject(item);
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("itemId", item.ItemId),
+                ("itemId", so.FindProperty("itemId").stringValue),
                 ("assetPath", AssetDatabase.GetAssetPath(item)),
-                ("displayName", item.DisplayName)
+                ("displayName", so.FindProperty("displayName").stringValue)
             );
         }
 
@@ -789,41 +1363,41 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitInventory ResolveInventory(Dictionary<string, object> payload)
+        private Component ResolveInventory(Dictionary<string, object> payload)
         {
+            // Try by inventoryId first
             var inventoryId = GetString(payload, "inventoryId");
             if (!string.IsNullOrEmpty(inventoryId))
             {
-                return FindInventoryById(inventoryId);
+                var invById = CodeGenHelper.FindComponentInSceneByField("inventoryId", inventoryId);
+                if (invById != null)
+                {
+                    return invById;
+                }
             }
 
+            // Try by gameObjectPath
             var targetPath = GetString(payload, "gameObjectPath");
             if (!string.IsNullOrEmpty(targetPath))
             {
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    return targetGo.GetComponent<GameKitInventory>();
+                    var invByPath = CodeGenHelper.FindComponentByField(targetGo, "inventoryId", null);
+                    if (invByPath != null)
+                    {
+                        return invByPath;
+                    }
+
+                    throw new InvalidOperationException($"No Inventory component found on '{targetPath}'.");
                 }
+                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
 
-            return null;
+            throw new InvalidOperationException("Either inventoryId or gameObjectPath is required.");
         }
 
-        private GameKitInventory FindInventoryById(string inventoryId)
-        {
-            var inventories = UnityEngine.Object.FindObjectsByType<GameKitInventory>(FindObjectsSortMode.None);
-            foreach (var inv in inventories)
-            {
-                if (inv.InventoryId == inventoryId)
-                {
-                    return inv;
-                }
-            }
-            return null;
-        }
-
-        private GameKitItemAsset ResolveItemAsset(Dictionary<string, object> payload)
+        private ScriptableObject ResolveItemAsset(Dictionary<string, object> payload)
         {
             var itemId = GetString(payload, "itemId");
             if (!string.IsNullOrEmpty(itemId))
@@ -834,189 +1408,285 @@ namespace MCP.Editor.Handlers.GameKit
             var assetPath = GetString(payload, "assetPath");
             if (!string.IsNullOrEmpty(assetPath))
             {
-                return AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(assetPath);
+                return AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
             }
 
             return null;
         }
 
-        private GameKitItemAsset FindItemAssetById(string itemId)
+        private ScriptableObject FindItemAssetById(string itemId)
         {
-            var guids = AssetDatabase.FindAssets("t:GameKitItemAsset");
+            // Search all ScriptableObject assets that have an "itemId" field
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                // Force reimport to get fresh data from disk
-                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
-                var item = AssetDatabase.LoadAssetAtPath<GameKitItemAsset>(path);
-                if (item != null && item.ItemId == itemId)
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+
+                try
                 {
-                    return item;
+                    var so = new SerializedObject(asset);
+                    var itemIdProp = so.FindProperty("itemId");
+                    if (itemIdProp != null && itemIdProp.propertyType == SerializedPropertyType.String
+                        && itemIdProp.stringValue == itemId)
+                    {
+                        return asset;
+                    }
+                }
+                catch
+                {
+                    // Skip assets that can't be serialized
                 }
             }
             return null;
         }
 
-        private void ConfigureItemAsset(GameKitItemAsset item, string itemId, Dictionary<string, object> data)
+        private void DeleteExistingItemAssets(string itemId)
         {
-            var displayName = GetStringFromDict(data, "displayName", itemId);
-            var description = GetStringFromDict(data, "description", "");
-            var categoryStr = GetStringFromDict(data, "category", "misc");
-            var category = ParseItemCategory(categoryStr);
-
-            item.Initialize(itemId, displayName, description, category);
-
-            // Stacking
-            if (data.TryGetValue("stackable", out var stackableObj))
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
+            foreach (var guid in guids)
             {
-                var stackable = Convert.ToBoolean(stackableObj);
-                var maxStack = data.TryGetValue("maxStack", out var maxStackObj) ? Convert.ToInt32(maxStackObj) : 99;
-                item.SetStacking(stackable, maxStack);
-            }
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
 
-            // Configure extended properties
-            ConfigureItemAssetExtended(item, data);
+                try
+                {
+                    var so = new SerializedObject(asset);
+                    var itemIdProp = so.FindProperty("itemId");
+                    if (itemIdProp != null && itemIdProp.propertyType == SerializedPropertyType.String
+                        && itemIdProp.stringValue == itemId)
+                    {
+                        AssetDatabase.DeleteAsset(path);
+                    }
+                }
+                catch
+                {
+                    // Skip assets that can't be serialized
+                }
+            }
         }
 
-        /// <summary>
-        /// Configure extended item properties (prices, equipment, use actions).
-        /// Used by both DefineItem and UpdateItem operations.
-        /// </summary>
-        private void ConfigureItemAssetExtended(GameKitItemAsset item, Dictionary<string, object> data)
+        private void ConfigureItemAssetSerialized(ScriptableObject item, Dictionary<string, object> data)
         {
-            // Prices
-            if (data.TryGetValue("buyPrice", out var buyObj) || data.TryGetValue("sellPrice", out var sellObj))
+            var so = new SerializedObject(item);
+
+            if (data.TryGetValue("displayName", out var nameObj))
+                so.FindProperty("displayName").stringValue = nameObj.ToString();
+
+            if (data.TryGetValue("description", out var descObj))
+                so.FindProperty("description").stringValue = descObj.ToString();
+
+            if (data.TryGetValue("category", out var catObj))
             {
-                var buyPrice = data.TryGetValue("buyPrice", out var bObj) ? Convert.ToInt32(bObj) : 0;
-                var sellPrice = data.TryGetValue("sellPrice", out var sObj) ? Convert.ToInt32(sObj) : 0;
-                item.SetPrices(buyPrice, sellPrice);
+                var catStr = ParseItemCategory(catObj.ToString());
+                var catProp = so.FindProperty("category");
+                if (catProp != null)
+                {
+                    var names = catProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], catStr, StringComparison.OrdinalIgnoreCase))
+                        {
+                            catProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
 
-            // Equipment
-            if (data.TryGetValue("equippable", out var equipObj) && Convert.ToBoolean(equipObj))
-            {
-                var equipSlotStr = GetStringFromDict(data, "equipSlot", "none");
-                var equipSlot = ParseEquipmentSlot(equipSlotStr);
+            if (data.TryGetValue("stackable", out var stackableObj))
+                so.FindProperty("stackable").boolValue = Convert.ToBoolean(stackableObj);
 
-                List<GameKitItemAsset.StatModifier> stats = null;
-                if (data.TryGetValue("equipStats", out var statsObj) && statsObj is List<object> statsList)
+            if (data.TryGetValue("maxStack", out var maxStackObj))
+                so.FindProperty("maxStack").intValue = Convert.ToInt32(maxStackObj);
+
+            if (data.TryGetValue("buyPrice", out var buyObj))
+                so.FindProperty("buyPrice").intValue = Convert.ToInt32(buyObj);
+
+            if (data.TryGetValue("sellPrice", out var sellObj))
+                so.FindProperty("sellPrice").intValue = Convert.ToInt32(sellObj);
+
+            if (data.TryGetValue("equippable", out var equipObj))
+                so.FindProperty("equippable").boolValue = Convert.ToBoolean(equipObj);
+
+            if (data.TryGetValue("equipSlot", out var slotObj))
+            {
+                var slotStr = ParseEquipmentSlot(slotObj.ToString());
+                var slotProp = so.FindProperty("equipSlot");
+                if (slotProp != null)
                 {
-                    stats = new List<GameKitItemAsset.StatModifier>();
+                    var names = slotProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], slotStr, StringComparison.OrdinalIgnoreCase))
+                        {
+                            slotProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Equipment stats
+            if (data.TryGetValue("equipStats", out var statsObj) && statsObj is List<object> statsList)
+            {
+                var statsProp = so.FindProperty("equipStats");
+                if (statsProp != null)
+                {
+                    statsProp.ClearArray();
                     foreach (var statObj in statsList)
                     {
                         if (statObj is Dictionary<string, object> statDict)
                         {
-                            var modifier = new GameKitItemAsset.StatModifier
+                            statsProp.InsertArrayElementAtIndex(statsProp.arraySize);
+                            var elem = statsProp.GetArrayElementAtIndex(statsProp.arraySize - 1);
+                            elem.FindPropertyRelative("statName").stringValue = GetStringFromDict(statDict, "statName", "");
+
+                            var modTypeProp = elem.FindPropertyRelative("modifierType");
+                            if (modTypeProp != null)
                             {
-                                statName = GetStringFromDict(statDict, "statName", ""),
-                                modifierType = ParseModifierType(GetStringFromDict(statDict, "modifierType", "flat")),
-                                value = statDict.TryGetValue("value", out var valObj) ? Convert.ToSingle(valObj) : 0
-                            };
-                            stats.Add(modifier);
+                                var modType = ParseModifierType(GetStringFromDict(statDict, "modifierType", "flat"));
+                                var modNames = modTypeProp.enumDisplayNames;
+                                for (int i = 0; i < modNames.Length; i++)
+                                {
+                                    if (string.Equals(modNames[i], modType, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        modTypeProp.enumValueIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            elem.FindPropertyRelative("value").floatValue =
+                                statDict.TryGetValue("value", out var valObj) ? Convert.ToSingle(valObj) : 0;
                         }
                     }
                 }
-
-                item.SetEquipment(true, equipSlot, stats);
             }
 
             // Use action
             if (data.TryGetValue("onUse", out var useObj) && useObj is Dictionary<string, object> useData)
             {
-                var useAction = new GameKitItemAsset.ItemUseAction();
-                var useType = GetStringFromDict(useData, "type", "none");
-                useAction.type = ParseUseActionType(useType);
-
-                if (useData.TryGetValue("healthId", out var hIdObj))
-                    useAction.healthId = hIdObj.ToString();
-                if (useData.TryGetValue("amount", out var amountObj))
-                    useAction.healAmount = Convert.ToSingle(amountObj);
-                if (useData.TryGetValue("resourceManagerId", out var rmIdObj))
-                    useAction.resourceManagerId = rmIdObj.ToString();
-                if (useData.TryGetValue("resourceName", out var rnObj))
-                    useAction.resourceName = rnObj.ToString();
-                if (useData.TryGetValue("resourceAmount", out var raObj))
-                    useAction.resourceAmount = Convert.ToSingle(raObj);
-                if (useData.TryGetValue("effectId", out var efIdObj))
-                    useAction.effectId = efIdObj.ToString();
-                if (useData.TryGetValue("consumeOnUse", out var consumeObj))
-                    useAction.consumeOnUse = Convert.ToBoolean(consumeObj);
-
-                item.SetUseAction(useAction);
+                var onUseProp = so.FindProperty("onUse");
+                if (onUseProp != null)
+                {
+                    if (useData.TryGetValue("type", out var typeObj))
+                    {
+                        var useType = ParseUseActionType(typeObj.ToString());
+                        var typeProp = onUseProp.FindPropertyRelative("type");
+                        if (typeProp != null)
+                        {
+                            var typeNames = typeProp.enumDisplayNames;
+                            for (int i = 0; i < typeNames.Length; i++)
+                            {
+                                if (string.Equals(typeNames[i], useType, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    typeProp.enumValueIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (useData.TryGetValue("amount", out var amountObj))
+                    {
+                        var amountProp = onUseProp.FindPropertyRelative("amount");
+                        if (amountProp != null)
+                            amountProp.floatValue = Convert.ToSingle(amountObj);
+                    }
+                    if (useData.TryGetValue("resourceName", out var rnObj))
+                    {
+                        var rnProp = onUseProp.FindPropertyRelative("resourceName");
+                        if (rnProp != null)
+                            rnProp.stringValue = rnObj.ToString();
+                    }
+                    if (useData.TryGetValue("effectId", out var efIdObj))
+                    {
+                        var efProp = onUseProp.FindPropertyRelative("effectId");
+                        if (efProp != null)
+                            efProp.stringValue = efIdObj.ToString();
+                    }
+                    if (useData.TryGetValue("customEventName", out var ceObj))
+                    {
+                        var ceProp = onUseProp.FindPropertyRelative("customEventName");
+                        if (ceProp != null)
+                            ceProp.stringValue = ceObj.ToString();
+                    }
+                    if (useData.TryGetValue("consumeOnUse", out var consumeObj))
+                    {
+                        var consumeProp = onUseProp.FindPropertyRelative("consumeOnUse");
+                        if (consumeProp != null)
+                            consumeProp.boolValue = Convert.ToBoolean(consumeObj);
+                    }
+                }
             }
+
+            so.ApplyModifiedProperties();
         }
 
-        /// <summary>
-        /// Configure extended item properties using SerializedObject for on-disk persistence.
-        /// Currently a placeholder - stacking is handled separately in DefineItem.
-        /// </summary>
-        private void ConfigureItemAssetSerializedExtended(SerializedObject so, Dictionary<string, object> data)
+        private void ClearSlotProperties(SerializedProperty slot)
         {
-            // Prices - using SerializedProperty for direct serialization
-            if (data.TryGetValue("buyPrice", out var buyObj) || data.TryGetValue("sellPrice", out var sellObj))
-            {
-                var buyPriceProp = so.FindProperty("buyPrice");
-                var sellPriceProp = so.FindProperty("sellPrice");
-
-                if (buyPriceProp != null && data.TryGetValue("buyPrice", out var bObj))
-                    buyPriceProp.intValue = Convert.ToInt32(bObj);
-                if (sellPriceProp != null && data.TryGetValue("sellPrice", out var sObj))
-                    sellPriceProp.intValue = Convert.ToInt32(sObj);
-            }
-
-            // Equipment - handled via direct properties after SerializedObject changes are applied
-            // Note: Complex nested structures like equipStats are better handled after loading
+            slot.FindPropertyRelative("itemId").stringValue = "";
+            slot.FindPropertyRelative("displayName").stringValue = "";
+            slot.FindPropertyRelative("category").stringValue = "";
+            slot.FindPropertyRelative("quantity").intValue = 0;
+            slot.FindPropertyRelative("stackable").boolValue = false;
+            slot.FindPropertyRelative("maxStack").intValue = 0;
+            var customDataProp = slot.FindPropertyRelative("customData");
+            if (customDataProp != null)
+                customDataProp.stringValue = "";
         }
 
-        private GameKitItemAsset.ItemCategory ParseItemCategory(string str)
+        private string ParseItemCategory(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "weapon" => GameKitItemAsset.ItemCategory.Weapon,
-                "armor" => GameKitItemAsset.ItemCategory.Armor,
-                "consumable" => GameKitItemAsset.ItemCategory.Consumable,
-                "material" => GameKitItemAsset.ItemCategory.Material,
-                "key" => GameKitItemAsset.ItemCategory.Key,
-                "quest" => GameKitItemAsset.ItemCategory.Quest,
-                _ => GameKitItemAsset.ItemCategory.Misc
+                "weapon" => "Weapon",
+                "armor" => "Armor",
+                "consumable" => "Consumable",
+                "material" => "Material",
+                "key" => "Key",
+                "quest" => "Quest",
+                _ => "Misc"
             };
         }
 
-        private GameKitItemAsset.EquipmentSlot ParseEquipmentSlot(string str)
+        private string ParseEquipmentSlot(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "mainhand" => GameKitItemAsset.EquipmentSlot.MainHand,
-                "offhand" => GameKitItemAsset.EquipmentSlot.OffHand,
-                "head" => GameKitItemAsset.EquipmentSlot.Head,
-                "body" => GameKitItemAsset.EquipmentSlot.Body,
-                "hands" => GameKitItemAsset.EquipmentSlot.Hands,
-                "feet" => GameKitItemAsset.EquipmentSlot.Feet,
-                "accessory1" => GameKitItemAsset.EquipmentSlot.Accessory1,
-                "accessory2" => GameKitItemAsset.EquipmentSlot.Accessory2,
-                _ => GameKitItemAsset.EquipmentSlot.None
+                "mainhand" => "MainHand",
+                "offhand" => "OffHand",
+                "head" => "Head",
+                "body" => "Body",
+                "hands" => "Hands",
+                "feet" => "Feet",
+                "accessory1" => "Accessory1",
+                "accessory2" => "Accessory2",
+                _ => "None"
             };
         }
 
-        private GameKitItemAsset.ModifierType ParseModifierType(string str)
+        private string ParseModifierType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "percentadd" => GameKitItemAsset.ModifierType.PercentAdd,
-                "percentmultiply" => GameKitItemAsset.ModifierType.PercentMultiply,
-                _ => GameKitItemAsset.ModifierType.Flat
+                "percentadd" => "PercentAdd",
+                "percentmultiply" => "PercentMultiply",
+                _ => "Flat"
             };
         }
 
-        private GameKitItemAsset.UseActionType ParseUseActionType(string str)
+        private string ParseUseActionType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "heal" => GameKitItemAsset.UseActionType.Heal,
-                "addresource" => GameKitItemAsset.UseActionType.AddResource,
-                "playeffect" => GameKitItemAsset.UseActionType.PlayEffect,
-                "custom" => GameKitItemAsset.UseActionType.Custom,
-                _ => GameKitItemAsset.UseActionType.None
+                "heal" => "Heal",
+                "addresource" => "AddResource",
+                "playeffect" => "PlayEffect",
+                "custom" => "Custom",
+                _ => "None"
             };
         }
 

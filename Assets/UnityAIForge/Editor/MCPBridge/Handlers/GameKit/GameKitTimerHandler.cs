@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Timer handler: create and manage timers and cooldowns.
-    /// Provides timer, cooldown, and cooldown manager functionality.
+    /// Uses code generation to produce standalone Timer/Cooldown scripts with zero package dependency.
     /// </summary>
     public class GameKitTimerHandler : BaseCommandHandler
     {
@@ -26,7 +26,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "createTimer" || operation == "createCooldown" || operation == "createCooldownManager";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -55,100 +56,91 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required for createTimer.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
             var timerId = GetString(payload, "timerId") ?? $"Timer_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var duration = GetFloat(payload, "duration", 5f);
             var loop = GetBool(payload, "loop", false);
             var unscaledTime = GetBool(payload, "unscaledTime", false);
+            var autoStart = GetBool(payload, "autoStart", false);
 
-            var timer = Undo.AddComponent<GameKitTimer>(targetGo);
-            timer.Initialize(timerId, duration, loop, unscaledTime);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(timerId, "Timer");
 
-            // Apply additional settings
-            var serialized = new SerializedObject(timer);
-
-            if (payload.TryGetValue("autoStart", out var autoObj))
+            var variables = new Dictionary<string, object>
             {
-                serialized.FindProperty("autoStart").boolValue = Convert.ToBoolean(autoObj);
+                { "TIMER_ID", timerId },
+                { "DURATION", duration },
+                { "LOOP", loop.ToString().ToLowerInvariant() },
+                { "AUTO_START", autoStart.ToString().ToLowerInvariant() },
+                { "UNSCALED_TIME", unscaledTime.ToString().ToLowerInvariant() }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Timer", timerId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Timer script.");
             }
 
-            serialized.ApplyModifiedProperties();
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("timerId", timerId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("duration", duration),
-                ("loop", loop)
-            );
+            result["timerId"] = timerId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["duration"] = duration;
+            result["loop"] = loop;
+
+            return result;
         }
 
         private object UpdateTimer(Dictionary<string, object> payload)
         {
-            var timer = ResolveTimerComponent(payload);
+            var component = ResolveTimerComponent(payload);
 
-            Undo.RecordObject(timer, "Update GameKit Timer");
-            var serialized = new SerializedObject(timer);
+            Undo.RecordObject(component, "Update Timer");
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("duration", out var durObj))
-            {
-                serialized.FindProperty("duration").floatValue = Convert.ToSingle(durObj);
-            }
-
+                so.FindProperty("duration").floatValue = Convert.ToSingle(durObj);
             if (payload.TryGetValue("loop", out var loopObj))
-            {
-                serialized.FindProperty("loop").boolValue = Convert.ToBoolean(loopObj);
-            }
-
+                so.FindProperty("loop").boolValue = Convert.ToBoolean(loopObj);
             if (payload.TryGetValue("autoStart", out var autoObj))
-            {
-                serialized.FindProperty("autoStart").boolValue = Convert.ToBoolean(autoObj);
-            }
-
+                so.FindProperty("autoStart").boolValue = Convert.ToBoolean(autoObj);
             if (payload.TryGetValue("unscaledTime", out var unscaledObj))
-            {
-                serialized.FindProperty("unscaledTime").boolValue = Convert.ToBoolean(unscaledObj);
-            }
+                so.FindProperty("unscaledTime").boolValue = Convert.ToBoolean(unscaledObj);
 
-            serialized.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(timer.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("timerId", timer.TimerId),
-                ("path", BuildGameObjectPath(timer.gameObject)),
+                ("timerId", so.FindProperty("timerId").stringValue),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
 
         private object InspectTimer(Dictionary<string, object> payload)
         {
-            var timer = ResolveTimerComponent(payload);
-
-            var serialized = new SerializedObject(timer);
+            var component = ResolveTimerComponent(payload);
+            var so = new SerializedObject(component);
 
             var info = new Dictionary<string, object>
             {
-                { "timerId", timer.TimerId },
-                { "path", BuildGameObjectPath(timer.gameObject) },
-                { "duration", timer.Duration },
-                { "remainingTime", timer.RemainingTime },
-                { "elapsedTime", timer.ElapsedTime },
-                { "normalizedTime", timer.NormalizedTime },
-                { "isRunning", timer.IsRunning },
-                { "isPaused", timer.IsPaused },
-                { "isComplete", timer.IsComplete },
-                { "loop", serialized.FindProperty("loop").boolValue },
-                { "autoStart", serialized.FindProperty("autoStart").boolValue },
-                { "unscaledTime", serialized.FindProperty("unscaledTime").boolValue }
+                { "timerId", so.FindProperty("timerId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "duration", so.FindProperty("duration").floatValue },
+                { "loop", so.FindProperty("loop").boolValue },
+                { "autoStart", so.FindProperty("autoStart").boolValue },
+                { "unscaledTime", so.FindProperty("unscaledTime").boolValue }
             };
 
             return CreateSuccessResponse(("timer", info));
@@ -156,12 +148,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteTimer(Dictionary<string, object> payload)
         {
-            var timer = ResolveTimerComponent(payload);
-            var path = BuildGameObjectPath(timer.gameObject);
-            var timerId = timer.TimerId;
-            var scene = timer.gameObject.scene;
+            var component = ResolveTimerComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var timerId = new SerializedObject(component).FindProperty("timerId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(timer);
+            Undo.DestroyObjectImmediate(component);
+            ScriptGenerator.Delete(timerId);
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -179,73 +172,81 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required for createCooldown.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
             var cooldownId = GetString(payload, "cooldownId") ?? $"Cooldown_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var duration = GetFloat(payload, "cooldownDuration", 1f);
             var startReady = GetBool(payload, "startReady", true);
 
-            var cooldown = Undo.AddComponent<GameKitCooldown>(targetGo);
-            cooldown.Initialize(cooldownId, duration, startReady);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(cooldownId, "Cooldown");
+
+            var variables = new Dictionary<string, object>
+            {
+                { "COOLDOWN_ID", cooldownId },
+                { "COOLDOWN_DURATION", duration },
+                { "START_READY", startReady.ToString().ToLowerInvariant() }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Cooldown", cooldownId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Cooldown script.");
+            }
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("cooldownId", cooldownId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("cooldownDuration", duration),
-                ("startReady", startReady)
-            );
+            result["cooldownId"] = cooldownId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["cooldownDuration"] = duration;
+            result["startReady"] = startReady;
+
+            return result;
         }
 
         private object UpdateCooldown(Dictionary<string, object> payload)
         {
-            var cooldown = ResolveCooldownComponent(payload);
+            var component = ResolveCooldownComponent(payload);
 
-            Undo.RecordObject(cooldown, "Update GameKit Cooldown");
-            var serialized = new SerializedObject(cooldown);
+            Undo.RecordObject(component, "Update Cooldown");
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("cooldownDuration", out var durObj))
-            {
-                serialized.FindProperty("cooldownDuration").floatValue = Convert.ToSingle(durObj);
-            }
-
+                so.FindProperty("cooldownDuration").floatValue = Convert.ToSingle(durObj);
             if (payload.TryGetValue("startReady", out var readyObj))
-            {
-                serialized.FindProperty("startReady").boolValue = Convert.ToBoolean(readyObj);
-            }
+                so.FindProperty("startReady").boolValue = Convert.ToBoolean(readyObj);
 
-            serialized.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(cooldown.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("cooldownId", cooldown.CooldownId),
-                ("path", BuildGameObjectPath(cooldown.gameObject)),
+                ("cooldownId", so.FindProperty("cooldownId").stringValue),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
 
         private object InspectCooldown(Dictionary<string, object> payload)
         {
-            var cooldown = ResolveCooldownComponent(payload);
+            var component = ResolveCooldownComponent(payload);
+            var so = new SerializedObject(component);
 
             var info = new Dictionary<string, object>
             {
-                { "cooldownId", cooldown.CooldownId },
-                { "path", BuildGameObjectPath(cooldown.gameObject) },
-                { "cooldownDuration", cooldown.CooldownDuration },
-                { "remainingCooldown", cooldown.RemainingCooldown },
-                { "normalizedCooldown", cooldown.NormalizedCooldown },
-                { "isReady", cooldown.IsReady },
-                { "isOnCooldown", cooldown.IsOnCooldown }
+                { "cooldownId", so.FindProperty("cooldownId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "cooldownDuration", so.FindProperty("cooldownDuration").floatValue },
+                { "startReady", so.FindProperty("startReady").boolValue }
             };
 
             return CreateSuccessResponse(("cooldown", info));
@@ -253,12 +254,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteCooldown(Dictionary<string, object> payload)
         {
-            var cooldown = ResolveCooldownComponent(payload);
-            var path = BuildGameObjectPath(cooldown.gameObject);
-            var cooldownId = cooldown.CooldownId;
-            var scene = cooldown.gameObject.scene;
+            var component = ResolveCooldownComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var cooldownId = new SerializedObject(component).FindProperty("cooldownId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(cooldown);
+            Undo.DestroyObjectImmediate(component);
+            ScriptGenerator.Delete(cooldownId);
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -276,83 +278,98 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required for createCooldownManager.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+
+            var existingManager = CodeGenHelper.FindComponentByField(targetGo, "cooldowns", null);
+            // Fallback: check for any CooldownManager-like component
+            // Use a unique field name for CooldownManager templates
+
+            var managerId = $"CDManager_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(managerId, "CooldownManager");
+
+            var variables = new Dictionary<string, object>
+            {
+                { "MANAGER_ID", managerId }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "CooldownManager", managerId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate CooldownManager script.");
             }
 
-            var existingManager = targetGo.GetComponent<GameKitCooldownManager>();
-            if (existingManager != null)
+            // Add initial cooldowns if provided and component was added
+            if (result.TryGetValue("componentAdded", out var added) && (bool)added)
             {
-                throw new InvalidOperationException($"GameObject already has a GameKitCooldownManager component.");
-            }
-
-            var manager = Undo.AddComponent<GameKitCooldownManager>(targetGo);
-
-            // Add initial cooldowns if provided
-            if (payload.TryGetValue("cooldowns", out var cooldownsObj) && cooldownsObj is List<object> cooldownsList)
-            {
-                var serialized = new SerializedObject(manager);
-                var cooldownsProp = serialized.FindProperty("cooldowns");
-
-                foreach (var cdObj in cooldownsList)
+                if (payload.TryGetValue("cooldowns", out var cooldownsObj) && cooldownsObj is List<object> cooldownsList)
                 {
-                    if (cdObj is Dictionary<string, object> cdDict)
+                    var component = CodeGenHelper.FindComponentByField(targetGo, "cooldownManagerId", managerId);
+                    if (component != null)
                     {
-                        var id = cdDict.TryGetValue("id", out var idObj) ? idObj.ToString() : $"cd_{cooldownsProp.arraySize}";
-                        var duration = cdDict.TryGetValue("duration", out var durObj) ? Convert.ToSingle(durObj) : 1f;
-                        var startReady = cdDict.TryGetValue("startReady", out var readyObj) ? Convert.ToBoolean(readyObj) : true;
+                        var so = new SerializedObject(component);
+                        var cooldownsProp = so.FindProperty("cooldowns");
+                        if (cooldownsProp != null)
+                        {
+                            foreach (var cdObj in cooldownsList)
+                            {
+                                if (cdObj is Dictionary<string, object> cdDict)
+                                {
+                                    var id = cdDict.TryGetValue("id", out var idObj) ? idObj.ToString() : $"cd_{cooldownsProp.arraySize}";
+                                    var duration = cdDict.TryGetValue("duration", out var durObj) ? Convert.ToSingle(durObj) : 1f;
+                                    var startReady = cdDict.TryGetValue("startReady", out var readyObj) ? Convert.ToBoolean(readyObj) : true;
 
-                        cooldownsProp.InsertArrayElementAtIndex(cooldownsProp.arraySize);
-                        var cdProp = cooldownsProp.GetArrayElementAtIndex(cooldownsProp.arraySize - 1);
-                        cdProp.FindPropertyRelative("id").stringValue = id;
-                        cdProp.FindPropertyRelative("duration").floatValue = duration;
-                        cdProp.FindPropertyRelative("startReady").boolValue = startReady;
+                                    cooldownsProp.InsertArrayElementAtIndex(cooldownsProp.arraySize);
+                                    var cdProp = cooldownsProp.GetArrayElementAtIndex(cooldownsProp.arraySize - 1);
+                                    cdProp.FindPropertyRelative("id").stringValue = id;
+                                    cdProp.FindPropertyRelative("duration").floatValue = duration;
+                                    cdProp.FindPropertyRelative("startReady").boolValue = startReady;
+                                }
+                            }
+                            so.ApplyModifiedProperties();
+                        }
                     }
                 }
-
-                serialized.ApplyModifiedProperties();
             }
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(targetGo)),
-                ("created", true)
-            );
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["created"] = true;
+
+            return result;
         }
 
         private object AddCooldownToManager(Dictionary<string, object> payload)
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
-            var manager = targetGo.GetComponent<GameKitCooldownManager>();
-            if (manager == null)
-            {
-                throw new InvalidOperationException($"No GameKitCooldownManager found on '{targetPath}'.");
-            }
+            var component = CodeGenHelper.FindComponentByField(targetGo, "cooldownManagerId", null);
+            if (component == null)
+                throw new InvalidOperationException($"No CooldownManager found on '{targetPath}'.");
 
             var id = GetString(payload, "cooldownId") ?? $"cd_{DateTime.Now.Ticks}";
             var duration = GetFloat(payload, "cooldownDuration", 1f);
             var startReady = GetBool(payload, "startReady", true);
 
-            var serialized = new SerializedObject(manager);
-            var cooldownsProp = serialized.FindProperty("cooldowns");
+            var so = new SerializedObject(component);
+            var cooldownsProp = so.FindProperty("cooldowns");
 
             cooldownsProp.InsertArrayElementAtIndex(cooldownsProp.arraySize);
             var cdProp = cooldownsProp.GetArrayElementAtIndex(cooldownsProp.arraySize - 1);
@@ -360,8 +377,8 @@ namespace MCP.Editor.Handlers.GameKit
             cdProp.FindPropertyRelative("duration").floatValue = duration;
             cdProp.FindPropertyRelative("startReady").boolValue = startReady;
 
-            serialized.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
                 ("path", BuildGameObjectPath(targetGo)),
@@ -375,41 +392,38 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
-            var manager = targetGo.GetComponent<GameKitCooldownManager>();
-            if (manager == null)
-            {
+            var component = CodeGenHelper.FindComponentByField(targetGo, "cooldownManagerId", null);
+            if (component == null)
                 return CreateSuccessResponse(("found", false), ("path", targetPath));
-            }
 
-            var serialized = new SerializedObject(manager);
-            var cooldownsProp = serialized.FindProperty("cooldowns");
+            var so = new SerializedObject(component);
+            var cooldownsProp = so.FindProperty("cooldowns");
             var cooldownsInfo = new List<Dictionary<string, object>>();
 
-            for (int i = 0; i < cooldownsProp.arraySize; i++)
+            if (cooldownsProp != null)
             {
-                var cdProp = cooldownsProp.GetArrayElementAtIndex(i);
-                cooldownsInfo.Add(new Dictionary<string, object>
+                for (int i = 0; i < cooldownsProp.arraySize; i++)
                 {
-                    { "id", cdProp.FindPropertyRelative("id").stringValue },
-                    { "duration", cdProp.FindPropertyRelative("duration").floatValue },
-                    { "startReady", cdProp.FindPropertyRelative("startReady").boolValue }
-                });
+                    var cdProp = cooldownsProp.GetArrayElementAtIndex(i);
+                    cooldownsInfo.Add(new Dictionary<string, object>
+                    {
+                        { "id", cdProp.FindPropertyRelative("id").stringValue },
+                        { "duration", cdProp.FindPropertyRelative("duration").floatValue },
+                        { "startReady", cdProp.FindPropertyRelative("startReady").boolValue }
+                    });
+                }
             }
 
             var info = new Dictionary<string, object>
             {
-                { "path", BuildGameObjectPath(manager.gameObject) },
-                { "cooldownCount", cooldownsProp.arraySize },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "cooldownCount", cooldownsInfo.Count },
                 { "cooldowns", cooldownsInfo }
             };
 
@@ -424,22 +438,18 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var timerId = GetString(payload, "timerId");
             if (string.IsNullOrEmpty(timerId))
-            {
                 throw new InvalidOperationException("timerId is required.");
-            }
 
-            var timer = FindTimerById(timerId);
-            if (timer == null)
-            {
+            var component = CodeGenHelper.FindComponentInSceneByField("timerId", timerId);
+            if (component == null)
                 return CreateSuccessResponse(("found", false), ("timerId", timerId));
-            }
 
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
                 ("found", true),
-                ("timerId", timer.TimerId),
-                ("path", BuildGameObjectPath(timer.gameObject)),
-                ("duration", timer.Duration),
-                ("isRunning", timer.IsRunning)
+                ("timerId", timerId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("duration", so.FindProperty("duration").floatValue)
             );
         }
 
@@ -447,22 +457,18 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var cooldownId = GetString(payload, "cooldownId");
             if (string.IsNullOrEmpty(cooldownId))
-            {
                 throw new InvalidOperationException("cooldownId is required.");
-            }
 
-            var cooldown = FindCooldownById(cooldownId);
-            if (cooldown == null)
-            {
+            var component = CodeGenHelper.FindComponentInSceneByField("cooldownId", cooldownId);
+            if (component == null)
                 return CreateSuccessResponse(("found", false), ("cooldownId", cooldownId));
-            }
 
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
                 ("found", true),
-                ("cooldownId", cooldown.CooldownId),
-                ("path", BuildGameObjectPath(cooldown.gameObject)),
-                ("cooldownDuration", cooldown.CooldownDuration),
-                ("isReady", cooldown.IsReady)
+                ("cooldownId", cooldownId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("cooldownDuration", so.FindProperty("cooldownDuration").floatValue)
             );
         }
 
@@ -470,16 +476,14 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitTimer ResolveTimerComponent(Dictionary<string, object> payload)
+        private Component ResolveTimerComponent(Dictionary<string, object> payload)
         {
             var timerId = GetString(payload, "timerId");
             if (!string.IsNullOrEmpty(timerId))
             {
-                var timerById = FindTimerById(timerId);
+                var timerById = CodeGenHelper.FindComponentInSceneByField("timerId", timerId);
                 if (timerById != null)
-                {
                     return timerById;
-                }
             }
 
             var targetPath = GetString(payload, "targetPath");
@@ -488,12 +492,10 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var timerByPath = targetGo.GetComponent<GameKitTimer>();
+                    var timerByPath = CodeGenHelper.FindComponentByField(targetGo, "timerId", null);
                     if (timerByPath != null)
-                    {
                         return timerByPath;
-                    }
-                    throw new InvalidOperationException($"No GameKitTimer component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No Timer component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -501,16 +503,14 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either timerId or targetPath is required.");
         }
 
-        private GameKitCooldown ResolveCooldownComponent(Dictionary<string, object> payload)
+        private Component ResolveCooldownComponent(Dictionary<string, object> payload)
         {
             var cooldownId = GetString(payload, "cooldownId");
             if (!string.IsNullOrEmpty(cooldownId))
             {
-                var cooldownById = FindCooldownById(cooldownId);
+                var cooldownById = CodeGenHelper.FindComponentInSceneByField("cooldownId", cooldownId);
                 if (cooldownById != null)
-                {
                     return cooldownById;
-                }
             }
 
             var targetPath = GetString(payload, "targetPath");
@@ -519,43 +519,15 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var cooldownByPath = targetGo.GetComponent<GameKitCooldown>();
+                    var cooldownByPath = CodeGenHelper.FindComponentByField(targetGo, "cooldownId", null);
                     if (cooldownByPath != null)
-                    {
                         return cooldownByPath;
-                    }
-                    throw new InvalidOperationException($"No GameKitCooldown component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No Cooldown component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
 
             throw new InvalidOperationException("Either cooldownId or targetPath is required.");
-        }
-
-        private GameKitTimer FindTimerById(string timerId)
-        {
-            var timers = UnityEngine.Object.FindObjectsByType<GameKitTimer>(FindObjectsSortMode.None);
-            foreach (var timer in timers)
-            {
-                if (timer.TimerId == timerId)
-                {
-                    return timer;
-                }
-            }
-            return null;
-        }
-
-        private GameKitCooldown FindCooldownById(string cooldownId)
-        {
-            var cooldowns = UnityEngine.Object.FindObjectsByType<GameKitCooldown>(FindObjectsSortMode.None);
-            foreach (var cooldown in cooldowns)
-            {
-                if (cooldown.CooldownId == cooldownId)
-                {
-                    return cooldown;
-                }
-            }
-            return null;
         }
 
         #endregion

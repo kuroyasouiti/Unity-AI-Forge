@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit AI handler: create and manage AI behaviors.
-    /// Supports patrol, chase, flee, and combined patrol-and-chase patterns.
+    /// Uses code generation to produce standalone AI scripts with zero package dependency.
     /// </summary>
     public class GameKitAIHandler : BaseCommandHandler
     {
@@ -26,7 +26,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -52,39 +53,69 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required for create.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
-            var existingAI = targetGo.GetComponent<GameKitAIBehavior>();
+            var existingAI = CodeGenHelper.FindComponentByField(targetGo, "aiId", null);
             if (existingAI != null)
-            {
-                throw new InvalidOperationException($"GameObject already has a GameKitAIBehavior component.");
-            }
+                throw new InvalidOperationException($"GameObject already has an AI component.");
 
             var aiId = GetString(payload, "aiId") ?? $"AI_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var behaviorType = ParseBehaviorType(GetString(payload, "behaviorType") ?? "patrol");
             var use2D = GetBool(payload, "use2D", true);
+            var moveSpeed = GetFloat(payload, "moveSpeed", 3f);
+            var turnSpeed = GetFloat(payload, "turnSpeed", 5f);
+            var detectionRadius = GetFloat(payload, "detectionRadius", 8f);
+            var fieldOfView = GetFloat(payload, "fieldOfView", 360f);
+            var attackRange = GetFloat(payload, "attackRange", 1.5f);
+            var attackCooldown = GetFloat(payload, "attackCooldown", 1f);
 
-            var ai = Undo.AddComponent<GameKitAIBehavior>(targetGo);
-            ai.Initialize(aiId, behaviorType, use2D);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(aiId, "AI");
 
-            // Apply settings
-            ApplyAISettings(ai, payload);
+            var variables = new Dictionary<string, object>
+            {
+                { "AI_ID", aiId },
+                { "BEHAVIOR_TYPE", behaviorType },
+                { "USE_2D", use2D.ToString().ToLowerInvariant() },
+                { "MOVE_SPEED", moveSpeed },
+                { "TURN_SPEED", turnSpeed },
+                { "DETECTION_RADIUS", detectionRadius },
+                { "FIELD_OF_VIEW", fieldOfView },
+                { "ATTACK_RANGE", attackRange },
+                { "ATTACK_COOLDOWN", attackCooldown }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "AIBehavior", aiId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate AI script.");
+            }
+
+            // Apply additional settings if component was added
+            if (result.TryGetValue("componentAdded", out var added) && (bool)added)
+            {
+                var component = CodeGenHelper.FindComponentByField(targetGo, "aiId", aiId);
+                if (component != null)
+                    ApplyAISettings(component, payload);
+            }
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("aiId", aiId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("behaviorType", behaviorType.ToString())
-            );
+            result["aiId"] = aiId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["behaviorType"] = behaviorType;
+
+            return result;
         }
 
         #endregion
@@ -93,147 +124,131 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateAI(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
 
-            Undo.RecordObject(ai, "Update GameKit AI");
-            ApplyAISettings(ai, payload);
-            EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+            Undo.RecordObject(component, "Update AI");
+            ApplyAISettings(component, payload);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
-                ("aiId", ai.AIId),
-                ("path", BuildGameObjectPath(ai.gameObject)),
+                ("aiId", so.FindProperty("aiId").stringValue),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
 
-        private void ApplyAISettings(GameKitAIBehavior ai, Dictionary<string, object> payload)
+        private void ApplyAISettings(Component component, Dictionary<string, object> payload)
         {
-            var serialized = new SerializedObject(ai);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("behaviorType", out var typeObj))
             {
-                var behaviorType = ParseBehaviorType(typeObj.ToString());
-                serialized.FindProperty("behaviorType").enumValueIndex = (int)behaviorType;
-            }
-
-            if (payload.TryGetValue("moveSpeed", out var speedObj))
-            {
-                serialized.FindProperty("moveSpeed").floatValue = Convert.ToSingle(speedObj);
-            }
-
-            if (payload.TryGetValue("turnSpeed", out var turnObj))
-            {
-                serialized.FindProperty("turnSpeed").floatValue = Convert.ToSingle(turnObj);
-            }
-
-            if (payload.TryGetValue("use2D", out var use2DObj))
-            {
-                serialized.FindProperty("use2DMovement").boolValue = Convert.ToBoolean(use2DObj);
-            }
-
-            // Patrol settings
-            if (payload.TryGetValue("patrolMode", out var patrolModeObj))
-            {
-                var patrolMode = ParsePatrolMode(patrolModeObj.ToString());
-                serialized.FindProperty("patrolMode").enumValueIndex = (int)patrolMode;
-            }
-
-            if (payload.TryGetValue("waitTimeAtPoint", out var waitObj))
-            {
-                serialized.FindProperty("waitTimeAtPoint").floatValue = Convert.ToSingle(waitObj);
-            }
-
-            if (payload.TryGetValue("arrivalThreshold", out var arrivalObj))
-            {
-                serialized.FindProperty("arrivalThreshold").floatValue = Convert.ToSingle(arrivalObj);
-            }
-
-            // Detection settings
-            if (payload.TryGetValue("chaseTargetTag", out var tagObj))
-            {
-                serialized.FindProperty("chaseTargetTag").stringValue = tagObj.ToString();
-            }
-
-            if (payload.TryGetValue("detectionRadius", out var detectObj))
-            {
-                serialized.FindProperty("detectionRadius").floatValue = Convert.ToSingle(detectObj);
-            }
-
-            if (payload.TryGetValue("loseTargetDistance", out var loseObj))
-            {
-                serialized.FindProperty("loseTargetDistance").floatValue = Convert.ToSingle(loseObj);
-            }
-
-            if (payload.TryGetValue("fieldOfView", out var fovObj))
-            {
-                serialized.FindProperty("fieldOfView").floatValue = Convert.ToSingle(fovObj);
-            }
-
-            if (payload.TryGetValue("requireLineOfSight", out var losObj))
-            {
-                serialized.FindProperty("requireLineOfSight").boolValue = Convert.ToBoolean(losObj);
-            }
-
-            // Attack settings
-            if (payload.TryGetValue("attackRange", out var attackRangeObj))
-            {
-                serialized.FindProperty("attackRange").floatValue = Convert.ToSingle(attackRangeObj);
-            }
-
-            if (payload.TryGetValue("attackCooldown", out var attackCdObj))
-            {
-                serialized.FindProperty("attackCooldown").floatValue = Convert.ToSingle(attackCdObj);
-            }
-
-            // Flee settings
-            if (payload.TryGetValue("fleeDistance", out var fleeDistObj))
-            {
-                serialized.FindProperty("fleeDistance").floatValue = Convert.ToSingle(fleeDistObj);
-            }
-
-            if (payload.TryGetValue("safeDistance", out var safeDistObj))
-            {
-                serialized.FindProperty("safeDistance").floatValue = Convert.ToSingle(safeDistObj);
-            }
-
-            // Handle patrol points array
-            if (payload.TryGetValue("patrolPoints", out var pointsObj) && pointsObj is List<object> pointsList)
-            {
-                var patrolProp = serialized.FindProperty("patrolPoints");
-                patrolProp.ClearArray();
-
-                foreach (var pointObj in pointsList)
+                var typeName = ParseBehaviorType(typeObj.ToString());
+                var prop = so.FindProperty("behaviorType");
+                if (prop != null)
                 {
-                    Transform pointTransform = null;
-
-                    if (pointObj is string pointPath)
+                    var names = prop.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
                     {
-                        var pointGo = ResolveGameObject(pointPath);
-                        if (pointGo != null)
+                        if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
                         {
-                            pointTransform = pointGo.transform;
+                            prop.enumValueIndex = i;
+                            break;
                         }
-                    }
-                    else if (pointObj is Dictionary<string, object> pointDict)
-                    {
-                        // Create new patrol point GameObject
-                        var pos = GetVector3FromDict(pointDict, ai.transform.position);
-                        var pointGo = new GameObject($"PatrolPoint_{patrolProp.arraySize}");
-                        Undo.RegisterCreatedObjectUndo(pointGo, "Create Patrol Point");
-                        pointGo.transform.position = pos;
-                        pointGo.transform.SetParent(ai.transform.parent);
-                        pointTransform = pointGo.transform;
-                    }
-
-                    if (pointTransform != null)
-                    {
-                        patrolProp.InsertArrayElementAtIndex(patrolProp.arraySize);
-                        patrolProp.GetArrayElementAtIndex(patrolProp.arraySize - 1).objectReferenceValue = pointTransform;
                     }
                 }
             }
 
-            serialized.ApplyModifiedProperties();
+            if (payload.TryGetValue("moveSpeed", out var speedObj))
+                so.FindProperty("moveSpeed").floatValue = Convert.ToSingle(speedObj);
+            if (payload.TryGetValue("turnSpeed", out var turnObj))
+                so.FindProperty("turnSpeed").floatValue = Convert.ToSingle(turnObj);
+            if (payload.TryGetValue("use2D", out var use2DObj))
+                so.FindProperty("use2DMovement").boolValue = Convert.ToBoolean(use2DObj);
+
+            // Patrol settings
+            if (payload.TryGetValue("patrolMode", out var patrolModeObj))
+            {
+                var modeName = ParsePatrolMode(patrolModeObj.ToString());
+                var prop = so.FindProperty("patrolMode");
+                if (prop != null)
+                {
+                    var names = prop.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], modeName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            prop.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (payload.TryGetValue("waitTimeAtPoint", out var waitObj))
+                so.FindProperty("waitTimeAtPoint").floatValue = Convert.ToSingle(waitObj);
+            if (payload.TryGetValue("arrivalThreshold", out var arrivalObj))
+                so.FindProperty("arrivalThreshold").floatValue = Convert.ToSingle(arrivalObj);
+
+            // Detection settings
+            if (payload.TryGetValue("chaseTargetTag", out var tagObj))
+                so.FindProperty("chaseTargetTag").stringValue = tagObj.ToString();
+            if (payload.TryGetValue("detectionRadius", out var detectObj))
+                so.FindProperty("detectionRadius").floatValue = Convert.ToSingle(detectObj);
+            if (payload.TryGetValue("loseTargetDistance", out var loseObj))
+                so.FindProperty("loseTargetDistance").floatValue = Convert.ToSingle(loseObj);
+            if (payload.TryGetValue("fieldOfView", out var fovObj))
+                so.FindProperty("fieldOfView").floatValue = Convert.ToSingle(fovObj);
+            if (payload.TryGetValue("requireLineOfSight", out var losObj))
+                so.FindProperty("requireLineOfSight").boolValue = Convert.ToBoolean(losObj);
+
+            // Attack settings
+            if (payload.TryGetValue("attackRange", out var attackRangeObj))
+                so.FindProperty("attackRange").floatValue = Convert.ToSingle(attackRangeObj);
+            if (payload.TryGetValue("attackCooldown", out var attackCdObj))
+                so.FindProperty("attackCooldown").floatValue = Convert.ToSingle(attackCdObj);
+
+            // Flee settings
+            if (payload.TryGetValue("fleeDistance", out var fleeDistObj))
+                so.FindProperty("fleeDistance").floatValue = Convert.ToSingle(fleeDistObj);
+            if (payload.TryGetValue("safeDistance", out var safeDistObj))
+                so.FindProperty("safeDistance").floatValue = Convert.ToSingle(safeDistObj);
+
+            // Handle patrol points array
+            if (payload.TryGetValue("patrolPoints", out var pointsObj) && pointsObj is List<object> pointsList)
+            {
+                var patrolProp = so.FindProperty("patrolPoints");
+                if (patrolProp != null)
+                {
+                    patrolProp.ClearArray();
+                    foreach (var pointObj in pointsList)
+                    {
+                        Transform pointTransform = null;
+                        if (pointObj is string pointPath)
+                        {
+                            var pointGo = ResolveGameObject(pointPath);
+                            if (pointGo != null) pointTransform = pointGo.transform;
+                        }
+                        else if (pointObj is Dictionary<string, object> pointDict)
+                        {
+                            var pos = GetVector3FromDict(pointDict, component.transform.position);
+                            var pointGo = new GameObject($"PatrolPoint_{patrolProp.arraySize}");
+                            Undo.RegisterCreatedObjectUndo(pointGo, "Create Patrol Point");
+                            pointGo.transform.position = pos;
+                            pointGo.transform.SetParent(component.transform.parent);
+                            pointTransform = pointGo.transform;
+                        }
+                        if (pointTransform != null)
+                        {
+                            patrolProp.InsertArrayElementAtIndex(patrolProp.arraySize);
+                            patrolProp.GetArrayElementAtIndex(patrolProp.arraySize - 1).objectReferenceValue = pointTransform;
+                        }
+                    }
+                }
+            }
+
+            so.ApplyModifiedProperties();
         }
 
         #endregion
@@ -242,49 +257,54 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectAI(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
+            var so = new SerializedObject(component);
 
-            var serialized = new SerializedObject(ai);
-            var patrolProp = serialized.FindProperty("patrolPoints");
+            var patrolProp = so.FindProperty("patrolPoints");
             var patrolPointsInfo = new List<Dictionary<string, object>>();
-
-            for (int i = 0; i < patrolProp.arraySize; i++)
+            if (patrolProp != null)
             {
-                var pointRef = patrolProp.GetArrayElementAtIndex(i).objectReferenceValue as Transform;
-                if (pointRef != null)
+                for (int i = 0; i < patrolProp.arraySize; i++)
                 {
-                    patrolPointsInfo.Add(new Dictionary<string, object>
+                    var pointRef = patrolProp.GetArrayElementAtIndex(i).objectReferenceValue as Transform;
+                    if (pointRef != null)
                     {
-                        { "index", i },
-                        { "path", BuildGameObjectPath(pointRef.gameObject) },
-                        { "position", new Dictionary<string, object>
-                            {
-                                { "x", pointRef.position.x },
-                                { "y", pointRef.position.y },
-                                { "z", pointRef.position.z }
+                        patrolPointsInfo.Add(new Dictionary<string, object>
+                        {
+                            { "index", i },
+                            { "path", BuildGameObjectPath(pointRef.gameObject) },
+                            { "position", new Dictionary<string, object>
+                                {
+                                    { "x", pointRef.position.x },
+                                    { "y", pointRef.position.y },
+                                    { "z", pointRef.position.z }
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
             }
 
-            var targetRef = serialized.FindProperty("chaseTarget").objectReferenceValue as Transform;
+            var targetRef = so.FindProperty("chaseTarget")?.objectReferenceValue as Transform;
+            var behaviorTypeProp = so.FindProperty("behaviorType");
+            var currentStateProp = so.FindProperty("currentState");
 
             var info = new Dictionary<string, object>
             {
-                { "aiId", ai.AIId },
-                { "path", BuildGameObjectPath(ai.gameObject) },
-                { "behaviorType", ai.BehaviorType.ToString() },
-                { "currentState", ai.CurrentState.ToString() },
-                { "hasTarget", ai.HasTarget },
+                { "aiId", so.FindProperty("aiId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "behaviorType", behaviorTypeProp != null && behaviorTypeProp.enumValueIndex < behaviorTypeProp.enumDisplayNames.Length
+                    ? behaviorTypeProp.enumDisplayNames[behaviorTypeProp.enumValueIndex] : "Patrol" },
+                { "currentState", currentStateProp != null && currentStateProp.enumValueIndex < currentStateProp.enumDisplayNames.Length
+                    ? currentStateProp.enumDisplayNames[currentStateProp.enumValueIndex] : "Idle" },
                 { "targetPath", targetRef != null ? BuildGameObjectPath(targetRef.gameObject) : null },
-                { "moveSpeed", ai.MoveSpeed },
-                { "detectionRadius", ai.DetectionRadius },
-                { "attackRange", ai.AttackRange },
+                { "moveSpeed", so.FindProperty("moveSpeed").floatValue },
+                { "detectionRadius", so.FindProperty("detectionRadius").floatValue },
+                { "attackRange", so.FindProperty("attackRange").floatValue },
                 { "patrolPoints", patrolPointsInfo },
-                { "patrolPointCount", patrolProp.arraySize },
-                { "chaseTargetTag", serialized.FindProperty("chaseTargetTag").stringValue },
-                { "use2D", serialized.FindProperty("use2DMovement").boolValue }
+                { "patrolPointCount", patrolPointsInfo.Count },
+                { "chaseTargetTag", so.FindProperty("chaseTargetTag").stringValue },
+                { "use2D", so.FindProperty("use2DMovement").boolValue }
             };
 
             return CreateSuccessResponse(("ai", info));
@@ -296,12 +316,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteAI(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
-            var path = BuildGameObjectPath(ai.gameObject);
-            var aiId = ai.AIId;
-            var scene = ai.gameObject.scene;
+            var component = ResolveAIComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var aiId = new SerializedObject(component).FindProperty("aiId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(ai);
+            Undo.DestroyObjectImmediate(component);
+            ScriptGenerator.Delete(aiId);
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -317,28 +338,24 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object SetTarget(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
             var targetPath = GetString(payload, "chaseTargetPath");
 
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("chaseTargetPath is required for setTarget.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"Target GameObject not found at path: {targetPath}");
-            }
 
-            var serialized = new SerializedObject(ai);
-            serialized.FindProperty("chaseTarget").objectReferenceValue = targetGo.transform;
-            serialized.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("chaseTarget").objectReferenceValue = targetGo.transform;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("aiId", ai.AIId),
+                ("aiId", so.FindProperty("aiId").stringValue),
                 ("targetPath", targetPath),
                 ("targetSet", true)
             );
@@ -346,41 +363,51 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ClearTarget(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
 
-            var serialized = new SerializedObject(ai);
-            serialized.FindProperty("chaseTarget").objectReferenceValue = null;
-            serialized.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("chaseTarget").objectReferenceValue = null;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("aiId", ai.AIId),
+                ("aiId", so.FindProperty("aiId").stringValue),
                 ("targetCleared", true)
             );
         }
 
         private object SetState(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
             var stateStr = GetString(payload, "state");
 
             if (string.IsNullOrEmpty(stateStr))
-            {
                 throw new InvalidOperationException("state is required for setState.");
+
+            var stateName = ParseAIState(stateStr);
+
+            var so = new SerializedObject(component);
+            var stateProp = so.FindProperty("currentState");
+            if (stateProp != null)
+            {
+                var names = stateProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], stateName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        stateProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
+            so.ApplyModifiedProperties();
 
-            var state = ParseAIState(stateStr);
-
-            var serialized = new SerializedObject(ai);
-            serialized.FindProperty("currentState").enumValueIndex = (int)state;
-            serialized.ApplyModifiedProperties();
-
-            EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("aiId", ai.AIId),
-                ("state", state.ToString()),
+                ("aiId", so.FindProperty("aiId").stringValue),
+                ("state", stateName),
                 ("note", "State set. Full behavior requires Play mode.")
             );
         }
@@ -391,42 +418,33 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object AddPatrolPoint(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
             var pointPath = GetString(payload, "pointPath");
-
-            Transform pointTransform;
+            var so = new SerializedObject(component);
+            var patrolProp = so.FindProperty("patrolPoints");
+            var aiId = so.FindProperty("aiId").stringValue;
 
             if (string.IsNullOrEmpty(pointPath))
             {
-                // Create new patrol point
-                var serialized = new SerializedObject(ai);
-                var patrolProp = serialized.FindProperty("patrolPoints");
                 var pointIndex = patrolProp.arraySize;
-
-                var pointGo = new GameObject($"PatrolPoint_{ai.AIId}_{pointIndex}");
+                var pointGo = new GameObject($"PatrolPoint_{aiId}_{pointIndex}");
                 Undo.RegisterCreatedObjectUndo(pointGo, "Create Patrol Point");
 
                 if (payload.TryGetValue("position", out var posObj) && posObj is Dictionary<string, object> posDict)
-                {
-                    pointGo.transform.position = GetVector3FromDict(posDict, ai.transform.position + Vector3.right * (pointIndex + 1) * 2);
-                }
+                    pointGo.transform.position = GetVector3FromDict(posDict, component.transform.position + Vector3.right * (pointIndex + 1) * 2);
                 else
-                {
-                    // Default position offset from AI
-                    pointGo.transform.position = ai.transform.position + Vector3.right * (pointIndex + 1) * 2;
-                }
+                    pointGo.transform.position = component.transform.position + Vector3.right * (pointIndex + 1) * 2;
 
-                pointGo.transform.SetParent(ai.transform.parent);
-                pointTransform = pointGo.transform;
+                pointGo.transform.SetParent(component.transform.parent);
 
                 patrolProp.InsertArrayElementAtIndex(patrolProp.arraySize);
-                patrolProp.GetArrayElementAtIndex(patrolProp.arraySize - 1).objectReferenceValue = pointTransform;
-                serialized.ApplyModifiedProperties();
+                patrolProp.GetArrayElementAtIndex(patrolProp.arraySize - 1).objectReferenceValue = pointGo.transform;
+                so.ApplyModifiedProperties();
 
-                EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
                 return CreateSuccessResponse(
-                    ("aiId", ai.AIId),
+                    ("aiId", aiId),
                     ("pointPath", BuildGameObjectPath(pointGo)),
                     ("pointIndex", pointIndex),
                     ("position", new Dictionary<string, object>
@@ -441,21 +459,16 @@ namespace MCP.Editor.Handlers.GameKit
             {
                 var pointGo = ResolveGameObject(pointPath);
                 if (pointGo == null)
-                {
                     throw new InvalidOperationException($"GameObject not found at path: {pointPath}");
-                }
-
-                var serialized = new SerializedObject(ai);
-                var patrolProp = serialized.FindProperty("patrolPoints");
 
                 patrolProp.InsertArrayElementAtIndex(patrolProp.arraySize);
                 patrolProp.GetArrayElementAtIndex(patrolProp.arraySize - 1).objectReferenceValue = pointGo.transform;
-                serialized.ApplyModifiedProperties();
+                so.ApplyModifiedProperties();
 
-                EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+                EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
                 return CreateSuccessResponse(
-                    ("aiId", ai.AIId),
+                    ("aiId", aiId),
                     ("pointPath", pointPath),
                     ("pointIndex", patrolProp.arraySize - 1)
                 );
@@ -464,17 +477,17 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ClearPatrolPoints(Dictionary<string, object> payload)
         {
-            var ai = ResolveAIComponent(payload);
+            var component = ResolveAIComponent(payload);
 
-            var serialized = new SerializedObject(ai);
-            var patrolProp = serialized.FindProperty("patrolPoints");
-            patrolProp.ClearArray();
-            serialized.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            var patrolProp = so.FindProperty("patrolPoints");
+            if (patrolProp != null) patrolProp.ClearArray();
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(ai.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("aiId", ai.AIId),
+                ("aiId", so.FindProperty("aiId").stringValue),
                 ("cleared", true)
             );
         }
@@ -487,22 +500,24 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var aiId = GetString(payload, "aiId");
             if (string.IsNullOrEmpty(aiId))
-            {
                 throw new InvalidOperationException("aiId is required.");
-            }
 
-            var ai = FindAIById(aiId);
-            if (ai == null)
-            {
+            var component = CodeGenHelper.FindComponentInSceneByField("aiId", aiId);
+            if (component == null)
                 return CreateSuccessResponse(("found", false), ("aiId", aiId));
-            }
+
+            var so = new SerializedObject(component);
+            var behaviorTypeProp = so.FindProperty("behaviorType");
+            var currentStateProp = so.FindProperty("currentState");
 
             return CreateSuccessResponse(
                 ("found", true),
-                ("aiId", ai.AIId),
-                ("path", BuildGameObjectPath(ai.gameObject)),
-                ("behaviorType", ai.BehaviorType.ToString()),
-                ("currentState", ai.CurrentState.ToString())
+                ("aiId", aiId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("behaviorType", behaviorTypeProp != null && behaviorTypeProp.enumValueIndex < behaviorTypeProp.enumDisplayNames.Length
+                    ? behaviorTypeProp.enumDisplayNames[behaviorTypeProp.enumValueIndex] : "Patrol"),
+                ("currentState", currentStateProp != null && currentStateProp.enumValueIndex < currentStateProp.enumDisplayNames.Length
+                    ? currentStateProp.enumDisplayNames[currentStateProp.enumValueIndex] : "Idle")
             );
         }
 
@@ -510,16 +525,14 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitAIBehavior ResolveAIComponent(Dictionary<string, object> payload)
+        private Component ResolveAIComponent(Dictionary<string, object> payload)
         {
             var aiId = GetString(payload, "aiId");
             if (!string.IsNullOrEmpty(aiId))
             {
-                var aiById = FindAIById(aiId);
+                var aiById = CodeGenHelper.FindComponentInSceneByField("aiId", aiId);
                 if (aiById != null)
-                {
                     return aiById;
-                }
             }
 
             var targetPath = GetString(payload, "targetPath");
@@ -528,12 +541,10 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var aiByPath = targetGo.GetComponent<GameKitAIBehavior>();
+                    var aiByPath = CodeGenHelper.FindComponentByField(targetGo, "aiId", null);
                     if (aiByPath != null)
-                    {
                         return aiByPath;
-                    }
-                    throw new InvalidOperationException($"No GameKitAIBehavior component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No AI component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -541,57 +552,42 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either aiId or targetPath is required.");
         }
 
-        private GameKitAIBehavior FindAIById(string aiId)
-        {
-            var ais = UnityEngine.Object.FindObjectsByType<GameKitAIBehavior>(FindObjectsSortMode.None);
-            foreach (var ai in ais)
-            {
-                if (ai.AIId == aiId)
-                {
-                    return ai;
-                }
-            }
-            return null;
-        }
-
-        private GameKitAIBehavior.AIBehaviorType ParseBehaviorType(string str)
+        private string ParseBehaviorType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "patrol" => GameKitAIBehavior.AIBehaviorType.Patrol,
-                "chase" => GameKitAIBehavior.AIBehaviorType.Chase,
-                "flee" => GameKitAIBehavior.AIBehaviorType.Flee,
-                "patrolandchase" => GameKitAIBehavior.AIBehaviorType.PatrolAndChase,
-                "patrol_and_chase" => GameKitAIBehavior.AIBehaviorType.PatrolAndChase,
-                _ => GameKitAIBehavior.AIBehaviorType.Patrol
+                "patrol" => "Patrol",
+                "chase" => "Chase",
+                "flee" => "Flee",
+                "patrolandchase" or "patrol_and_chase" => "PatrolAndChase",
+                _ => "Patrol"
             };
         }
 
-        private GameKitAIBehavior.PatrolMode ParsePatrolMode(string str)
+        private string ParsePatrolMode(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "loop" => GameKitAIBehavior.PatrolMode.Loop,
-                "pingpong" => GameKitAIBehavior.PatrolMode.PingPong,
-                "random" => GameKitAIBehavior.PatrolMode.Random,
-                _ => GameKitAIBehavior.PatrolMode.Loop
+                "loop" => "Loop",
+                "pingpong" => "PingPong",
+                "random" => "Random",
+                _ => "Loop"
             };
         }
 
-        private GameKitAIBehavior.AIState ParseAIState(string str)
+        private string ParseAIState(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "idle" => GameKitAIBehavior.AIState.Idle,
-                "patrol" => GameKitAIBehavior.AIState.Patrol,
-                "chase" => GameKitAIBehavior.AIState.Chase,
-                "attack" => GameKitAIBehavior.AIState.Attack,
-                "flee" => GameKitAIBehavior.AIState.Flee,
-                "return" => GameKitAIBehavior.AIState.Return,
-                _ => GameKitAIBehavior.AIState.Idle
+                "idle" => "Idle",
+                "patrol" => "Patrol",
+                "chase" => "Chase",
+                "attack" => "Attack",
+                "flee" => "Flee",
+                "return" => "Return",
+                _ => "Idle"
             };
         }
-
 
         #endregion
     }

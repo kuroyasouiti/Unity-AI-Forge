@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,6 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Interaction handler: create and manage interaction triggers.
+    /// Uses code generation to produce standalone scripts with zero package dependency.
     /// </summary>
     public class GameKitInteractionHandler : BaseCommandHandler
     {
@@ -19,7 +20,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -51,50 +53,66 @@ namespace MCP.Editor.Handlers.GameKit
                 interactionGo.transform.SetParent(parent.transform, false);
             }
 
-            // Add GameKitInteraction component
-            var interaction = Undo.AddComponent<GameKitInteraction>(interactionGo);
-            var trigger = ParseTriggerType(triggerStr);
-            interaction.Initialize(interactionId, trigger);
+            // Check if already has an interaction component (by checking for interactionId field)
+            var existingInteraction = CodeGenHelper.FindComponentByField(interactionGo, "interactionId", null);
+            if (existingInteraction != null)
+            {
+                throw new InvalidOperationException(
+                    $"GameObject '{interactionId}' already has an Interaction component.");
+            }
+
+            var triggerType = ParseTriggerType(triggerStr);
+            var proximityRadius = GetFloat(payload, "proximityRadius", 3f);
+            var inputKey = GetString(payload, "inputKey") ?? "E";
+            var allowRepeated = GetBool(payload, "allowRepeatedTrigger", true);
+            var triggerCooldown = GetFloat(payload, "triggerCooldown", 0f);
+
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(interactionId, "Interaction");
+
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "INTERACTION_ID", interactionId },
+                { "TRIGGER_TYPE", triggerType },
+                { "PROXIMITY_RADIUS", proximityRadius },
+                { "INPUT_KEY", inputKey },
+                { "ALLOW_REPEATED", allowRepeated ? "true" : "false" },
+                { "TRIGGER_COOLDOWN", triggerCooldown }
+            };
+
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                interactionGo, "Interaction", interactionId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Interaction script.");
+            }
 
             // Add collider for trigger/collision types
-            if (trigger == GameKitInteraction.TriggerType.Trigger || trigger == GameKitInteraction.TriggerType.Collision)
+            if (triggerType == "Trigger" || triggerType == "Collision")
             {
                 var shapeStr = GetString(payload, "triggerShape") ?? "box";
                 var is2D = GetBool(payload, "is2D", false);
-                AddCollider(interactionGo, shapeStr, trigger == GameKitInteraction.TriggerType.Trigger, is2D, payload);
-            }
-
-            // Add actions
-            if (payload.TryGetValue("actions", out var actionsObj) && actionsObj is List<object> actionsList)
-            {
-                foreach (var actionObj in actionsList)
-                {
-                    if (actionObj is Dictionary<string, object> actionDict)
-                    {
-                        var actionType = ParseActionType(GetStringFromDict(actionDict, "type"));
-                        var target = GetStringFromDict(actionDict, "target");
-                        var parameter = GetStringFromDict(actionDict, "parameter");
-                        interaction.AddAction(actionType, target, parameter);
-                    }
-                }
-            }
-
-            // Add conditions
-            if (payload.TryGetValue("conditions", out var conditionsObj) && conditionsObj is List<object> conditionsList)
-            {
-                foreach (var conditionObj in conditionsList)
-                {
-                    if (conditionObj is Dictionary<string, object> conditionDict)
-                    {
-                        var conditionType = ParseConditionType(GetStringFromDict(conditionDict, "type"));
-                        var value = GetStringFromDict(conditionDict, "value");
-                        interaction.AddCondition(conditionType, value);
-                    }
-                }
+                AddCollider(interactionGo, shapeStr, triggerType == "Trigger", is2D, payload);
             }
 
             EditorSceneManager.MarkSceneDirty(interactionGo.scene);
-            return CreateSuccessResponse(("interactionId", interactionId), ("path", BuildGameObjectPath(interactionGo)));
+
+            result["interactionId"] = interactionId;
+            result["path"] = BuildGameObjectPath(interactionGo);
+            result["triggerType"] = triggerType;
+
+            return result;
         }
 
         private void AddCollider(GameObject go, string shape, bool isTrigger, bool is2D, Dictionary<string, object> payload)
@@ -199,51 +217,64 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateInteraction(Dictionary<string, object> payload)
         {
-            var interactionId = GetString(payload, "interactionId");
-            if (string.IsNullOrEmpty(interactionId))
-            {
-                throw new InvalidOperationException("interactionId is required for update.");
-            }
+            var component = ResolveInteractionComponent(payload);
 
-            var interaction = FindInteractionById(interactionId);
-            if (interaction == null)
-            {
-                throw new InvalidOperationException($"Interaction with ID '{interactionId}' not found.");
-            }
+            Undo.RecordObject(component, "Update GameKit Interaction");
 
-            Undo.RecordObject(interaction, "Update GameKit Interaction");
+            var so = new SerializedObject(component);
 
-            // Add new actions
-            if (payload.TryGetValue("actions", out var actionsObj) && actionsObj is List<object> actionsList)
+            if (payload.TryGetValue("triggerType", out var triggerObj))
             {
-                foreach (var actionObj in actionsList)
+                var triggerType = ParseTriggerType(triggerObj.ToString());
+                var triggerProp = so.FindProperty("triggerType");
+                var names = triggerProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
                 {
-                    if (actionObj is Dictionary<string, object> actionDict)
+                    if (string.Equals(names[i], triggerType, StringComparison.OrdinalIgnoreCase))
                     {
-                        var actionType = ParseActionType(GetStringFromDict(actionDict, "type"));
-                        var target = GetStringFromDict(actionDict, "target");
-                        var parameter = GetStringFromDict(actionDict, "parameter");
-                        interaction.AddAction(actionType, target, parameter);
+                        triggerProp.enumValueIndex = i;
+                        break;
                     }
                 }
             }
 
-            // Add new conditions
-            if (payload.TryGetValue("conditions", out var conditionsObj) && conditionsObj is List<object> conditionsList)
+            if (payload.TryGetValue("proximityRadius", out var proxObj))
+                so.FindProperty("proximityRadius").floatValue = Convert.ToSingle(proxObj);
+
+            if (payload.TryGetValue("inputKey", out var keyObj))
             {
-                foreach (var conditionObj in conditionsList)
+                var inputKeyProp = so.FindProperty("inputKey");
+                var keyStr = keyObj.ToString();
+                var keyNames = inputKeyProp.enumDisplayNames;
+                for (int i = 0; i < keyNames.Length; i++)
                 {
-                    if (conditionObj is Dictionary<string, object> conditionDict)
+                    if (string.Equals(keyNames[i], keyStr, StringComparison.OrdinalIgnoreCase))
                     {
-                        var conditionType = ParseConditionType(GetStringFromDict(conditionDict, "type"));
-                        var value = GetStringFromDict(conditionDict, "value");
-                        interaction.AddCondition(conditionType, value);
+                        inputKeyProp.enumValueIndex = i;
+                        break;
                     }
                 }
             }
 
-            EditorSceneManager.MarkSceneDirty(interaction.gameObject.scene);
-            return CreateSuccessResponse(("interactionId", interactionId), ("path", BuildGameObjectPath(interaction.gameObject)));
+            if (payload.TryGetValue("allowRepeatedTrigger", out var repeatObj))
+                so.FindProperty("allowRepeatedTrigger").boolValue = Convert.ToBoolean(repeatObj);
+
+            if (payload.TryGetValue("triggerCooldown", out var cooldownObj))
+                so.FindProperty("triggerCooldown").floatValue = Convert.ToSingle(cooldownObj);
+
+            if (payload.TryGetValue("logInteractions", out var logObj))
+                so.FindProperty("logInteractions").boolValue = Convert.ToBoolean(logObj);
+
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var interactionId = new SerializedObject(component).FindProperty("interactionId").stringValue;
+
+            return CreateSuccessResponse(
+                ("interactionId", interactionId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("updated", true)
+            );
         }
 
         #endregion
@@ -258,18 +289,28 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("interactionId is required for inspect.");
             }
 
-            var interaction = FindInteractionById(interactionId);
-            if (interaction == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("interactionId", interactionId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("interactionId", interactionId));
             }
 
+            var so = new SerializedObject(component);
+
+            var triggerProp = so.FindProperty("triggerType");
+            var triggerType = triggerProp.enumValueIndex < triggerProp.enumDisplayNames.Length
+                ? triggerProp.enumDisplayNames[triggerProp.enumValueIndex]
+                : "Trigger";
+
             var info = new Dictionary<string, object>
             {
                 { "found", true },
-                { "interactionId", interaction.InteractionId },
-                { "path", BuildGameObjectPath(interaction.gameObject) },
-                { "triggerType", interaction.Trigger.ToString() }
+                { "interactionId", so.FindProperty("interactionId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "triggerType", triggerType },
+                { "proximityRadius", so.FindProperty("proximityRadius").floatValue },
+                { "allowRepeatedTrigger", so.FindProperty("allowRepeatedTrigger").boolValue },
+                { "triggerCooldown", so.FindProperty("triggerCooldown").floatValue }
             };
 
             return CreateSuccessResponse(("interaction", info));
@@ -287,71 +328,112 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("interactionId is required for delete.");
             }
 
-            var interaction = FindInteractionById(interactionId);
-            if (interaction == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("interactionId", interactionId);
+            if (component == null)
             {
                 throw new InvalidOperationException($"Interaction with ID '{interactionId}' not found.");
             }
 
-            var scene = interaction.gameObject.scene;
-            Undo.DestroyObjectImmediate(interaction.gameObject);
+            var path = BuildGameObjectPath(component.gameObject);
+            var scene = component.gameObject.scene;
+            Undo.DestroyObjectImmediate(component.gameObject);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(interactionId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
-            return CreateSuccessResponse(("interactionId", interactionId), ("deleted", true));
+            return CreateSuccessResponse(
+                ("interactionId", interactionId),
+                ("path", path),
+                ("deleted", true)
+            );
         }
 
         #endregion
 
         #region Helpers
 
-        private GameKitInteraction FindInteractionById(string interactionId)
+        private Component ResolveInteractionComponent(Dictionary<string, object> payload)
         {
-            var interactions = UnityEngine.Object.FindObjectsByType<GameKitInteraction>(FindObjectsSortMode.None);
-            foreach (var interaction in interactions)
+            // Try by interactionId first
+            var interactionId = GetString(payload, "interactionId");
+            if (!string.IsNullOrEmpty(interactionId))
             {
-                if (interaction.InteractionId == interactionId)
+                var interactionById = CodeGenHelper.FindComponentInSceneByField("interactionId", interactionId);
+                if (interactionById != null)
                 {
-                    return interaction;
+                    return interactionById;
                 }
             }
-            return null;
+
+            // Try by targetPath
+            var targetPath = GetString(payload, "targetPath");
+            if (!string.IsNullOrEmpty(targetPath))
+            {
+                var targetGo = ResolveGameObject(targetPath);
+                if (targetGo != null)
+                {
+                    var interactionByPath = CodeGenHelper.FindComponentByField(targetGo, "interactionId", null);
+                    if (interactionByPath != null)
+                    {
+                        return interactionByPath;
+                    }
+
+                    throw new InvalidOperationException($"No Interaction component found on '{targetPath}'.");
+                }
+                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+            }
+
+            throw new InvalidOperationException("Either interactionId or targetPath is required.");
         }
 
-        private GameKitInteraction.TriggerType ParseTriggerType(string str)
+        private string ParseTriggerType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "collision" => GameKitInteraction.TriggerType.Collision,
-                "trigger" => GameKitInteraction.TriggerType.Trigger,
-                "raycast" => GameKitInteraction.TriggerType.Raycast,
-                "proximity" => GameKitInteraction.TriggerType.Proximity,
-                "input" => GameKitInteraction.TriggerType.Input,
-                _ => GameKitInteraction.TriggerType.Trigger
+                "collision" => "Collision",
+                "trigger" => "Trigger",
+                "raycast" => "Raycast",
+                "proximity" => "Proximity",
+                "input" => "Input",
+                "tilemapcell" => "TilemapCell",
+                "graphnode" => "GraphNode",
+                "splineprogress" => "SplineProgress",
+                _ => "Trigger"
             };
         }
 
-        private GameKitInteraction.ActionType ParseActionType(string str)
+        private string ParseActionType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "spawnprefab" => GameKitInteraction.ActionType.SpawnPrefab,
-                "destroyobject" => GameKitInteraction.ActionType.DestroyObject,
-                "playsound" => GameKitInteraction.ActionType.PlaySound,
-                "sendmessage" => GameKitInteraction.ActionType.SendMessage,
-                "changescene" => GameKitInteraction.ActionType.ChangeScene,
-                _ => GameKitInteraction.ActionType.SendMessage
+                "spawnprefab" => "SpawnPrefab",
+                "destroyobject" => "DestroyObject",
+                "playsound" => "PlaySound",
+                "sendmessage" => "SendMessage",
+                "changescene" => "ChangeScene",
+                "triggeractoraction" => "TriggerActorAction",
+                "updatemanagerresource" => "UpdateManagerResource",
+                "triggersceneflow" => "TriggerSceneFlow",
+                "teleporttotile" => "TeleportToTile",
+                "movetographnode" => "MoveToGraphNode",
+                "setsplineprogress" => "SetSplineProgress",
+                _ => "SendMessage"
             };
         }
 
-        private GameKitInteraction.ConditionType ParseConditionType(string str)
+        private string ParseConditionType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "tag" => GameKitInteraction.ConditionType.Tag,
-                "layer" => GameKitInteraction.ConditionType.Layer,
-                "distance" => GameKitInteraction.ConditionType.Distance,
-                "custom" => GameKitInteraction.ConditionType.Custom,
-                _ => GameKitInteraction.ConditionType.Tag
+                "tag" => "Tag",
+                "layer" => "Layer",
+                "distance" => "Distance",
+                "actorid" => "ActorId",
+                "managerresource" => "ManagerResource",
+                "custom" => "Custom",
+                _ => "Tag"
             };
         }
 
@@ -363,4 +445,3 @@ namespace MCP.Editor.Handlers.GameKit
         #endregion
     }
 }
-

@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Quest handler: create and manage quest systems.
-    /// Provides declarative quest creation without custom scripts.
+    /// Uses code generation to produce standalone QuestManager and QuestData scripts
+    /// with zero package dependency.
     /// </summary>
     public class GameKitQuestHandler : BaseCommandHandler
     {
@@ -31,7 +34,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "createManager" || operation == "createQuest";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -76,150 +80,214 @@ namespace MCP.Editor.Handlers.GameKit
                 Directory.CreateDirectory(directory);
             }
 
-            // Check if asset already exists
-            if (AssetDatabase.LoadAssetAtPath<GameKitQuestAsset>(assetPath) != null)
+            // Check if asset already exists at path
+            var existingAsset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (existingAsset != null)
             {
                 throw new InvalidOperationException($"Quest asset already exists at: {assetPath}");
             }
 
             var title = GetString(payload, "title") ?? questId;
             var description = GetString(payload, "description") ?? "";
+            var category = ParseQuestCategory(GetString(payload, "category") ?? "Side");
 
-            // Create ScriptableObject
-            var quest = ScriptableObject.CreateInstance<GameKitQuestAsset>();
-            quest.Initialize(questId, title, description);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(questId, "QuestData");
 
-            // Set settings via SerializedObject
-            var serializedQuest = new SerializedObject(quest);
-
-            if (payload.TryGetValue("category", out var categoryObj))
+            // Build template variables for the QuestData ScriptableObject
+            var variables = new Dictionary<string, object>
             {
-                var category = ParseQuestCategory(categoryObj.ToString());
-                serializedQuest.FindProperty("category").enumValueIndex = (int)category;
+                { "QUEST_ID", questId },
+                { "TITLE", title },
+                { "DESCRIPTION", description },
+                { "CATEGORY", category }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate the QuestData script (ScriptableObject, no target GameObject)
+            var genResult = ScriptGenerator.Generate(null, "QuestData", className, questId, variables, outputDir);
+            if (!genResult.Success)
+            {
+                throw new InvalidOperationException(genResult.ErrorMessage ?? "Failed to generate QuestData script.");
             }
 
-            if (payload.TryGetValue("customCategory", out var customCat))
+            // Try to resolve the generated type and create the asset
+            var questType = ScriptGenerator.ResolveGeneratedType(className);
+            if (questType != null)
             {
-                serializedQuest.FindProperty("customCategory").stringValue = customCat.ToString();
-            }
+                var quest = ScriptableObject.CreateInstance(questType);
+                var so = new SerializedObject(quest);
 
-            if (payload.TryGetValue("requireAllObjectives", out var reqAll))
-            {
-                serializedQuest.FindProperty("requireAllObjectives").boolValue = Convert.ToBoolean(reqAll);
-            }
+                so.FindProperty("questId").stringValue = questId;
+                so.FindProperty("title").stringValue = title;
+                so.FindProperty("description").stringValue = description;
 
-            if (payload.TryGetValue("autoComplete", out var autoComplete))
-            {
-                serializedQuest.FindProperty("autoComplete").boolValue = Convert.ToBoolean(autoComplete);
-            }
-
-            if (payload.TryGetValue("repeatable", out var repeatable))
-            {
-                serializedQuest.FindProperty("repeatable").boolValue = Convert.ToBoolean(repeatable);
-            }
-
-            if (payload.TryGetValue("maxCompletions", out var maxComp))
-            {
-                serializedQuest.FindProperty("maxCompletions").intValue = Convert.ToInt32(maxComp);
-            }
-
-            serializedQuest.ApplyModifiedPropertiesWithoutUndo();
-
-            // Add objectives if provided
-            if (payload.TryGetValue("objectives", out var objsObj) && objsObj is List<object> objsList)
-            {
-                foreach (var objObj in objsList)
+                // Set category enum
+                var categoryProp = so.FindProperty("category");
+                if (categoryProp != null)
                 {
-                    if (objObj is Dictionary<string, object> objDict)
+                    var names = categoryProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
                     {
-                        var objective = ParseObjective(objDict);
-                        quest.AddObjective(objective);
+                        if (string.Equals(names[i], category, StringComparison.OrdinalIgnoreCase))
+                        {
+                            categoryProp.enumValueIndex = i;
+                            break;
+                        }
                     }
                 }
-            }
 
-            // Add prerequisites if provided
-            if (payload.TryGetValue("prerequisites", out var prereqsObj) && prereqsObj is List<object> prereqsList)
-            {
-                foreach (var prereqObj in prereqsList)
+                if (payload.TryGetValue("customCategory", out var customCat))
+                    SetPropertyIfExists(so, "customCategory", customCat.ToString());
+
+                if (payload.TryGetValue("requireAllObjectives", out var reqAll))
+                    SetBoolPropertyIfExists(so, "requireAllObjectives", Convert.ToBoolean(reqAll));
+
+                if (payload.TryGetValue("autoComplete", out var autoComplete))
+                    SetBoolPropertyIfExists(so, "autoComplete", Convert.ToBoolean(autoComplete));
+
+                if (payload.TryGetValue("repeatable", out var repeatable))
+                    SetBoolPropertyIfExists(so, "repeatable", Convert.ToBoolean(repeatable));
+
+                if (payload.TryGetValue("maxCompletions", out var maxComp))
+                    SetIntPropertyIfExists(so, "maxCompletions", Convert.ToInt32(maxComp));
+
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                // Add objectives if provided
+                if (payload.TryGetValue("objectives", out var objsObj) && objsObj is List<object> objsList)
                 {
-                    if (prereqObj is Dictionary<string, object> prereqDict)
+                    var objectivesProp = so.FindProperty("objectives");
+                    if (objectivesProp != null)
                     {
-                        var prereq = ParsePrerequisite(prereqDict);
-                        quest.AddPrerequisite(prereq);
+                        foreach (var objObj in objsList)
+                        {
+                            if (objObj is Dictionary<string, object> objDict)
+                            {
+                                AddObjectiveToArray(objectivesProp, objDict);
+                            }
+                        }
+                        so.ApplyModifiedPropertiesWithoutUndo();
                     }
                 }
-            }
 
-            // Add rewards if provided
-            if (payload.TryGetValue("rewards", out var rewardsObj) && rewardsObj is List<object> rewardsList)
-            {
-                foreach (var rewardObj in rewardsList)
+                // Add prerequisites if provided
+                if (payload.TryGetValue("prerequisites", out var prereqsObj) && prereqsObj is List<object> prereqsList)
                 {
-                    if (rewardObj is Dictionary<string, object> rewardDict)
+                    var prereqsProp = so.FindProperty("prerequisites");
+                    if (prereqsProp != null)
                     {
-                        var reward = ParseReward(rewardDict);
-                        quest.AddReward(reward);
+                        foreach (var prereqObj in prereqsList)
+                        {
+                            if (prereqObj is Dictionary<string, object> prereqDict)
+                            {
+                                AddPrerequisiteToArray(prereqsProp, prereqDict);
+                            }
+                        }
+                        so.ApplyModifiedPropertiesWithoutUndo();
                     }
                 }
+
+                // Add rewards if provided
+                if (payload.TryGetValue("rewards", out var rewardsObj) && rewardsObj is List<object> rewardsList)
+                {
+                    var rewardsProp = so.FindProperty("rewards");
+                    if (rewardsProp != null)
+                    {
+                        foreach (var rewardObj in rewardsList)
+                        {
+                            if (rewardObj is Dictionary<string, object> rewardDict)
+                            {
+                                AddRewardToArray(rewardsProp, rewardDict);
+                            }
+                        }
+                        so.ApplyModifiedPropertiesWithoutUndo();
+                    }
+                }
+
+                // Save asset
+                AssetDatabase.CreateAsset(quest, assetPath);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+
+                var objectiveCount = so.FindProperty("objectives")?.arraySize ?? 0;
+                var rewardCount = so.FindProperty("rewards")?.arraySize ?? 0;
+
+                return CreateSuccessResponse(
+                    ("questId", questId),
+                    ("assetPath", assetPath),
+                    ("title", title),
+                    ("scriptPath", genResult.ScriptPath),
+                    ("className", genResult.ClassName),
+                    ("objectiveCount", objectiveCount),
+                    ("rewardCount", rewardCount),
+                    ("compilationRequired", false)
+                );
             }
 
-            // Save asset
-            AssetDatabase.CreateAsset(quest, assetPath);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
+            // Type not compiled yet; script was generated but asset creation deferred
             return CreateSuccessResponse(
                 ("questId", questId),
                 ("assetPath", assetPath),
                 ("title", title),
-                ("objectiveCount", quest.Objectives.Count),
-                ("rewardCount", quest.Rewards.Count)
+                ("scriptPath", genResult.ScriptPath),
+                ("className", genResult.ClassName),
+                ("compilationRequired", true),
+                ("note", "QuestData script generated. After Unity recompiles, run createQuest again to create the asset.")
             );
         }
 
         private object UpdateQuest(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
-            var serializedQuest = new SerializedObject(quest);
+            var so = new SerializedObject(quest);
 
             if (payload.TryGetValue("title", out var titleObj))
-            {
-                serializedQuest.FindProperty("title").stringValue = titleObj.ToString();
-            }
+                so.FindProperty("title").stringValue = titleObj.ToString();
 
             if (payload.TryGetValue("description", out var descObj))
-            {
-                serializedQuest.FindProperty("description").stringValue = descObj.ToString();
-            }
+                so.FindProperty("description").stringValue = descObj.ToString();
 
             if (payload.TryGetValue("category", out var categoryObj))
             {
                 var category = ParseQuestCategory(categoryObj.ToString());
-                serializedQuest.FindProperty("category").enumValueIndex = (int)category;
+                var categoryProp = so.FindProperty("category");
+                if (categoryProp != null)
+                {
+                    var names = categoryProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], category, StringComparison.OrdinalIgnoreCase))
+                        {
+                            categoryProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
+
+            if (payload.TryGetValue("customCategory", out var customCat))
+                SetPropertyIfExists(so, "customCategory", customCat.ToString());
 
             if (payload.TryGetValue("requireAllObjectives", out var reqAll))
-            {
-                serializedQuest.FindProperty("requireAllObjectives").boolValue = Convert.ToBoolean(reqAll);
-            }
+                SetBoolPropertyIfExists(so, "requireAllObjectives", Convert.ToBoolean(reqAll));
 
             if (payload.TryGetValue("autoComplete", out var autoComplete))
-            {
-                serializedQuest.FindProperty("autoComplete").boolValue = Convert.ToBoolean(autoComplete);
-            }
+                SetBoolPropertyIfExists(so, "autoComplete", Convert.ToBoolean(autoComplete));
 
             if (payload.TryGetValue("repeatable", out var repeatable))
-            {
-                serializedQuest.FindProperty("repeatable").boolValue = Convert.ToBoolean(repeatable);
-            }
+                SetBoolPropertyIfExists(so, "repeatable", Convert.ToBoolean(repeatable));
 
-            serializedQuest.ApplyModifiedProperties();
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questIdProp = so.FindProperty("questId");
+            var resolvedQuestId = questIdProp != null ? questIdProp.stringValue : "unknown";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
+                ("questId", resolvedQuestId),
                 ("updated", true)
             );
         }
@@ -227,40 +295,70 @@ namespace MCP.Editor.Handlers.GameKit
         private object InspectQuest(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
 
+            var questId = so.FindProperty("questId")?.stringValue ?? "";
+            var title = so.FindProperty("title")?.stringValue ?? "";
+            var description = so.FindProperty("description")?.stringValue ?? "";
+
+            var categoryProp = so.FindProperty("category");
+            var category = categoryProp != null && categoryProp.enumValueIndex < categoryProp.enumDisplayNames.Length
+                ? categoryProp.enumDisplayNames[categoryProp.enumValueIndex]
+                : "Side";
+
+            var requireAllObjectives = so.FindProperty("requireAllObjectives")?.boolValue ?? true;
+            var autoComplete = so.FindProperty("autoComplete")?.boolValue ?? true;
+            var repeatable = so.FindProperty("repeatable")?.boolValue ?? false;
+            var maxCompletions = so.FindProperty("maxCompletions")?.intValue ?? 0;
+
+            // Serialize objectives
             var objectives = new List<Dictionary<string, object>>();
-            foreach (var obj in quest.Objectives)
+            var objectivesProp = so.FindProperty("objectives");
+            if (objectivesProp != null)
             {
-                objectives.Add(SerializeObjective(obj));
+                for (int i = 0; i < objectivesProp.arraySize; i++)
+                {
+                    objectives.Add(SerializeObjectiveFromProperty(objectivesProp.GetArrayElementAtIndex(i)));
+                }
             }
 
+            // Serialize rewards
             var rewards = new List<Dictionary<string, object>>();
-            foreach (var reward in quest.Rewards)
+            var rewardsProp = so.FindProperty("rewards");
+            if (rewardsProp != null)
             {
-                rewards.Add(SerializeReward(reward));
+                for (int i = 0; i < rewardsProp.arraySize; i++)
+                {
+                    rewards.Add(SerializeRewardFromProperty(rewardsProp.GetArrayElementAtIndex(i)));
+                }
             }
 
+            // Serialize prerequisites
             var prerequisites = new List<Dictionary<string, object>>();
-            foreach (var prereq in quest.Prerequisites)
+            var prereqsProp = so.FindProperty("prerequisites");
+            if (prereqsProp != null)
             {
-                prerequisites.Add(SerializePrerequisite(prereq));
+                for (int i = 0; i < prereqsProp.arraySize; i++)
+                {
+                    prerequisites.Add(SerializePrerequisiteFromProperty(prereqsProp.GetArrayElementAtIndex(i)));
+                }
             }
 
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
+                ("questId", questId),
                 ("assetPath", AssetDatabase.GetAssetPath(quest)),
-                ("title", quest.Title),
-                ("description", quest.Description),
-                ("category", quest.Category.ToString()),
-                ("requireAllObjectives", quest.RequireAllObjectives),
-                ("autoComplete", quest.AutoComplete),
-                ("repeatable", quest.Repeatable),
-                ("maxCompletions", quest.MaxCompletions),
-                ("objectiveCount", quest.Objectives.Count),
+                ("title", title),
+                ("description", description),
+                ("category", category),
+                ("requireAllObjectives", requireAllObjectives),
+                ("autoComplete", autoComplete),
+                ("repeatable", repeatable),
+                ("maxCompletions", maxCompletions),
+                ("objectiveCount", objectives.Count),
                 ("objectives", objectives),
-                ("rewardCount", quest.Rewards.Count),
+                ("rewardCount", rewards.Count),
                 ("rewards", rewards),
-                ("prerequisiteCount", quest.Prerequisites.Count),
+                ("prerequisiteCount", prerequisites.Count),
                 ("prerequisites", prerequisites)
             );
         }
@@ -269,10 +367,14 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var quest = ResolveQuestAsset(payload);
             var assetPath = AssetDatabase.GetAssetPath(quest);
-            var questId = quest.QuestId;
+            var so = new SerializedObject(quest);
+            var questId = so.FindProperty("questId")?.stringValue ?? "";
 
             AssetDatabase.DeleteAsset(assetPath);
             AssetDatabase.Refresh();
+
+            // Clean up the generated script from tracker
+            ScriptGenerator.Delete(questId);
 
             return CreateSuccessResponse(
                 ("questId", questId),
@@ -288,28 +390,42 @@ namespace MCP.Editor.Handlers.GameKit
         private object AddObjective(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
 
             if (!payload.TryGetValue("objective", out var objObj) || objObj is not Dictionary<string, object> objDict)
             {
                 throw new InvalidOperationException("objective data is required for addObjective operation.");
             }
 
-            var objective = ParseObjective(objDict);
-            quest.AddObjective(objective);
+            var objectivesProp = so.FindProperty("objectives");
+            if (objectivesProp == null)
+            {
+                throw new InvalidOperationException("objectives property not found on quest asset.");
+            }
+
+            var objectiveId = objDict.TryGetValue("objectiveId", out var id)
+                ? id?.ToString()
+                : $"obj_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+            AddObjectiveToArray(objectivesProp, objDict);
+            so.ApplyModifiedProperties();
 
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questId = so.FindProperty("questId")?.stringValue ?? "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
-                ("objectiveId", objective.objectiveId),
-                ("objectiveCount", quest.Objectives.Count)
+                ("questId", questId),
+                ("objectiveId", objectiveId),
+                ("objectiveCount", objectivesProp.arraySize)
             );
         }
 
         private object UpdateObjective(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
             var objectiveId = GetString(payload, "objectiveId");
 
             if (string.IsNullOrEmpty(objectiveId))
@@ -317,28 +433,49 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("objectiveId is required for updateObjective operation.");
             }
 
-            var existing = quest.GetObjective(objectiveId);
-            if (existing == null)
-            {
-                throw new InvalidOperationException($"Objective '{objectiveId}' not found in quest.");
-            }
-
             if (!payload.TryGetValue("objective", out var objObj) || objObj is not Dictionary<string, object> objDict)
             {
                 throw new InvalidOperationException("objective data is required for updateObjective operation.");
             }
 
-            // Remove old and add updated
-            quest.RemoveObjective(objectiveId);
+            var objectivesProp = so.FindProperty("objectives");
+            if (objectivesProp == null)
+            {
+                throw new InvalidOperationException("objectives property not found on quest asset.");
+            }
+
+            // Find and remove old objective
+            int foundIndex = -1;
+            for (int i = 0; i < objectivesProp.arraySize; i++)
+            {
+                var elem = objectivesProp.GetArrayElementAtIndex(i);
+                var elemId = elem.FindPropertyRelative("objectiveId")?.stringValue;
+                if (elemId == objectiveId)
+                {
+                    foundIndex = i;
+                    break;
+                }
+            }
+
+            if (foundIndex < 0)
+            {
+                throw new InvalidOperationException($"Objective '{objectiveId}' not found in quest.");
+            }
+
+            objectivesProp.DeleteArrayElementAtIndex(foundIndex);
+
+            // Add updated objective
             objDict["objectiveId"] = objectiveId;
-            var updated = ParseObjective(objDict);
-            quest.AddObjective(updated);
+            AddObjectiveToArray(objectivesProp, objDict);
+            so.ApplyModifiedProperties();
 
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questIdVal = so.FindProperty("questId")?.stringValue ?? "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
+                ("questId", questIdVal),
                 ("objectiveId", objectiveId),
                 ("updated", true)
             );
@@ -347,6 +484,7 @@ namespace MCP.Editor.Handlers.GameKit
         private object RemoveObjective(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
             var objectiveId = GetString(payload, "objectiveId");
 
             if (string.IsNullOrEmpty(objectiveId))
@@ -354,20 +492,41 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("objectiveId is required for removeObjective operation.");
             }
 
-            var removed = quest.RemoveObjective(objectiveId);
+            var objectivesProp = so.FindProperty("objectives");
+            if (objectivesProp == null)
+            {
+                throw new InvalidOperationException("objectives property not found on quest asset.");
+            }
+
+            bool removed = false;
+            for (int i = 0; i < objectivesProp.arraySize; i++)
+            {
+                var elem = objectivesProp.GetArrayElementAtIndex(i);
+                var elemId = elem.FindPropertyRelative("objectiveId")?.stringValue;
+                if (elemId == objectiveId)
+                {
+                    objectivesProp.DeleteArrayElementAtIndex(i);
+                    removed = true;
+                    break;
+                }
+            }
+
             if (!removed)
             {
                 throw new InvalidOperationException($"Objective '{objectiveId}' not found in quest.");
             }
 
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questIdVal = so.FindProperty("questId")?.stringValue ?? "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
+                ("questId", questIdVal),
                 ("objectiveId", objectiveId),
                 ("removed", true),
-                ("objectiveCount", quest.Objectives.Count)
+                ("objectiveCount", objectivesProp.arraySize)
             );
         }
 
@@ -378,49 +537,90 @@ namespace MCP.Editor.Handlers.GameKit
         private object AddPrerequisite(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
 
             if (!payload.TryGetValue("prerequisite", out var prereqObj) || prereqObj is not Dictionary<string, object> prereqDict)
             {
                 throw new InvalidOperationException("prerequisite data is required for addPrerequisite operation.");
             }
 
-            var prereq = ParsePrerequisite(prereqDict);
-            quest.AddPrerequisite(prereq);
+            var prereqsProp = so.FindProperty("prerequisites");
+            if (prereqsProp == null)
+            {
+                throw new InvalidOperationException("prerequisites property not found on quest asset.");
+            }
+
+            AddPrerequisiteToArray(prereqsProp, prereqDict);
+            so.ApplyModifiedProperties();
 
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questId = so.FindProperty("questId")?.stringValue ?? "";
+            var prereqTarget = prereqDict.TryGetValue("target", out var t) ? t?.ToString() : "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
-                ("prerequisiteId", prereq.prerequisiteId),
-                ("prerequisiteCount", quest.Prerequisites.Count)
+                ("questId", questId),
+                ("prerequisiteTarget", prereqTarget),
+                ("prerequisiteCount", prereqsProp.arraySize)
             );
         }
 
         private object RemovePrerequisite(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
-            var prereqId = GetString(payload, "prerequisiteId");
+            var so = new SerializedObject(quest);
+            var prereqIndex = GetInt(payload, "prerequisiteIndex", -1);
 
-            if (string.IsNullOrEmpty(prereqId))
+            var prereqsProp = so.FindProperty("prerequisites");
+            if (prereqsProp == null)
             {
-                throw new InvalidOperationException("prerequisiteId is required for removePrerequisite operation.");
+                throw new InvalidOperationException("prerequisites property not found on quest asset.");
             }
 
-            var removed = quest.RemovePrerequisite(prereqId);
-            if (!removed)
+            // Try to remove by target string if index not provided
+            if (prereqIndex < 0)
             {
-                throw new InvalidOperationException($"Prerequisite '{prereqId}' not found in quest.");
+                var prereqTarget = GetString(payload, "prerequisiteTarget") ?? GetString(payload, "prerequisiteId");
+                if (string.IsNullOrEmpty(prereqTarget))
+                {
+                    throw new InvalidOperationException("prerequisiteIndex or prerequisiteTarget is required for removePrerequisite operation.");
+                }
+
+                for (int i = 0; i < prereqsProp.arraySize; i++)
+                {
+                    var elem = prereqsProp.GetArrayElementAtIndex(i);
+                    var target = elem.FindPropertyRelative("target")?.stringValue;
+                    if (target == prereqTarget)
+                    {
+                        prereqIndex = i;
+                        break;
+                    }
+                }
+
+                if (prereqIndex < 0)
+                {
+                    throw new InvalidOperationException($"Prerequisite with target '{prereqTarget}' not found in quest.");
+                }
             }
+
+            if (prereqIndex < 0 || prereqIndex >= prereqsProp.arraySize)
+            {
+                throw new InvalidOperationException($"Prerequisite index {prereqIndex} is out of range.");
+            }
+
+            prereqsProp.DeleteArrayElementAtIndex(prereqIndex);
+            so.ApplyModifiedProperties();
 
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questId = so.FindProperty("questId")?.stringValue ?? "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
-                ("prerequisiteId", prereqId),
+                ("questId", questId),
                 ("removed", true),
-                ("prerequisiteCount", quest.Prerequisites.Count)
+                ("prerequisiteCount", prereqsProp.arraySize)
             );
         }
 
@@ -431,28 +631,42 @@ namespace MCP.Editor.Handlers.GameKit
         private object AddReward(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
 
             if (!payload.TryGetValue("reward", out var rewardObj) || rewardObj is not Dictionary<string, object> rewardDict)
             {
                 throw new InvalidOperationException("reward data is required for addReward operation.");
             }
 
-            var reward = ParseReward(rewardDict);
-            quest.AddReward(reward);
+            var rewardsProp = so.FindProperty("rewards");
+            if (rewardsProp == null)
+            {
+                throw new InvalidOperationException("rewards property not found on quest asset.");
+            }
+
+            var rewardId = rewardDict.TryGetValue("rewardId", out var rid)
+                ? rid?.ToString()
+                : $"reward_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+            AddRewardToArray(rewardsProp, rewardDict);
+            so.ApplyModifiedProperties();
 
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questId = so.FindProperty("questId")?.stringValue ?? "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
-                ("rewardId", reward.rewardId),
-                ("rewardCount", quest.Rewards.Count)
+                ("questId", questId),
+                ("rewardId", rewardId),
+                ("rewardCount", rewardsProp.arraySize)
             );
         }
 
         private object RemoveReward(Dictionary<string, object> payload)
         {
             var quest = ResolveQuestAsset(payload);
+            var so = new SerializedObject(quest);
             var rewardId = GetString(payload, "rewardId");
 
             if (string.IsNullOrEmpty(rewardId))
@@ -460,20 +674,41 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("rewardId is required for removeReward operation.");
             }
 
-            var removed = quest.RemoveReward(rewardId);
+            var rewardsProp = so.FindProperty("rewards");
+            if (rewardsProp == null)
+            {
+                throw new InvalidOperationException("rewards property not found on quest asset.");
+            }
+
+            bool removed = false;
+            for (int i = 0; i < rewardsProp.arraySize; i++)
+            {
+                var elem = rewardsProp.GetArrayElementAtIndex(i);
+                var elemId = elem.FindPropertyRelative("rewardId")?.stringValue;
+                if (elemId == rewardId)
+                {
+                    rewardsProp.DeleteArrayElementAtIndex(i);
+                    removed = true;
+                    break;
+                }
+            }
+
             if (!removed)
             {
                 throw new InvalidOperationException($"Reward '{rewardId}' not found in quest.");
             }
 
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(quest);
             AssetDatabase.SaveAssets();
 
+            var questIdVal = so.FindProperty("questId")?.stringValue ?? "";
+
             return CreateSuccessResponse(
-                ("questId", quest.QuestId),
+                ("questId", questIdVal),
                 ("rewardId", rewardId),
                 ("removed", true),
-                ("rewardCount", quest.Rewards.Count)
+                ("rewardCount", rewardsProp.arraySize)
             );
         }
 
@@ -489,13 +724,43 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("questId is required for startQuest operation.");
             }
 
-            var quest = ResolveQuestAsset(payload);
-            GameKitQuestManager.RegisterQuest(quest);
+            // Verify the quest asset exists
+            ResolveQuestAsset(payload);
+
+            // Try to find a QuestManager in the scene and register via reflection
+            var manager = ResolveQuestManagerComponent();
+            if (manager != null)
+            {
+                var quest = ResolveQuestAsset(payload);
+                try
+                {
+                    var registerMethod = manager.GetType().GetMethod("RegisterQuest",
+                        BindingFlags.Public | BindingFlags.Instance);
+                    if (registerMethod != null)
+                    {
+                        // Build a QuestDefinition via reflection
+                        var defType = manager.GetType().GetNestedType("QuestDefinition");
+                        if (defType != null)
+                        {
+                            var def = Activator.CreateInstance(defType);
+                            var so = new SerializedObject(quest);
+                            SetFieldViaReflection(def, "questId", so.FindProperty("questId")?.stringValue ?? questId);
+                            SetFieldViaReflection(def, "title", so.FindProperty("title")?.stringValue ?? questId);
+                            SetFieldViaReflection(def, "description", so.FindProperty("description")?.stringValue ?? "");
+                            registerMethod.Invoke(manager, new[] { def });
+                        }
+                    }
+                }
+                catch
+                {
+                    // Reflection-based registration is best-effort
+                }
+            }
 
             return CreateSuccessResponse(
                 ("questId", questId),
-                ("registered", true),
-                ("note", "Quest registered. Start quest in play mode with GameKitQuestManager.Instance.StartQuest().")
+                ("registered", manager != null),
+                ("note", "Quest registered. Start quest in play mode with QuestManager.Instance.StartQuest().")
             );
         }
 
@@ -543,24 +808,38 @@ namespace MCP.Editor.Handlers.GameKit
         private object ListQuests(Dictionary<string, object> payload)
         {
             var filter = GetString(payload, "filter") ?? "all";
-            var guids = AssetDatabase.FindAssets("t:GameKitQuestAsset");
+
+            // Search for all ScriptableObjects that have a "questId" field
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
 
             var quests = new List<Dictionary<string, object>>();
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var quest = AssetDatabase.LoadAssetAtPath<GameKitQuestAsset>(path);
-                if (quest != null)
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+
+                var so = new SerializedObject(asset);
+                var questIdProp = so.FindProperty("questId");
+                if (questIdProp == null || questIdProp.propertyType != SerializedPropertyType.String) continue;
+
+                // Also verify it has objectives property (to distinguish from other SOs with questId)
+                var objectivesProp = so.FindProperty("objectives");
+                if (objectivesProp == null) continue;
+
+                var categoryProp = so.FindProperty("category");
+                var categoryStr = categoryProp != null && categoryProp.enumValueIndex < categoryProp.enumDisplayNames.Length
+                    ? categoryProp.enumDisplayNames[categoryProp.enumValueIndex]
+                    : "Side";
+
+                quests.Add(new Dictionary<string, object>
                 {
-                    quests.Add(new Dictionary<string, object>
-                    {
-                        { "questId", quest.QuestId },
-                        { "title", quest.Title },
-                        { "category", quest.Category.ToString() },
-                        { "assetPath", path },
-                        { "objectiveCount", quest.Objectives.Count }
-                    });
-                }
+                    { "questId", questIdProp.stringValue },
+                    { "title", so.FindProperty("title")?.stringValue ?? "" },
+                    { "category", categoryStr },
+                    { "assetPath", path },
+                    { "objectiveCount", objectivesProp.arraySize }
+                });
             }
 
             return CreateSuccessResponse(
@@ -594,54 +873,85 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("Failed to create or find target GameObject.");
             }
 
-            var existingManager = targetGo.GetComponent<GameKitQuestManager>();
+            // Check if already has a quest manager component (by checking for questManagerId field)
+            var existingManager = CodeGenHelper.FindComponentByField(targetGo, "questManagerId", null);
             if (existingManager != null)
             {
-                throw new InvalidOperationException("GameObject already has a GameKitQuestManager component.");
+                throw new InvalidOperationException("GameObject already has a QuestManager component.");
             }
 
-            Undo.AddComponent<GameKitQuestManager>(targetGo);
+            var questManagerId = GetString(payload, "questManagerId")
+                ?? $"QuestMgr_{Guid.NewGuid().ToString().Substring(0, 8)}";
 
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(targetGo)),
-                ("created", true)
-            );
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(questManagerId, "QuestManager");
+
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "QUEST_MANAGER_ID", questManagerId }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "QuestManager", questManagerId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate QuestManager script.");
+            }
+
+            EditorSceneManager.MarkSceneDirty(targetGo.scene);
+
+            result["questManagerId"] = questManagerId;
+            result["path"] = BuildGameObjectPath(targetGo);
+
+            return result;
         }
 
         private object InspectManager(Dictionary<string, object> payload)
         {
-            var manager = GetQuestManager();
+            var manager = ResolveQuestManagerByPayload(payload);
 
-            var activeQuests = new List<string>();
-            foreach (var kvp in manager.ActiveQuests)
+            var info = new Dictionary<string, object>
             {
-                activeQuests.Add(kvp.Key);
-            }
+                { "path", BuildGameObjectPath(manager.gameObject) }
+            };
 
-            var completedQuests = new List<string>();
-            foreach (var kvp in manager.CompletedQuests)
-            {
-                completedQuests.Add(kvp.Key);
-            }
+            // Read properties via SerializedObject (the manager is a generated component)
+            var so = new SerializedObject(manager);
 
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(manager.gameObject)),
-                ("activeQuestCount", manager.ActiveQuests.Count),
-                ("activeQuests", activeQuests),
-                ("completedQuestCount", manager.CompletedQuests.Count),
-                ("completedQuests", completedQuests),
-                ("failedQuestCount", manager.FailedQuests.Count)
-            );
+            var questManagerIdProp = so.FindProperty("questManagerId");
+            if (questManagerIdProp != null)
+                info["questManagerId"] = questManagerIdProp.stringValue;
+
+            // Runtime state is only available in play mode; provide what we can from serialized data
+            info["note"] = "Active/completed quest lists are runtime-only and available in play mode.";
+
+            return CreateSuccessResponse(("manager", info));
         }
 
         private object DeleteManager(Dictionary<string, object> payload)
         {
-            var manager = GetQuestManager();
+            var manager = ResolveQuestManagerByPayload(payload);
             var path = BuildGameObjectPath(manager.gameObject);
+            var so = new SerializedObject(manager);
+            var questManagerId = so.FindProperty("questManagerId")?.stringValue ?? "";
+            var scene = manager.gameObject.scene;
 
             Undo.DestroyObjectImmediate(manager);
 
+            // Clean up generated script from tracker
+            ScriptGenerator.Delete(questManagerId);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+
             return CreateSuccessResponse(
+                ("questManagerId", questManagerId),
                 ("path", path),
                 ("deleted", true)
             );
@@ -659,19 +969,36 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("questId is required for findByQuestId.");
             }
 
-            var guids = AssetDatabase.FindAssets("t:GameKitQuestAsset");
+            // Search for ScriptableObjects with matching questId
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var quest = AssetDatabase.LoadAssetAtPath<GameKitQuestAsset>(path);
-                if (quest != null && quest.QuestId == questId)
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+
+                try
                 {
-                    return CreateSuccessResponse(
-                        ("found", true),
-                        ("questId", quest.QuestId),
-                        ("assetPath", path),
-                        ("title", quest.Title)
-                    );
+                    var so = new SerializedObject(asset);
+                    var questIdProp = so.FindProperty("questId");
+                    if (questIdProp != null && questIdProp.propertyType == SerializedPropertyType.String
+                        && questIdProp.stringValue == questId)
+                    {
+                        // Verify it also has objectives (quest data asset signature)
+                        var objectivesProp = so.FindProperty("objectives");
+                        if (objectivesProp == null) continue;
+
+                        return CreateSuccessResponse(
+                            ("found", true),
+                            ("questId", questId),
+                            ("assetPath", path),
+                            ("title", so.FindProperty("title")?.stringValue ?? "")
+                        );
+                    }
+                }
+                catch
+                {
+                    // Skip assets that can't be serialized
                 }
             }
 
@@ -682,27 +1009,50 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitQuestAsset ResolveQuestAsset(Dictionary<string, object> payload)
+        private ScriptableObject ResolveQuestAsset(Dictionary<string, object> payload)
         {
             var questId = GetString(payload, "questId");
             var assetPath = GetString(payload, "assetPath");
 
+            // Try by asset path first
             if (!string.IsNullOrEmpty(assetPath))
             {
-                var quest = AssetDatabase.LoadAssetAtPath<GameKitQuestAsset>(assetPath);
-                if (quest != null) return quest;
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+                if (asset != null)
+                {
+                    var so = new SerializedObject(asset);
+                    var questIdProp = so.FindProperty("questId");
+                    if (questIdProp != null)
+                        return asset;
+                }
             }
 
+            // Try by questId - search all ScriptableObjects
             if (!string.IsNullOrEmpty(questId))
             {
-                var guids = AssetDatabase.FindAssets("t:GameKitQuestAsset");
+                var guids = AssetDatabase.FindAssets("t:ScriptableObject");
                 foreach (var guid in guids)
                 {
                     var path = AssetDatabase.GUIDToAssetPath(guid);
-                    var quest = AssetDatabase.LoadAssetAtPath<GameKitQuestAsset>(path);
-                    if (quest != null && quest.QuestId == questId)
+                    var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                    if (asset == null) continue;
+
+                    try
                     {
-                        return quest;
+                        var so = new SerializedObject(asset);
+                        var questIdProp = so.FindProperty("questId");
+                        if (questIdProp != null && questIdProp.propertyType == SerializedPropertyType.String
+                            && questIdProp.stringValue == questId)
+                        {
+                            // Verify it also has objectives (quest data asset signature)
+                            var objectivesProp = so.FindProperty("objectives");
+                            if (objectivesProp != null)
+                                return asset;
+                        }
+                    }
+                    catch
+                    {
+                        // Skip assets that can't be serialized
                     }
                 }
             }
@@ -710,174 +1060,416 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either assetPath or questId is required to resolve quest asset.");
         }
 
-        private GameKitQuestManager GetQuestManager()
+        private Component ResolveQuestManagerComponent()
         {
-            var manager = UnityEngine.Object.FindAnyObjectByType<GameKitQuestManager>();
-            if (manager == null)
+            // Search all MonoBehaviours in the scene for one with a questManagerId field
+            var allMonoBehaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            foreach (var comp in allMonoBehaviours)
             {
-                throw new InvalidOperationException("No GameKitQuestManager found in scene. Create one first.");
+                if (comp == null) continue;
+                try
+                {
+                    var so = new SerializedObject(comp);
+                    var prop = so.FindProperty("questManagerId");
+                    if (prop != null && prop.propertyType == SerializedPropertyType.String)
+                        return comp;
+                }
+                catch
+                {
+                    // Skip components that can't be serialized
+                }
             }
-            return manager;
+            return null;
         }
 
-        private GameKitQuestAsset.QuestObjective ParseObjective(Dictionary<string, object> dict)
+        private Component ResolveQuestManagerByPayload(Dictionary<string, object> payload)
         {
-            return new GameKitQuestAsset.QuestObjective
+            // Try by questManagerId
+            var questManagerId = GetString(payload, "questManagerId");
+            if (!string.IsNullOrEmpty(questManagerId))
             {
-                objectiveId = dict.TryGetValue("objectiveId", out var id) ? id?.ToString() : $"obj_{Guid.NewGuid().ToString().Substring(0, 8)}",
-                type = dict.TryGetValue("type", out var type) ? ParseObjectiveType(type.ToString()) : GameKitQuestAsset.ObjectiveType.Custom,
-                description = dict.TryGetValue("description", out var desc) ? desc?.ToString() : "",
-                targetId = dict.TryGetValue("targetId", out var targetId) ? targetId?.ToString() : "",
-                targetTag = dict.TryGetValue("targetTag", out var targetTag) ? targetTag?.ToString() : "",
-                targetName = dict.TryGetValue("targetName", out var targetName) ? targetName?.ToString() : "",
-                requiredCount = dict.TryGetValue("requiredCount", out var count) ? Convert.ToInt32(count) : 1,
-                hidden = dict.TryGetValue("hidden", out var hidden) && Convert.ToBoolean(hidden),
-                optional = dict.TryGetValue("optional", out var optional) && Convert.ToBoolean(optional),
-                radius = dict.TryGetValue("radius", out var radius) ? Convert.ToSingle(radius) : 5f,
-                sceneName = dict.TryGetValue("sceneName", out var scene) ? scene?.ToString() : ""
-            };
+                var managerById = CodeGenHelper.FindComponentInSceneByField("questManagerId", questManagerId);
+                if (managerById != null)
+                    return managerById;
+            }
+
+            // Try by targetPath
+            var targetPath = GetString(payload, "targetPath");
+            if (!string.IsNullOrEmpty(targetPath))
+            {
+                var targetGo = ResolveGameObject(targetPath);
+                if (targetGo != null)
+                {
+                    var managerByPath = CodeGenHelper.FindComponentByField(targetGo, "questManagerId", null);
+                    if (managerByPath != null)
+                        return managerByPath;
+
+                    throw new InvalidOperationException($"No QuestManager component found on '{targetPath}'.");
+                }
+                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+            }
+
+            // Fallback: find any quest manager in scene
+            var anyManager = ResolveQuestManagerComponent();
+            if (anyManager != null)
+                return anyManager;
+
+            throw new InvalidOperationException("No QuestManager found in scene. Create one first with createManager.");
         }
 
-        private GameKitQuestAsset.QuestPrerequisite ParsePrerequisite(Dictionary<string, object> dict)
+        #endregion
+
+        #region Array Helpers
+
+        private void AddObjectiveToArray(SerializedProperty arrayProp, Dictionary<string, object> dict)
         {
-            return new GameKitQuestAsset.QuestPrerequisite
+            var index = arrayProp.arraySize;
+            arrayProp.InsertArrayElementAtIndex(index);
+            var elem = arrayProp.GetArrayElementAtIndex(index);
+
+            var objectiveId = dict.TryGetValue("objectiveId", out var id)
+                ? id?.ToString()
+                : $"obj_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+            SetRelativePropertyIfExists(elem, "objectiveId", objectiveId);
+
+            if (dict.TryGetValue("type", out var typeObj))
             {
-                prerequisiteId = dict.TryGetValue("prerequisiteId", out var id) ? id?.ToString() : $"prereq_{Guid.NewGuid().ToString().Substring(0, 8)}",
-                type = dict.TryGetValue("type", out var type) ? ParsePrerequisiteType(type.ToString()) : GameKitQuestAsset.PrerequisiteType.Custom,
-                targetId = dict.TryGetValue("targetId", out var targetId) ? targetId?.ToString() : "",
-                value = dict.TryGetValue("value", out var val) ? val?.ToString() : "",
-                comparison = dict.TryGetValue("comparison", out var comp) ? ParseComparisonOperator(comp.ToString()) : GameKitQuestAsset.ComparisonOperator.GreaterOrEqual
-            };
+                var typeName = ParseObjectiveType(typeObj.ToString());
+                var typeProp = elem.FindPropertyRelative("type");
+                if (typeProp != null)
+                {
+                    var names = typeProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            typeProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (dict.TryGetValue("description", out var desc))
+                SetRelativePropertyIfExists(elem, "description", desc?.ToString() ?? "");
+
+            if (dict.TryGetValue("targetId", out var targetId))
+                SetRelativePropertyIfExists(elem, "targetId", targetId?.ToString() ?? "");
+
+            if (dict.TryGetValue("targetTag", out var targetTag))
+                SetRelativePropertyIfExists(elem, "targetTag", targetTag?.ToString() ?? "");
+
+            if (dict.TryGetValue("requiredCount", out var count))
+            {
+                var countProp = elem.FindPropertyRelative("requiredCount");
+                if (countProp != null)
+                    countProp.intValue = Convert.ToInt32(count);
+            }
+
+            if (dict.TryGetValue("sceneName", out var scene))
+                SetRelativePropertyIfExists(elem, "locationScene", scene?.ToString() ?? "");
+
+            if (dict.TryGetValue("radius", out var radius))
+            {
+                var radiusProp = elem.FindPropertyRelative("locationRadius");
+                if (radiusProp != null)
+                    radiusProp.floatValue = Convert.ToSingle(radius);
+            }
         }
 
-        private GameKitQuestAsset.QuestReward ParseReward(Dictionary<string, object> dict)
+        private void AddPrerequisiteToArray(SerializedProperty arrayProp, Dictionary<string, object> dict)
         {
-            return new GameKitQuestAsset.QuestReward
+            var index = arrayProp.arraySize;
+            arrayProp.InsertArrayElementAtIndex(index);
+            var elem = arrayProp.GetArrayElementAtIndex(index);
+
+            if (dict.TryGetValue("type", out var typeObj))
             {
-                rewardId = dict.TryGetValue("rewardId", out var id) ? id?.ToString() : $"reward_{Guid.NewGuid().ToString().Substring(0, 8)}",
-                type = dict.TryGetValue("type", out var type) ? ParseRewardType(type.ToString()) : GameKitQuestAsset.RewardType.Custom,
-                targetId = dict.TryGetValue("targetId", out var targetId) ? targetId?.ToString() : "",
-                itemId = dict.TryGetValue("itemId", out var itemId) ? itemId?.ToString() : "",
-                amount = dict.TryGetValue("amount", out var amount) ? Convert.ToSingle(amount) : 0f,
-                customData = dict.TryGetValue("customData", out var custom) ? custom?.ToString() : ""
-            };
+                var typeName = ParsePrerequisiteType(typeObj.ToString());
+                var typeProp = elem.FindPropertyRelative("type");
+                if (typeProp != null)
+                {
+                    var names = typeProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            typeProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (dict.TryGetValue("targetId", out var targetId))
+                SetRelativePropertyIfExists(elem, "target", targetId?.ToString() ?? "");
+            else if (dict.TryGetValue("target", out var target))
+                SetRelativePropertyIfExists(elem, "target", target?.ToString() ?? "");
+
+            if (dict.TryGetValue("value", out var val))
+            {
+                var valueProp = elem.FindPropertyRelative("value");
+                if (valueProp != null)
+                    valueProp.floatValue = Convert.ToSingle(val);
+            }
+
+            if (dict.TryGetValue("comparison", out var comp))
+                SetRelativePropertyIfExists(elem, "comparison", ParseComparisonOperator(comp.ToString()));
         }
 
-        private Dictionary<string, object> SerializeObjective(GameKitQuestAsset.QuestObjective obj)
+        private void AddRewardToArray(SerializedProperty arrayProp, Dictionary<string, object> dict)
         {
-            return new Dictionary<string, object>
+            var index = arrayProp.arraySize;
+            arrayProp.InsertArrayElementAtIndex(index);
+            var elem = arrayProp.GetArrayElementAtIndex(index);
+
+            var rewardId = dict.TryGetValue("rewardId", out var rid)
+                ? rid?.ToString()
+                : $"reward_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+            SetRelativePropertyIfExists(elem, "rewardId", rewardId);
+
+            if (dict.TryGetValue("type", out var typeObj))
             {
-                { "objectiveId", obj.objectiveId },
-                { "type", obj.type.ToString() },
-                { "description", obj.description },
-                { "targetId", obj.targetId },
-                { "targetTag", obj.targetTag },
-                { "requiredCount", obj.requiredCount },
-                { "hidden", obj.hidden },
-                { "optional", obj.optional }
-            };
+                var typeName = ParseRewardType(typeObj.ToString());
+                var typeProp = elem.FindPropertyRelative("type");
+                if (typeProp != null)
+                {
+                    var names = typeProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            typeProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (dict.TryGetValue("targetId", out var targetId))
+                SetRelativePropertyIfExists(elem, "target", targetId?.ToString() ?? "");
+            else if (dict.TryGetValue("target", out var target))
+                SetRelativePropertyIfExists(elem, "target", target?.ToString() ?? "");
+
+            if (dict.TryGetValue("itemId", out var itemId))
+                SetRelativePropertyIfExists(elem, "itemId", itemId?.ToString() ?? "");
+
+            if (dict.TryGetValue("amount", out var amount))
+            {
+                var amountProp = elem.FindPropertyRelative("amount");
+                if (amountProp != null)
+                    amountProp.floatValue = Convert.ToSingle(amount);
+            }
+
+            if (dict.TryGetValue("customData", out var custom))
+                SetRelativePropertyIfExists(elem, "customData", custom?.ToString() ?? "");
         }
 
-        private Dictionary<string, object> SerializePrerequisite(GameKitQuestAsset.QuestPrerequisite prereq)
+        #endregion
+
+        #region Serialization Helpers
+
+        private Dictionary<string, object> SerializeObjectiveFromProperty(SerializedProperty elem)
         {
-            return new Dictionary<string, object>
+            var result = new Dictionary<string, object>();
+
+            var objectiveId = elem.FindPropertyRelative("objectiveId");
+            if (objectiveId != null) result["objectiveId"] = objectiveId.stringValue;
+
+            var typeProp = elem.FindPropertyRelative("type");
+            if (typeProp != null)
             {
-                { "prerequisiteId", prereq.prerequisiteId },
-                { "type", prereq.type.ToString() },
-                { "targetId", prereq.targetId },
-                { "value", prereq.value },
-                { "comparison", prereq.comparison.ToString() }
-            };
+                result["type"] = typeProp.enumValueIndex < typeProp.enumDisplayNames.Length
+                    ? typeProp.enumDisplayNames[typeProp.enumValueIndex]
+                    : "Custom";
+            }
+
+            var desc = elem.FindPropertyRelative("description");
+            if (desc != null) result["description"] = desc.stringValue;
+
+            var targetId = elem.FindPropertyRelative("targetId");
+            if (targetId != null) result["targetId"] = targetId.stringValue;
+
+            var targetTag = elem.FindPropertyRelative("targetTag");
+            if (targetTag != null) result["targetTag"] = targetTag.stringValue;
+
+            var requiredCount = elem.FindPropertyRelative("requiredCount");
+            if (requiredCount != null) result["requiredCount"] = requiredCount.intValue;
+
+            return result;
         }
 
-        private Dictionary<string, object> SerializeReward(GameKitQuestAsset.QuestReward reward)
+        private Dictionary<string, object> SerializePrerequisiteFromProperty(SerializedProperty elem)
         {
-            return new Dictionary<string, object>
+            var result = new Dictionary<string, object>();
+
+            var typeProp = elem.FindPropertyRelative("type");
+            if (typeProp != null)
             {
-                { "rewardId", reward.rewardId },
-                { "type", reward.type.ToString() },
-                { "targetId", reward.targetId },
-                { "itemId", reward.itemId },
-                { "amount", reward.amount }
-            };
+                result["type"] = typeProp.enumValueIndex < typeProp.enumDisplayNames.Length
+                    ? typeProp.enumDisplayNames[typeProp.enumValueIndex]
+                    : "Custom";
+            }
+
+            var target = elem.FindPropertyRelative("target");
+            if (target != null) result["target"] = target.stringValue;
+
+            var value = elem.FindPropertyRelative("value");
+            if (value != null) result["value"] = value.floatValue;
+
+            var comparison = elem.FindPropertyRelative("comparison");
+            if (comparison != null) result["comparison"] = comparison.stringValue;
+
+            return result;
         }
 
-        private GameKitQuestAsset.QuestCategory ParseQuestCategory(string str)
+        private Dictionary<string, object> SerializeRewardFromProperty(SerializedProperty elem)
+        {
+            var result = new Dictionary<string, object>();
+
+            var rewardId = elem.FindPropertyRelative("rewardId");
+            if (rewardId != null) result["rewardId"] = rewardId.stringValue;
+
+            var typeProp = elem.FindPropertyRelative("type");
+            if (typeProp != null)
+            {
+                result["type"] = typeProp.enumValueIndex < typeProp.enumDisplayNames.Length
+                    ? typeProp.enumDisplayNames[typeProp.enumValueIndex]
+                    : "Custom";
+            }
+
+            var target = elem.FindPropertyRelative("target");
+            if (target != null) result["target"] = target.stringValue;
+
+            var itemId = elem.FindPropertyRelative("itemId");
+            if (itemId != null) result["itemId"] = itemId.stringValue;
+
+            var amount = elem.FindPropertyRelative("amount");
+            if (amount != null) result["amount"] = amount.floatValue;
+
+            return result;
+        }
+
+        #endregion
+
+        #region Property Helpers
+
+        private void SetPropertyIfExists(SerializedObject so, string propertyName, string value)
+        {
+            var prop = so.FindProperty(propertyName);
+            if (prop != null && prop.propertyType == SerializedPropertyType.String)
+                prop.stringValue = value;
+        }
+
+        private void SetBoolPropertyIfExists(SerializedObject so, string propertyName, bool value)
+        {
+            var prop = so.FindProperty(propertyName);
+            if (prop != null && prop.propertyType == SerializedPropertyType.Boolean)
+                prop.boolValue = value;
+        }
+
+        private void SetIntPropertyIfExists(SerializedObject so, string propertyName, int value)
+        {
+            var prop = so.FindProperty(propertyName);
+            if (prop != null && prop.propertyType == SerializedPropertyType.Integer)
+                prop.intValue = value;
+        }
+
+        private void SetRelativePropertyIfExists(SerializedProperty parent, string propertyName, string value)
+        {
+            var prop = parent.FindPropertyRelative(propertyName);
+            if (prop != null && prop.propertyType == SerializedPropertyType.String)
+                prop.stringValue = value;
+        }
+
+        private void SetFieldViaReflection(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
+            if (field != null)
+                field.SetValue(target, value);
+        }
+
+        #endregion
+
+        #region Parse Helpers
+
+        private string ParseQuestCategory(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "main" => GameKitQuestAsset.QuestCategory.Main,
-                "side" => GameKitQuestAsset.QuestCategory.Side,
-                "daily" => GameKitQuestAsset.QuestCategory.Daily,
-                "weekly" => GameKitQuestAsset.QuestCategory.Weekly,
-                "event" => GameKitQuestAsset.QuestCategory.Event,
-                "tutorial" => GameKitQuestAsset.QuestCategory.Tutorial,
-                "hidden" => GameKitQuestAsset.QuestCategory.Hidden,
-                "custom" => GameKitQuestAsset.QuestCategory.Custom,
-                _ => GameKitQuestAsset.QuestCategory.Side
+                "main" => "Main",
+                "side" => "Side",
+                "daily" => "Daily",
+                "weekly" => "Weekly",
+                "event" => "Event",
+                "tutorial" => "Tutorial",
+                "hidden" => "Hidden",
+                "custom" => "Custom",
+                _ => "Side"
             };
         }
 
-        private GameKitQuestAsset.ObjectiveType ParseObjectiveType(string str)
+        private string ParseObjectiveType(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "kill" => GameKitQuestAsset.ObjectiveType.Kill,
-                "collect" => GameKitQuestAsset.ObjectiveType.Collect,
-                "talk" => GameKitQuestAsset.ObjectiveType.Talk,
-                "location" => GameKitQuestAsset.ObjectiveType.Location,
-                "interact" => GameKitQuestAsset.ObjectiveType.Interact,
-                "escort" => GameKitQuestAsset.ObjectiveType.Escort,
-                "defend" => GameKitQuestAsset.ObjectiveType.Defend,
-                "deliver" => GameKitQuestAsset.ObjectiveType.Deliver,
-                "explore" => GameKitQuestAsset.ObjectiveType.Explore,
-                "craft" => GameKitQuestAsset.ObjectiveType.Craft,
-                "custom" => GameKitQuestAsset.ObjectiveType.Custom,
-                _ => GameKitQuestAsset.ObjectiveType.Custom
+                "kill" => "Kill",
+                "collect" => "Collect",
+                "talk" => "Talk",
+                "location" => "Location",
+                "interact" => "Interact",
+                "escort" => "Escort",
+                "defend" => "Defend",
+                "deliver" => "Deliver",
+                "explore" => "Explore",
+                "craft" => "Craft",
+                "custom" => "Custom",
+                _ => "Custom"
             };
         }
 
-        private GameKitQuestAsset.PrerequisiteType ParsePrerequisiteType(string str)
+        private string ParsePrerequisiteType(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "level" => GameKitQuestAsset.PrerequisiteType.Level,
-                "quest" => GameKitQuestAsset.PrerequisiteType.Quest,
-                "resource" => GameKitQuestAsset.PrerequisiteType.Resource,
-                "item" => GameKitQuestAsset.PrerequisiteType.Item,
-                "achievement" => GameKitQuestAsset.PrerequisiteType.Achievement,
-                "reputation" => GameKitQuestAsset.PrerequisiteType.Reputation,
-                "custom" => GameKitQuestAsset.PrerequisiteType.Custom,
-                _ => GameKitQuestAsset.PrerequisiteType.Custom
+                "level" => "Level",
+                "quest" => "Quest",
+                "resource" => "Resource",
+                "item" => "Item",
+                "achievement" => "Achievement",
+                "reputation" => "Reputation",
+                "custom" => "Custom",
+                _ => "Custom"
             };
         }
 
-        private GameKitQuestAsset.RewardType ParseRewardType(string str)
+        private string ParseRewardType(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "resource" => GameKitQuestAsset.RewardType.Resource,
-                "item" => GameKitQuestAsset.RewardType.Item,
-                "experience" => GameKitQuestAsset.RewardType.Experience,
-                "reputation" => GameKitQuestAsset.RewardType.Reputation,
-                "unlock" => GameKitQuestAsset.RewardType.Unlock,
-                "dialogue" => GameKitQuestAsset.RewardType.Dialogue,
-                "custom" => GameKitQuestAsset.RewardType.Custom,
-                _ => GameKitQuestAsset.RewardType.Custom
+                "resource" => "Resource",
+                "item" => "Item",
+                "experience" => "Experience",
+                "reputation" => "Reputation",
+                "unlock" => "Unlock",
+                "custom" => "Custom",
+                _ => "Custom"
             };
         }
 
-        private GameKitQuestAsset.ComparisonOperator ParseComparisonOperator(string str)
+        private string ParseComparisonOperator(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "equals" or "==" or "eq" => GameKitQuestAsset.ComparisonOperator.Equals,
-                "notequals" or "!=" or "ne" => GameKitQuestAsset.ComparisonOperator.NotEquals,
-                "greaterthan" or ">" or "gt" => GameKitQuestAsset.ComparisonOperator.GreaterThan,
-                "lessthan" or "<" or "lt" => GameKitQuestAsset.ComparisonOperator.LessThan,
-                "greaterorequal" or ">=" or "gte" => GameKitQuestAsset.ComparisonOperator.GreaterOrEqual,
-                "lessorequal" or "<=" or "lte" => GameKitQuestAsset.ComparisonOperator.LessOrEqual,
-                _ => GameKitQuestAsset.ComparisonOperator.GreaterOrEqual
+                "equals" or "==" or "eq" => "==",
+                "notequals" or "!=" or "ne" => "!=",
+                "greaterthan" or ">" or "gt" => ">",
+                "lessthan" or "<" or "lt" => "<",
+                "greaterorequal" or ">=" or "gte" => ">=",
+                "lessorequal" or "<=" or "lte" => "<=",
+                _ => ">="
             };
         }
 

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,6 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Feedback handler: create and manage game feel effects.
+    /// Uses code generation to produce standalone Feedback scripts with zero package dependency.
     /// Supports hitstop, screen shake, flash, scale punch, and other feedback components.
     /// </summary>
     public class GameKitFeedbackHandler : BaseCommandHandler
@@ -25,7 +26,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -49,67 +51,53 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required for create operation.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
-            // Check if already has feedback component
-            var existingFeedback = targetGo.GetComponent<GameKitFeedback>();
+            // Check if already has a feedback component (by checking for feedbackId field)
+            var existingFeedback = CodeGenHelper.FindComponentByField(targetGo, "feedbackId", null);
             if (existingFeedback != null)
-            {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitFeedback component.");
-            }
+                throw new InvalidOperationException($"GameObject '{targetPath}' already has a Feedback component.");
 
             var feedbackId = GetString(payload, "feedbackId") ?? $"Feedback_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var playOnEnable = GetBool(payload, "playOnEnable", false);
+            var globalIntensity = GetFloat(payload, "globalIntensityMultiplier", 1f);
 
-            // Add component
-            var feedback = Undo.AddComponent<GameKitFeedback>(targetGo);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(feedbackId, "Feedback");
 
-            // Set properties via SerializedObject
-            var serializedFeedback = new SerializedObject(feedback);
-            serializedFeedback.FindProperty("feedbackId").stringValue = feedbackId;
-
-            if (payload.TryGetValue("playOnEnable", out var playObj))
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                serializedFeedback.FindProperty("playOnEnable").boolValue = Convert.ToBoolean(playObj);
+                { "FEEDBACK_ID", feedbackId },
+                { "PLAY_ON_ENABLE", playOnEnable },
+                { "GLOBAL_INTENSITY", globalIntensity }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Feedback", feedbackId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Feedback script.");
             }
 
-            if (payload.TryGetValue("globalIntensityMultiplier", out var intensityObj))
-            {
-                serializedFeedback.FindProperty("globalIntensityMultiplier").floatValue = Convert.ToSingle(intensityObj);
-            }
-
-            // Add components if provided
-            if (payload.TryGetValue("components", out var componentsObj) && componentsObj is List<object> componentsList)
-            {
-                var componentsProp = serializedFeedback.FindProperty("components");
-                componentsProp.ClearArray();
-
-                for (int i = 0; i < componentsList.Count; i++)
-                {
-                    if (componentsList[i] is Dictionary<string, object> compDict)
-                    {
-                        componentsProp.InsertArrayElementAtIndex(i);
-                        var element = componentsProp.GetArrayElementAtIndex(i);
-                        ApplyComponentProperties(element, compDict);
-                    }
-                }
-            }
-
-            serializedFeedback.ApplyModifiedProperties();
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("feedbackId", feedbackId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("componentCount", feedback.Components.Count)
-            );
+            result["feedbackId"] = feedbackId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["playOnEnable"] = playOnEnable;
+            result["globalIntensityMultiplier"] = globalIntensity;
+
+            return result;
         }
 
         #endregion
@@ -118,28 +106,26 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateFeedback(Dictionary<string, object> payload)
         {
-            var feedback = ResolveFeedbackComponent(payload);
+            var component = ResolveFeedbackComponent(payload);
 
-            Undo.RecordObject(feedback, "Update GameKit Feedback");
+            Undo.RecordObject(component, "Update Feedback");
 
-            var serializedFeedback = new SerializedObject(feedback);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("playOnEnable", out var playObj))
-            {
-                serializedFeedback.FindProperty("playOnEnable").boolValue = Convert.ToBoolean(playObj);
-            }
+                so.FindProperty("playOnEnable").boolValue = Convert.ToBoolean(playObj);
 
             if (payload.TryGetValue("globalIntensityMultiplier", out var intensityObj))
-            {
-                serializedFeedback.FindProperty("globalIntensityMultiplier").floatValue = Convert.ToSingle(intensityObj);
-            }
+                so.FindProperty("globalIntensityMultiplier").floatValue = Convert.ToSingle(intensityObj);
 
-            serializedFeedback.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(feedback.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var feedbackId = new SerializedObject(component).FindProperty("feedbackId").stringValue;
 
             return CreateSuccessResponse(
-                ("feedbackId", feedback.FeedbackId),
-                ("path", BuildGameObjectPath(feedback.gameObject)),
+                ("feedbackId", feedbackId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
@@ -150,33 +136,36 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectFeedback(Dictionary<string, object> payload)
         {
-            var feedback = ResolveFeedbackComponent(payload);
-
-            var serializedFeedback = new SerializedObject(feedback);
+            var component = ResolveFeedbackComponent(payload);
+            var so = new SerializedObject(component);
 
             var componentInfos = new List<Dictionary<string, object>>();
-            var componentsProp = serializedFeedback.FindProperty("components");
+            var componentsProp = so.FindProperty("components");
 
-            for (int i = 0; i < componentsProp.arraySize; i++)
+            if (componentsProp != null)
             {
-                var element = componentsProp.GetArrayElementAtIndex(i);
-                componentInfos.Add(new Dictionary<string, object>
+                for (int i = 0; i < componentsProp.arraySize; i++)
                 {
-                    { "type", element.FindPropertyRelative("type").enumNames[element.FindPropertyRelative("type").enumValueIndex] },
-                    { "delay", element.FindPropertyRelative("delay").floatValue },
-                    { "duration", element.FindPropertyRelative("duration").floatValue },
-                    { "intensity", element.FindPropertyRelative("intensity").floatValue }
-                });
+                    var element = componentsProp.GetArrayElementAtIndex(i);
+                    var typeProp = element.FindPropertyRelative("type");
+                    componentInfos.Add(new Dictionary<string, object>
+                    {
+                        { "type", typeProp.enumValueIndex < typeProp.enumDisplayNames.Length
+                            ? typeProp.enumDisplayNames[typeProp.enumValueIndex] : "ScreenShake" },
+                        { "delay", element.FindPropertyRelative("delay").floatValue },
+                        { "duration", element.FindPropertyRelative("duration").floatValue },
+                        { "intensity", element.FindPropertyRelative("intensity").floatValue }
+                    });
+                }
             }
 
             var info = new Dictionary<string, object>
             {
-                { "feedbackId", feedback.FeedbackId },
-                { "path", BuildGameObjectPath(feedback.gameObject) },
-                { "isPlaying", feedback.IsPlaying },
-                { "playOnEnable", serializedFeedback.FindProperty("playOnEnable").boolValue },
-                { "globalIntensityMultiplier", serializedFeedback.FindProperty("globalIntensityMultiplier").floatValue },
-                { "componentCount", feedback.Components.Count },
+                { "feedbackId", so.FindProperty("feedbackId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "playOnEnable", so.FindProperty("playOnEnable").boolValue },
+                { "globalIntensityMultiplier", so.FindProperty("globalIntensityMultiplier").floatValue },
+                { "componentCount", componentsProp != null ? componentsProp.arraySize : 0 },
                 { "components", componentInfos }
             };
 
@@ -189,12 +178,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteFeedback(Dictionary<string, object> payload)
         {
-            var feedback = ResolveFeedbackComponent(payload);
-            var path = BuildGameObjectPath(feedback.gameObject);
-            var feedbackId = feedback.FeedbackId;
-            var scene = feedback.gameObject.scene;
+            var component = ResolveFeedbackComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var feedbackId = new SerializedObject(component).FindProperty("feedbackId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(feedback);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(feedbackId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -210,15 +203,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object AddComponent(Dictionary<string, object> payload)
         {
-            var feedback = ResolveFeedbackComponent(payload);
+            var component = ResolveFeedbackComponent(payload);
 
             if (!payload.TryGetValue("component", out var compObj) || !(compObj is Dictionary<string, object> compDict))
-            {
                 throw new InvalidOperationException("component object is required for addComponent.");
-            }
 
-            var serializedFeedback = new SerializedObject(feedback);
-            var componentsProp = serializedFeedback.FindProperty("components");
+            var so = new SerializedObject(component);
+            var componentsProp = so.FindProperty("components");
 
             int index = componentsProp.arraySize;
             componentsProp.InsertArrayElementAtIndex(index);
@@ -226,11 +217,13 @@ namespace MCP.Editor.Handlers.GameKit
 
             ApplyComponentProperties(element, compDict);
 
-            serializedFeedback.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(feedback.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var feedbackId = new SerializedObject(component).FindProperty("feedbackId").stringValue;
 
             return CreateSuccessResponse(
-                ("feedbackId", feedback.FeedbackId),
+                ("feedbackId", feedbackId),
                 ("componentIndex", index),
                 ("componentType", compDict.TryGetValue("type", out var typeObj) ? typeObj.ToString() : "unknown"),
                 ("added", true)
@@ -239,18 +232,20 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ClearComponents(Dictionary<string, object> payload)
         {
-            var feedback = ResolveFeedbackComponent(payload);
+            var component = ResolveFeedbackComponent(payload);
 
-            var serializedFeedback = new SerializedObject(feedback);
-            var componentsProp = serializedFeedback.FindProperty("components");
+            var so = new SerializedObject(component);
+            var componentsProp = so.FindProperty("components");
             int previousCount = componentsProp.arraySize;
             componentsProp.ClearArray();
-            serializedFeedback.ApplyModifiedProperties();
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(feedback.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var feedbackId = new SerializedObject(component).FindProperty("feedbackId").stringValue;
 
             return CreateSuccessResponse(
-                ("feedbackId", feedback.FeedbackId),
+                ("feedbackId", feedbackId),
                 ("previousCount", previousCount),
                 ("cleared", true)
             );
@@ -258,17 +253,19 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object SetIntensity(Dictionary<string, object> payload)
         {
-            var feedback = ResolveFeedbackComponent(payload);
+            var component = ResolveFeedbackComponent(payload);
             var intensity = GetFloat(payload, "intensity", 1f);
 
-            var serializedFeedback = new SerializedObject(feedback);
-            serializedFeedback.FindProperty("globalIntensityMultiplier").floatValue = intensity;
-            serializedFeedback.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("globalIntensityMultiplier").floatValue = intensity;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(feedback.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var feedbackId = new SerializedObject(component).FindProperty("feedbackId").stringValue;
 
             return CreateSuccessResponse(
-                ("feedbackId", feedback.FeedbackId),
+                ("feedbackId", feedbackId),
                 ("intensity", intensity)
             );
         }
@@ -277,21 +274,20 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var feedbackId = GetString(payload, "feedbackId");
             if (string.IsNullOrEmpty(feedbackId))
-            {
                 throw new InvalidOperationException("feedbackId is required for findByFeedbackId.");
-            }
 
-            var feedback = FindFeedbackById(feedbackId);
-            if (feedback == null)
-            {
+            var component = CodeGenHelper.FindComponentInSceneByField("feedbackId", feedbackId);
+            if (component == null)
                 return CreateSuccessResponse(("found", false), ("feedbackId", feedbackId));
-            }
+
+            var so = new SerializedObject(component);
+            var componentsProp = so.FindProperty("components");
 
             return CreateSuccessResponse(
                 ("found", true),
-                ("feedbackId", feedback.FeedbackId),
-                ("path", BuildGameObjectPath(feedback.gameObject)),
-                ("componentCount", feedback.Components.Count)
+                ("feedbackId", feedbackId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("componentCount", componentsProp != null ? componentsProp.arraySize : 0)
             );
         }
 
@@ -303,36 +299,35 @@ namespace MCP.Editor.Handlers.GameKit
         {
             if (compDict.TryGetValue("type", out var typeObj))
             {
-                var type = ParseFeedbackType(typeObj.ToString());
-                element.FindPropertyRelative("type").enumValueIndex = (int)type;
+                var typeName = ParseFeedbackType(typeObj.ToString());
+                var typeProp = element.FindPropertyRelative("type");
+                var names = typeProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        typeProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
 
             if (compDict.TryGetValue("delay", out var delayObj))
-            {
                 element.FindPropertyRelative("delay").floatValue = Convert.ToSingle(delayObj);
-            }
 
             if (compDict.TryGetValue("duration", out var durationObj))
-            {
                 element.FindPropertyRelative("duration").floatValue = Convert.ToSingle(durationObj);
-            }
 
             if (compDict.TryGetValue("intensity", out var intensityObj))
-            {
                 element.FindPropertyRelative("intensity").floatValue = Convert.ToSingle(intensityObj);
-            }
 
             // Hitstop
             if (compDict.TryGetValue("hitstopTimeScale", out var timeScaleObj))
-            {
                 element.FindPropertyRelative("hitstopTimeScale").floatValue = Convert.ToSingle(timeScaleObj);
-            }
 
             // Shake
             if (compDict.TryGetValue("shakeFrequency", out var freqObj))
-            {
                 element.FindPropertyRelative("shakeFrequency").floatValue = Convert.ToSingle(freqObj);
-            }
 
             // Flash
             if (compDict.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
@@ -342,9 +337,7 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             if (compDict.TryGetValue("fadeTime", out var fadeObj))
-            {
                 element.FindPropertyRelative("fadeTime").floatValue = Convert.ToSingle(fadeObj);
-            }
 
             // Scale
             if (compDict.TryGetValue("scaleAmount", out var scaleObj) && scaleObj is Dictionary<string, object> scaleDict)
@@ -362,28 +355,22 @@ namespace MCP.Editor.Handlers.GameKit
 
             // Sound
             if (compDict.TryGetValue("soundVolume", out var volObj))
-            {
                 element.FindPropertyRelative("soundVolume").floatValue = Convert.ToSingle(volObj);
-            }
 
             // Haptic
             if (compDict.TryGetValue("hapticIntensity", out var hapticObj))
-            {
                 element.FindPropertyRelative("hapticIntensity").floatValue = Convert.ToSingle(hapticObj);
-            }
         }
 
-        private GameKitFeedback ResolveFeedbackComponent(Dictionary<string, object> payload)
+        private Component ResolveFeedbackComponent(Dictionary<string, object> payload)
         {
             // Try by feedbackId first
             var feedbackId = GetString(payload, "feedbackId");
             if (!string.IsNullOrEmpty(feedbackId))
             {
-                var feedbackById = FindFeedbackById(feedbackId);
+                var feedbackById = CodeGenHelper.FindComponentInSceneByField("feedbackId", feedbackId);
                 if (feedbackById != null)
-                {
                     return feedbackById;
-                }
             }
 
             // Try by targetPath
@@ -393,12 +380,11 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var feedbackByPath = targetGo.GetComponent<GameKitFeedback>();
+                    var feedbackByPath = CodeGenHelper.FindComponentByField(targetGo, "feedbackId", null);
                     if (feedbackByPath != null)
-                    {
                         return feedbackByPath;
-                    }
-                    throw new InvalidOperationException($"No GameKitFeedback component found on '{targetPath}'.");
+
+                    throw new InvalidOperationException($"No Feedback component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -406,37 +392,23 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either feedbackId or targetPath is required.");
         }
 
-        private GameKitFeedback FindFeedbackById(string feedbackId)
-        {
-            var feedbacks = UnityEngine.Object.FindObjectsByType<GameKitFeedback>(FindObjectsSortMode.None);
-            foreach (var feedback in feedbacks)
-            {
-                if (feedback.FeedbackId == feedbackId)
-                {
-                    return feedback;
-                }
-            }
-            return null;
-        }
-
-        private GameKitFeedback.FeedbackType ParseFeedbackType(string str)
+        private string ParseFeedbackType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "hitstop" => GameKitFeedback.FeedbackType.Hitstop,
-                "screenshake" => GameKitFeedback.FeedbackType.ScreenShake,
-                "flash" => GameKitFeedback.FeedbackType.Flash,
-                "colorflash" => GameKitFeedback.FeedbackType.ColorFlash,
-                "scale" => GameKitFeedback.FeedbackType.Scale,
-                "position" => GameKitFeedback.FeedbackType.Position,
-                "rotation" => GameKitFeedback.FeedbackType.Rotation,
-                "sound" => GameKitFeedback.FeedbackType.Sound,
-                "particle" => GameKitFeedback.FeedbackType.Particle,
-                "haptic" => GameKitFeedback.FeedbackType.Haptic,
-                _ => GameKitFeedback.FeedbackType.ScreenShake
+                "hitstop" => "Hitstop",
+                "screenshake" => "ScreenShake",
+                "flash" => "Flash",
+                "colorflash" => "ColorFlash",
+                "scale" => "Scale",
+                "position" => "Position",
+                "rotation" => "Rotation",
+                "sound" => "Sound",
+                "particle" => "Particle",
+                "haptic" => "Haptic",
+                _ => "ScreenShake"
             };
         }
-
 
         #endregion
     }

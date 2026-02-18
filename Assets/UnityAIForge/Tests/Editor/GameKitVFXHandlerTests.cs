@@ -1,73 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitVFXHandler unit tests (3-Pillar Architecture - Presentation).
-    /// Tests VFX manager creation, multiplier settings, and visual configuration.
-    /// </summary>
     [TestFixture]
-    public class GameKitVFXHandlerTests
+    public class GameKitVFXHandlerTests : GameKitHandlerTestBase
     {
         private GameKitVFXHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitVFXHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        private void SetSerializedField(Component component, string fieldName, object value)
-        {
-            var so = new SerializedObject(component);
-            var prop = so.FindProperty(fieldName);
-            if (prop != null)
-            {
-                if (value is string strValue)
-                    prop.stringValue = strValue;
-                else if (value is int intValue)
-                    prop.intValue = intValue;
-                else if (value is float floatValue)
-                    prop.floatValue = floatValue;
-                else if (value is bool boolValue)
-                    prop.boolValue = boolValue;
-                so.ApplyModifiedPropertiesWithoutUndo();
-            }
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitVFX()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitVFX", _handler.Category);
         }
@@ -75,129 +26,80 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("setMultipliers", operations);
-            Assert.Contains("setColor", operations);
-            Assert.Contains("setLoop", operations);
-            Assert.Contains("findByVFXId", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "setMultipliers", "setColor", "setLoop",
+                "findByVFXId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddVFXComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestVFX");
+            CreateTestGameObject("VFXTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "VFXTarget"),
+                ("vfxId", "test_vfx"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestVFX",
-                ["vfxId"] = "test_vfx"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var vfx = go.GetComponent<GameKitVFX>();
-            Assert.IsNotNull(vfx);
-            Assert.AreEqual("test_vfx", vfx.VFXId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "vfxId");
         }
 
         [Test]
-        public void Execute_Create_WithoutTargetPath_ShouldReturnError()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create"
-            };
+            CreateTestGameObject("VFXTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "VFXTarget"),
+                ("vfxId", "test_vfx"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomVFX"));
 
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomVFX");
         }
 
-        #endregion
-
-        #region Delete Operation Tests
-
         [Test]
-        public void Execute_Delete_ShouldRemoveComponent()
+        public void Create_DefaultClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestVFXDelete");
-            go.AddComponent<GameKitVFX>();
+            CreateTestGameObject("VFXTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "VFXTarget"),
+                ("vfxId", "test_vfx"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestVFXDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitVFX>());
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "TestVfxVFX");
         }
 
         #endregion
 
-        #region Inspect Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_Inspect_ShouldReturnVFXInfo()
+        public void Create_MissingTargetPath_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestVFXInspect");
-            var vfx = go.AddComponent<GameKitVFX>();
-            SetSerializedField(vfx, "vfxId", "inspect_test");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestVFXInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var vfxInfo = result["vfx"] as Dictionary<string, object>;
-            Assert.IsNotNull(vfxInfo);
-            Assert.AreEqual("inspect_test", vfxInfo["vfxId"]);
+            var result = Execute(_handler, "create");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region SetLoop Operation Tests
+        [Test]
+        public void Execute_UnsupportedOperation_ShouldReturnError()
+        {
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
+        }
 
         [Test]
-        public void Execute_SetLoop_ShouldUpdateLoopSetting()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestVFXLoop");
-            var vfx = go.AddComponent<GameKitVFX>();
-            SetSerializedField(vfx, "vfxId", "loop_test");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "setLoop",
-                ["targetPath"] = "TestVFXLoop",
-                ["loop"] = true
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

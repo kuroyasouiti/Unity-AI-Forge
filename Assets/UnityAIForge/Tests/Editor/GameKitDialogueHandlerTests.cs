@@ -1,364 +1,114 @@
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitDialogueHandler unit tests.
-    /// Tests dialogue asset creation, node management, and manager setup.
-    /// </summary>
     [TestFixture]
-    public class GameKitDialogueHandlerTests
+    public class GameKitDialogueHandlerTests : GameKitHandlerTestBase
     {
         private GameKitDialogueHandler _handler;
-        private List<string> _createdAssetPaths;
-        private List<GameObject> _createdObjects;
-        private const string TestAssetFolder = "Assets/UnityAIForge/Tests/Editor/TestAssets";
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitDialogueHandler();
-            _createdAssetPaths = new List<string>();
-            _createdObjects = new List<GameObject>();
-
-            // Ensure test folder exists
-            if (!AssetDatabase.IsValidFolder(TestAssetFolder))
-            {
-                string parentFolder = Path.GetDirectoryName(TestAssetFolder).Replace("\\", "/");
-                string folderName = Path.GetFileName(TestAssetFolder);
-                AssetDatabase.CreateFolder(parentFolder, folderName);
-            }
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            // Clean up GameObjects
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-
-            // Clean up assets
-            foreach (var path in _createdAssetPaths)
-            {
-                if (AssetDatabase.LoadAssetAtPath<Object>(path) != null)
-                {
-                    AssetDatabase.DeleteAsset(path);
-                }
-            }
-            _createdAssetPaths.Clear();
-            AssetDatabase.Refresh();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGameKitDialogue()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitDialogue", _handler.Category);
         }
 
         [Test]
-        public void Version_ShouldReturn100()
-        {
-            Assert.AreEqual("1.0.0", _handler.Version);
-        }
-
-        [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("createDialogue", operations);
-            Assert.Contains("updateDialogue", operations);
-            Assert.Contains("inspectDialogue", operations);
-            Assert.Contains("deleteDialogue", operations);
-            Assert.Contains("addNode", operations);
-            Assert.Contains("removeNode", operations);
-            Assert.Contains("addChoice", operations);
-            Assert.Contains("removeChoice", operations);
-            Assert.Contains("createManager", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "createDialogue", "updateDialogue", "inspectDialogue", "deleteDialogue",
+                "addNode", "updateNode", "removeNode",
+                "addChoice", "updateChoice", "removeChoice",
+                "startDialogue", "selectChoice", "advanceDialogue", "endDialogue",
+                "createManager", "inspectManager", "deleteManager",
+                "findByDialogueId");
         }
 
         #endregion
 
-        #region CreateDialogue Operation Tests
+        #region Create Dialogue
 
         [Test]
-        public void Execute_CreateDialogue_ShouldCreateDialogueAsset()
+        public void CreateDialogue_ShouldGenerateScript()
         {
-            string assetPath = $"{TestAssetFolder}/TestDialogue.asset";
-            _createdAssetPaths.Add(assetPath);
+            var result = Execute(_handler, "createDialogue",
+                ("dialogueId", "test_dialogue"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createDialogue",
-                ["dialogueId"] = "test_dialogue_001",
-                ["title"] = "Test Dialogue",
-                ["assetPath"] = assetPath
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var asset = AssetDatabase.LoadAssetAtPath<GameKitDialogueAsset>(assetPath);
-            Assert.IsNotNull(asset);
-            Assert.AreEqual("test_dialogue_001", asset.DialogueId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "dialogueId");
         }
 
         [Test]
-        public void Execute_CreateDialogue_WithNodes_ShouldAddNodes()
+        public void CreateDialogue_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            string assetPath = $"{TestAssetFolder}/TestDialogueNodes.asset";
-            _createdAssetPaths.Add(assetPath);
+            var result = Execute(_handler, "createDialogue",
+                ("dialogueId", "test_dialogue"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomDialogueData"));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createDialogue",
-                ["dialogueId"] = "test_dialogue_nodes",
-                ["title"] = "Test Dialogue With Nodes",
-                ["assetPath"] = assetPath,
-                ["nodes"] = new List<object>
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["nodeId"] = "node_start",
-                        ["speaker"] = "NPC",
-                        ["text"] = "Hello, adventurer!"
-                    },
-                    new Dictionary<string, object>
-                    {
-                        ["nodeId"] = "node_response",
-                        ["speaker"] = "Player",
-                        ["text"] = "Hello!"
-                    }
-                }
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var asset = AssetDatabase.LoadAssetAtPath<GameKitDialogueAsset>(assetPath);
-            Assert.AreEqual(2, asset.Nodes.Count);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomDialogueData");
         }
 
         #endregion
 
-        #region AddNode Operation Tests
+        #region Create Manager
 
         [Test]
-        public void Execute_AddNode_ShouldAddNodeToDialogue()
+        public void CreateManager_ShouldGenerateScript()
         {
-            // Create dialogue first
-            string assetPath = $"{TestAssetFolder}/TestDialogueAddNode.asset";
-            _createdAssetPaths.Add(assetPath);
+            var result = Execute(_handler, "createManager",
+                ("dialogueManagerId", "test_dm"),
+                ("outputPath", TestOutputDir));
+            TrackCreatedGameObject("DialogueManager");
 
-            var createPayload = new Dictionary<string, object>
-            {
-                ["operation"] = "createDialogue",
-                ["dialogueId"] = "add_node_test",
-                ["title"] = "Add Node Test",
-                ["assetPath"] = assetPath
-            };
-            _handler.Execute(createPayload);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "dialogueManagerId");
+        }
 
-            // Add node
-            var addNodePayload = new Dictionary<string, object>
-            {
-                ["operation"] = "addNode",
-                ["assetPath"] = assetPath,
-                ["node"] = new Dictionary<string, object>
-                {
-                    ["nodeId"] = "new_node",
-                    ["speaker"] = "Merchant",
-                    ["text"] = "Welcome to my shop!"
-                }
-            };
+        [Test]
+        public void CreateManager_GeneratedScriptClassName_ShouldBeCorrect()
+        {
+            var result = Execute(_handler, "createManager",
+                ("dialogueManagerId", "test_dm"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomDialogueManager"));
+            TrackCreatedGameObject("DialogueManager");
 
-            var result = _handler.Execute(addNodePayload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var asset = AssetDatabase.LoadAssetAtPath<GameKitDialogueAsset>(assetPath);
-            Assert.AreEqual(1, asset.Nodes.Count);
-            Assert.AreEqual("new_node", asset.Nodes[0].nodeId);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomDialogueManager");
         }
 
         #endregion
 
-        #region AddChoice Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_AddChoice_ShouldAddChoiceToNode()
+        public void Execute_UnsupportedOperation_ShouldReturnError()
         {
-            // Create dialogue with node
-            string assetPath = $"{TestAssetFolder}/TestDialogueAddChoice.asset";
-            _createdAssetPaths.Add(assetPath);
-
-            var createPayload = new Dictionary<string, object>
-            {
-                ["operation"] = "createDialogue",
-                ["dialogueId"] = "add_choice_test",
-                ["title"] = "Add Choice Test",
-                ["assetPath"] = assetPath,
-                ["nodes"] = new List<object>
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["nodeId"] = "question_node",
-                        ["speaker"] = "NPC",
-                        ["text"] = "What would you like to do?"
-                    }
-                }
-            };
-            _handler.Execute(createPayload);
-
-            // Add choice - use assetPath for reliable asset resolution
-            var addChoicePayload = new Dictionary<string, object>
-            {
-                ["operation"] = "addChoice",
-                ["assetPath"] = assetPath,
-                ["nodeId"] = "question_node",
-                ["choice"] = new Dictionary<string, object>
-                {
-                    ["text"] = "Buy items",
-                    ["nextNodeId"] = "shop_node"
-                }
-            };
-
-            var result = _handler.Execute(addChoicePayload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var asset = AssetDatabase.LoadAssetAtPath<GameKitDialogueAsset>(assetPath);
-            Assert.AreEqual(1, asset.Nodes[0].choices.Count);
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region InspectDialogue Operation Tests
-
         [Test]
-        public void Execute_InspectDialogue_ShouldReturnDialogueInfo()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            // Create dialogue with nodes
-            string assetPath = $"{TestAssetFolder}/TestDialogueInspect.asset";
-            _createdAssetPaths.Add(assetPath);
-
-            var createPayload = new Dictionary<string, object>
-            {
-                ["operation"] = "createDialogue",
-                ["dialogueId"] = "inspect_test",
-                ["title"] = "Inspect Test",
-                ["assetPath"] = assetPath,
-                ["nodes"] = new List<object>
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["nodeId"] = "node1",
-                        ["speaker"] = "NPC",
-                        ["text"] = "Test"
-                    }
-                }
-            };
-            _handler.Execute(createPayload);
-
-            // Inspect
-            var inspectPayload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspectDialogue",
-                ["assetPath"] = assetPath
-            };
-
-            var result = _handler.Execute(inspectPayload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("inspect_test", result["dialogueId"]);
-            Assert.IsTrue(result.ContainsKey("nodes"));
-        }
-
-        #endregion
-
-        #region CreateManager Operation Tests
-
-        [Test]
-        public void Execute_CreateManager_ShouldCreateManagerComponent()
-        {
-            var go = CreateTestGameObject("TestDialogueManager");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createManager",
-                ["targetPath"] = "TestDialogueManager"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var manager = go.GetComponent<GameKitDialogueManager>();
-            Assert.IsNotNull(manager);
-        }
-
-        #endregion
-
-        #region DeleteDialogue Operation Tests
-
-        [Test]
-        public void Execute_DeleteDialogue_ShouldRemoveAsset()
-        {
-            // Create dialogue first
-            string assetPath = $"{TestAssetFolder}/TestDialogueDelete.asset";
-
-            var createPayload = new Dictionary<string, object>
-            {
-                ["operation"] = "createDialogue",
-                ["dialogueId"] = "delete_test",
-                ["title"] = "Delete Test",
-                ["assetPath"] = assetPath
-            };
-            _handler.Execute(createPayload);
-
-            // Delete
-            var deletePayload = new Dictionary<string, object>
-            {
-                ["operation"] = "deleteDialogue",
-                ["assetPath"] = assetPath
-            };
-
-            var result = _handler.Execute(deletePayload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(AssetDatabase.LoadAssetAtPath<GameKitDialogueAsset>(assetPath));
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

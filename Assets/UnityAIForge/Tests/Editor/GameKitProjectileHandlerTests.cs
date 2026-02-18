@@ -1,55 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitProjectileHandler unit tests (Phase 2).
-    /// Tests projectile creation with homing functionality.
-    /// </summary>
     [TestFixture]
-    public class GameKitProjectileHandlerTests
+    public class GameKitProjectileHandlerTests : GameKitHandlerTestBase
     {
         private GameKitProjectileHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitProjectileHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitProjectile()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitProjectile", _handler.Category);
         }
@@ -57,161 +26,57 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("launch", operations);
-            Assert.Contains("setHomingTarget", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "launch", "setHomingTarget", "destroy", "findByProjectileId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddProjectileComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestProjectile");
+            var result = Execute(_handler, "create",
+                ("projectileId", "test_projectile"),
+                ("outputPath", TestOutputDir));
+            TrackCreatedGameObject("test_projectile");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestProjectile",
-                ["projectileId"] = "bullet_001",
-                ["speed"] = 20f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var projectile = go.GetComponent<GameKitProjectile>();
-            Assert.IsNotNull(projectile);
-            Assert.AreEqual("bullet_001", projectile.ProjectileId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "projectileId");
         }
 
         [Test]
-        public void Execute_Create_WithHoming_ShouldEnableHomingBehavior()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestProjectileHoming");
+            var result = Execute(_handler, "create",
+                ("projectileId", "test_projectile"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomProjectile"));
+            TrackCreatedGameObject("test_projectile");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestProjectileHoming",
-                ["speed"] = 15f,
-                ["isHoming"] = true,
-                ["homingStrength"] = 5f,
-                ["maxHomingAngle"] = 60f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var projectile = go.GetComponent<GameKitProjectile>();
-            Assert.IsNotNull(projectile);
-        }
-
-        [Test]
-        public void Execute_Create_WithDamage_ShouldSetDamageSettings()
-        {
-            var go = CreateTestGameObject("TestProjectileDamage");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestProjectileDamage",
-                ["speed"] = 25f,
-                ["damage"] = 50f,
-                ["lifetime"] = 5f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var projectile = go.GetComponent<GameKitProjectile>();
-            Assert.IsNotNull(projectile);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomProjectile");
         }
 
         #endregion
 
-        #region SetTarget Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_SetTarget_ShouldSetHomingTarget()
+        public void Execute_UnsupportedOperation_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestProjectileTarget");
-            var projectile = go.AddComponent<GameKitProjectile>();
-            var target = CreateTestGameObject("Enemy");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "setHomingTarget",
-                ["targetPath"] = "TestProjectileTarget",
-                ["homingTargetPath"] = "Enemy"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Inspect Operation Tests
-
         [Test]
-        public void Execute_Inspect_ShouldReturnProjectileInfo()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestProjectileInspect");
-            var projectile = go.AddComponent<GameKitProjectile>();
-            projectile.ProjectileId = "missile_001";
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestProjectileInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var projectileInfo = result["projectile"] as Dictionary<string, object>;
-            Assert.IsNotNull(projectileInfo);
-            Assert.AreEqual("missile_001", projectileInfo["projectileId"]);
-        }
-
-        #endregion
-
-        #region Delete Operation Tests
-
-        [Test]
-        public void Execute_Delete_ShouldRemoveProjectileComponent()
-        {
-            var go = CreateTestGameObject("TestProjectileDelete");
-            go.AddComponent<GameKitProjectile>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestProjectileDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitProjectile>());
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

@@ -1,55 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitWaypointHandler unit tests (Phase 2).
-    /// Tests waypoint path creation and path following functionality.
-    /// </summary>
     [TestFixture]
-    public class GameKitWaypointHandlerTests
+    public class GameKitWaypointHandlerTests : GameKitHandlerTestBase
     {
         private GameKitWaypointHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitWaypointHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitWaypoint()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitWaypoint", _handler.Category);
         }
@@ -57,189 +26,59 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("addWaypoint", operations);
-            Assert.Contains("removeWaypoint", operations);
-            Assert.Contains("clearWaypoints", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "addWaypoint", "removeWaypoint", "clearWaypoints",
+                "startPath", "stopPath", "pausePath", "resumePath", "resetPath",
+                "goToWaypoint", "findByWaypointId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddWaypointComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestWaypoint");
+            var result = Execute(_handler, "create",
+                ("waypointId", "test_waypoint"),
+                ("outputPath", TestOutputDir));
+            TrackCreatedGameObject("test_waypoint");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestWaypoint",
-                ["waypointId"] = "patrol_path_001"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var waypoint = go.GetComponent<GameKitWaypoint>();
-            Assert.IsNotNull(waypoint);
-            Assert.AreEqual("patrol_path_001", waypoint.WaypointId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "waypointId");
         }
 
         [Test]
-        public void Execute_Create_WithLoop_ShouldSetLoopMode()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestWaypointLoop");
+            var result = Execute(_handler, "create",
+                ("waypointId", "test_waypoint"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomWaypoint"));
+            TrackCreatedGameObject("test_waypoint");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestWaypointLoop",
-                ["loop"] = true,
-                ["moveSpeed"] = 5f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var waypoint = go.GetComponent<GameKitWaypoint>();
-            Assert.IsNotNull(waypoint);
-            Assert.AreEqual(5f, waypoint.MoveSpeed, 0.01f);
-        }
-
-        [Test]
-        public void Execute_Create_WithWaypoints_ShouldAddInitialWaypoints()
-        {
-            var go = CreateTestGameObject("TestWaypointPoints");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestWaypointPoints",
-                ["waypointPositions"] = new List<object>
-                {
-                    new Dictionary<string, object> { ["x"] = 0f, ["y"] = 0f, ["z"] = 0f },
-                    new Dictionary<string, object> { ["x"] = 10f, ["y"] = 0f, ["z"] = 0f },
-                    new Dictionary<string, object> { ["x"] = 10f, ["y"] = 0f, ["z"] = 10f }
-                }
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var waypoint = go.GetComponent<GameKitWaypoint>();
-            Assert.IsNotNull(waypoint);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomWaypoint");
         }
 
         #endregion
 
-        #region AddWaypoint Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_AddWaypoint_ShouldAddPointToPath()
+        public void Execute_UnsupportedOperation_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestWaypointAdd");
-            var waypoint = go.AddComponent<GameKitWaypoint>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "addWaypoint",
-                ["targetPath"] = "TestWaypointAdd",
-                ["position"] = new Dictionary<string, object>
-                {
-                    ["x"] = 5f,
-                    ["y"] = 0f,
-                    ["z"] = 10f
-                }
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region ClearWaypoints Operation Tests
-
         [Test]
-        public void Execute_ClearWaypoints_ShouldRemoveAllPoints()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestWaypointClear");
-            var waypoint = go.AddComponent<GameKitWaypoint>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "clearWaypoints",
-                ["targetPath"] = "TestWaypointClear"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-        }
-
-        #endregion
-
-        #region Inspect Operation Tests
-
-        [Test]
-        public void Execute_Inspect_ShouldReturnWaypointInfo()
-        {
-            var go = CreateTestGameObject("TestWaypointInspect");
-            var waypoint = go.AddComponent<GameKitWaypoint>();
-            waypoint.WaypointId = "inspect_path";
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestWaypointInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var waypointInfo = result["waypoint"] as Dictionary<string, object>;
-            Assert.IsNotNull(waypointInfo);
-            Assert.AreEqual("inspect_path", waypointInfo["waypointId"]);
-        }
-
-        #endregion
-
-        #region Delete Operation Tests
-
-        [Test]
-        public void Execute_Delete_ShouldRemoveWaypointComponent()
-        {
-            var go = CreateTestGameObject("TestWaypointDelete");
-            go.AddComponent<GameKitWaypoint>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestWaypointDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitWaypoint>());
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

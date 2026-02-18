@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Health handler: create and manage health systems for game entities.
-    /// Provides damage, healing, death, and respawn functionality without custom scripts.
+    /// Uses code generation to produce standalone Health scripts with zero package dependency.
     /// </summary>
     public class GameKitHealthHandler : BaseCommandHandler
     {
@@ -25,7 +25,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -61,34 +62,67 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
 
-            // Check if already has health component
-            var existingHealth = targetGo.GetComponent<GameKitHealth>();
+            // Check if already has a health component (by checking for healthId field)
+            var existingHealth = CodeGenHelper.FindComponentByField(targetGo, "healthId", null);
             if (existingHealth != null)
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitHealth component.");
+                throw new InvalidOperationException(
+                    $"GameObject '{targetPath}' already has a Health component.");
             }
 
             var healthId = GetString(payload, "healthId") ?? $"Health_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var maxHealth = GetFloat(payload, "maxHealth", 100f);
             var currentHealth = GetFloat(payload, "currentHealth", maxHealth);
             var deathBehavior = ParseDeathBehavior(GetString(payload, "onDeath") ?? "destroy");
+            var invincibilityDuration = GetFloat(payload, "invincibilityDuration", 0f);
+            var respawnDelay = GetFloat(payload, "respawnDelay", 1f);
 
-            // Add component
-            var health = Undo.AddComponent<GameKitHealth>(targetGo);
-            health.Initialize(healthId, maxHealth, currentHealth, deathBehavior);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(healthId, "Health");
 
-            // Set additional properties
-            ApplyHealthSettings(health, payload);
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "HEALTH_ID", healthId },
+                { "MAX_HEALTH", maxHealth },
+                { "CURRENT_HEALTH", currentHealth },
+                { "INVINCIBILITY_DURATION", invincibilityDuration },
+                { "DEATH_BEHAVIOR", deathBehavior },
+                { "RESPAWN_DELAY", respawnDelay }
+            };
+
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
+            if (payload.TryGetValue("canTakeDamage", out var canDmgObj))
+                propertiesToSet["canTakeDamage"] = Convert.ToBoolean(canDmgObj);
+            if (payload.TryGetValue("respawnPosition", out var respawnObj) && respawnObj is Dictionary<string, object> respawnDict)
+                propertiesToSet["respawnPosition"] = respawnDict;
+            if (payload.TryGetValue("resetHealthOnRespawn", out var resetObj))
+                propertiesToSet["resetHealthOnRespawn"] = Convert.ToBoolean(resetObj);
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Health", healthId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Health script.");
+            }
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("healthId", healthId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("maxHealth", maxHealth),
-                ("currentHealth", currentHealth),
-                ("onDeath", deathBehavior.ToString())
-            );
+            result["healthId"] = healthId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["maxHealth"] = maxHealth;
+            result["currentHealth"] = currentHealth;
+            result["onDeath"] = deathBehavior;
+
+            return result;
         }
 
         #endregion
@@ -97,60 +131,59 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateHealth(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
 
-            Undo.RecordObject(health, "Update GameKit Health");
+            Undo.RecordObject(component, "Update Health");
 
-            var serializedHealth = new SerializedObject(health);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("maxHealth", out var maxObj))
-            {
-                serializedHealth.FindProperty("maxHealth").floatValue = Convert.ToSingle(maxObj);
-            }
+                so.FindProperty("maxHealth").floatValue = Convert.ToSingle(maxObj);
 
             if (payload.TryGetValue("currentHealth", out var currObj))
-            {
-                serializedHealth.FindProperty("currentHealth").floatValue = Convert.ToSingle(currObj);
-            }
+                so.FindProperty("currentHealth").floatValue = Convert.ToSingle(currObj);
 
             if (payload.TryGetValue("invincibilityDuration", out var invObj))
-            {
-                serializedHealth.FindProperty("invincibilityDuration").floatValue = Convert.ToSingle(invObj);
-            }
+                so.FindProperty("invincibilityDuration").floatValue = Convert.ToSingle(invObj);
 
             if (payload.TryGetValue("canTakeDamage", out var canDmgObj))
-            {
-                serializedHealth.FindProperty("canTakeDamage").boolValue = Convert.ToBoolean(canDmgObj);
-            }
+                so.FindProperty("canTakeDamage").boolValue = Convert.ToBoolean(canDmgObj);
 
             if (payload.TryGetValue("onDeath", out var deathObj))
             {
                 var deathBehavior = ParseDeathBehavior(deathObj.ToString());
-                serializedHealth.FindProperty("onDeath").enumValueIndex = (int)deathBehavior;
+                var deathProp = so.FindProperty("onDeath");
+                var names = deathProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], deathBehavior, StringComparison.OrdinalIgnoreCase))
+                    {
+                        deathProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
 
             if (payload.TryGetValue("respawnPosition", out var respawnObj) && respawnObj is Dictionary<string, object> respawnDict)
             {
                 var respawnPos = GetVector3FromDict(respawnDict, Vector3.zero);
-                serializedHealth.FindProperty("respawnPosition").vector3Value = respawnPos;
+                so.FindProperty("respawnPosition").vector3Value = respawnPos;
             }
 
             if (payload.TryGetValue("respawnDelay", out var delayObj))
-            {
-                serializedHealth.FindProperty("respawnDelay").floatValue = Convert.ToSingle(delayObj);
-            }
+                so.FindProperty("respawnDelay").floatValue = Convert.ToSingle(delayObj);
 
             if (payload.TryGetValue("resetHealthOnRespawn", out var resetObj))
-            {
-                serializedHealth.FindProperty("resetHealthOnRespawn").boolValue = Convert.ToBoolean(resetObj);
-            }
+                so.FindProperty("resetHealthOnRespawn").boolValue = Convert.ToBoolean(resetObj);
 
-            serializedHealth.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(health.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var healthId = new SerializedObject(component).FindProperty("healthId").stringValue;
 
             return CreateSuccessResponse(
-                ("healthId", health.HealthId),
-                ("path", BuildGameObjectPath(health.gameObject)),
+                ("healthId", healthId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
@@ -161,25 +194,36 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectHealth(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
+            var so = new SerializedObject(component);
+
+            var maxHealth = so.FindProperty("maxHealth").floatValue;
+            var currentHealth = so.FindProperty("currentHealth").floatValue;
+            var respawnPos = so.FindProperty("respawnPosition").vector3Value;
+            var isInvincible = so.FindProperty("isInvincible").boolValue;
+            var canTakeDamage = so.FindProperty("canTakeDamage").boolValue;
+            var onDeathProp = so.FindProperty("onDeath");
+            var onDeath = onDeathProp.enumValueIndex < onDeathProp.enumDisplayNames.Length
+                ? onDeathProp.enumDisplayNames[onDeathProp.enumValueIndex]
+                : "Destroy";
 
             var info = new Dictionary<string, object>
             {
-                { "healthId", health.HealthId },
-                { "path", BuildGameObjectPath(health.gameObject) },
-                { "maxHealth", health.MaxHealth },
-                { "currentHealth", health.CurrentHealth },
-                { "healthPercent", health.HealthPercent },
-                { "isAlive", health.IsAlive },
-                { "isDead", health.IsDead },
-                { "isInvincible", health.IsInvincible },
-                { "canTakeDamage", health.CanTakeDamage },
-                { "onDeath", health.DeathBehaviorType.ToString() },
+                { "healthId", so.FindProperty("healthId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "maxHealth", maxHealth },
+                { "currentHealth", currentHealth },
+                { "healthPercent", maxHealth > 0 ? currentHealth / maxHealth : 0f },
+                { "isAlive", currentHealth > 0 },
+                { "isDead", currentHealth <= 0 },
+                { "isInvincible", isInvincible },
+                { "canTakeDamage", canTakeDamage && !isInvincible },
+                { "onDeath", onDeath },
                 { "respawnPosition", new Dictionary<string, object>
                     {
-                        { "x", health.RespawnPosition.x },
-                        { "y", health.RespawnPosition.y },
-                        { "z", health.RespawnPosition.z }
+                        { "x", respawnPos.x },
+                        { "y", respawnPos.y },
+                        { "z", respawnPos.z }
                     }
                 }
             };
@@ -193,12 +237,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteHealth(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
-            var path = BuildGameObjectPath(health.gameObject);
-            var healthId = health.HealthId;
-            var scene = health.gameObject.scene;
+            var component = ResolveHealthComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var healthId = new SerializedObject(component).FindProperty("healthId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(health);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(healthId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -214,7 +262,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ApplyDamage(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
             var amount = GetFloat(payload, "amount", 0f);
 
             if (amount <= 0)
@@ -222,19 +270,17 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("amount must be greater than 0 for applyDamage.");
             }
 
-            // Note: In editor mode, we directly modify the serialized property
-            // Runtime damage with invincibility would require play mode
-            var serializedHealth = new SerializedObject(health);
-            var currentProp = serializedHealth.FindProperty("currentHealth");
+            var so = new SerializedObject(component);
+            var currentProp = so.FindProperty("currentHealth");
             var previousHealth = currentProp.floatValue;
             var newHealth = Mathf.Max(0, previousHealth - amount);
             currentProp.floatValue = newHealth;
-            serializedHealth.ApplyModifiedProperties();
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(health.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("healthId", health.HealthId),
+                ("healthId", so.FindProperty("healthId").stringValue),
                 ("previousHealth", previousHealth),
                 ("currentHealth", newHealth),
                 ("damageDealt", previousHealth - newHealth),
@@ -244,7 +290,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object Heal(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
             var amount = GetFloat(payload, "amount", 0f);
 
             if (amount <= 0)
@@ -252,18 +298,18 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("amount must be greater than 0 for heal.");
             }
 
-            var serializedHealth = new SerializedObject(health);
-            var currentProp = serializedHealth.FindProperty("currentHealth");
-            var maxProp = serializedHealth.FindProperty("maxHealth");
+            var so = new SerializedObject(component);
+            var currentProp = so.FindProperty("currentHealth");
+            var maxProp = so.FindProperty("maxHealth");
             var previousHealth = currentProp.floatValue;
             var newHealth = Mathf.Min(maxProp.floatValue, previousHealth + amount);
             currentProp.floatValue = newHealth;
-            serializedHealth.ApplyModifiedProperties();
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(health.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("healthId", health.HealthId),
+                ("healthId", so.FindProperty("healthId").stringValue),
                 ("previousHealth", previousHealth),
                 ("currentHealth", newHealth),
                 ("amountHealed", newHealth - previousHealth)
@@ -272,16 +318,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object Kill(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
 
-            var serializedHealth = new SerializedObject(health);
-            serializedHealth.FindProperty("currentHealth").floatValue = 0;
-            serializedHealth.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("currentHealth").floatValue = 0;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(health.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("healthId", health.HealthId),
+                ("healthId", so.FindProperty("healthId").stringValue),
                 ("killed", true),
                 ("note", "In editor mode, death behavior will trigger in play mode.")
             );
@@ -289,29 +335,25 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object Respawn(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
 
-            var serializedHealth = new SerializedObject(health);
-            var maxHealth = serializedHealth.FindProperty("maxHealth").floatValue;
-            var respawnPos = serializedHealth.FindProperty("respawnPosition").vector3Value;
+            var so = new SerializedObject(component);
+            var maxHealth = so.FindProperty("maxHealth").floatValue;
+            var respawnPos = so.FindProperty("respawnPosition").vector3Value;
 
-            // Reset health
-            if (serializedHealth.FindProperty("resetHealthOnRespawn").boolValue)
+            if (so.FindProperty("resetHealthOnRespawn").boolValue)
             {
-                serializedHealth.FindProperty("currentHealth").floatValue = maxHealth;
+                so.FindProperty("currentHealth").floatValue = maxHealth;
             }
-            serializedHealth.ApplyModifiedProperties();
+            so.ApplyModifiedProperties();
 
-            // Move to respawn position
-            health.transform.position = respawnPos;
+            component.transform.position = respawnPos;
+            component.gameObject.SetActive(true);
 
-            // Ensure active
-            health.gameObject.SetActive(true);
-
-            EditorSceneManager.MarkSceneDirty(health.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("healthId", health.HealthId),
+                ("healthId", so.FindProperty("healthId").stringValue),
                 ("respawned", true),
                 ("position", new Dictionary<string, object>
                 {
@@ -319,30 +361,29 @@ namespace MCP.Editor.Handlers.GameKit
                     { "y", respawnPos.y },
                     { "z", respawnPos.z }
                 }),
-                ("currentHealth", serializedHealth.FindProperty("currentHealth").floatValue)
+                ("currentHealth", so.FindProperty("currentHealth").floatValue)
             );
         }
 
         private object SetInvincible(Dictionary<string, object> payload)
         {
-            var health = ResolveHealthComponent(payload);
+            var component = ResolveHealthComponent(payload);
             var invincible = GetBool(payload, "invincible", true);
             var duration = GetFloat(payload, "duration", 0f);
 
-            // Set isInvincible field directly
-            var serializedHealth = new SerializedObject(health);
-            serializedHealth.FindProperty("isInvincible").boolValue = invincible;
+            var so = new SerializedObject(component);
+            so.FindProperty("isInvincible").boolValue = invincible;
 
             if (duration > 0)
             {
-                serializedHealth.FindProperty("invincibilityDuration").floatValue = duration;
+                so.FindProperty("invincibilityDuration").floatValue = duration;
             }
 
-            serializedHealth.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(health.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("healthId", health.HealthId),
+                ("healthId", so.FindProperty("healthId").stringValue),
                 ("isInvincible", invincible),
                 ("note", invincible ? "Set to invincible" : "Set to vulnerable")
             );
@@ -360,19 +401,23 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("healthId is required for findByHealthId.");
             }
 
-            var health = FindHealthById(healthId);
-            if (health == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("healthId", healthId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("healthId", healthId));
             }
 
+            var so = new SerializedObject(component);
+            var maxHealth = so.FindProperty("maxHealth").floatValue;
+            var currentHealth = so.FindProperty("currentHealth").floatValue;
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("healthId", health.HealthId),
-                ("path", BuildGameObjectPath(health.gameObject)),
-                ("currentHealth", health.CurrentHealth),
-                ("maxHealth", health.MaxHealth),
-                ("isAlive", health.IsAlive)
+                ("healthId", healthId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("currentHealth", currentHealth),
+                ("maxHealth", maxHealth),
+                ("isAlive", currentHealth > 0)
             );
         }
 
@@ -380,13 +425,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitHealth ResolveHealthComponent(Dictionary<string, object> payload)
+        private Component ResolveHealthComponent(Dictionary<string, object> payload)
         {
             // Try by healthId first
             var healthId = GetString(payload, "healthId");
             if (!string.IsNullOrEmpty(healthId))
             {
-                var healthById = FindHealthById(healthId);
+                var healthById = CodeGenHelper.FindComponentInSceneByField("healthId", healthId);
                 if (healthById != null)
                 {
                     return healthById;
@@ -400,12 +445,13 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var healthByPath = targetGo.GetComponent<GameKitHealth>();
+                    var healthByPath = CodeGenHelper.FindComponentByField(targetGo, "healthId", null);
                     if (healthByPath != null)
                     {
                         return healthByPath;
                     }
-                    throw new InvalidOperationException($"No GameKitHealth component found on '{targetPath}'.");
+
+                    throw new InvalidOperationException($"No Health component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -413,64 +459,17 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either healthId or targetPath is required.");
         }
 
-        private GameKitHealth FindHealthById(string healthId)
-        {
-            var healths = UnityEngine.Object.FindObjectsByType<GameKitHealth>(FindObjectsSortMode.None);
-            foreach (var health in healths)
-            {
-                if (health.HealthId == healthId)
-                {
-                    return health;
-                }
-            }
-            return null;
-        }
-
-        private void ApplyHealthSettings(GameKitHealth health, Dictionary<string, object> payload)
-        {
-            var serializedHealth = new SerializedObject(health);
-
-            if (payload.TryGetValue("invincibilityDuration", out var invObj))
-            {
-                serializedHealth.FindProperty("invincibilityDuration").floatValue = Convert.ToSingle(invObj);
-            }
-
-            if (payload.TryGetValue("canTakeDamage", out var canDmgObj))
-            {
-                serializedHealth.FindProperty("canTakeDamage").boolValue = Convert.ToBoolean(canDmgObj);
-            }
-
-            if (payload.TryGetValue("respawnPosition", out var respawnObj) && respawnObj is Dictionary<string, object> respawnDict)
-            {
-                var respawnPos = GetVector3FromDict(respawnDict, Vector3.zero);
-                serializedHealth.FindProperty("respawnPosition").vector3Value = respawnPos;
-            }
-
-            if (payload.TryGetValue("respawnDelay", out var delayObj))
-            {
-                serializedHealth.FindProperty("respawnDelay").floatValue = Convert.ToSingle(delayObj);
-            }
-
-            if (payload.TryGetValue("resetHealthOnRespawn", out var resetObj))
-            {
-                serializedHealth.FindProperty("resetHealthOnRespawn").boolValue = Convert.ToBoolean(resetObj);
-            }
-
-            serializedHealth.ApplyModifiedProperties();
-        }
-
-        private GameKitHealth.DeathBehavior ParseDeathBehavior(string str)
+        private string ParseDeathBehavior(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "destroy" => GameKitHealth.DeathBehavior.Destroy,
-                "disable" => GameKitHealth.DeathBehavior.Disable,
-                "respawn" => GameKitHealth.DeathBehavior.Respawn,
-                "event" => GameKitHealth.DeathBehavior.Event,
-                _ => GameKitHealth.DeathBehavior.Destroy
+                "destroy" => "Destroy",
+                "disable" => "Disable",
+                "respawn" => "Respawn",
+                "event" => "Event",
+                _ => "Destroy"
             };
         }
-
 
         #endregion
     }

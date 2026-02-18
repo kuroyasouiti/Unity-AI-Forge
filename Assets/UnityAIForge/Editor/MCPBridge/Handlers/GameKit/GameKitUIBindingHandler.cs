@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,7 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit UI Binding handler: create and manage declarative UI data bindings.
-    /// Supports binding health, economy, timer, and custom data sources to UI elements.
+    /// Uses code generation to produce standalone UIBinding scripts with zero package dependency.
     /// </summary>
     public class GameKitUIBindingHandler : BaseCommandHandler
     {
@@ -25,7 +24,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -48,87 +48,70 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var targetPath = GetString(payload, "targetPath");
             if (string.IsNullOrEmpty(targetPath))
-            {
                 throw new InvalidOperationException("targetPath is required for create operation.");
-            }
 
             var targetGo = ResolveGameObject(targetPath);
             if (targetGo == null)
-            {
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
 
-            // Check if already has binding component
-            var existingBinding = targetGo.GetComponent<GameKitUIBinding>();
+            var existingBinding = CodeGenHelper.FindComponentByField(targetGo, "bindingId", null);
             if (existingBinding != null)
-            {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUIBinding component.");
-            }
+                throw new InvalidOperationException($"GameObject '{targetPath}' already has a UIBinding component.");
 
             var bindingId = GetString(payload, "bindingId") ?? $"Binding_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var sourceType = ParseSourceType(GetString(payload, "sourceType") ?? "health");
             var sourceId = GetString(payload, "sourceId") ?? "";
             var format = ParseValueFormat(GetString(payload, "format") ?? "raw");
+            var targetProperty = GetString(payload, "targetProperty") ?? "";
+            var targetComponentType = GetString(payload, "targetComponentType") ?? "";
+            var formatString = GetString(payload, "formatString") ?? "{0}";
+            var minValue = GetFloat(payload, "minValue", 0f);
+            var maxValue = GetFloat(payload, "maxValue", 100f);
+            var updateInterval = GetFloat(payload, "updateInterval", 0.1f);
+            var smoothTransition = GetBool(payload, "smoothTransition", false);
+            var smoothSpeed = GetFloat(payload, "smoothSpeed", 5f);
 
-            // Add component
-            var binding = Undo.AddComponent<GameKitUIBinding>(targetGo);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(bindingId, "UIBinding");
 
-            // Set properties via SerializedObject
-            var serializedBinding = new SerializedObject(binding);
-            serializedBinding.FindProperty("bindingId").stringValue = bindingId;
-            serializedBinding.FindProperty("sourceType").enumValueIndex = (int)sourceType;
-            serializedBinding.FindProperty("sourceId").stringValue = sourceId;
-            serializedBinding.FindProperty("format").enumValueIndex = (int)format;
-
-            // Target configuration
-            if (payload.TryGetValue("targetProperty", out var propObj))
+            var variables = new Dictionary<string, object>
             {
-                serializedBinding.FindProperty("targetProperty").stringValue = propObj.ToString();
-            }
+                { "BINDING_ID", bindingId },
+                { "SOURCE_TYPE", sourceType },
+                { "SOURCE_ID", sourceId },
+                { "TARGET_COMPONENT_TYPE", targetComponentType },
+                { "TARGET_PROPERTY", targetProperty },
+                { "FORMAT", format },
+                { "FORMAT_STRING", formatString },
+                { "MIN_VALUE", minValue },
+                { "MAX_VALUE", maxValue },
+                { "UPDATE_INTERVAL", updateInterval },
+                { "SMOOTH_TRANSITION", smoothTransition },
+                { "SMOOTH_SPEED", smoothSpeed }
+            };
 
-            if (payload.TryGetValue("formatString", out var formatStrObj))
-            {
-                serializedBinding.FindProperty("formatString").stringValue = formatStrObj.ToString();
-            }
+            var propertiesToSet = new Dictionary<string, object>();
+            // Set targetObject to self
+            // Note: object references must be set after component is added via reflection
+            var outputDir = GetString(payload, "outputPath");
 
-            if (payload.TryGetValue("minValue", out var minObj))
-            {
-                serializedBinding.FindProperty("minValue").floatValue = Convert.ToSingle(minObj);
-            }
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "UIBinding", bindingId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
 
-            if (payload.TryGetValue("maxValue", out var maxObj))
-            {
-                serializedBinding.FindProperty("maxValue").floatValue = Convert.ToSingle(maxObj);
-            }
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString() : "Failed to generate UIBinding script.");
 
-            if (payload.TryGetValue("updateInterval", out var intervalObj))
-            {
-                serializedBinding.FindProperty("updateInterval").floatValue = Convert.ToSingle(intervalObj);
-            }
-
-            if (payload.TryGetValue("smoothTransition", out var smoothObj))
-            {
-                serializedBinding.FindProperty("smoothTransition").boolValue = Convert.ToBoolean(smoothObj);
-            }
-
-            if (payload.TryGetValue("smoothSpeed", out var speedObj))
-            {
-                serializedBinding.FindProperty("smoothSpeed").floatValue = Convert.ToSingle(speedObj);
-            }
-
-            // Set target object to self by default
-            serializedBinding.FindProperty("targetObject").objectReferenceValue = targetGo;
-
-            serializedBinding.ApplyModifiedProperties();
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("bindingId", bindingId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("sourceType", sourceType.ToString()),
-                ("sourceId", sourceId),
-                ("format", format.ToString())
-            );
+            result["bindingId"] = bindingId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["sourceType"] = sourceType;
+            result["sourceId"] = sourceId;
+            result["format"] = format;
+
+            return result;
         }
 
         #endregion
@@ -137,70 +120,66 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateBinding(Dictionary<string, object> payload)
         {
-            var binding = ResolveBindingComponent(payload);
+            var component = ResolveBindingComponent(payload);
 
-            Undo.RecordObject(binding, "Update GameKit UI Binding");
+            Undo.RecordObject(component, "Update UIBinding");
 
-            var serializedBinding = new SerializedObject(binding);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("sourceType", out var typeObj))
             {
                 var sourceType = ParseSourceType(typeObj.ToString());
-                serializedBinding.FindProperty("sourceType").enumValueIndex = (int)sourceType;
+                var prop = so.FindProperty("sourceType");
+                var names = prop.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], sourceType, StringComparison.OrdinalIgnoreCase))
+                    { prop.enumValueIndex = i; break; }
+                }
             }
 
             if (payload.TryGetValue("sourceId", out var srcIdObj))
-            {
-                serializedBinding.FindProperty("sourceId").stringValue = srcIdObj.ToString();
-            }
+                so.FindProperty("sourceId").stringValue = srcIdObj.ToString();
 
             if (payload.TryGetValue("format", out var formatObj))
             {
                 var format = ParseValueFormat(formatObj.ToString());
-                serializedBinding.FindProperty("format").enumValueIndex = (int)format;
+                var prop = so.FindProperty("format");
+                var names = prop.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], format, StringComparison.OrdinalIgnoreCase))
+                    { prop.enumValueIndex = i; break; }
+                }
             }
 
             if (payload.TryGetValue("targetProperty", out var propObj))
-            {
-                serializedBinding.FindProperty("targetProperty").stringValue = propObj.ToString();
-            }
+                so.FindProperty("targetProperty").stringValue = propObj.ToString();
 
             if (payload.TryGetValue("formatString", out var formatStrObj))
-            {
-                serializedBinding.FindProperty("formatString").stringValue = formatStrObj.ToString();
-            }
+                so.FindProperty("formatString").stringValue = formatStrObj.ToString();
 
             if (payload.TryGetValue("minValue", out var minObj))
-            {
-                serializedBinding.FindProperty("minValue").floatValue = Convert.ToSingle(minObj);
-            }
+                so.FindProperty("minValue").floatValue = Convert.ToSingle(minObj);
 
             if (payload.TryGetValue("maxValue", out var maxObj))
-            {
-                serializedBinding.FindProperty("maxValue").floatValue = Convert.ToSingle(maxObj);
-            }
+                so.FindProperty("maxValue").floatValue = Convert.ToSingle(maxObj);
 
             if (payload.TryGetValue("updateInterval", out var intervalObj))
-            {
-                serializedBinding.FindProperty("updateInterval").floatValue = Convert.ToSingle(intervalObj);
-            }
+                so.FindProperty("updateInterval").floatValue = Convert.ToSingle(intervalObj);
 
             if (payload.TryGetValue("smoothTransition", out var smoothObj))
-            {
-                serializedBinding.FindProperty("smoothTransition").boolValue = Convert.ToBoolean(smoothObj);
-            }
+                so.FindProperty("smoothTransition").boolValue = Convert.ToBoolean(smoothObj);
 
             if (payload.TryGetValue("smoothSpeed", out var speedObj))
-            {
-                serializedBinding.FindProperty("smoothSpeed").floatValue = Convert.ToSingle(speedObj);
-            }
+                so.FindProperty("smoothSpeed").floatValue = Convert.ToSingle(speedObj);
 
-            serializedBinding.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(binding.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("bindingId", binding.BindingId),
-                ("path", BuildGameObjectPath(binding.gameObject)),
+                ("bindingId", so.FindProperty("bindingId").stringValue),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
@@ -211,23 +190,25 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectBinding(Dictionary<string, object> payload)
         {
-            var binding = ResolveBindingComponent(payload);
+            var component = ResolveBindingComponent(payload);
+            var so = new SerializedObject(component);
 
-            var serializedBinding = new SerializedObject(binding);
+            var formatProp = so.FindProperty("format");
+            var sourceTypeProp = so.FindProperty("sourceType");
 
             var info = new Dictionary<string, object>
             {
-                { "bindingId", binding.BindingId },
-                { "path", BuildGameObjectPath(binding.gameObject) },
-                { "sourceType", binding.Source.ToString() },
-                { "sourceId", binding.SourceId },
-                { "currentValue", binding.CurrentValue },
-                { "currentPercent", binding.CurrentPercent },
-                { "format", serializedBinding.FindProperty("format").enumNames[serializedBinding.FindProperty("format").enumValueIndex] },
-                { "minValue", serializedBinding.FindProperty("minValue").floatValue },
-                { "maxValue", serializedBinding.FindProperty("maxValue").floatValue },
-                { "updateInterval", serializedBinding.FindProperty("updateInterval").floatValue },
-                { "smoothTransition", serializedBinding.FindProperty("smoothTransition").boolValue }
+                { "bindingId", so.FindProperty("bindingId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "sourceType", sourceTypeProp.enumValueIndex < sourceTypeProp.enumDisplayNames.Length
+                    ? sourceTypeProp.enumDisplayNames[sourceTypeProp.enumValueIndex] : "Health" },
+                { "sourceId", so.FindProperty("sourceId").stringValue },
+                { "format", formatProp.enumValueIndex < formatProp.enumDisplayNames.Length
+                    ? formatProp.enumDisplayNames[formatProp.enumValueIndex] : "Raw" },
+                { "minValue", so.FindProperty("minValue").floatValue },
+                { "maxValue", so.FindProperty("maxValue").floatValue },
+                { "updateInterval", so.FindProperty("updateInterval").floatValue },
+                { "smoothTransition", so.FindProperty("smoothTransition").boolValue }
             };
 
             return CreateSuccessResponse(("binding", info));
@@ -239,12 +220,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteBinding(Dictionary<string, object> payload)
         {
-            var binding = ResolveBindingComponent(payload);
-            var path = BuildGameObjectPath(binding.gameObject);
-            var bindingId = binding.BindingId;
-            var scene = binding.gameObject.scene;
+            var component = ResolveBindingComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var bindingId = new SerializedObject(component).FindProperty("bindingId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(binding);
+            Undo.DestroyObjectImmediate(component);
+            ScriptGenerator.Delete(bindingId);
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -260,19 +242,19 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object SetRange(Dictionary<string, object> payload)
         {
-            var binding = ResolveBindingComponent(payload);
+            var component = ResolveBindingComponent(payload);
             var min = GetFloat(payload, "minValue", 0f);
             var max = GetFloat(payload, "maxValue", 100f);
 
-            var serializedBinding = new SerializedObject(binding);
-            serializedBinding.FindProperty("minValue").floatValue = min;
-            serializedBinding.FindProperty("maxValue").floatValue = max;
-            serializedBinding.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("minValue").floatValue = min;
+            so.FindProperty("maxValue").floatValue = max;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(binding.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("bindingId", binding.BindingId),
+                ("bindingId", new SerializedObject(component).FindProperty("bindingId").stringValue),
                 ("minValue", min),
                 ("maxValue", max)
             );
@@ -280,12 +262,11 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object RefreshBinding(Dictionary<string, object> payload)
         {
-            var binding = ResolveBindingComponent(payload);
+            var component = ResolveBindingComponent(payload);
+            var so = new SerializedObject(component);
 
-            // In editor mode, we can't call Refresh() directly
-            // Just return current state
             return CreateSuccessResponse(
-                ("bindingId", binding.BindingId),
+                ("bindingId", so.FindProperty("bindingId").stringValue),
                 ("refreshed", true),
                 ("note", "Refresh will take effect in play mode.")
             );
@@ -295,22 +276,19 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var bindingId = GetString(payload, "bindingId");
             if (string.IsNullOrEmpty(bindingId))
-            {
                 throw new InvalidOperationException("bindingId is required for findByBindingId.");
-            }
 
-            var binding = FindBindingById(bindingId);
-            if (binding == null)
-            {
+            var component = CodeGenHelper.FindComponentInSceneByField("bindingId", bindingId);
+            if (component == null)
                 return CreateSuccessResponse(("found", false), ("bindingId", bindingId));
-            }
 
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
                 ("found", true),
-                ("bindingId", binding.BindingId),
-                ("path", BuildGameObjectPath(binding.gameObject)),
-                ("sourceType", binding.Source.ToString()),
-                ("sourceId", binding.SourceId)
+                ("bindingId", bindingId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("sourceType", so.FindProperty("sourceType").enumDisplayNames[so.FindProperty("sourceType").enumValueIndex]),
+                ("sourceId", so.FindProperty("sourceId").stringValue)
             );
         }
 
@@ -318,32 +296,24 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitUIBinding ResolveBindingComponent(Dictionary<string, object> payload)
+        private Component ResolveBindingComponent(Dictionary<string, object> payload)
         {
-            // Try by bindingId first
             var bindingId = GetString(payload, "bindingId");
             if (!string.IsNullOrEmpty(bindingId))
             {
-                var bindingById = FindBindingById(bindingId);
-                if (bindingById != null)
-                {
-                    return bindingById;
-                }
+                var byId = CodeGenHelper.FindComponentInSceneByField("bindingId", bindingId);
+                if (byId != null) return byId;
             }
 
-            // Try by targetPath
             var targetPath = GetString(payload, "targetPath");
             if (!string.IsNullOrEmpty(targetPath))
             {
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var bindingByPath = targetGo.GetComponent<GameKitUIBinding>();
-                    if (bindingByPath != null)
-                    {
-                        return bindingByPath;
-                    }
-                    throw new InvalidOperationException($"No GameKitUIBinding component found on '{targetPath}'.");
+                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "bindingId", null);
+                    if (byPath != null) return byPath;
+                    throw new InvalidOperationException($"No UIBinding component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -351,40 +321,27 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either bindingId or targetPath is required.");
         }
 
-        private GameKitUIBinding FindBindingById(string bindingId)
-        {
-            var bindings = UnityEngine.Object.FindObjectsByType<GameKitUIBinding>(FindObjectsSortMode.None);
-            foreach (var binding in bindings)
-            {
-                if (binding.BindingId == bindingId)
-                {
-                    return binding;
-                }
-            }
-            return null;
-        }
-
-        private GameKitUIBinding.SourceType ParseSourceType(string str)
+        private string ParseSourceType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "health" => GameKitUIBinding.SourceType.Health,
-                "economy" => GameKitUIBinding.SourceType.Economy,
-                "timer" => GameKitUIBinding.SourceType.Timer,
-                "custom" => GameKitUIBinding.SourceType.Custom,
-                _ => GameKitUIBinding.SourceType.Health
+                "health" => "Health",
+                "economy" => "Economy",
+                "timer" => "Timer",
+                "custom" => "Custom",
+                _ => "Health"
             };
         }
 
-        private GameKitUIBinding.ValueFormat ParseValueFormat(string str)
+        private string ParseValueFormat(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "raw" => GameKitUIBinding.ValueFormat.Raw,
-                "percent" => GameKitUIBinding.ValueFormat.Percent,
-                "formatted" => GameKitUIBinding.ValueFormat.Formatted,
-                "ratio" => GameKitUIBinding.ValueFormat.Ratio,
-                _ => GameKitUIBinding.ValueFormat.Raw
+                "raw" => "Raw",
+                "percent" => "Percent",
+                "formatted" => "Formatted",
+                "ratio" => "Ratio",
+                _ => "Raw"
             };
         }
 

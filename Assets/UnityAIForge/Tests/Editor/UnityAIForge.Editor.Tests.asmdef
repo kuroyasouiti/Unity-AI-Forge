@@ -5,7 +5,6 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "UnityAIForge.Editor",
-        "UnityAIForge.GameKit.Runtime",
         "UnityAIForge.Tests.Runtime",
         "Unity.TextMeshPro"
     ],

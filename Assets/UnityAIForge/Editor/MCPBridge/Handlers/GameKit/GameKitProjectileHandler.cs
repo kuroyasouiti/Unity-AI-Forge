@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Projectile handler: create and manage projectiles for games.
+    /// Uses code generation to produce standalone Projectile scripts with zero package dependency.
     /// Supports bullets, missiles, homing projectiles, and bouncing projectiles.
     /// </summary>
     public class GameKitProjectileHandler : BaseCommandHandler
@@ -24,7 +26,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -71,57 +74,87 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            // Check if already has projectile component
-            var existingProjectile = targetGo.GetComponent<GameKitProjectile>();
+            // Check if already has a projectile component (by checking for projectileId field)
+            var existingProjectile = CodeGenHelper.FindComponentByField(targetGo, "projectileId", null);
             if (existingProjectile != null)
             {
-                throw new InvalidOperationException($"GameObject '{BuildGameObjectPath(targetGo)}' already has a GameKitProjectile component.");
+                throw new InvalidOperationException(
+                    $"GameObject '{BuildGameObjectPath(targetGo)}' already has a Projectile component.");
             }
 
             var projectileId = GetString(payload, "projectileId") ?? $"Projectile_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var movementType = ParseMovementType(GetString(payload, "movementType") ?? "transform");
+            var speed = GetFloat(payload, "speed", 20f);
+            var lifetime = GetFloat(payload, "lifetime", 5f);
+            var useGravity = GetBool(payload, "useGravity", false);
+            var gravityScale = GetFloat(payload, "gravityScale", 1f);
+            var damage = GetFloat(payload, "damage", 10f);
+            var damageOnHit = GetBool(payload, "damageOnHit", true);
+            var targetTag = GetString(payload, "targetTag") ?? "";
+            var canBounce = GetBool(payload, "canBounce", false);
+            var maxBounces = GetInt(payload, "maxBounces", 3);
+            var bounciness = GetFloat(payload, "bounciness", 0.8f);
+            var isHoming = GetBool(payload, "isHoming", false);
+            var homingStrength = GetFloat(payload, "homingStrength", 5f);
+            var maxHomingAngle = GetFloat(payload, "maxHomingAngle", 90f);
+            var canPierce = GetBool(payload, "canPierce", false);
+            var maxPierceCount = GetInt(payload, "maxPierceCount", 1);
+            var pierceDamageReduction = GetFloat(payload, "pierceDamageReduction", 0.25f);
+            var effectDuration = GetFloat(payload, "effectDuration", 0f);
 
-            // Add component
-            var projectile = Undo.AddComponent<GameKitProjectile>(targetGo);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(projectileId, "Projectile");
 
-            // Initialize via serialized object
-            var serialized = new SerializedObject(projectile);
-            serialized.FindProperty("projectileId").stringValue = projectileId;
-            serialized.FindProperty("movementType").enumValueIndex = (int)movementType;
-
-            // Set basic properties
-            if (payload.TryGetValue("speed", out var speedObj))
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                serialized.FindProperty("speed").floatValue = Convert.ToSingle(speedObj);
-            }
+                { "PROJECTILE_ID", projectileId },
+                { "MOVEMENT_TYPE", movementType },
+                { "SPEED", speed },
+                { "LIFETIME", lifetime },
+                { "USE_GRAVITY", useGravity },
+                { "GRAVITY_SCALE", gravityScale },
+                { "DAMAGE", damage },
+                { "DAMAGE_ON_HIT", damageOnHit },
+                { "TARGET_TAG", targetTag },
+                { "CAN_BOUNCE", canBounce },
+                { "MAX_BOUNCES", maxBounces },
+                { "BOUNCINESS", bounciness },
+                { "IS_HOMING", isHoming },
+                { "HOMING_STRENGTH", homingStrength },
+                { "MAX_HOMING_ANGLE", maxHomingAngle },
+                { "CAN_PIERCE", canPierce },
+                { "MAX_PIERCE_COUNT", maxPierceCount },
+                { "PIERCE_DAMAGE_REDUCTION", pierceDamageReduction },
+                { "EFFECT_DURATION", effectDuration }
+            };
 
-            if (payload.TryGetValue("damage", out var damageObj))
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Projectile", projectileId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
             {
-                serialized.FindProperty("damage").floatValue = Convert.ToSingle(damageObj);
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Projectile script.");
             }
-
-            if (payload.TryGetValue("lifetime", out var lifetimeObj))
-            {
-                serialized.FindProperty("lifetime").floatValue = Convert.ToSingle(lifetimeObj);
-            }
-
-            // Apply additional settings
-            ApplyProjectileSettings(serialized, payload);
-            serialized.ApplyModifiedProperties();
 
             // Add appropriate physics components based on movement type
-            var is2D = movementType == GameKitProjectile.MovementType.Rigidbody2D;
+            var is2D = movementType == "Rigidbody2D";
 
-            if (movementType == GameKitProjectile.MovementType.Rigidbody && targetGo.GetComponent<Rigidbody>() == null)
+            if (movementType == "Rigidbody" && targetGo.GetComponent<Rigidbody>() == null)
             {
                 var rb = Undo.AddComponent<Rigidbody>(targetGo);
-                rb.useGravity = GetBool(payload, "useGravity", false);
+                rb.useGravity = useGravity;
                 rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
             }
             else if (is2D && targetGo.GetComponent<Rigidbody2D>() == null)
             {
                 var rb2d = Undo.AddComponent<Rigidbody2D>(targetGo);
-                rb2d.gravityScale = GetBool(payload, "useGravity", false) ? GetFloat(payload, "gravityScale", 1f) : 0f;
+                rb2d.gravityScale = useGravity ? gravityScale : 0f;
                 rb2d.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             }
 
@@ -144,13 +177,13 @@ namespace MCP.Editor.Handlers.GameKit
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("projectileId", projectileId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("movementType", movementType.ToString()),
-                ("speed", serialized.FindProperty("speed").floatValue),
-                ("damage", serialized.FindProperty("damage").floatValue)
-            );
+            result["projectileId"] = projectileId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["movementType"] = movementType;
+            result["speed"] = speed;
+            result["damage"] = damage;
+
+            return result;
         }
 
         #endregion
@@ -159,41 +192,46 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateProjectile(Dictionary<string, object> payload)
         {
-            var projectile = ResolveProjectileComponent(payload);
+            var component = ResolveProjectileComponent(payload);
 
-            Undo.RecordObject(projectile, "Update GameKit Projectile");
+            Undo.RecordObject(component, "Update Projectile");
 
-            var serialized = new SerializedObject(projectile);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("movementType", out var moveTypeObj))
             {
                 var movementType = ParseMovementType(moveTypeObj.ToString());
-                serialized.FindProperty("movementType").enumValueIndex = (int)movementType;
+                var moveProp = so.FindProperty("movementType");
+                var names = moveProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], movementType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        moveProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
 
             if (payload.TryGetValue("speed", out var speedObj))
-            {
-                serialized.FindProperty("speed").floatValue = Convert.ToSingle(speedObj);
-            }
+                so.FindProperty("speed").floatValue = Convert.ToSingle(speedObj);
 
             if (payload.TryGetValue("damage", out var damageObj))
-            {
-                serialized.FindProperty("damage").floatValue = Convert.ToSingle(damageObj);
-            }
+                so.FindProperty("damage").floatValue = Convert.ToSingle(damageObj);
 
             if (payload.TryGetValue("lifetime", out var lifetimeObj))
-            {
-                serialized.FindProperty("lifetime").floatValue = Convert.ToSingle(lifetimeObj);
-            }
+                so.FindProperty("lifetime").floatValue = Convert.ToSingle(lifetimeObj);
 
-            ApplyProjectileSettings(serialized, payload);
-            serialized.ApplyModifiedProperties();
+            ApplyProjectileSettings(so, payload);
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(projectile.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var projectileId = new SerializedObject(component).FindProperty("projectileId").stringValue;
 
             return CreateSuccessResponse(
-                ("projectileId", projectile.ProjectileId),
-                ("path", BuildGameObjectPath(projectile.gameObject)),
+                ("projectileId", projectileId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
@@ -204,42 +242,69 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectProjectile(Dictionary<string, object> payload)
         {
-            var projectile = ResolveProjectileComponent(payload);
+            var component = ResolveProjectileComponent(payload);
+            var so = new SerializedObject(component);
 
-            var serialized = new SerializedObject(projectile);
+            var projectileId = so.FindProperty("projectileId").stringValue;
+            var speed = so.FindProperty("speed").floatValue;
+            var damage = so.FindProperty("damage").floatValue;
+            var lifetime = so.FindProperty("lifetime").floatValue;
+            var useGravity = so.FindProperty("useGravity").boolValue;
+
+            var isHomingProp = so.FindProperty("isHoming");
+            var isHoming = isHomingProp != null && isHomingProp.boolValue;
+
+            var canBounceProp = so.FindProperty("canBounce");
+            var canBounce = canBounceProp != null && canBounceProp.boolValue;
+
+            var canPierceProp = so.FindProperty("canPierce");
+            var canPierce = canPierceProp != null && canPierceProp.boolValue;
 
             var info = new Dictionary<string, object>
             {
-                { "projectileId", projectile.ProjectileId },
-                { "path", BuildGameObjectPath(projectile.gameObject) },
-                { "speed", projectile.Speed },
-                { "damage", projectile.Damage },
-                { "lifetime", projectile.Lifetime },
-                { "isHoming", projectile.IsHoming },
-                { "canBounce", projectile.CanBounce },
-                { "canPierce", projectile.CanPierce },
-                { "isLaunched", projectile.IsLaunched },
-                { "useGravity", serialized.FindProperty("useGravity").boolValue },
+                { "projectileId", projectileId },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "speed", speed },
+                { "damage", damage },
+                { "lifetime", lifetime },
+                { "isHoming", isHoming },
+                { "canBounce", canBounce },
+                { "canPierce", canPierce },
+                { "useGravity", useGravity },
                 { "position", new Dictionary<string, object>
                     {
-                        { "x", projectile.transform.position.x },
-                        { "y", projectile.transform.position.y },
-                        { "z", projectile.transform.position.z }
+                        { "x", component.transform.position.x },
+                        { "y", component.transform.position.y },
+                        { "z", component.transform.position.z }
                     }
                 },
                 { "direction", new Dictionary<string, object>
                     {
-                        { "x", projectile.Direction.x },
-                        { "y", projectile.Direction.y },
-                        { "z", projectile.Direction.z }
+                        { "x", component.transform.forward.x },
+                        { "y", component.transform.forward.y },
+                        { "z", component.transform.forward.z }
                     }
                 }
             };
 
-            // Add homing target if exists
-            if (projectile.HomingTarget != null)
+            // Check for homing target via reflection
+            var homingTargetField = component.GetType().GetField("homingTarget",
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            if (homingTargetField != null)
             {
-                info["homingTarget"] = BuildGameObjectPath(projectile.HomingTarget.gameObject);
+                var homingTarget = homingTargetField.GetValue(component) as Transform;
+                if (homingTarget != null)
+                {
+                    info["homingTarget"] = BuildGameObjectPath(homingTarget.gameObject);
+                }
+            }
+
+            // Check isLaunched via reflection
+            var isLaunchedField = component.GetType().GetField("isLaunched",
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+            if (isLaunchedField != null)
+            {
+                info["isLaunched"] = isLaunchedField.GetValue(component);
             }
 
             return CreateSuccessResponse(("projectile", info));
@@ -251,20 +316,23 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteProjectile(Dictionary<string, object> payload)
         {
-            var projectile = ResolveProjectileComponent(payload);
-            var path = BuildGameObjectPath(projectile.gameObject);
-            var projectileId = projectile.ProjectileId;
-            var scene = projectile.gameObject.scene;
+            var component = ResolveProjectileComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var projectileId = new SerializedObject(component).FindProperty("projectileId").stringValue;
+            var scene = component.gameObject.scene;
 
             var deleteGameObject = GetBool(payload, "deleteGameObject", false);
             if (deleteGameObject)
             {
-                Undo.DestroyObjectImmediate(projectile.gameObject);
+                Undo.DestroyObjectImmediate(component.gameObject);
             }
             else
             {
-                Undo.DestroyObjectImmediate(projectile);
+                Undo.DestroyObjectImmediate(component);
             }
+
+            // Clean up the generated script from tracker
+            ScriptGenerator.Delete(projectileId);
 
             EditorSceneManager.MarkSceneDirty(scene);
 
@@ -282,7 +350,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object LaunchProjectile(Dictionary<string, object> payload)
         {
-            var projectile = ResolveProjectileComponent(payload);
+            var component = ResolveProjectileComponent(payload);
 
             // Get direction
             Vector3 direction = Vector3.forward;
@@ -292,25 +360,36 @@ namespace MCP.Editor.Handlers.GameKit
             }
             else if (payload.TryGetValue("targetPosition", out var targetPosObj) && targetPosObj is Dictionary<string, object> targetPosDict)
             {
-                var targetPos = GetVector3FromDict(targetPosDict, projectile.transform.position + Vector3.forward);
-                direction = (targetPos - projectile.transform.position).normalized;
+                var targetPos = GetVector3FromDict(targetPosDict, component.transform.position + Vector3.forward);
+                direction = (targetPos - component.transform.position).normalized;
             }
             else if (!string.IsNullOrEmpty(GetString(payload, "targetPath")))
             {
                 var targetGo = ResolveGameObject(GetString(payload, "targetPath"));
                 if (targetGo != null)
                 {
-                    direction = (targetGo.transform.position - projectile.transform.position).normalized;
+                    direction = (targetGo.transform.position - component.transform.position).normalized;
                 }
             }
 
-            // Set the forward direction in editor (actual launch happens in play mode)
-            projectile.transform.forward = direction;
+            // Try to invoke Launch method via reflection if available
+            var launchMethod = component.GetType().GetMethod("Launch",
+                BindingFlags.Public | BindingFlags.Instance,
+                null, new[] { typeof(Vector3) }, null);
+            if (launchMethod != null)
+            {
+                launchMethod.Invoke(component, new object[] { direction });
+            }
+            else
+            {
+                // Fallback: set the forward direction in editor
+                component.transform.forward = direction;
+            }
 
-            EditorSceneManager.MarkSceneDirty(projectile.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("projectileId", projectile.ProjectileId),
+                ("projectileId", new SerializedObject(component).FindProperty("projectileId").stringValue),
                 ("direction", new Dictionary<string, object>
                 {
                     { "x", direction.x },
@@ -323,16 +402,21 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object SetHomingTarget(Dictionary<string, object> payload)
         {
-            var projectile = ResolveProjectileComponent(payload);
+            var component = ResolveProjectileComponent(payload);
 
-            var serialized = new SerializedObject(projectile);
+            var so = new SerializedObject(component);
 
             var targetPath = GetString(payload, "homingTargetPath");
             if (string.IsNullOrEmpty(targetPath))
             {
                 // Clear homing target
-                serialized.FindProperty("homingTarget").objectReferenceValue = null;
-                serialized.FindProperty("isHoming").boolValue = false;
+                var homingTargetProp = so.FindProperty("homingTarget");
+                if (homingTargetProp != null)
+                    homingTargetProp.objectReferenceValue = null;
+
+                var isHomingProp = so.FindProperty("isHoming");
+                if (isHomingProp != null)
+                    isHomingProp.boolValue = false;
             }
             else
             {
@@ -342,28 +426,35 @@ namespace MCP.Editor.Handlers.GameKit
                     throw new InvalidOperationException($"Homing target not found at path: {targetPath}");
                 }
 
-                serialized.FindProperty("homingTarget").objectReferenceValue = targetGo.transform;
-                serialized.FindProperty("isHoming").boolValue = true;
+                var homingTargetProp = so.FindProperty("homingTarget");
+                if (homingTargetProp != null)
+                    homingTargetProp.objectReferenceValue = targetGo.transform;
+
+                var isHomingProp = so.FindProperty("isHoming");
+                if (isHomingProp != null)
+                    isHomingProp.boolValue = true;
             }
 
-            serialized.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(projectile.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var isHomingResult = so.FindProperty("isHoming");
 
             return CreateSuccessResponse(
-                ("projectileId", projectile.ProjectileId),
-                ("isHoming", serialized.FindProperty("isHoming").boolValue),
+                ("projectileId", so.FindProperty("projectileId").stringValue),
+                ("isHoming", isHomingResult != null && isHomingResult.boolValue),
                 ("homingTarget", targetPath ?? "none")
             );
         }
 
         private object DestroyProjectile(Dictionary<string, object> payload)
         {
-            var projectile = ResolveProjectileComponent(payload);
-            var path = BuildGameObjectPath(projectile.gameObject);
-            var projectileId = projectile.ProjectileId;
-            var scene = projectile.gameObject.scene;
+            var component = ResolveProjectileComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var projectileId = new SerializedObject(component).FindProperty("projectileId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(projectile.gameObject);
+            Undo.DestroyObjectImmediate(component.gameObject);
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -385,19 +476,22 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("projectileId is required for findByProjectileId.");
             }
 
-            var projectile = FindProjectileById(projectileId);
-            if (projectile == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("projectileId", projectileId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("projectileId", projectileId));
             }
 
+            var so = new SerializedObject(component);
+            var speed = so.FindProperty("speed").floatValue;
+            var damage = so.FindProperty("damage").floatValue;
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("projectileId", projectile.ProjectileId),
-                ("path", BuildGameObjectPath(projectile.gameObject)),
-                ("speed", projectile.Speed),
-                ("damage", projectile.Damage),
-                ("isLaunched", projectile.IsLaunched)
+                ("projectileId", projectileId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("speed", speed),
+                ("damage", damage)
             );
         }
 
@@ -405,13 +499,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitProjectile ResolveProjectileComponent(Dictionary<string, object> payload)
+        private Component ResolveProjectileComponent(Dictionary<string, object> payload)
         {
             // Try by projectileId first
             var projectileId = GetString(payload, "projectileId");
             if (!string.IsNullOrEmpty(projectileId))
             {
-                var byId = FindProjectileById(projectileId);
+                var byId = CodeGenHelper.FindComponentInSceneByField("projectileId", projectileId);
                 if (byId != null) return byId;
             }
 
@@ -422,9 +516,9 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var byPath = targetGo.GetComponent<GameKitProjectile>();
+                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "projectileId", null);
                     if (byPath != null) return byPath;
-                    throw new InvalidOperationException($"No GameKitProjectile component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No Projectile component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -432,100 +526,61 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either projectileId or targetPath is required.");
         }
 
-        private GameKitProjectile FindProjectileById(string projectileId)
-        {
-            var projectiles = UnityEngine.Object.FindObjectsByType<GameKitProjectile>(FindObjectsSortMode.None);
-            foreach (var projectile in projectiles)
-            {
-                if (projectile.ProjectileId == projectileId)
-                {
-                    return projectile;
-                }
-            }
-            return null;
-        }
-
-        private void ApplyProjectileSettings(SerializedObject serialized, Dictionary<string, object> payload)
+        private void ApplyProjectileSettings(SerializedObject so, Dictionary<string, object> payload)
         {
             // Gravity
             if (payload.TryGetValue("useGravity", out var gravityObj))
-            {
-                serialized.FindProperty("useGravity").boolValue = Convert.ToBoolean(gravityObj);
-            }
+                so.FindProperty("useGravity").boolValue = Convert.ToBoolean(gravityObj);
 
             if (payload.TryGetValue("gravityScale", out var gravScaleObj))
-            {
-                serialized.FindProperty("gravityScale").floatValue = Convert.ToSingle(gravScaleObj);
-            }
+                so.FindProperty("gravityScale").floatValue = Convert.ToSingle(gravScaleObj);
 
             // Damage settings
             if (payload.TryGetValue("damageOnHit", out var dmgHitObj))
-            {
-                serialized.FindProperty("damageOnHit").boolValue = Convert.ToBoolean(dmgHitObj);
-            }
+                so.FindProperty("damageOnHit").boolValue = Convert.ToBoolean(dmgHitObj);
 
             if (payload.TryGetValue("targetTag", out var tagObj))
-            {
-                serialized.FindProperty("targetTag").stringValue = tagObj.ToString();
-            }
+                so.FindProperty("targetTag").stringValue = tagObj.ToString();
 
             // Bouncing
             if (payload.TryGetValue("canBounce", out var bounceObj))
-            {
-                serialized.FindProperty("canBounce").boolValue = Convert.ToBoolean(bounceObj);
-            }
+                so.FindProperty("canBounce").boolValue = Convert.ToBoolean(bounceObj);
 
             if (payload.TryGetValue("maxBounces", out var maxBouncesObj))
-            {
-                serialized.FindProperty("maxBounces").intValue = Convert.ToInt32(maxBouncesObj);
-            }
+                so.FindProperty("maxBounces").intValue = Convert.ToInt32(maxBouncesObj);
 
             if (payload.TryGetValue("bounciness", out var bouncinessObj))
-            {
-                serialized.FindProperty("bounciness").floatValue = Convert.ToSingle(bouncinessObj);
-            }
+                so.FindProperty("bounciness").floatValue = Convert.ToSingle(bouncinessObj);
 
             // Homing
             if (payload.TryGetValue("isHoming", out var homingObj))
-            {
-                serialized.FindProperty("isHoming").boolValue = Convert.ToBoolean(homingObj);
-            }
+                so.FindProperty("isHoming").boolValue = Convert.ToBoolean(homingObj);
 
             if (payload.TryGetValue("homingStrength", out var homingStrObj))
-            {
-                serialized.FindProperty("homingStrength").floatValue = Convert.ToSingle(homingStrObj);
-            }
+                so.FindProperty("homingStrength").floatValue = Convert.ToSingle(homingStrObj);
 
             if (payload.TryGetValue("maxHomingAngle", out var maxAngleObj))
-            {
-                serialized.FindProperty("maxHomingAngle").floatValue = Convert.ToSingle(maxAngleObj);
-            }
+                so.FindProperty("maxHomingAngle").floatValue = Convert.ToSingle(maxAngleObj);
 
             // Piercing
             if (payload.TryGetValue("canPierce", out var pierceObj))
-            {
-                serialized.FindProperty("canPierce").boolValue = Convert.ToBoolean(pierceObj);
-            }
+                so.FindProperty("canPierce").boolValue = Convert.ToBoolean(pierceObj);
 
             if (payload.TryGetValue("maxPierceCount", out var maxPierceObj))
-            {
-                serialized.FindProperty("maxPierceCount").intValue = Convert.ToInt32(maxPierceObj);
-            }
+                so.FindProperty("maxPierceCount").intValue = Convert.ToInt32(maxPierceObj);
 
             if (payload.TryGetValue("pierceDamageReduction", out var pierceRedObj))
-            {
-                serialized.FindProperty("pierceDamageReduction").floatValue = Convert.ToSingle(pierceRedObj);
-            }
+                so.FindProperty("pierceDamageReduction").floatValue = Convert.ToSingle(pierceRedObj);
         }
 
-        private GameKitProjectile.MovementType ParseMovementType(string str)
+        private string ParseMovementType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "transform" => GameKitProjectile.MovementType.Transform,
-                "rigidbody" => GameKitProjectile.MovementType.Rigidbody,
-                "rigidbody2d" => GameKitProjectile.MovementType.Rigidbody2D,
-                _ => GameKitProjectile.MovementType.Transform
+                "transform" => "Transform",
+                "rigidbody" => "Rigidbody",
+                "rigidbody2d" => "Rigidbody2D",
+                _ => "Transform"
             };
         }
 

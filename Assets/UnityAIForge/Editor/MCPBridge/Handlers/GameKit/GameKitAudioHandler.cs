@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,6 +11,7 @@ namespace MCP.Editor.Handlers.GameKit
     /// <summary>
     /// GameKit Audio handler: create and manage audio playback.
     /// Supports SFX, music, ambient, voice, and UI audio types with fade controls.
+    /// Uses code generation to produce standalone Audio scripts with zero package dependency.
     /// </summary>
     public class GameKitAudioHandler : BaseCommandHandler
     {
@@ -25,7 +26,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -60,92 +62,79 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
 
-            // Check if already has audio component
-            var existingAudio = targetGo.GetComponent<GameKitAudio>();
+            // Check if already has an audio component (by checking for audioId field)
+            var existingAudio = CodeGenHelper.FindComponentByField(targetGo, "audioId", null);
             if (existingAudio != null)
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitAudio component.");
+                throw new InvalidOperationException(
+                    $"GameObject '{targetPath}' already has an Audio component.");
             }
 
             var audioId = GetString(payload, "audioId") ?? $"Audio_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var audioType = ParseAudioType(GetString(payload, "audioType") ?? "sfx");
+            var playOnEnable = payload.TryGetValue("playOnEnable", out var playObj) && Convert.ToBoolean(playObj);
+            var loop = payload.TryGetValue("loop", out var loopObj) && Convert.ToBoolean(loopObj);
+            var volume = GetFloat(payload, "volume", 1f);
+            var pitch = GetFloat(payload, "pitch", 1f);
+            var pitchVariation = GetFloat(payload, "pitchVariation", 0f);
+            var spatialBlend = GetFloat(payload, "spatialBlend", 0f);
+            var fadeInDuration = GetFloat(payload, "fadeInDuration", 0f);
+            var fadeOutDuration = GetFloat(payload, "fadeOutDuration", 0f);
+            var minDistance = GetFloat(payload, "minDistance", 1f);
+            var maxDistance = GetFloat(payload, "maxDistance", 500f);
 
-            // Add component
-            var audio = Undo.AddComponent<GameKitAudio>(targetGo);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(audioId, "Audio");
 
-            // Set properties via SerializedObject
-            var serializedAudio = new SerializedObject(audio);
-            serializedAudio.FindProperty("audioId").stringValue = audioId;
-            serializedAudio.FindProperty("audioType").enumValueIndex = (int)audioType;
-
-            if (payload.TryGetValue("playOnEnable", out var playOnEnableObj))
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                serializedAudio.FindProperty("playOnEnable").boolValue = Convert.ToBoolean(playOnEnableObj);
-            }
+                { "AUDIO_ID", audioId },
+                { "AUDIO_TYPE", audioType },
+                { "PLAY_ON_ENABLE", playOnEnable },
+                { "LOOP", loop },
+                { "VOLUME", volume },
+                { "PITCH", pitch },
+                { "PITCH_VARIATION", pitchVariation },
+                { "SPATIAL_BLEND", spatialBlend },
+                { "FADE_IN_DURATION", fadeInDuration },
+                { "FADE_OUT_DURATION", fadeOutDuration },
+                { "MIN_DISTANCE", minDistance },
+                { "MAX_DISTANCE", maxDistance }
+            };
 
-            if (payload.TryGetValue("loop", out var loopObj))
-            {
-                serializedAudio.FindProperty("loop").boolValue = Convert.ToBoolean(loopObj);
-            }
-
-            if (payload.TryGetValue("volume", out var volumeObj))
-            {
-                serializedAudio.FindProperty("volume").floatValue = Convert.ToSingle(volumeObj);
-            }
-
-            if (payload.TryGetValue("pitch", out var pitchObj))
-            {
-                serializedAudio.FindProperty("pitch").floatValue = Convert.ToSingle(pitchObj);
-            }
-
-            if (payload.TryGetValue("pitchVariation", out var pitchVarObj))
-            {
-                serializedAudio.FindProperty("pitchVariation").floatValue = Convert.ToSingle(pitchVarObj);
-            }
-
-            if (payload.TryGetValue("spatialBlend", out var spatialObj))
-            {
-                serializedAudio.FindProperty("spatialBlend").floatValue = Convert.ToSingle(spatialObj);
-            }
-
-            if (payload.TryGetValue("fadeInDuration", out var fadeInObj))
-            {
-                serializedAudio.FindProperty("fadeInDuration").floatValue = Convert.ToSingle(fadeInObj);
-            }
-
-            if (payload.TryGetValue("fadeOutDuration", out var fadeOutObj))
-            {
-                serializedAudio.FindProperty("fadeOutDuration").floatValue = Convert.ToSingle(fadeOutObj);
-            }
-
-            if (payload.TryGetValue("minDistance", out var minDistObj))
-            {
-                serializedAudio.FindProperty("minDistance").floatValue = Convert.ToSingle(minDistObj);
-            }
-
-            if (payload.TryGetValue("maxDistance", out var maxDistObj))
-            {
-                serializedAudio.FindProperty("maxDistance").floatValue = Convert.ToSingle(maxDistObj);
-            }
-
-            // Link audio clip if provided
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
             if (payload.TryGetValue("audioClipPath", out var clipPathObj))
             {
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPathObj.ToString());
                 if (clip != null)
                 {
-                    serializedAudio.FindProperty("audioClip").objectReferenceValue = clip;
+                    propertiesToSet["audioClip"] = clip;
                 }
             }
 
-            serializedAudio.ApplyModifiedProperties();
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "Audio", audioId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate Audio script.");
+            }
+
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("audioId", audioId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("audioType", audioType.ToString())
-            );
+            result["audioId"] = audioId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["audioType"] = audioType;
+
+            return result;
         }
 
         #endregion
@@ -154,73 +143,74 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateAudio(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
+            var component = ResolveAudioComponent(payload);
 
-            Undo.RecordObject(audio, "Update GameKit Audio");
+            Undo.RecordObject(component, "Update Audio");
 
-            var serializedAudio = new SerializedObject(audio);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("audioType", out var typeObj))
             {
                 var audioType = ParseAudioType(typeObj.ToString());
-                serializedAudio.FindProperty("audioType").enumValueIndex = (int)audioType;
+                var typeProp = so.FindProperty("audioType");
+                var names = typeProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], audioType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        typeProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
 
             if (payload.TryGetValue("playOnEnable", out var playOnEnableObj))
-            {
-                serializedAudio.FindProperty("playOnEnable").boolValue = Convert.ToBoolean(playOnEnableObj);
-            }
+                so.FindProperty("playOnEnable").boolValue = Convert.ToBoolean(playOnEnableObj);
 
             if (payload.TryGetValue("loop", out var loopObj))
-            {
-                serializedAudio.FindProperty("loop").boolValue = Convert.ToBoolean(loopObj);
-            }
+                so.FindProperty("loop").boolValue = Convert.ToBoolean(loopObj);
 
             if (payload.TryGetValue("volume", out var volumeObj))
-            {
-                serializedAudio.FindProperty("volume").floatValue = Convert.ToSingle(volumeObj);
-            }
+                so.FindProperty("volume").floatValue = Convert.ToSingle(volumeObj);
 
             if (payload.TryGetValue("pitch", out var pitchObj))
-            {
-                serializedAudio.FindProperty("pitch").floatValue = Convert.ToSingle(pitchObj);
-            }
+                so.FindProperty("pitch").floatValue = Convert.ToSingle(pitchObj);
 
             if (payload.TryGetValue("pitchVariation", out var pitchVarObj))
-            {
-                serializedAudio.FindProperty("pitchVariation").floatValue = Convert.ToSingle(pitchVarObj);
-            }
+                so.FindProperty("pitchVariation").floatValue = Convert.ToSingle(pitchVarObj);
 
             if (payload.TryGetValue("spatialBlend", out var spatialObj))
-            {
-                serializedAudio.FindProperty("spatialBlend").floatValue = Convert.ToSingle(spatialObj);
-            }
+                so.FindProperty("spatialBlend").floatValue = Convert.ToSingle(spatialObj);
 
             if (payload.TryGetValue("fadeInDuration", out var fadeInObj))
-            {
-                serializedAudio.FindProperty("fadeInDuration").floatValue = Convert.ToSingle(fadeInObj);
-            }
+                so.FindProperty("fadeInDuration").floatValue = Convert.ToSingle(fadeInObj);
 
             if (payload.TryGetValue("fadeOutDuration", out var fadeOutObj))
-            {
-                serializedAudio.FindProperty("fadeOutDuration").floatValue = Convert.ToSingle(fadeOutObj);
-            }
+                so.FindProperty("fadeOutDuration").floatValue = Convert.ToSingle(fadeOutObj);
+
+            if (payload.TryGetValue("minDistance", out var minDistObj))
+                so.FindProperty("minDistance").floatValue = Convert.ToSingle(minDistObj);
+
+            if (payload.TryGetValue("maxDistance", out var maxDistObj))
+                so.FindProperty("maxDistance").floatValue = Convert.ToSingle(maxDistObj);
 
             if (payload.TryGetValue("audioClipPath", out var clipPathObj))
             {
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPathObj.ToString());
                 if (clip != null)
                 {
-                    serializedAudio.FindProperty("audioClip").objectReferenceValue = clip;
+                    so.FindProperty("audioClip").objectReferenceValue = clip;
                 }
             }
 
-            serializedAudio.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(audio.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var audioId = new SerializedObject(component).FindProperty("audioId").stringValue;
 
             return CreateSuccessResponse(
-                ("audioId", audio.AudioId),
-                ("path", BuildGameObjectPath(audio.gameObject)),
+                ("audioId", audioId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
@@ -231,30 +221,35 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectAudio(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
+            var component = ResolveAudioComponent(payload);
+            var so = new SerializedObject(component);
 
-            var serializedAudio = new SerializedObject(audio);
+            var audioTypeProp = so.FindProperty("audioType");
+            var audioType = audioTypeProp.enumValueIndex < audioTypeProp.enumDisplayNames.Length
+                ? audioTypeProp.enumDisplayNames[audioTypeProp.enumValueIndex]
+                : "SFX";
 
             var info = new Dictionary<string, object>
             {
-                { "audioId", audio.AudioId },
-                { "path", BuildGameObjectPath(audio.gameObject) },
-                { "audioType", audio.Type.ToString() },
-                { "isPlaying", audio.IsPlaying },
-                { "volume", audio.Volume },
-                { "playOnEnable", serializedAudio.FindProperty("playOnEnable").boolValue },
-                { "loop", serializedAudio.FindProperty("loop").boolValue },
-                { "pitch", serializedAudio.FindProperty("pitch").floatValue },
-                { "pitchVariation", serializedAudio.FindProperty("pitchVariation").floatValue },
-                { "spatialBlend", serializedAudio.FindProperty("spatialBlend").floatValue },
-                { "fadeInDuration", serializedAudio.FindProperty("fadeInDuration").floatValue },
-                { "fadeOutDuration", serializedAudio.FindProperty("fadeOutDuration").floatValue },
-                { "hasAudioClip", serializedAudio.FindProperty("audioClip").objectReferenceValue != null }
+                { "audioId", so.FindProperty("audioId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "audioType", audioType },
+                { "playOnEnable", so.FindProperty("playOnEnable").boolValue },
+                { "loop", so.FindProperty("loop").boolValue },
+                { "volume", so.FindProperty("volume").floatValue },
+                { "pitch", so.FindProperty("pitch").floatValue },
+                { "pitchVariation", so.FindProperty("pitchVariation").floatValue },
+                { "spatialBlend", so.FindProperty("spatialBlend").floatValue },
+                { "fadeInDuration", so.FindProperty("fadeInDuration").floatValue },
+                { "fadeOutDuration", so.FindProperty("fadeOutDuration").floatValue },
+                { "minDistance", so.FindProperty("minDistance").floatValue },
+                { "maxDistance", so.FindProperty("maxDistance").floatValue },
+                { "hasAudioClip", so.FindProperty("audioClip").objectReferenceValue != null }
             };
 
-            if (serializedAudio.FindProperty("audioClip").objectReferenceValue != null)
+            if (so.FindProperty("audioClip").objectReferenceValue != null)
             {
-                var clip = serializedAudio.FindProperty("audioClip").objectReferenceValue as AudioClip;
+                var clip = so.FindProperty("audioClip").objectReferenceValue as AudioClip;
                 if (clip != null)
                 {
                     info["clipDuration"] = clip.length;
@@ -271,12 +266,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteAudio(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
-            var path = BuildGameObjectPath(audio.gameObject);
-            var audioId = audio.AudioId;
-            var scene = audio.gameObject.scene;
+            var component = ResolveAudioComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var audioId = new SerializedObject(component).FindProperty("audioId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(audio);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(audioId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -292,58 +291,58 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object SetVolume(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
+            var component = ResolveAudioComponent(payload);
             var volume = GetFloat(payload, "volume", 1f);
 
-            var serializedAudio = new SerializedObject(audio);
-            serializedAudio.FindProperty("volume").floatValue = Mathf.Clamp01(volume);
-            serializedAudio.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("volume").floatValue = Mathf.Clamp01(volume);
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(audio.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("audioId", audio.AudioId),
+                ("audioId", so.FindProperty("audioId").stringValue),
                 ("volume", volume)
             );
         }
 
         private object SetPitch(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
+            var component = ResolveAudioComponent(payload);
             var pitch = GetFloat(payload, "pitch", 1f);
 
-            var serializedAudio = new SerializedObject(audio);
-            serializedAudio.FindProperty("pitch").floatValue = pitch;
-            serializedAudio.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("pitch").floatValue = pitch;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(audio.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("audioId", audio.AudioId),
+                ("audioId", so.FindProperty("audioId").stringValue),
                 ("pitch", pitch)
             );
         }
 
         private object SetLoop(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
+            var component = ResolveAudioComponent(payload);
             var shouldLoop = GetBool(payload, "loop", true);
 
-            var serializedAudio = new SerializedObject(audio);
-            serializedAudio.FindProperty("loop").boolValue = shouldLoop;
-            serializedAudio.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("loop").boolValue = shouldLoop;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(audio.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("audioId", audio.AudioId),
+                ("audioId", so.FindProperty("audioId").stringValue),
                 ("loop", shouldLoop)
             );
         }
 
         private object SetClip(Dictionary<string, object> payload)
         {
-            var audio = ResolveAudioComponent(payload);
+            var component = ResolveAudioComponent(payload);
             var clipPath = GetString(payload, "audioClipPath");
 
             if (string.IsNullOrEmpty(clipPath))
@@ -357,18 +356,22 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"AudioClip not found at path: {clipPath}");
             }
 
-            var serializedAudio = new SerializedObject(audio);
-            serializedAudio.FindProperty("audioClip").objectReferenceValue = clip;
-            serializedAudio.ApplyModifiedProperties();
+            var so = new SerializedObject(component);
+            so.FindProperty("audioClip").objectReferenceValue = clip;
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(audio.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
-                ("audioId", audio.AudioId),
+                ("audioId", so.FindProperty("audioId").stringValue),
                 ("clipPath", clipPath),
                 ("clipDuration", clip.length)
             );
         }
+
+        #endregion
+
+        #region Find
 
         private object FindByAudioId(Dictionary<string, object> payload)
         {
@@ -378,18 +381,23 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("audioId is required for findByAudioId.");
             }
 
-            var audio = FindAudioById(audioId);
-            if (audio == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("audioId", audioId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("audioId", audioId));
             }
 
+            var so = new SerializedObject(component);
+            var audioTypeProp = so.FindProperty("audioType");
+            var audioType = audioTypeProp.enumValueIndex < audioTypeProp.enumDisplayNames.Length
+                ? audioTypeProp.enumDisplayNames[audioTypeProp.enumValueIndex]
+                : "SFX";
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("audioId", audio.AudioId),
-                ("path", BuildGameObjectPath(audio.gameObject)),
-                ("audioType", audio.Type.ToString()),
-                ("isPlaying", audio.IsPlaying)
+                ("audioId", audioId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("audioType", audioType)
             );
         }
 
@@ -397,13 +405,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitAudio ResolveAudioComponent(Dictionary<string, object> payload)
+        private Component ResolveAudioComponent(Dictionary<string, object> payload)
         {
             // Try by audioId first
             var audioId = GetString(payload, "audioId");
             if (!string.IsNullOrEmpty(audioId))
             {
-                var audioById = FindAudioById(audioId);
+                var audioById = CodeGenHelper.FindComponentInSceneByField("audioId", audioId);
                 if (audioById != null)
                 {
                     return audioById;
@@ -417,12 +425,13 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var audioByPath = targetGo.GetComponent<GameKitAudio>();
+                    var audioByPath = CodeGenHelper.FindComponentByField(targetGo, "audioId", null);
                     if (audioByPath != null)
                     {
                         return audioByPath;
                     }
-                    throw new InvalidOperationException($"No GameKitAudio component found on '{targetPath}'.");
+
+                    throw new InvalidOperationException($"No Audio component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -430,29 +439,16 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either audioId or targetPath is required.");
         }
 
-        private GameKitAudio FindAudioById(string audioId)
-        {
-            var audios = UnityEngine.Object.FindObjectsByType<GameKitAudio>(FindObjectsSortMode.None);
-            foreach (var audio in audios)
-            {
-                if (audio.AudioId == audioId)
-                {
-                    return audio;
-                }
-            }
-            return null;
-        }
-
-        private GameKitAudio.AudioType ParseAudioType(string str)
+        private string ParseAudioType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "sfx" => GameKitAudio.AudioType.SFX,
-                "music" => GameKitAudio.AudioType.Music,
-                "ambient" => GameKitAudio.AudioType.Ambient,
-                "voice" => GameKitAudio.AudioType.Voice,
-                "ui" => GameKitAudio.AudioType.UI,
-                _ => GameKitAudio.AudioType.SFX
+                "sfx" => "SFX",
+                "music" => "Music",
+                "ambient" => "Ambient",
+                "voice" => "Voice",
+                "ui" => "UI",
+                _ => "SFX"
             };
         }
 

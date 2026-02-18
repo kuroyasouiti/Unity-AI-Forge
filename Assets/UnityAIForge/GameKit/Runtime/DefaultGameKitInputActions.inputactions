@@ -1,0 +1,33 @@
+{
+    "name": "DefaultGameKitInputActions",
+    "maps": [
+        {
+            "name": "Player",
+            "id": "d8f91a5c-1c5e-4c9a-9a1c-5c9a9a1c5c9a",
+            "actions": [
+                { "name": "Move", "type": "Value", "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d", "expectedControlType": "Vector2" },
+                { "name": "Look", "type": "Value", "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e", "expectedControlType": "Vector2" },
+                { "name": "Jump", "type": "Button", "id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f", "expectedControlType": "Button" },
+                { "name": "Action", "type": "Button", "id": "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a", "expectedControlType": "Button" },
+                { "name": "Fire", "type": "Button", "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b", "expectedControlType": "Button" }
+            ],
+            "bindings": [
+                { "name": "WASD", "id": "6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c", "path": "2DVector", "action": "Move", "isComposite": true },
+                { "name": "up", "id": "7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d", "path": "<Keyboard>/w", "action": "Move", "isPartOfComposite": true },
+                { "name": "down", "id": "8b9c0d1e-2f3a-4b5c-6d7e-8f9a0b1c2d3e", "path": "<Keyboard>/s", "action": "Move", "isPartOfComposite": true },
+                { "name": "left", "id": "9c0d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f", "path": "<Keyboard>/a", "action": "Move", "isPartOfComposite": true },
+                { "name": "right", "id": "0d1e2f3a-4b5c-6d7e-8f9a-0b1c2d3e4f5a", "path": "<Keyboard>/d", "action": "Move", "isPartOfComposite": true },
+                { "id": "1e2f3a4b-5c6d-7e8f-9a0b-1c2d3e4f5a6b", "path": "<Gamepad>/leftStick", "action": "Move" },
+                { "id": "2f3a4b5c-6d7e-8f9a-0b1c-2d3e4f5a6b7c", "path": "<Mouse>/delta", "action": "Look" },
+                { "id": "3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d", "path": "<Gamepad>/rightStick", "action": "Look" },
+                { "id": "4b5c6d7e-8f9a-0b1c-2d3e-4f5a6b7c8d9e", "path": "<Keyboard>/space", "action": "Jump" },
+                { "id": "5c6d7e8f-9a0b-1c2d-3e4f-5a6b7c8d9e0f", "path": "<Gamepad>/buttonSouth", "action": "Jump" },
+                { "id": "6d7e8f9a-0b1c-2d3e-4f5a-6b7c8d9e0f1a", "path": "<Keyboard>/e", "action": "Action" },
+                { "id": "7e8f9a0b-1c2d-3e4f-5a6b-7c8d9e0f1a2b", "path": "<Gamepad>/buttonWest", "action": "Action" },
+                { "id": "8f9a0b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c", "path": "<Mouse>/leftButton", "action": "Fire" },
+                { "id": "9a0b1c2d-3e4f-5a6b-7c8d-9e0f1a2b3c4d", "path": "<Gamepad>/rightTrigger", "action": "Fire" }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

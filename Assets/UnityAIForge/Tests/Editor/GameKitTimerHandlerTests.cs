@@ -1,55 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitTimerHandler unit tests (Phase 1).
-    /// Tests timer/cooldown creation and management functionality.
-    /// </summary>
     [TestFixture]
-    public class GameKitTimerHandlerTests
+    public class GameKitTimerHandlerTests : GameKitHandlerTestBase
     {
         private GameKitTimerHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitTimerHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitTimer()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitTimer", _handler.Category);
         }
@@ -57,164 +26,99 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("createTimer", operations);
-            Assert.Contains("updateTimer", operations);
-            Assert.Contains("inspectTimer", operations);
-            Assert.Contains("deleteTimer", operations);
-            Assert.Contains("createCooldown", operations);
-            Assert.Contains("findByTimerId", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "createTimer", "updateTimer", "inspectTimer", "deleteTimer",
+                "createCooldown", "updateCooldown", "inspectCooldown", "deleteCooldown",
+                "createCooldownManager", "addCooldownToManager", "inspectCooldownManager",
+                "findByTimerId", "findByCooldownId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create Timer
 
         [Test]
-        public void Execute_Create_ShouldAddTimerComponent()
+        public void CreateTimer_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestTimer");
+            CreateTestGameObject("TestTarget");
+            var result = Execute(_handler, "createTimer",
+                ("targetPath", "TestTarget"),
+                ("timerId", "test_timer"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createTimer",
-                ["targetPath"] = "TestTimer",
-                ["timerId"] = "game_timer",
-                ["duration"] = 60f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var timer = go.GetComponent<GameKitTimer>();
-            Assert.IsNotNull(timer);
-            Assert.AreEqual("game_timer", timer.TimerId);
-            Assert.AreEqual(60f, timer.Duration, 0.01f);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "timerId");
         }
 
         [Test]
-        public void Execute_Create_WithAutoStart_ShouldSetAutoStart()
+        public void CreateTimer_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestTimerAutoStart");
+            CreateTestGameObject("TestTarget");
+            var result = Execute(_handler, "createTimer",
+                ("targetPath", "TestTarget"),
+                ("timerId", "test_timer"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomTimer"));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createTimer",
-                ["targetPath"] = "TestTimerAutoStart",
-                ["duration"] = 30f,
-                ["autoStart"] = true
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var timer = go.GetComponent<GameKitTimer>();
-            Assert.IsNotNull(timer);
-            Assert.AreEqual(30f, timer.Duration, 0.01f);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomTimer");
         }
 
         [Test]
-        public void Execute_Create_WithLoop_ShouldSetLooping()
+        public void CreateTimer_DefaultClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestTimerLoop");
+            CreateTestGameObject("TestTarget");
+            var result = Execute(_handler, "createTimer",
+                ("targetPath", "TestTarget"),
+                ("timerId", "test_timer"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createTimer",
-                ["targetPath"] = "TestTimerLoop",
-                ["duration"] = 5f,
-                ["loop"] = true
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var timer = go.GetComponent<GameKitTimer>();
-            Assert.IsNotNull(timer);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "TestTimerTimer");
         }
 
         #endregion
 
-        #region Update Operation Tests
+        #region Create Cooldown
 
         [Test]
-        public void Execute_Update_ShouldModifyTimerProperties()
+        public void CreateCooldown_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestTimerUpdate");
-            var timer = go.AddComponent<GameKitTimer>();
+            CreateTestGameObject("TestTarget");
+            var result = Execute(_handler, "createCooldown",
+                ("targetPath", "TestTarget"),
+                ("cooldownId", "test_cd"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "updateTimer",
-                ["targetPath"] = "TestTimerUpdate",
-                ["duration"] = 120f,
-                ["loop"] = true
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual(120f, timer.Duration, 0.01f);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "cooldownId");
         }
 
         #endregion
 
-        #region Inspect Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_Inspect_ShouldReturnTimerInfo()
+        public void CreateTimer_MissingTargetPath_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestTimerInspect");
-            var timer = go.AddComponent<GameKitTimer>();
-            // Use reflection to set private fields
-            typeof(GameKitTimer).GetField("timerId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(timer, "inspect_timer");
-            typeof(GameKitTimer).GetField("duration", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(timer, 45f);
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspectTimer",
-                ["targetPath"] = "TestTimerInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var timerInfo = result["timer"] as Dictionary<string, object>;
-            Assert.IsNotNull(timerInfo);
-            Assert.AreEqual("inspect_timer", timerInfo["timerId"]);
-            Assert.AreEqual(45f, (float)timerInfo["duration"], 0.01f);
+            var result = Execute(_handler, "createTimer");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Delete Operation Tests
+        [Test]
+        public void Execute_UnsupportedOperation_ShouldReturnError()
+        {
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
+        }
 
         [Test]
-        public void Execute_Delete_ShouldRemoveTimerComponent()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestTimerDelete");
-            go.AddComponent<GameKitTimer>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "deleteTimer",
-                ["targetPath"] = "TestTimerDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitTimer>());
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

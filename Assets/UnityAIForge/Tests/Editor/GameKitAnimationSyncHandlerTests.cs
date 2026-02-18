@@ -1,55 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitAnimationSyncHandler unit tests (Phase 3).
-    /// Tests animation synchronization with game state.
-    /// </summary>
     [TestFixture]
-    public class GameKitAnimationSyncHandlerTests
+    public class GameKitAnimationSyncHandlerTests : GameKitHandlerTestBase
     {
         private GameKitAnimationSyncHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitAnimationSyncHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitAnimationSync()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitAnimationSync", _handler.Category);
         }
@@ -57,186 +26,82 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("addSyncRule", operations);
-            Assert.Contains("removeSyncRule", operations);
-            Assert.Contains("addTriggerRule", operations);
-            Assert.Contains("removeTriggerRule", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "addSyncRule", "removeSyncRule",
+                "addTriggerRule", "removeTriggerRule",
+                "fireTrigger", "setParameter",
+                "findBySyncId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddAnimationSyncComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestAnimSync");
-            go.AddComponent<Animator>();
+            CreateTestGameObject("AnimTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "AnimTarget"),
+                ("syncId", "test_sync"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestAnimSync",
-                ["syncId"] = "player_anim_sync"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var sync = go.GetComponent<GameKitAnimationSync>();
-            Assert.IsNotNull(sync);
-            Assert.AreEqual("player_anim_sync", sync.SyncId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "syncId");
         }
 
         [Test]
-        public void Execute_Create_WithSyncRules_ShouldAddRules()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestAnimSyncRules");
-            go.AddComponent<Animator>();
-            go.AddComponent<Rigidbody>();
+            CreateTestGameObject("AnimTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "AnimTarget"),
+                ("syncId", "test_sync"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomAnimSync"));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestAnimSyncRules",
-                ["syncRules"] = new List<object>
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["parameter"] = "Speed",
-                        ["sourceType"] = "rigidbody3d",
-                        ["sourceProperty"] = "velocity.magnitude"
-                    }
-                }
-            };
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomAnimSync");
+        }
 
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
+        [Test]
+        public void Create_DefaultClassName_ShouldBeCorrect()
+        {
+            CreateTestGameObject("AnimTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "AnimTarget"),
+                ("syncId", "test_sync"),
+                ("outputPath", TestOutputDir));
 
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var sync = go.GetComponent<GameKitAnimationSync>();
-            Assert.AreEqual(1, sync.SyncRules.Count);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "TestSyncAnimationSync");
         }
 
         #endregion
 
-        #region AddSyncRule Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_AddSyncRule_ShouldAddRuleToComponent()
+        public void Create_MissingTargetPath_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestAnimSyncAddRule");
-            go.AddComponent<Animator>();
-            var sync = go.AddComponent<GameKitAnimationSync>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "addSyncRule",
-                ["targetPath"] = "TestAnimSyncAddRule",
-                ["rule"] = new Dictionary<string, object>
-                {
-                    ["parameter"] = "IsGrounded",
-                    ["sourceType"] = "transform",
-                    ["sourceProperty"] = "position.y"
-                }
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual(1, sync.SyncRules.Count);
+            var result = Execute(_handler, "create");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region AddTriggerRule Operation Tests
-
         [Test]
-        public void Execute_AddTriggerRule_ShouldAddTriggerRule()
+        public void Execute_UnsupportedOperation_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestAnimSyncTrigger");
-            go.AddComponent<Animator>();
-            var sync = go.AddComponent<GameKitAnimationSync>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "addTriggerRule",
-                ["targetPath"] = "TestAnimSyncTrigger",
-                ["trigger"] = new Dictionary<string, object>
-                {
-                    ["triggerName"] = "TakeDamage",
-                    ["eventSource"] = "health",
-                    ["healthEvent"] = "OnDamaged"
-                }
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual(1, sync.TriggerRules.Count);
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Inspect Operation Tests
-
         [Test]
-        public void Execute_Inspect_ShouldReturnAnimSyncInfo()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestAnimSyncInspect");
-            go.AddComponent<Animator>();
-            var sync = go.AddComponent<GameKitAnimationSync>();
-            // SyncId is read-only, set via Initialize
-            typeof(GameKitAnimationSync).GetField("syncId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(sync, "inspect_sync");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestAnimSyncInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("inspect_sync", result["syncId"]);
-            Assert.IsTrue(result.ContainsKey("syncRules"));
-            Assert.IsTrue(result.ContainsKey("triggerRules"));
-        }
-
-        #endregion
-
-        #region Delete Operation Tests
-
-        [Test]
-        public void Execute_Delete_ShouldRemoveAnimSyncComponent()
-        {
-            var go = CreateTestGameObject("TestAnimSyncDelete");
-            go.AddComponent<Animator>();
-            go.AddComponent<GameKitAnimationSync>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestAnimSyncDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitAnimationSync>());
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

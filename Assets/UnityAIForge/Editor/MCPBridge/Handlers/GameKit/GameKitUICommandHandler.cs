@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,6 +11,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit UI Command handler: create command panels with buttons.
+    /// Uses code generation to produce standalone UICommand scripts with zero package dependency.
     /// </summary>
     public class GameKitUICommandHandler : BaseCommandHandler
     {
@@ -20,7 +21,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "createCommandPanel";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -40,9 +42,6 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var panelId = GetString(payload, "panelId") ?? $"CommandPanel_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var canvasPath = GetString(payload, "canvasPath");
-            var targetType = GetString(payload, "targetType") ?? "actor";
-            var targetActorId = GetString(payload, "targetActorId");
-            var targetManagerId = GetString(payload, "targetManagerId");
             var layout = GetString(payload, "layout") ?? "vertical";
 
             if (string.IsNullOrEmpty(canvasPath))
@@ -71,41 +70,36 @@ namespace MCP.Editor.Handlers.GameKit
             // Add layout group
             AddLayoutGroup(panelGo, layout);
 
-            // Add GameKitUICommand component
-            var uiCommand = Undo.AddComponent<GameKitUICommand>(panelGo);
-            
-            // Set target type using reflection
-            var targetTypeField = typeof(GameKitUICommand).GetField("targetType", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var targetTypeEnum = targetType.ToLowerInvariant() == "manager" 
-                ? GameKitUICommand.TargetType.Manager 
-                : GameKitUICommand.TargetType.Actor;
-            targetTypeField?.SetValue(uiCommand, targetTypeEnum);
-            
-            // Set target IDs using reflection
-            if (!string.IsNullOrEmpty(targetActorId))
-            {
-                var actorIdField = typeof(GameKitUICommand).GetField("targetActorId",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                actorIdField?.SetValue(uiCommand, targetActorId);
-            }
-            
-            if (!string.IsNullOrEmpty(targetManagerId))
-            {
-                var managerIdField = typeof(GameKitUICommand).GetField("targetManagerId",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                managerIdField?.SetValue(uiCommand, targetManagerId);
-            }
-            
-            // Initialize panel ID
-            var panelIdField = typeof(GameKitUICommand).GetField("panelId",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            panelIdField?.SetValue(uiCommand, panelId);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(panelId, "UICommand");
 
-            // Create command buttons if specified
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "PANEL_ID", panelId }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                panelGo, "UICommand", panelId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate UICommand script.");
+            }
+
+            // Create command buttons if specified and the component was added
             if (payload.TryGetValue("commands", out var commandsObj) && commandsObj is List<object> commandsList)
             {
                 var buttonSize = GetButtonSize(payload);
+
+                // Try to find the component that was just added
+                var uiCommandComp = CodeGenHelper.FindComponentByField(panelGo, "panelId", panelId);
+
                 foreach (var commandObj in commandsList)
                 {
                     if (commandObj is Dictionary<string, object> commandDict)
@@ -113,17 +107,18 @@ namespace MCP.Editor.Handlers.GameKit
                         var name = GetStringFromDict(commandDict, "name");
                         var label = GetStringFromDict(commandDict, "label") ?? name;
                         var commandTypeStr = GetStringFromDict(commandDict, "commandType") ?? "action";
-                        var commandParam = GetStringFromDict(commandDict, "commandParameter");
-                        var resourceAmt = GetFloatFromDict(commandDict, "resourceAmount", 0f);
-                        
-                        var cmdType = ParseCommandType(commandTypeStr);
-                        CreateCommandButton(panelGo, uiCommand, name, label, buttonSize, cmdType, commandParam, resourceAmt);
+
+                        CreateCommandButton(panelGo, uiCommandComp, name, label, buttonSize, commandTypeStr);
                     }
                 }
             }
 
             EditorSceneManager.MarkSceneDirty(panelGo.scene);
-            return CreateSuccessResponse(("panelId", panelId), ("path", BuildGameObjectPath(panelGo)));
+
+            result["panelId"] = panelId;
+            result["path"] = BuildGameObjectPath(panelGo);
+
+            return result;
         }
 
         private void AddLayoutGroup(GameObject go, string layout)
@@ -168,8 +163,8 @@ namespace MCP.Editor.Handlers.GameKit
             return new Vector2(100, 50);
         }
 
-        private void CreateCommandButton(GameObject parent, GameKitUICommand uiCommand, string commandName, string label, Vector2 size, 
-            GameKitUICommand.CommandType commandType = GameKitUICommand.CommandType.Action, string commandParameter = null, float resourceAmount = 0f)
+        private void CreateCommandButton(GameObject parent, Component uiCommandComp, string commandName,
+            string label, Vector2 size, string commandTypeStr = "action")
         {
             // Create button GameObject
             var buttonGo = new GameObject(commandName, typeof(RectTransform));
@@ -200,25 +195,26 @@ namespace MCP.Editor.Handlers.GameKit
             text.alignment = TextAnchor.MiddleCenter;
             text.color = Color.black;
 
-            // Register button with UICommand component
-            Undo.RecordObject(uiCommand, "Register Button");
-            uiCommand.RegisterButton(commandName, button, commandType, commandParameter);
-            
-            // If resource amount is specified, update the binding
-            if (resourceAmount != 0f && (commandType == GameKitUICommand.CommandType.AddResource || 
-                commandType == GameKitUICommand.CommandType.SetResource || 
-                commandType == GameKitUICommand.CommandType.ConsumeResource))
+            // Register button with UICommand component if available
+            if (uiCommandComp != null)
             {
-                // Access the command bindings using reflection to set resource amount
-                var bindingsField = typeof(GameKitUICommand).GetField("commandBindings", 
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                var bindings = bindingsField?.GetValue(uiCommand) as System.Collections.IList;
-                
-                if (bindings != null && bindings.Count > 0)
+                Undo.RecordObject(uiCommandComp, "Register Button");
+
+                // Parse command type to the generated enum
+                var commandType = ParseCommandType(commandTypeStr);
+
+                // Use reflection to call RegisterButton on the generated component
+                var registerMethod = uiCommandComp.GetType().GetMethod("RegisterButton",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (registerMethod != null)
                 {
-                    var lastBinding = bindings[bindings.Count - 1];
-                    var resourceAmountField = lastBinding.GetType().GetField("resourceAmount");
-                    resourceAmountField?.SetValue(lastBinding, resourceAmount);
+                    // Resolve the CommandType enum value from the generated type
+                    var cmdTypeEnum = uiCommandComp.GetType().GetNestedType("CommandType");
+                    if (cmdTypeEnum != null)
+                    {
+                        var enumValue = Enum.Parse(cmdTypeEnum, commandType);
+                        registerMethod.Invoke(uiCommandComp, new object[] { commandName, button, enumValue, null });
+                    }
                 }
             }
         }
@@ -235,8 +231,8 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("panelId is required for addCommand.");
             }
 
-            var uiCommand = FindUICommandById(panelId);
-            if (uiCommand == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("panelId", panelId);
+            if (component == null)
             {
                 throw new InvalidOperationException($"Command panel with ID '{panelId}' not found.");
             }
@@ -250,13 +246,14 @@ namespace MCP.Editor.Handlers.GameKit
                     {
                         var name = GetStringFromDict(commandDict, "name");
                         var label = GetStringFromDict(commandDict, "label") ?? name;
-                        CreateCommandButton(uiCommand.gameObject, uiCommand, name, label, buttonSize);
+                        var commandTypeStr = GetStringFromDict(commandDict, "commandType") ?? "action";
+                        CreateCommandButton(component.gameObject, component, name, label, buttonSize, commandTypeStr);
                     }
                 }
             }
 
-            EditorSceneManager.MarkSceneDirty(uiCommand.gameObject.scene);
-            return CreateSuccessResponse(("panelId", panelId), ("path", BuildGameObjectPath(uiCommand.gameObject)));
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+            return CreateSuccessResponse(("panelId", panelId), ("path", BuildGameObjectPath(component.gameObject)));
         }
 
         #endregion
@@ -271,19 +268,38 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("panelId is required for inspect.");
             }
 
-            var uiCommand = FindUICommandById(panelId);
-            if (uiCommand == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("panelId", panelId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("panelId", panelId));
             }
 
+            var so = new SerializedObject(component);
+
             var info = new Dictionary<string, object>
             {
                 { "found", true },
-                { "panelId", uiCommand.PanelId },
-                { "path", BuildGameObjectPath(uiCommand.gameObject) },
-                { "targetActorId", uiCommand.TargetActorId }
+                { "panelId", so.FindProperty("panelId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) }
             };
+
+            // Read command bindings count if available
+            var bindingsProp = so.FindProperty("commandBindings");
+            if (bindingsProp != null && bindingsProp.isArray)
+            {
+                var commandNames = new List<string>();
+                for (int i = 0; i < bindingsProp.arraySize; i++)
+                {
+                    var element = bindingsProp.GetArrayElementAtIndex(i);
+                    var cmdNameProp = element.FindPropertyRelative("commandName");
+                    if (cmdNameProp != null && !string.IsNullOrEmpty(cmdNameProp.stringValue))
+                    {
+                        commandNames.Add(cmdNameProp.stringValue);
+                    }
+                }
+                info["commandCount"] = bindingsProp.arraySize;
+                info["commands"] = commandNames;
+            }
 
             return CreateSuccessResponse(("commandPanel", info));
         }
@@ -300,14 +316,18 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("panelId is required for delete.");
             }
 
-            var uiCommand = FindUICommandById(panelId);
-            if (uiCommand == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("panelId", panelId);
+            if (component == null)
             {
                 throw new InvalidOperationException($"Command panel with ID '{panelId}' not found.");
             }
 
-            var scene = uiCommand.gameObject.scene;
-            Undo.DestroyObjectImmediate(uiCommand.gameObject);
+            var scene = component.gameObject.scene;
+            Undo.DestroyObjectImmediate(component.gameObject);
+
+            // Clean up the generated script from tracker
+            ScriptGenerator.Delete(panelId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(("panelId", panelId), ("deleted", true));
@@ -317,53 +337,24 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitUICommand FindUICommandById(string panelId)
-        {
-            var uiCommands = UnityEngine.Object.FindObjectsByType<GameKitUICommand>(FindObjectsSortMode.None);
-            foreach (var uiCommand in uiCommands)
-            {
-                if (uiCommand.PanelId == panelId)
-                {
-                    return uiCommand;
-                }
-            }
-            return null;
-        }
-
         private string GetStringFromDict(Dictionary<string, object> dict, string key)
         {
             return dict.TryGetValue(key, out var value) ? value?.ToString() : null;
         }
 
-        private float GetFloatFromDict(Dictionary<string, object> dict, string key, float defaultValue = 0f)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                return Convert.ToSingle(value);
-            }
-            return defaultValue;
-        }
-
-        private GameKitUICommand.CommandType ParseCommandType(string typeStr)
+        private string ParseCommandType(string typeStr)
         {
             return typeStr.ToLowerInvariant() switch
             {
-                "move" => GameKitUICommand.CommandType.Move,
-                "jump" => GameKitUICommand.CommandType.Jump,
-                "action" => GameKitUICommand.CommandType.Action,
-                "look" => GameKitUICommand.CommandType.Look,
-                "custom" => GameKitUICommand.CommandType.Custom,
-                "addresource" => GameKitUICommand.CommandType.AddResource,
-                "setresource" => GameKitUICommand.CommandType.SetResource,
-                "consumeresource" => GameKitUICommand.CommandType.ConsumeResource,
-                "changestate" => GameKitUICommand.CommandType.ChangeState,
-                "nextturn" => GameKitUICommand.CommandType.NextTurn,
-                "triggerscene" => GameKitUICommand.CommandType.TriggerScene,
-                _ => GameKitUICommand.CommandType.Action
+                "move" => "Move",
+                "jump" => "Jump",
+                "action" => "Action",
+                "look" => "Look",
+                "custom" => "Custom",
+                _ => "Action"
             };
         }
 
         #endregion
     }
 }
-

@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace MCP.Editor.Handlers.GameKit
@@ -11,6 +12,7 @@ namespace MCP.Editor.Handlers.GameKit
     /// <summary>
     /// GameKit Save handler: create and manage save/load systems.
     /// Provides declarative save profile configuration and save slot management.
+    /// Uses code generation to produce standalone scripts with zero package dependency.
     /// </summary>
     public class GameKitSaveHandler : BaseCommandHandler
     {
@@ -27,7 +29,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "createManager" || operation == "createProfile";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -62,10 +65,13 @@ namespace MCP.Editor.Handlers.GameKit
                 profileId = $"SaveProfile_{Guid.NewGuid().ToString().Substring(0, 8)}";
             }
 
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(profileId, "SaveProfile");
+
             var assetPath = GetString(payload, "assetPath");
             if (string.IsNullOrEmpty(assetPath))
             {
-                assetPath = $"Assets/GameKit/SaveProfiles/{profileId}.asset";
+                assetPath = $"Assets/GameKit/SaveProfiles/{className}.asset";
             }
 
             // Ensure directory exists
@@ -75,44 +81,100 @@ namespace MCP.Editor.Handlers.GameKit
                 Directory.CreateDirectory(directory);
             }
 
-            // Check if already exists
-            var existingAsset = AssetDatabase.LoadAssetAtPath<GameKitSaveProfile>(assetPath);
+            // Check if asset already exists at path
+            var existingAsset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
             if (existingAsset != null)
             {
                 throw new InvalidOperationException($"SaveProfile already exists at: {assetPath}");
             }
 
-            // Create asset
-            var profile = ScriptableObject.CreateInstance<GameKitSaveProfile>();
-            profile.Initialize(profileId);
-
-            // Add targets if provided
-            if (payload.TryGetValue("saveTargets", out var targetsObj) && targetsObj is List<object> targetsList)
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                foreach (var targetObj in targetsList)
+                { "PROFILE_ID", profileId }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate the SaveProfile script via ScriptGenerator
+            var result = ScriptGenerator.Generate(null, "SaveProfile", className, profileId, variables, outputDir);
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(result.ErrorMessage ?? "Failed to generate SaveProfile script.");
+            }
+
+            // Try to create the asset if the type is already compiled
+            var profileType = ScriptGenerator.ResolveGeneratedType(className);
+            var response = new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["profileId"] = profileId,
+                ["className"] = className,
+                ["scriptPath"] = result.ScriptPath
+            };
+
+            if (profileType != null)
+            {
+                var profile = ScriptableObject.CreateInstance(profileType);
+                if (profile != null)
                 {
-                    if (targetObj is Dictionary<string, object> targetDict)
+                    // Set profileId via SerializedObject
+                    var so = new SerializedObject(profile);
+                    var profileIdProp = so.FindProperty("profileId");
+                    if (profileIdProp != null)
                     {
-                        var target = CreateSaveTarget(targetDict);
-                        profile.AddTarget(target);
+                        profileIdProp.stringValue = profileId;
                     }
+
+                    // Add targets if provided
+                    if (payload.TryGetValue("saveTargets", out var targetsObj) && targetsObj is List<object> targetsList)
+                    {
+                        var targetsProp = so.FindProperty("saveTargets");
+                        if (targetsProp != null)
+                        {
+                            int idx = 0;
+                            foreach (var targetObj in targetsList)
+                            {
+                                if (targetObj is Dictionary<string, object> targetDict)
+                                {
+                                    targetsProp.InsertArrayElementAtIndex(idx);
+                                    var element = targetsProp.GetArrayElementAtIndex(idx);
+                                    SetSaveTargetProperties(element, targetDict);
+                                    idx++;
+                                }
+                            }
+                        }
+                    }
+
+                    // Configure auto-save
+                    if (payload.TryGetValue("autoSave", out var autoSaveObj) && autoSaveObj is Dictionary<string, object> autoSaveDict)
+                    {
+                        ConfigureAutoSave(so, autoSaveDict);
+                    }
+
+                    so.ApplyModifiedProperties();
+
+                    AssetDatabase.CreateAsset(profile, assetPath);
+                    AssetDatabase.SaveAssets();
+
+                    response["assetPath"] = assetPath;
+                    response["assetCreated"] = true;
+                    response["compilationRequired"] = false;
+
+                    // Count targets
+                    var countSo = new SerializedObject(profile);
+                    var countProp = countSo.FindProperty("saveTargets");
+                    response["targetCount"] = countProp != null ? countProp.arraySize : 0;
                 }
             }
-
-            // Configure auto-save
-            if (payload.TryGetValue("autoSave", out var autoSaveObj) && autoSaveObj is Dictionary<string, object> autoSaveDict)
+            else
             {
-                ConfigureAutoSave(profile, autoSaveDict);
+                response["assetCreated"] = false;
+                response["compilationRequired"] = true;
+                response["note"] = "SaveProfile script generated. Asset will be created after compilation.";
             }
 
-            AssetDatabase.CreateAsset(profile, assetPath);
-            AssetDatabase.SaveAssets();
-
-            return CreateSuccessResponse(
-                ("profileId", profileId),
-                ("assetPath", assetPath),
-                ("targetCount", profile.SaveTargets.Count)
-            );
+            return response;
         }
 
         private object UpdateProfile(Dictionary<string, object> payload)
@@ -125,17 +187,23 @@ namespace MCP.Editor.Handlers.GameKit
 
             Undo.RecordObject(profile, "Update SaveProfile");
 
+            var so = new SerializedObject(profile);
+
             // Update auto-save settings
             if (payload.TryGetValue("autoSave", out var autoSaveObj) && autoSaveObj is Dictionary<string, object> autoSaveDict)
             {
-                ConfigureAutoSave(profile, autoSaveDict);
+                ConfigureAutoSave(so, autoSaveDict);
             }
 
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(profile);
             AssetDatabase.SaveAssets();
 
+            var profileIdProp = so.FindProperty("profileId");
+            var profileIdValue = profileIdProp != null ? profileIdProp.stringValue : "unknown";
+
             return CreateSuccessResponse(
-                ("profileId", profile.ProfileId),
+                ("profileId", profileIdValue),
                 ("updated", true)
             );
         }
@@ -148,31 +216,59 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("Could not find SaveProfile.");
             }
 
+            var so = new SerializedObject(profile);
+            var profileIdProp = so.FindProperty("profileId");
+            var profileIdValue = profileIdProp != null ? profileIdProp.stringValue : "unknown";
+
             var targets = new List<object>();
-            foreach (var target in profile.SaveTargets)
+            var targetsProp = so.FindProperty("saveTargets");
+            if (targetsProp != null)
             {
-                targets.Add(new Dictionary<string, object>
+                for (int i = 0; i < targetsProp.arraySize; i++)
                 {
-                    { "type", target.type.ToString() },
-                    { "saveKey", target.saveKey },
-                    { "gameObjectPath", target.gameObjectPath },
-                    { "componentType", target.componentType },
-                    { "properties", target.properties }
-                });
+                    var element = targetsProp.GetArrayElementAtIndex(i);
+                    var typeProp = element.FindPropertyRelative("type");
+                    var typeStr = typeProp != null && typeProp.enumValueIndex < typeProp.enumDisplayNames.Length
+                        ? typeProp.enumDisplayNames[typeProp.enumValueIndex]
+                        : "Transform";
+
+                    var propsList = new List<string>();
+                    var propsProp = element.FindPropertyRelative("properties");
+                    if (propsProp != null)
+                    {
+                        for (int j = 0; j < propsProp.arraySize; j++)
+                        {
+                            propsList.Add(propsProp.GetArrayElementAtIndex(j).stringValue);
+                        }
+                    }
+
+                    targets.Add(new Dictionary<string, object>
+                    {
+                        { "type", typeStr },
+                        { "saveKey", element.FindPropertyRelative("saveKey")?.stringValue ?? "" },
+                        { "gameObjectPath", element.FindPropertyRelative("gameObjectPath")?.stringValue ?? "" },
+                        { "componentType", element.FindPropertyRelative("componentType")?.stringValue ?? "" },
+                        { "properties", propsList }
+                    });
+                }
+            }
+
+            var autoSaveProp = so.FindProperty("autoSave");
+            var autoSaveInfo = new Dictionary<string, object>();
+            if (autoSaveProp != null)
+            {
+                autoSaveInfo["enabled"] = autoSaveProp.FindPropertyRelative("enabled")?.boolValue ?? false;
+                autoSaveInfo["intervalSeconds"] = autoSaveProp.FindPropertyRelative("intervalSeconds")?.floatValue ?? 60f;
+                autoSaveInfo["onSceneChange"] = autoSaveProp.FindPropertyRelative("onSceneChange")?.boolValue ?? false;
+                autoSaveInfo["onApplicationPause"] = autoSaveProp.FindPropertyRelative("onApplicationPause")?.boolValue ?? true;
+                autoSaveInfo["autoSaveSlotId"] = autoSaveProp.FindPropertyRelative("autoSaveSlotId")?.stringValue ?? "autosave";
             }
 
             return CreateSuccessResponse(
-                ("profileId", profile.ProfileId),
+                ("profileId", profileIdValue),
                 ("assetPath", AssetDatabase.GetAssetPath(profile)),
                 ("targets", targets),
-                ("autoSave", new Dictionary<string, object>
-                {
-                    { "enabled", profile.AutoSaveConfig.enabled },
-                    { "intervalSeconds", profile.AutoSaveConfig.intervalSeconds },
-                    { "onSceneChange", profile.AutoSaveConfig.onSceneChange },
-                    { "onApplicationPause", profile.AutoSaveConfig.onApplicationPause },
-                    { "autoSaveSlotId", profile.AutoSaveConfig.autoSaveSlotId }
-                })
+                ("autoSave", autoSaveInfo)
             );
         }
 
@@ -185,12 +281,17 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             var assetPath = AssetDatabase.GetAssetPath(profile);
-            var profileId = profile.ProfileId;
+            var so = new SerializedObject(profile);
+            var profileIdProp = so.FindProperty("profileId");
+            var profileIdValue = profileIdProp != null ? profileIdProp.stringValue : "unknown";
 
             AssetDatabase.DeleteAsset(assetPath);
 
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(profileIdValue);
+
             return CreateSuccessResponse(
-                ("profileId", profileId),
+                ("profileId", profileIdValue),
                 ("assetPath", assetPath),
                 ("deleted", true)
             );
@@ -212,17 +313,33 @@ namespace MCP.Editor.Handlers.GameKit
                 ? dict
                 : payload;
 
-            var target = CreateSaveTarget(targetDict);
-
             Undo.RecordObject(profile, "Add Save Target");
-            profile.AddTarget(target);
+
+            var so = new SerializedObject(profile);
+            var targetsProp = so.FindProperty("saveTargets");
+            if (targetsProp == null)
+            {
+                throw new InvalidOperationException("SaveProfile does not have saveTargets property.");
+            }
+
+            var newIndex = targetsProp.arraySize;
+            targetsProp.InsertArrayElementAtIndex(newIndex);
+            var element = targetsProp.GetArrayElementAtIndex(newIndex);
+            SetSaveTargetProperties(element, targetDict);
+
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(profile);
             AssetDatabase.SaveAssets();
 
+            var profileIdProp = so.FindProperty("profileId");
+            var profileIdValue = profileIdProp != null ? profileIdProp.stringValue : "unknown";
+            var saveKey = GetStringFromDict(targetDict, "saveKey", "");
+            var typeStr = GetStringFromDict(targetDict, "type", "transform");
+
             return CreateSuccessResponse(
-                ("profileId", profile.ProfileId),
-                ("saveKey", target.saveKey),
-                ("targetType", target.type.ToString()),
+                ("profileId", profileIdValue),
+                ("saveKey", saveKey),
+                ("targetType", ParseSaveTargetType(typeStr)),
                 ("added", true)
             );
         }
@@ -242,12 +359,33 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             Undo.RecordObject(profile, "Remove Save Target");
-            var removed = profile.RemoveTarget(saveKey);
+
+            var so = new SerializedObject(profile);
+            var targetsProp = so.FindProperty("saveTargets");
+            bool removed = false;
+            if (targetsProp != null)
+            {
+                for (int i = targetsProp.arraySize - 1; i >= 0; i--)
+                {
+                    var element = targetsProp.GetArrayElementAtIndex(i);
+                    var keyProp = element.FindPropertyRelative("saveKey");
+                    if (keyProp != null && keyProp.stringValue == saveKey)
+                    {
+                        targetsProp.DeleteArrayElementAtIndex(i);
+                        removed = true;
+                    }
+                }
+            }
+
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(profile);
             AssetDatabase.SaveAssets();
 
+            var profileIdProp = so.FindProperty("profileId");
+            var profileIdValue = profileIdProp != null ? profileIdProp.stringValue : "unknown";
+
             return CreateSuccessResponse(
-                ("profileId", profile.ProfileId),
+                ("profileId", profileIdValue),
                 ("saveKey", saveKey),
                 ("removed", removed)
             );
@@ -262,12 +400,23 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             Undo.RecordObject(profile, "Clear Save Targets");
-            profile.ClearTargets();
+
+            var so = new SerializedObject(profile);
+            var targetsProp = so.FindProperty("saveTargets");
+            if (targetsProp != null)
+            {
+                targetsProp.ClearArray();
+            }
+
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(profile);
             AssetDatabase.SaveAssets();
 
+            var profileIdProp = so.FindProperty("profileId");
+            var profileIdValue = profileIdProp != null ? profileIdProp.stringValue : "unknown";
+
             return CreateSuccessResponse(
-                ("profileId", profile.ProfileId),
+                ("profileId", profileIdValue),
                 ("cleared", true)
             );
         }
@@ -278,71 +427,98 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ExecuteSave(Dictionary<string, object> payload)
         {
-            var manager = ResolveManager(payload);
-            var profileId = GetString(payload, "profileId");
+            var component = ResolveManagerComponent(payload);
             var slotId = GetString(payload, "slotId") ?? "default";
 
-            if (string.IsNullOrEmpty(profileId))
+            // Invoke Save(slotId) via reflection
+            var saveMethod = component.GetType().GetMethod("Save",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null, new[] { typeof(string) }, null);
+            if (saveMethod == null)
             {
-                throw new InvalidOperationException("profileId is required for save operation.");
+                throw new InvalidOperationException("SaveManager component does not have a Save(string) method.");
             }
 
-            var success = manager.Save(profileId, slotId);
+            saveMethod.Invoke(component, new object[] { slotId });
+
+            var so = new SerializedObject(component);
+            var saveManagerId = so.FindProperty("saveManagerId")?.stringValue ?? "unknown";
 
             return CreateSuccessResponse(
-                ("saved", success),
-                ("profileId", profileId),
+                ("saved", true),
+                ("saveManagerId", saveManagerId),
                 ("slotId", slotId),
-                ("note", success ? "Save executed." : "Save failed. Check profile registration.")
+                ("note", "Save executed.")
             );
         }
 
         private object ExecuteLoad(Dictionary<string, object> payload)
         {
-            var manager = ResolveManager(payload);
-            var profileId = GetString(payload, "profileId");
+            var component = ResolveManagerComponent(payload);
             var slotId = GetString(payload, "slotId") ?? "default";
 
-            if (string.IsNullOrEmpty(profileId))
+            // Invoke Load(slotId) via reflection
+            var loadMethod = component.GetType().GetMethod("Load",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null, new[] { typeof(string) }, null);
+            if (loadMethod == null)
             {
-                throw new InvalidOperationException("profileId is required for load operation.");
+                throw new InvalidOperationException("SaveManager component does not have a Load(string) method.");
             }
 
-            var success = manager.Load(profileId, slotId);
+            var result = loadMethod.Invoke(component, new object[] { slotId });
+            var loaded = result != null;
+
+            var so = new SerializedObject(component);
+            var saveManagerId = so.FindProperty("saveManagerId")?.stringValue ?? "unknown";
 
             return CreateSuccessResponse(
-                ("loaded", success),
-                ("profileId", profileId),
+                ("loaded", loaded),
+                ("saveManagerId", saveManagerId),
                 ("slotId", slotId),
-                ("note", success ? "Load executed." : "No save data found for this slot.")
+                ("note", loaded ? "Load executed." : "No save data found for this slot.")
             );
         }
 
         private object ListSlots(Dictionary<string, object> payload)
         {
-            var manager = ResolveManager(payload);
-            var profileId = GetString(payload, "profileId");
+            var component = ResolveManagerComponent(payload);
 
-            if (string.IsNullOrEmpty(profileId))
+            // Invoke GetSlots() via reflection
+            var getSlotsMethod = component.GetType().GetMethod("GetSlots",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null, Type.EmptyTypes, null);
+            if (getSlotsMethod == null)
             {
-                throw new InvalidOperationException("profileId is required to list slots.");
+                throw new InvalidOperationException("SaveManager component does not have a GetSlots() method.");
             }
 
-            var slots = manager.GetSlots(profileId);
+            var slotsResult = getSlotsMethod.Invoke(component, null);
 
             var slotList = new List<object>();
-            foreach (var slot in slots)
+            if (slotsResult is System.Collections.IList slots)
             {
-                slotList.Add(new Dictionary<string, object>
+                foreach (var slot in slots)
                 {
-                    { "slotId", slot.slotId },
-                    { "saveTime", slot.timestamp.ToString("yyyy-MM-dd HH:mm:ss") },
-                    { "fileSize", slot.fileSize }
-                });
+                    var slotType = slot.GetType();
+                    var slotIdField = slotType.GetField("slotId");
+                    var timestampField = slotType.GetField("timestamp");
+                    var displayNameField = slotType.GetField("displayName");
+
+                    slotList.Add(new Dictionary<string, object>
+                    {
+                        { "slotId", slotIdField?.GetValue(slot)?.ToString() ?? "" },
+                        { "timestamp", timestampField?.GetValue(slot)?.ToString() ?? "" },
+                        { "displayName", displayNameField?.GetValue(slot)?.ToString() ?? "" }
+                    });
+                }
             }
 
+            var so = new SerializedObject(component);
+            var saveManagerId = so.FindProperty("saveManagerId")?.stringValue ?? "unknown";
+
             return CreateSuccessResponse(
-                ("profileId", profileId),
+                ("saveManagerId", saveManagerId),
                 ("slots", slotList),
                 ("count", slotList.Count)
             );
@@ -350,25 +526,32 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteSlot(Dictionary<string, object> payload)
         {
-            var manager = ResolveManager(payload);
-            var profileId = GetString(payload, "profileId");
+            var component = ResolveManagerComponent(payload);
             var slotId = GetString(payload, "slotId");
 
-            if (string.IsNullOrEmpty(profileId))
-            {
-                throw new InvalidOperationException("profileId is required to delete a slot.");
-            }
             if (string.IsNullOrEmpty(slotId))
             {
                 throw new InvalidOperationException("slotId is required to delete a slot.");
             }
 
-            var success = manager.DeleteSlot(profileId, slotId);
+            // Invoke DeleteSlot(slotId) via reflection
+            var deleteMethod = component.GetType().GetMethod("DeleteSlot",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                null, new[] { typeof(string) }, null);
+            if (deleteMethod == null)
+            {
+                throw new InvalidOperationException("SaveManager component does not have a DeleteSlot(string) method.");
+            }
+
+            deleteMethod.Invoke(component, new object[] { slotId });
+
+            var so = new SerializedObject(component);
+            var saveManagerId = so.FindProperty("saveManagerId")?.stringValue ?? "unknown";
 
             return CreateSuccessResponse(
-                ("profileId", profileId),
+                ("saveManagerId", saveManagerId),
                 ("slotId", slotId),
-                ("deleted", success)
+                ("deleted", true)
             );
         }
 
@@ -379,6 +562,8 @@ namespace MCP.Editor.Handlers.GameKit
         private object CreateManager(Dictionary<string, object> payload)
         {
             var targetPath = GetString(payload, "targetPath");
+            var saveManagerId = GetString(payload, "saveManagerId")
+                ?? $"SaveManager_{Guid.NewGuid().ToString().Substring(0, 8)}";
             GameObject targetGo;
 
             if (string.IsNullOrEmpty(targetPath))
@@ -396,70 +581,105 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            var existingManager = targetGo.GetComponent<GameKitSaveManager>();
+            // Check if already has a save manager component
+            var existingManager = CodeGenHelper.FindComponentByField(targetGo, "saveManagerId", null);
             if (existingManager != null)
             {
-                throw new InvalidOperationException($"GameObject already has a GameKitSaveManager component.");
+                throw new InvalidOperationException("GameObject already has a SaveManager component.");
             }
 
-            var manager = Undo.AddComponent<GameKitSaveManager>(targetGo);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(saveManagerId, "SaveManager");
 
-            // Assign profile if provided
-            var profileId = GetString(payload, "profileId");
-            if (!string.IsNullOrEmpty(profileId))
+            var persistent = GetBool(payload, "persistent", true);
+            var saveDirectory = GetString(payload, "saveDirectory") ?? "Saves";
+            var fileExtension = GetString(payload, "fileExtension") ?? ".sav";
+            var autoSaveEnabled = GetBool(payload, "autoSaveEnabled");
+            var autoSaveInterval = GetFloat(payload, "autoSaveInterval", 60f);
+            var autoSaveSlotId = GetString(payload, "autoSaveSlotId") ?? "autosave";
+
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                var profile = FindProfileById(profileId);
-                if (profile != null)
-                {
-                    var serializedManager = new SerializedObject(manager);
-                    var registeredProfiles = serializedManager.FindProperty("registeredProfiles");
-                    registeredProfiles.arraySize++;
-                    registeredProfiles.GetArrayElementAtIndex(registeredProfiles.arraySize - 1).objectReferenceValue = profile;
-                    serializedManager.ApplyModifiedProperties();
-                }
+                { "SAVE_MANAGER_ID", saveManagerId },
+                { "PERSISTENT", persistent.ToString().ToLowerInvariant() },
+                { "SAVE_DIRECTORY", saveDirectory },
+                { "FILE_EXTENSION", fileExtension },
+                { "AUTO_SAVE_ENABLED", autoSaveEnabled.ToString().ToLowerInvariant() },
+                { "AUTO_SAVE_INTERVAL", autoSaveInterval },
+                { "AUTO_SAVE_SLOT_ID", autoSaveSlotId }
+            };
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "SaveManager", saveManagerId, className, variables, outputDir);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate SaveManager script.");
             }
 
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(targetGo.scene);
+            EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(targetGo)),
-                ("created", true)
-            );
+            result["saveManagerId"] = saveManagerId;
+            result["path"] = BuildGameObjectPath(targetGo);
+
+            return result;
         }
 
         private object InspectManager(Dictionary<string, object> payload)
         {
-            var manager = ResolveManager(payload);
+            var component = ResolveManagerComponent(payload);
+            var so = new SerializedObject(component);
 
-            var serializedManager = new SerializedObject(manager);
-            var registeredProfilesProp = serializedManager.FindProperty("registeredProfiles");
+            var saveManagerId = so.FindProperty("saveManagerId")?.stringValue ?? "unknown";
+            var persistent = so.FindProperty("persistent")?.boolValue ?? true;
+            var saveDirectory = so.FindProperty("saveDirectory")?.stringValue ?? "Saves";
+            var fileExtension = so.FindProperty("fileExtension")?.stringValue ?? ".sav";
+            var autoSaveEnabled = so.FindProperty("autoSaveEnabled")?.boolValue ?? false;
+            var autoSaveInterval = so.FindProperty("autoSaveInterval")?.floatValue ?? 60f;
+            var autoSaveSlotId = so.FindProperty("autoSaveSlotId")?.stringValue ?? "autosave";
 
-            var profileIds = new List<string>();
-            for (int i = 0; i < registeredProfilesProp.arraySize; i++)
+            var info = new Dictionary<string, object>
             {
-                var profileRef = registeredProfilesProp.GetArrayElementAtIndex(i).objectReferenceValue as GameKitSaveProfile;
-                if (profileRef != null && !string.IsNullOrEmpty(profileRef.ProfileId))
-                {
-                    profileIds.Add(profileRef.ProfileId);
+                { "saveManagerId", saveManagerId },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "persistent", persistent },
+                { "saveDirectory", saveDirectory },
+                { "fileExtension", fileExtension },
+                { "autoSave", new Dictionary<string, object>
+                    {
+                        { "enabled", autoSaveEnabled },
+                        { "interval", autoSaveInterval },
+                        { "slotId", autoSaveSlotId }
+                    }
                 }
-            }
+            };
 
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(manager.gameObject)),
-                ("registeredProfiles", profileIds),
-                ("profileCount", profileIds.Count)
-            );
+            return CreateSuccessResponse(("saveManager", info));
         }
 
         private object DeleteManager(Dictionary<string, object> payload)
         {
-            var manager = ResolveManager(payload);
-            var path = BuildGameObjectPath(manager.gameObject);
+            var component = ResolveManagerComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var so = new SerializedObject(component);
+            var saveManagerId = so.FindProperty("saveManagerId")?.stringValue ?? "unknown";
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(manager);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(saveManagerId);
+
+            EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
+                ("saveManagerId", saveManagerId),
                 ("path", path),
                 ("deleted", true)
             );
@@ -483,11 +703,15 @@ namespace MCP.Editor.Handlers.GameKit
                 return CreateSuccessResponse(("found", false), ("profileId", profileId));
             }
 
+            var so = new SerializedObject(profile);
+            var targetsProp = so.FindProperty("saveTargets");
+            var targetCount = targetsProp != null ? targetsProp.arraySize : 0;
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("profileId", profile.ProfileId),
+                ("profileId", profileId),
                 ("assetPath", AssetDatabase.GetAssetPath(profile)),
-                ("targetCount", profile.SaveTargets.Count)
+                ("targetCount", targetCount)
             );
         }
 
@@ -495,7 +719,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitSaveProfile ResolveProfile(Dictionary<string, object> payload)
+        private ScriptableObject ResolveProfile(Dictionary<string, object> payload)
         {
             // Try by profileId
             var profileId = GetString(payload, "profileId");
@@ -508,29 +732,53 @@ namespace MCP.Editor.Handlers.GameKit
             var assetPath = GetString(payload, "assetPath");
             if (!string.IsNullOrEmpty(assetPath))
             {
-                return AssetDatabase.LoadAssetAtPath<GameKitSaveProfile>(assetPath);
+                return AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
             }
 
             return null;
         }
 
-        private GameKitSaveProfile FindProfileById(string profileId)
+        private ScriptableObject FindProfileById(string profileId)
         {
-            var guids = AssetDatabase.FindAssets("t:GameKitSaveProfile");
+            // Search all ScriptableObjects that have a profileId field matching the given value
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var profile = AssetDatabase.LoadAssetAtPath<GameKitSaveProfile>(path);
-                if (profile != null && profile.ProfileId == profileId)
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+
+                try
                 {
-                    return profile;
+                    var so = new SerializedObject(asset);
+                    var profileIdProp = so.FindProperty("profileId");
+                    if (profileIdProp != null && profileIdProp.propertyType == SerializedPropertyType.String
+                        && profileIdProp.stringValue == profileId)
+                    {
+                        return asset;
+                    }
+                }
+                catch
+                {
+                    // Skip assets that can't be serialized
                 }
             }
             return null;
         }
 
-        private GameKitSaveManager ResolveManager(Dictionary<string, object> payload)
+        private Component ResolveManagerComponent(Dictionary<string, object> payload)
         {
+            // Try by saveManagerId first
+            var saveManagerId = GetString(payload, "saveManagerId");
+            if (!string.IsNullOrEmpty(saveManagerId))
+            {
+                var managerById = CodeGenHelper.FindComponentInSceneByField("saveManagerId", saveManagerId);
+                if (managerById != null)
+                {
+                    return managerById;
+                }
+            }
+
             // Try by targetPath
             var targetPath = GetString(payload, "targetPath");
             if (!string.IsNullOrEmpty(targetPath))
@@ -538,105 +786,171 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var manager = targetGo.GetComponent<GameKitSaveManager>();
-                    if (manager != null)
+                    var managerByPath = CodeGenHelper.FindComponentByField(targetGo, "saveManagerId", null);
+                    if (managerByPath != null)
                     {
-                        return manager;
+                        return managerByPath;
+                    }
+
+                    throw new InvalidOperationException($"No SaveManager component found on '{targetPath}'.");
+                }
+                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+            }
+
+            // Find any manager in scene with a saveManagerId field
+            var allMonoBehaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            foreach (var comp in allMonoBehaviours)
+            {
+                if (comp == null) continue;
+                try
+                {
+                    var so = new SerializedObject(comp);
+                    var prop = so.FindProperty("saveManagerId");
+                    if (prop != null && prop.propertyType == SerializedPropertyType.String)
+                    {
+                        return comp;
+                    }
+                }
+                catch
+                {
+                    // Skip components that can't be serialized
+                }
+            }
+
+            throw new InvalidOperationException("No SaveManager found in scene. Either saveManagerId or targetPath is required.");
+        }
+
+        private void SetSaveTargetProperties(SerializedProperty element, Dictionary<string, object> dict)
+        {
+            // Type
+            var typeStr = GetStringFromDict(dict, "type", "transform");
+            var typeParsed = ParseSaveTargetType(typeStr);
+            var typeProp = element.FindPropertyRelative("type");
+            if (typeProp != null)
+            {
+                var names = typeProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], typeParsed, StringComparison.OrdinalIgnoreCase))
+                    {
+                        typeProp.enumValueIndex = i;
+                        break;
                     }
                 }
             }
 
-            // Find any manager in scene
-            var managers = UnityEngine.Object.FindObjectsByType<GameKitSaveManager>(FindObjectsSortMode.None);
-            if (managers.Length > 0)
-            {
-                return managers[0];
-            }
-
-            throw new InvalidOperationException("No GameKitSaveManager found in scene.");
-        }
-
-        private GameKitSaveProfile.SaveTarget CreateSaveTarget(Dictionary<string, object> dict)
-        {
-            var target = new GameKitSaveProfile.SaveTarget();
-
-            // Type
-            var typeStr = GetStringFromDict(dict, "type", "transform");
-            target.type = typeStr.ToLowerInvariant() switch
-            {
-                "transform" => GameKitSaveProfile.SaveTargetType.Transform,
-                "component" => GameKitSaveProfile.SaveTargetType.Component,
-                "resourcemanager" => GameKitSaveProfile.SaveTargetType.ResourceManager,
-                "health" => GameKitSaveProfile.SaveTargetType.Health,
-                "sceneflow" => GameKitSaveProfile.SaveTargetType.SceneFlow,
-                "inventory" => GameKitSaveProfile.SaveTargetType.Inventory,
-                "playerprefs" => GameKitSaveProfile.SaveTargetType.PlayerPrefs,
-                _ => GameKitSaveProfile.SaveTargetType.Transform
-            };
-
             // Common
-            target.saveKey = GetStringFromDict(dict, "saveKey", "");
-            target.gameObjectPath = GetStringFromDict(dict, "gameObjectPath", "");
+            var saveKeyProp = element.FindPropertyRelative("saveKey");
+            if (saveKeyProp != null)
+                saveKeyProp.stringValue = GetStringFromDict(dict, "saveKey", "");
+
+            var goPathProp = element.FindPropertyRelative("gameObjectPath");
+            if (goPathProp != null)
+                goPathProp.stringValue = GetStringFromDict(dict, "gameObjectPath", "");
 
             // Transform
             if (dict.TryGetValue("savePosition", out var posBool))
-                target.savePosition = Convert.ToBoolean(posBool);
+            {
+                var prop = element.FindPropertyRelative("savePosition");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(posBool);
+            }
             if (dict.TryGetValue("saveRotation", out var rotBool))
-                target.saveRotation = Convert.ToBoolean(rotBool);
+            {
+                var prop = element.FindPropertyRelative("saveRotation");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(rotBool);
+            }
             if (dict.TryGetValue("saveScale", out var scaleBool))
-                target.saveScale = Convert.ToBoolean(scaleBool);
+            {
+                var prop = element.FindPropertyRelative("saveScale");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(scaleBool);
+            }
 
             // Component
-            target.componentType = GetStringFromDict(dict, "componentType", "");
+            var compTypeProp = element.FindPropertyRelative("componentType");
+            if (compTypeProp != null)
+                compTypeProp.stringValue = GetStringFromDict(dict, "componentType", "");
+
             if (dict.TryGetValue("properties", out var propsObj) && propsObj is List<object> propsList)
             {
-                target.properties = new List<string>();
-                foreach (var prop in propsList)
+                var propsProp = element.FindPropertyRelative("properties");
+                if (propsProp != null)
                 {
-                    target.properties.Add(prop.ToString());
+                    propsProp.ClearArray();
+                    for (int i = 0; i < propsList.Count; i++)
+                    {
+                        propsProp.InsertArrayElementAtIndex(i);
+                        propsProp.GetArrayElementAtIndex(i).stringValue = propsList[i].ToString();
+                    }
                 }
             }
 
-            // GameKit integration
-            target.resourceManagerId = GetStringFromDict(dict, "resourceManagerId", "");
-            target.healthId = GetStringFromDict(dict, "healthId", "");
-            target.sceneFlowId = GetStringFromDict(dict, "sceneFlowId", "");
-            target.inventoryId = GetStringFromDict(dict, "inventoryId", "");
+            // GameKit integration IDs
+            var rmIdProp = element.FindPropertyRelative("resourceManagerId");
+            if (rmIdProp != null)
+                rmIdProp.stringValue = GetStringFromDict(dict, "resourceManagerId", "");
 
-            return target;
+            var healthIdProp = element.FindPropertyRelative("healthId");
+            if (healthIdProp != null)
+                healthIdProp.stringValue = GetStringFromDict(dict, "healthId", "");
+
+            var sfIdProp = element.FindPropertyRelative("sceneFlowId");
+            if (sfIdProp != null)
+                sfIdProp.stringValue = GetStringFromDict(dict, "sceneFlowId", "");
+
+            var invIdProp = element.FindPropertyRelative("inventoryId");
+            if (invIdProp != null)
+                invIdProp.stringValue = GetStringFromDict(dict, "inventoryId", "");
         }
 
-        private void ConfigureAutoSave(GameKitSaveProfile profile, Dictionary<string, object> dict)
+        private void ConfigureAutoSave(SerializedObject so, Dictionary<string, object> dict)
         {
-            var serialized = new SerializedObject(profile);
-            var autoSaveProp = serialized.FindProperty("autoSave");
+            var autoSaveProp = so.FindProperty("autoSave");
+            if (autoSaveProp == null) return;
 
             if (dict.TryGetValue("enabled", out var enabledObj))
             {
-                autoSaveProp.FindPropertyRelative("enabled").boolValue = Convert.ToBoolean(enabledObj);
+                var prop = autoSaveProp.FindPropertyRelative("enabled");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(enabledObj);
             }
 
             if (dict.TryGetValue("intervalSeconds", out var intervalObj))
             {
-                autoSaveProp.FindPropertyRelative("intervalSeconds").floatValue = Convert.ToSingle(intervalObj);
+                var prop = autoSaveProp.FindPropertyRelative("intervalSeconds");
+                if (prop != null) prop.floatValue = Convert.ToSingle(intervalObj);
             }
 
             if (dict.TryGetValue("onSceneChange", out var sceneChangeObj))
             {
-                autoSaveProp.FindPropertyRelative("onSceneChange").boolValue = Convert.ToBoolean(sceneChangeObj);
+                var prop = autoSaveProp.FindPropertyRelative("onSceneChange");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(sceneChangeObj);
             }
 
             if (dict.TryGetValue("onApplicationPause", out var pauseObj))
             {
-                autoSaveProp.FindPropertyRelative("onApplicationPause").boolValue = Convert.ToBoolean(pauseObj);
+                var prop = autoSaveProp.FindPropertyRelative("onApplicationPause");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(pauseObj);
             }
 
             if (dict.TryGetValue("autoSaveSlotId", out var slotIdObj))
             {
-                autoSaveProp.FindPropertyRelative("autoSaveSlotId").stringValue = slotIdObj.ToString();
+                var prop = autoSaveProp.FindPropertyRelative("autoSaveSlotId");
+                if (prop != null) prop.stringValue = slotIdObj.ToString();
             }
+        }
 
-            serialized.ApplyModifiedProperties();
+        private string ParseSaveTargetType(string str)
+        {
+            return str.ToLowerInvariant() switch
+            {
+                "transform" => "Transform",
+                "component" => "Component",
+                "resourcemanager" => "ResourceManager",
+                "health" => "Health",
+                "sceneflow" => "SceneFlow",
+                "inventory" => "Inventory",
+                "playerprefs" => "PlayerPrefs",
+                _ => "Transform"
+            };
         }
 
         private string GetStringFromDict(Dictionary<string, object> dict, string key, string defaultValue)

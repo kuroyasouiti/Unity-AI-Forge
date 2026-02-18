@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,6 +11,7 @@ namespace MCP.Editor.Handlers.GameKit
     /// <summary>
     /// GameKit TriggerZone handler: create and manage trigger zones for games.
     /// Supports checkpoints, damage zones, heal zones, teleporters, and custom triggers.
+    /// Uses code generation to produce standalone TriggerZone scripts with zero package dependency.
     /// </summary>
     public class GameKitTriggerZoneHandler : BaseCommandHandler
     {
@@ -25,7 +26,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -73,29 +75,69 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            // Check if already has trigger zone component
-            var existingZone = targetGo.GetComponent<GameKitTriggerZone>();
+            // Check if already has a trigger zone component (by checking for zoneId field)
+            var existingZone = CodeGenHelper.FindComponentByField(targetGo, "zoneId", null);
             if (existingZone != null)
             {
-                throw new InvalidOperationException($"GameObject '{BuildGameObjectPath(targetGo)}' already has a GameKitTriggerZone component.");
+                throw new InvalidOperationException(
+                    $"GameObject '{BuildGameObjectPath(targetGo)}' already has a TriggerZone component.");
             }
 
             var zoneId = GetString(payload, "zoneId") ?? $"Zone_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var zoneType = ParseZoneType(GetString(payload, "zoneType") ?? "generic");
             var triggerMode = ParseTriggerMode(GetString(payload, "triggerMode") ?? "repeat");
 
-            // Add component
-            var zone = Undo.AddComponent<GameKitTriggerZone>(targetGo);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(zoneId, "TriggerZone");
 
-            // Initialize via serialized object
-            var serialized = new SerializedObject(zone);
-            serialized.FindProperty("zoneId").stringValue = zoneId;
-            serialized.FindProperty("zoneType").enumValueIndex = (int)zoneType;
-            serialized.FindProperty("triggerMode").enumValueIndex = (int)triggerMode;
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "ZONE_ID", zoneId },
+                { "ZONE_TYPE", zoneType },
+                { "TRIGGER_MODE", triggerMode }
+            };
 
-            // Apply zone-specific settings
-            ApplyTriggerZoneSettings(serialized, payload);
-            serialized.ApplyModifiedProperties();
+            // Add optional template variables
+            if (payload.TryGetValue("requiredTag", out var tagObj))
+                variables["REQUIRED_TAG"] = tagObj.ToString();
+            if (payload.TryGetValue("effectValue", out var effectValObj))
+                variables["EFFECT_VALUE"] = Convert.ToSingle(effectValObj);
+            if (payload.TryGetValue("effectInterval", out var effectIntObj))
+                variables["EFFECT_INTERVAL"] = Convert.ToSingle(effectIntObj);
+            if (payload.TryGetValue("speedMultiplier", out var speedMultObj))
+                variables["SPEED_MULTIPLIER"] = Convert.ToSingle(speedMultObj);
+            if (payload.TryGetValue("preserveVelocity", out var preserveVelObj))
+                variables["PRESERVE_VELOCITY"] = Convert.ToBoolean(preserveVelObj);
+            if (payload.TryGetValue("preserveRotation", out var preserveRotObj))
+                variables["PRESERVE_ROTATION"] = Convert.ToBoolean(preserveRotObj);
+
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
+            if (payload.TryGetValue("requireTriggerCollider", out var requireTriggerObj))
+                propertiesToSet["requireTriggerCollider"] = Convert.ToBoolean(requireTriggerObj);
+            if (payload.TryGetValue("respawnOffset", out var respawnOffsetObj) && respawnOffsetObj is Dictionary<string, object> respawnDict)
+                propertiesToSet["respawnOffset"] = respawnDict;
+            if (payload.TryGetValue("changeColorOnEnter", out var changeColorObj))
+                propertiesToSet["changeColorOnEnter"] = Convert.ToBoolean(changeColorObj);
+            if (payload.TryGetValue("activeColor", out var activeColorObj) && activeColorObj is Dictionary<string, object> activeColorDict)
+                propertiesToSet["activeColor"] = activeColorDict;
+            if (payload.TryGetValue("inactiveColor", out var inactiveColorObj) && inactiveColorObj is Dictionary<string, object> inactiveColorDict)
+                propertiesToSet["inactiveColor"] = inactiveColorDict;
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "TriggerZone", zoneId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate TriggerZone script.");
+            }
 
             // Add collider if none exists
             var is2D = GetBool(payload, "is2D", false);
@@ -116,12 +158,12 @@ namespace MCP.Editor.Handlers.GameKit
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("zoneId", zoneId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("zoneType", zoneType.ToString()),
-                ("triggerMode", triggerMode.ToString())
-            );
+            result["zoneId"] = zoneId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["zoneType"] = zoneType;
+            result["triggerMode"] = triggerMode;
+
+            return result;
         }
 
         private void CreateCollider2D(GameObject go, string shape, Vector3 size)
@@ -175,32 +217,52 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UpdateTriggerZone(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
+            var component = ResolveTriggerZoneComponent(payload);
 
-            Undo.RecordObject(zone, "Update GameKit TriggerZone");
+            Undo.RecordObject(component, "Update TriggerZone");
 
-            var serialized = new SerializedObject(zone);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("zoneType", out var zoneTypeObj))
             {
                 var zoneType = ParseZoneType(zoneTypeObj.ToString());
-                serialized.FindProperty("zoneType").enumValueIndex = (int)zoneType;
+                var zoneTypeProp = so.FindProperty("zoneType");
+                var names = zoneTypeProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], zoneType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        zoneTypeProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
 
             if (payload.TryGetValue("triggerMode", out var triggerModeObj))
             {
                 var triggerMode = ParseTriggerMode(triggerModeObj.ToString());
-                serialized.FindProperty("triggerMode").enumValueIndex = (int)triggerMode;
+                var triggerModeProp = so.FindProperty("triggerMode");
+                var names = triggerModeProp.enumDisplayNames;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (string.Equals(names[i], triggerMode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        triggerModeProp.enumValueIndex = i;
+                        break;
+                    }
+                }
             }
 
-            ApplyTriggerZoneSettings(serialized, payload);
-            serialized.ApplyModifiedProperties();
+            ApplyTriggerZoneSettings(so, payload);
+            so.ApplyModifiedProperties();
 
-            EditorSceneManager.MarkSceneDirty(zone.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var zoneId = new SerializedObject(component).FindProperty("zoneId").stringValue;
 
             return CreateSuccessResponse(
-                ("zoneId", zone.ZoneId),
-                ("path", BuildGameObjectPath(zone.gameObject)),
+                ("zoneId", zoneId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
@@ -211,53 +273,60 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object InspectTriggerZone(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
+            var component = ResolveTriggerZoneComponent(payload);
+            var so = new SerializedObject(component);
 
-            var serialized = new SerializedObject(zone);
+            var zoneTypeProp = so.FindProperty("zoneType");
+            var zoneType = zoneTypeProp.enumValueIndex < zoneTypeProp.enumDisplayNames.Length
+                ? zoneTypeProp.enumDisplayNames[zoneTypeProp.enumValueIndex]
+                : "Generic";
+
+            var triggerModeProp = so.FindProperty("triggerMode");
+            var triggerMode = triggerModeProp.enumValueIndex < triggerModeProp.enumDisplayNames.Length
+                ? triggerModeProp.enumDisplayNames[triggerModeProp.enumValueIndex]
+                : "Repeat";
 
             var info = new Dictionary<string, object>
             {
-                { "zoneId", zone.ZoneId },
-                { "path", BuildGameObjectPath(zone.gameObject) },
-                { "zoneType", zone.Type.ToString() },
-                { "triggerMode", zone.Mode.ToString() },
-                { "isActive", zone.gameObject.activeInHierarchy },
-                { "hasTriggered", zone.HasTriggered },
-                { "entitiesInZoneCount", zone.EntitiesInZoneCount },
-                { "requiredTag", serialized.FindProperty("requiredTag").stringValue },
+                { "zoneId", so.FindProperty("zoneId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "zoneType", zoneType },
+                { "triggerMode", triggerMode },
+                { "isActive", component.gameObject.activeInHierarchy },
+                { "requiredTag", so.FindProperty("requiredTag").stringValue },
                 { "position", new Dictionary<string, object>
                     {
-                        { "x", zone.transform.position.x },
-                        { "y", zone.transform.position.y },
-                        { "z", zone.transform.position.z }
+                        { "x", component.transform.position.x },
+                        { "y", component.transform.position.y },
+                        { "z", component.transform.position.z }
                     }
                 }
             };
 
-            // Add zone-specific info
-            switch (zone.Type)
+            // Add zone-specific info based on zone type
+            var zoneTypeLower = zoneType.ToLowerInvariant();
+            switch (zoneTypeLower)
             {
-                case GameKitTriggerZone.ZoneType.DamageZone:
-                case GameKitTriggerZone.ZoneType.HealZone:
-                    info["effectValue"] = serialized.FindProperty("effectValue").floatValue;
-                    info["effectInterval"] = serialized.FindProperty("effectInterval").floatValue;
+                case "damagezone":
+                case "healzone":
+                    info["effectValue"] = so.FindProperty("effectValue").floatValue;
+                    info["effectInterval"] = so.FindProperty("effectInterval").floatValue;
                     break;
-                case GameKitTriggerZone.ZoneType.Teleport:
-                    var teleportDest = serialized.FindProperty("teleportDestination").objectReferenceValue as Transform;
+                case "teleport":
+                    var teleportDest = so.FindProperty("teleportDestination").objectReferenceValue as Transform;
                     if (teleportDest != null)
                     {
                         info["teleportDestination"] = BuildGameObjectPath(teleportDest.gameObject);
                     }
-                    info["preserveVelocity"] = serialized.FindProperty("preserveVelocity").boolValue;
-                    info["preserveRotation"] = serialized.FindProperty("preserveRotation").boolValue;
+                    info["preserveVelocity"] = so.FindProperty("preserveVelocity").boolValue;
+                    info["preserveRotation"] = so.FindProperty("preserveRotation").boolValue;
                     break;
-                case GameKitTriggerZone.ZoneType.SpeedBoost:
-                case GameKitTriggerZone.ZoneType.SlowDown:
-                    info["speedMultiplier"] = serialized.FindProperty("speedMultiplier").floatValue;
+                case "speedboost":
+                case "slowdown":
+                    info["speedMultiplier"] = so.FindProperty("speedMultiplier").floatValue;
                     break;
-                case GameKitTriggerZone.ZoneType.Checkpoint:
-                    info["isActiveCheckpoint"] = zone.IsActiveCheckpoint;
-                    var respawnOffset = serialized.FindProperty("respawnOffset").vector3Value;
+                case "checkpoint":
+                    var respawnOffset = so.FindProperty("respawnOffset").vector3Value;
                     info["respawnOffset"] = new Dictionary<string, object>
                     {
                         { "x", respawnOffset.x },
@@ -276,20 +345,23 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteTriggerZone(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
-            var path = BuildGameObjectPath(zone.gameObject);
-            var zoneId = zone.ZoneId;
-            var scene = zone.gameObject.scene;
+            var component = ResolveTriggerZoneComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var zoneId = new SerializedObject(component).FindProperty("zoneId").stringValue;
+            var scene = component.gameObject.scene;
 
             var deleteGameObject = GetBool(payload, "deleteGameObject", false);
             if (deleteGameObject)
             {
-                Undo.DestroyObjectImmediate(zone.gameObject);
+                Undo.DestroyObjectImmediate(component.gameObject);
             }
             else
             {
-                Undo.DestroyObjectImmediate(zone);
+                Undo.DestroyObjectImmediate(component);
             }
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(zoneId);
 
             EditorSceneManager.MarkSceneDirty(scene);
 
@@ -307,108 +379,127 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ActivateZone(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
+            var component = ResolveTriggerZoneComponent(payload);
 
-            Undo.RecordObject(zone.gameObject, "Activate Trigger Zone");
+            Undo.RecordObject(component.gameObject, "Activate Trigger Zone");
 
             // Enable the GameObject
-            zone.gameObject.SetActive(true);
+            component.gameObject.SetActive(true);
 
             // Enable colliders
-            var collider = zone.GetComponent<Collider>();
+            var collider = component.GetComponent<Collider>();
             if (collider != null)
             {
                 Undo.RecordObject(collider, "Enable Collider");
                 collider.enabled = true;
             }
 
-            var collider2D = zone.GetComponent<Collider2D>();
+            var collider2D = component.GetComponent<Collider2D>();
             if (collider2D != null)
             {
                 Undo.RecordObject(collider2D, "Enable Collider2D");
                 collider2D.enabled = true;
             }
 
-            EditorSceneManager.MarkSceneDirty(zone.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var zoneId = new SerializedObject(component).FindProperty("zoneId").stringValue;
 
             return CreateSuccessResponse(
-                ("zoneId", zone.ZoneId),
+                ("zoneId", zoneId),
                 ("activated", true)
             );
         }
 
         private object DeactivateZone(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
+            var component = ResolveTriggerZoneComponent(payload);
 
             // Disable colliders (keep GameObject active for visibility)
-            var collider = zone.GetComponent<Collider>();
+            var collider = component.GetComponent<Collider>();
             if (collider != null)
             {
                 Undo.RecordObject(collider, "Disable Collider");
                 collider.enabled = false;
             }
 
-            var collider2D = zone.GetComponent<Collider2D>();
+            var collider2D = component.GetComponent<Collider2D>();
             if (collider2D != null)
             {
                 Undo.RecordObject(collider2D, "Disable Collider2D");
                 collider2D.enabled = false;
             }
 
-            EditorSceneManager.MarkSceneDirty(zone.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var zoneId = new SerializedObject(component).FindProperty("zoneId").stringValue;
 
             return CreateSuccessResponse(
-                ("zoneId", zone.ZoneId),
+                ("zoneId", zoneId),
                 ("deactivated", true)
             );
         }
 
         private object ResetZone(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
+            var component = ResolveTriggerZoneComponent(payload);
 
-            Undo.RecordObject(zone.gameObject, "Reset Trigger Zone");
+            Undo.RecordObject(component.gameObject, "Reset Trigger Zone");
 
             // Enable GameObject
-            zone.gameObject.SetActive(true);
+            component.gameObject.SetActive(true);
 
-            // Reset trigger state via public method
-            zone.ResetTrigger();
+            // Reset trigger state via serialized property
+            var so = new SerializedObject(component);
+            var hasTriggeredProp = so.FindProperty("hasTriggered");
+            if (hasTriggeredProp != null)
+            {
+                hasTriggeredProp.boolValue = false;
+            }
+            so.ApplyModifiedProperties();
 
             // Enable colliders
-            var collider = zone.GetComponent<Collider>();
+            var collider = component.GetComponent<Collider>();
             if (collider != null)
             {
                 Undo.RecordObject(collider, "Enable Collider");
                 collider.enabled = true;
             }
 
-            var collider2D = zone.GetComponent<Collider2D>();
+            var collider2D = component.GetComponent<Collider2D>();
             if (collider2D != null)
             {
                 Undo.RecordObject(collider2D, "Enable Collider2D");
                 collider2D.enabled = true;
             }
 
-            EditorSceneManager.MarkSceneDirty(zone.gameObject.scene);
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var zoneId = new SerializedObject(component).FindProperty("zoneId").stringValue;
 
             return CreateSuccessResponse(
-                ("zoneId", zone.ZoneId),
+                ("zoneId", zoneId),
                 ("reset", true)
             );
         }
 
         private object SetTeleportDestination(Dictionary<string, object> payload)
         {
-            var zone = ResolveTriggerZoneComponent(payload);
+            var component = ResolveTriggerZoneComponent(payload);
 
-            var serialized = new SerializedObject(zone);
+            var so = new SerializedObject(component);
 
             // Ensure zone type is Teleport
-            if (zone.Type != GameKitTriggerZone.ZoneType.Teleport)
+            var zoneTypeProp = so.FindProperty("zoneType");
+            var teleportStr = ParseZoneType("teleport");
+            var names = zoneTypeProp.enumDisplayNames;
+            for (int i = 0; i < names.Length; i++)
             {
-                serialized.FindProperty("zoneType").enumValueIndex = (int)GameKitTriggerZone.ZoneType.Teleport;
+                if (string.Equals(names[i], teleportStr, StringComparison.OrdinalIgnoreCase))
+                {
+                    zoneTypeProp.enumValueIndex = i;
+                    break;
+                }
             }
 
             var destinationPath = GetString(payload, "destinationPath");
@@ -420,11 +511,11 @@ namespace MCP.Editor.Handlers.GameKit
                     var pos = GetVector3FromDict(posDict, Vector3.zero);
 
                     // Create a destination marker
-                    var destGo = new GameObject($"{zone.name}_Destination");
+                    var destGo = new GameObject($"{component.name}_Destination");
                     destGo.transform.position = pos;
                     Undo.RegisterCreatedObjectUndo(destGo, "Create Teleport Destination");
 
-                    serialized.FindProperty("teleportDestination").objectReferenceValue = destGo.transform;
+                    so.FindProperty("teleportDestination").objectReferenceValue = destGo.transform;
                 }
                 else
                 {
@@ -438,14 +529,16 @@ namespace MCP.Editor.Handlers.GameKit
                 {
                     throw new InvalidOperationException($"Destination not found at path: {destinationPath}");
                 }
-                serialized.FindProperty("teleportDestination").objectReferenceValue = destGo.transform;
+                so.FindProperty("teleportDestination").objectReferenceValue = destGo.transform;
             }
 
-            serialized.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(zone.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var zoneId = new SerializedObject(component).FindProperty("zoneId").stringValue;
 
             return CreateSuccessResponse(
-                ("zoneId", zone.ZoneId),
+                ("zoneId", zoneId),
                 ("teleportDestinationSet", true)
             );
         }
@@ -462,19 +555,25 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("zoneId is required for findByZoneId.");
             }
 
-            var zone = FindZoneById(zoneId);
-            if (zone == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("zoneId", zoneId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("zoneId", zoneId));
             }
 
+            var so = new SerializedObject(component);
+
+            var zoneTypeProp = so.FindProperty("zoneType");
+            var zoneType = zoneTypeProp.enumValueIndex < zoneTypeProp.enumDisplayNames.Length
+                ? zoneTypeProp.enumDisplayNames[zoneTypeProp.enumValueIndex]
+                : "Generic";
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("zoneId", zone.ZoneId),
-                ("path", BuildGameObjectPath(zone.gameObject)),
-                ("zoneType", zone.Type.ToString()),
-                ("isActive", zone.gameObject.activeInHierarchy),
-                ("entitiesInZoneCount", zone.EntitiesInZoneCount)
+                ("zoneId", so.FindProperty("zoneId").stringValue),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("zoneType", zoneType),
+                ("isActive", component.gameObject.activeInHierarchy)
             );
         }
 
@@ -482,13 +581,13 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitTriggerZone ResolveTriggerZoneComponent(Dictionary<string, object> payload)
+        private Component ResolveTriggerZoneComponent(Dictionary<string, object> payload)
         {
             // Try by zoneId first
             var zoneId = GetString(payload, "zoneId");
             if (!string.IsNullOrEmpty(zoneId))
             {
-                var byId = FindZoneById(zoneId);
+                var byId = CodeGenHelper.FindComponentInSceneByField("zoneId", zoneId);
                 if (byId != null) return byId;
             }
 
@@ -499,9 +598,9 @@ namespace MCP.Editor.Handlers.GameKit
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var byPath = targetGo.GetComponent<GameKitTriggerZone>();
+                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "zoneId", null);
                     if (byPath != null) return byPath;
-                    throw new InvalidOperationException($"No GameKitTriggerZone component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No TriggerZone component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -509,70 +608,57 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either zoneId or targetPath is required.");
         }
 
-        private GameKitTriggerZone FindZoneById(string zoneId)
-        {
-            var zones = UnityEngine.Object.FindObjectsByType<GameKitTriggerZone>(FindObjectsSortMode.None);
-            foreach (var zone in zones)
-            {
-                if (zone.ZoneId == zoneId)
-                {
-                    return zone;
-                }
-            }
-            return null;
-        }
-
-        private void ApplyTriggerZoneSettings(SerializedObject serialized, Dictionary<string, object> payload)
+        private void ApplyTriggerZoneSettings(SerializedObject so, Dictionary<string, object> payload)
         {
             // Trigger settings
             if (payload.TryGetValue("requiredTag", out var tagObj))
             {
-                serialized.FindProperty("requiredTag").stringValue = tagObj.ToString();
+                so.FindProperty("requiredTag").stringValue = tagObj.ToString();
             }
 
             if (payload.TryGetValue("requireTriggerCollider", out var requireTriggerObj))
             {
-                serialized.FindProperty("requireTriggerCollider").boolValue = Convert.ToBoolean(requireTriggerObj);
+                so.FindProperty("requireTriggerCollider").boolValue = Convert.ToBoolean(requireTriggerObj);
             }
 
             // Zone-specific settings
             if (payload.TryGetValue("effectValue", out var effectValObj))
             {
-                serialized.FindProperty("effectValue").floatValue = Convert.ToSingle(effectValObj);
+                so.FindProperty("effectValue").floatValue = Convert.ToSingle(effectValObj);
             }
 
             if (payload.TryGetValue("effectInterval", out var effectIntObj))
             {
-                serialized.FindProperty("effectInterval").floatValue = Convert.ToSingle(effectIntObj);
+                so.FindProperty("effectInterval").floatValue = Convert.ToSingle(effectIntObj);
             }
 
             if (payload.TryGetValue("speedMultiplier", out var speedMultObj))
             {
-                serialized.FindProperty("speedMultiplier").floatValue = Convert.ToSingle(speedMultObj);
+                so.FindProperty("speedMultiplier").floatValue = Convert.ToSingle(speedMultObj);
             }
 
             // Teleport settings
             if (payload.TryGetValue("preserveVelocity", out var preserveVelObj))
             {
-                serialized.FindProperty("preserveVelocity").boolValue = Convert.ToBoolean(preserveVelObj);
+                so.FindProperty("preserveVelocity").boolValue = Convert.ToBoolean(preserveVelObj);
             }
 
             if (payload.TryGetValue("preserveRotation", out var preserveRotObj))
             {
-                serialized.FindProperty("preserveRotation").boolValue = Convert.ToBoolean(preserveRotObj);
+                so.FindProperty("preserveRotation").boolValue = Convert.ToBoolean(preserveRotObj);
             }
 
             // Checkpoint settings
             if (payload.TryGetValue("respawnOffset", out var respawnOffsetObj) && respawnOffsetObj is Dictionary<string, object> respawnDict)
             {
                 var offset = GetVector3FromDict(respawnDict, Vector3.up);
-                serialized.FindProperty("respawnOffset").vector3Value = offset;
+                so.FindProperty("respawnOffset").vector3Value = offset;
             }
 
             // Visual settings
             if (payload.TryGetValue("changeColorOnEnter", out var changeColorObj))
             {
-                serialized.FindProperty("changeColorOnEnter").boolValue = Convert.ToBoolean(changeColorObj);
+                so.FindProperty("changeColorOnEnter").boolValue = Convert.ToBoolean(changeColorObj);
             }
 
             if (payload.TryGetValue("activeColor", out var activeColorObj) && activeColorObj is Dictionary<string, object> activeColorDict)
@@ -583,7 +669,7 @@ namespace MCP.Editor.Handlers.GameKit
                     activeColorDict.TryGetValue("b", out var b) ? Convert.ToSingle(b) : 0f,
                     activeColorDict.TryGetValue("a", out var a) ? Convert.ToSingle(a) : 1f
                 );
-                serialized.FindProperty("activeColor").colorValue = color;
+                so.FindProperty("activeColor").colorValue = color;
             }
 
             if (payload.TryGetValue("inactiveColor", out var inactiveColorObj) && inactiveColorObj is Dictionary<string, object> inactiveColorDict)
@@ -594,37 +680,37 @@ namespace MCP.Editor.Handlers.GameKit
                     inactiveColorDict.TryGetValue("b", out var b) ? Convert.ToSingle(b) : 0.5f,
                     inactiveColorDict.TryGetValue("a", out var a) ? Convert.ToSingle(a) : 1f
                 );
-                serialized.FindProperty("inactiveColor").colorValue = color;
+                so.FindProperty("inactiveColor").colorValue = color;
             }
         }
 
-        private GameKitTriggerZone.ZoneType ParseZoneType(string str)
+        private string ParseZoneType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "generic" => GameKitTriggerZone.ZoneType.Generic,
-                "checkpoint" => GameKitTriggerZone.ZoneType.Checkpoint,
-                "damagezone" => GameKitTriggerZone.ZoneType.DamageZone,
-                "healzone" => GameKitTriggerZone.ZoneType.HealZone,
-                "teleport" => GameKitTriggerZone.ZoneType.Teleport,
-                "speedboost" => GameKitTriggerZone.ZoneType.SpeedBoost,
-                "slowdown" => GameKitTriggerZone.ZoneType.SlowDown,
-                "killzone" => GameKitTriggerZone.ZoneType.KillZone,
-                "safezone" => GameKitTriggerZone.ZoneType.SafeZone,
-                "trigger" => GameKitTriggerZone.ZoneType.Trigger,
-                _ => GameKitTriggerZone.ZoneType.Generic
+                "generic" => "Generic",
+                "checkpoint" => "Checkpoint",
+                "damagezone" => "DamageZone",
+                "healzone" => "HealZone",
+                "teleport" => "Teleport",
+                "speedboost" => "SpeedBoost",
+                "slowdown" => "SlowDown",
+                "killzone" => "KillZone",
+                "safezone" => "SafeZone",
+                "trigger" => "Trigger",
+                _ => "Generic"
             };
         }
 
-        private GameKitTriggerZone.TriggerMode ParseTriggerMode(string str)
+        private string ParseTriggerMode(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "once" => GameKitTriggerZone.TriggerMode.Once,
-                "onceperentity" => GameKitTriggerZone.TriggerMode.OncePerEntity,
-                "repeat" => GameKitTriggerZone.TriggerMode.Repeat,
-                "whileinside" => GameKitTriggerZone.TriggerMode.WhileInside,
-                _ => GameKitTriggerZone.TriggerMode.Repeat
+                "once" => "Once",
+                "onceperentity" => "OncePerEntity",
+                "repeat" => "Repeat",
+                "whileinside" => "WhileInside",
+                _ => "Repeat"
             };
         }
 

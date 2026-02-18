@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -12,6 +13,7 @@ namespace MCP.Editor.Handlers.GameKit
     /// <summary>
     /// GameKit UI Slot handler: create and manage slot-based UI.
     /// Supports equipment slots, quickslots, and slot bars.
+    /// Uses code generation to produce standalone UISlot/UISlotBar scripts with zero package dependency.
     /// </summary>
     public class GameKitUISlotHandler : BaseCommandHandler
     {
@@ -28,7 +30,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create" || operation == "createSlotBar";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -73,10 +76,10 @@ namespace MCP.Editor.Handlers.GameKit
                     throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
                 }
 
-                var existingSlot = targetGo.GetComponent<GameKitUISlot>();
+                var existingSlot = CodeGenHelper.FindComponentByField(targetGo, "slotId", null);
                 if (existingSlot != null)
                 {
-                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISlot component.");
+                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a UISlot component.");
                 }
             }
             // If parentPath is provided, create new UI GameObject
@@ -98,159 +101,198 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             var slotId = GetString(payload, "slotId") ?? $"Slot_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var slotIndex = payload.TryGetValue("slotIndex", out var indexObj) ? Convert.ToInt32(indexObj) : -1;
+            var slotType = ParseSlotType(GetString(payload, "slotType") ?? "storage");
+            var equipSlotName = GetString(payload, "equipSlotName") ?? "";
+            var inventoryId = GetString(payload, "inventoryId") ?? "";
+            var dragDropEnabled = payload.TryGetValue("dragDropEnabled", out var dragObj) ? Convert.ToBoolean(dragObj) : true;
 
-            var slot = Undo.AddComponent<GameKitUISlot>(targetGo);
-            var serializedSlot = new SerializedObject(slot);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(slotId, "UISlot");
 
-            serializedSlot.FindProperty("slotId").stringValue = slotId;
-
-            // Auto-set UI references when creating new UI
-            if (createdNewUI)
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                // Background image is on the slot itself
-                var bgImage = targetGo.GetComponent<Image>();
-                if (bgImage != null)
-                {
-                    serializedSlot.FindProperty("backgroundImage").objectReferenceValue = bgImage;
-                }
+                { "SLOT_ID", slotId },
+                { "SLOT_INDEX", slotIndex },
+                { "SLOT_TYPE", slotType },
+                { "EQUIP_SLOT_NAME", equipSlotName },
+                { "INVENTORY_ID", inventoryId },
+                { "DRAG_DROP_ENABLED", dragDropEnabled }
+            };
 
-                // Find child elements by name
-                var iconTransform = targetGo.transform.Find("Icon");
-                if (iconTransform != null)
-                {
-                    var iconImage = iconTransform.GetComponent<Image>();
-                    if (iconImage != null)
-                    {
-                        serializedSlot.FindProperty("iconImage").objectReferenceValue = iconImage;
-                    }
-                }
-
-                var quantityTransform = targetGo.transform.Find("QuantityText");
-                if (quantityTransform != null)
-                {
-                    var quantityText = quantityTransform.GetComponent<Text>();
-                    if (quantityText != null)
-                    {
-                        serializedSlot.FindProperty("quantityText").objectReferenceValue = quantityText;
-                    }
-                }
-
-                var highlightTransform = targetGo.transform.Find("Highlight");
-                if (highlightTransform != null)
-                {
-                    var highlightImage = highlightTransform.GetComponent<Image>();
-                    if (highlightImage != null)
-                    {
-                        serializedSlot.FindProperty("highlightImage").objectReferenceValue = highlightImage;
-                    }
-                }
-            }
-
-            if (payload.TryGetValue("slotIndex", out var indexObj))
-            {
-                serializedSlot.FindProperty("slotIndex").intValue = Convert.ToInt32(indexObj);
-            }
-
-            if (payload.TryGetValue("slotType", out var typeObj))
-            {
-                var slotType = ParseSlotType(typeObj.ToString());
-                serializedSlot.FindProperty("slotType").enumValueIndex = (int)slotType;
-            }
-
-            if (payload.TryGetValue("equipSlotName", out var equipObj))
-            {
-                serializedSlot.FindProperty("equipSlotName").stringValue = equipObj.ToString();
-            }
-
-            if (payload.TryGetValue("inventoryId", out var invObj))
-            {
-                serializedSlot.FindProperty("inventoryId").stringValue = invObj.ToString();
-            }
-
-            if (payload.TryGetValue("dragDropEnabled", out var dragObj))
-            {
-                serializedSlot.FindProperty("dragDropEnabled").boolValue = Convert.ToBoolean(dragObj);
-            }
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
 
             if (payload.TryGetValue("acceptCategories", out var catObj) && catObj is List<object> catList)
             {
-                var catProp = serializedSlot.FindProperty("acceptCategories");
-                catProp.ClearArray();
-                for (int i = 0; i < catList.Count; i++)
+                // acceptCategories will be set manually after component creation
+                // since it's an array type that needs special handling
+            }
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "UISlot", slotId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate UISlot script.");
+            }
+
+            // If component was added immediately, set UI references and array properties
+            if (result.TryGetValue("componentAdded", out var added) && (bool)added)
+            {
+                var component = CodeGenHelper.FindComponentByField(targetGo, "slotId", slotId);
+                if (component != null)
                 {
-                    catProp.InsertArrayElementAtIndex(i);
-                    catProp.GetArrayElementAtIndex(i).stringValue = catList[i].ToString();
+                    var so = new SerializedObject(component);
+
+                    // Auto-set UI references when creating new UI
+                    if (createdNewUI)
+                    {
+                        SetSlotUIReferences(targetGo, so);
+                    }
+
+                    // Set acceptCategories array
+                    if (catObj is List<object> categories)
+                    {
+                        var catProp = so.FindProperty("acceptCategories");
+                        if (catProp != null)
+                        {
+                            catProp.ClearArray();
+                            for (int i = 0; i < categories.Count; i++)
+                            {
+                                catProp.InsertArrayElementAtIndex(i);
+                                catProp.GetArrayElementAtIndex(i).stringValue = categories[i].ToString();
+                            }
+                        }
+                    }
+
+                    so.ApplyModifiedProperties();
                 }
             }
 
-            serializedSlot.ApplyModifiedProperties();
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("slotId", slotId),
-                ("path", BuildGameObjectPath(targetGo))
-            );
+            result["slotId"] = slotId;
+            result["path"] = BuildGameObjectPath(targetGo);
+
+            return result;
         }
 
         private object UpdateSlot(Dictionary<string, object> payload)
         {
-            var slot = ResolveSlotComponent(payload);
+            var component = ResolveSlotComponent(payload);
 
-            Undo.RecordObject(slot, "Update GameKit UI Slot");
+            Undo.RecordObject(component, "Update UISlot");
 
-            var serializedSlot = new SerializedObject(slot);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("slotType", out var typeObj))
             {
                 var slotType = ParseSlotType(typeObj.ToString());
-                serializedSlot.FindProperty("slotType").enumValueIndex = (int)slotType;
+                var prop = so.FindProperty("slotType");
+                if (prop != null)
+                {
+                    var names = prop.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], slotType, StringComparison.OrdinalIgnoreCase))
+                        {
+                            prop.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
 
             if (payload.TryGetValue("equipSlotName", out var equipObj))
-            {
-                serializedSlot.FindProperty("equipSlotName").stringValue = equipObj.ToString();
-            }
+                so.FindProperty("equipSlotName").stringValue = equipObj.ToString();
 
             if (payload.TryGetValue("dragDropEnabled", out var dragObj))
+                so.FindProperty("dragDropEnabled").boolValue = Convert.ToBoolean(dragObj);
+
+            if (payload.TryGetValue("acceptCategories", out var catObj) && catObj is List<object> catList)
             {
-                serializedSlot.FindProperty("dragDropEnabled").boolValue = Convert.ToBoolean(dragObj);
+                var catProp = so.FindProperty("acceptCategories");
+                if (catProp != null)
+                {
+                    catProp.ClearArray();
+                    for (int i = 0; i < catList.Count; i++)
+                    {
+                        catProp.InsertArrayElementAtIndex(i);
+                        catProp.GetArrayElementAtIndex(i).stringValue = catList[i].ToString();
+                    }
+                }
             }
 
-            serializedSlot.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(slot.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var slotId = new SerializedObject(component).FindProperty("slotId").stringValue;
 
             return CreateSuccessResponse(
-                ("slotId", slot.SlotId),
-                ("path", BuildGameObjectPath(slot.gameObject)),
+                ("slotId", slotId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
 
         private object InspectSlot(Dictionary<string, object> payload)
         {
-            var slot = ResolveSlotComponent(payload);
-            var serializedSlot = new SerializedObject(slot);
+            var component = ResolveSlotComponent(payload);
+            var so = new SerializedObject(component);
+
+            var slotTypeProp = so.FindProperty("slotType");
+            var slotTypeStr = slotTypeProp != null && slotTypeProp.enumValueIndex < slotTypeProp.enumDisplayNames.Length
+                ? slotTypeProp.enumDisplayNames[slotTypeProp.enumValueIndex]
+                : "Storage";
+
+            // Check IsEmpty via reflection
+            var isEmptyProp = component.GetType().GetProperty("IsEmpty",
+                BindingFlags.Public | BindingFlags.Instance);
+            var isEmpty = isEmptyProp != null ? (bool)isEmptyProp.GetValue(component) : true;
 
             var info = new Dictionary<string, object>
             {
-                { "slotId", slot.SlotId },
-                { "path", BuildGameObjectPath(slot.gameObject) },
-                { "slotIndex", slot.SlotIndex },
-                { "slotType", slot.Type.ToString() },
-                { "equipSlotName", slot.EquipSlotName },
-                { "inventoryId", slot.InventoryId },
-                { "isEmpty", slot.IsEmpty },
-                { "dragDropEnabled", slot.DragDropEnabled }
+                { "slotId", so.FindProperty("slotId").stringValue },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "slotIndex", so.FindProperty("slotIndex").intValue },
+                { "slotType", slotTypeStr },
+                { "equipSlotName", so.FindProperty("equipSlotName").stringValue },
+                { "inventoryId", so.FindProperty("inventoryId").stringValue },
+                { "isEmpty", isEmpty },
+                { "dragDropEnabled", so.FindProperty("dragDropEnabled").boolValue }
             };
 
-            if (!slot.IsEmpty && slot.CurrentItem != null)
+            // Try to get current item data via reflection
+            if (!isEmpty)
             {
-                info["currentItem"] = new Dictionary<string, object>
+                var currentItemProp = component.GetType().GetProperty("CurrentItem",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (currentItemProp != null)
                 {
-                    { "itemId", slot.CurrentItem.itemId },
-                    { "itemName", slot.CurrentItem.itemName },
-                    { "quantity", slot.CurrentItem.quantity }
-                };
+                    var currentItem = currentItemProp.GetValue(component);
+                    if (currentItem != null)
+                    {
+                        var itemType = currentItem.GetType();
+                        var itemId = itemType.GetField("itemId")?.GetValue(currentItem)?.ToString() ?? "";
+                        var itemName = itemType.GetField("itemName")?.GetValue(currentItem)?.ToString() ?? "";
+                        var quantity = itemType.GetField("quantity")?.GetValue(currentItem);
+
+                        info["currentItem"] = new Dictionary<string, object>
+                        {
+                            { "itemId", itemId },
+                            { "itemName", itemName },
+                            { "quantity", quantity ?? 1 }
+                        };
+                    }
+                }
             }
 
             return CreateSuccessResponse(("slot", info));
@@ -258,12 +300,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteSlot(Dictionary<string, object> payload)
         {
-            var slot = ResolveSlotComponent(payload);
-            var path = BuildGameObjectPath(slot.gameObject);
-            var slotId = slot.SlotId;
-            var scene = slot.gameObject.scene;
+            var component = ResolveSlotComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var slotId = new SerializedObject(component).FindProperty("slotId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(slot);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(slotId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -275,55 +321,106 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object SetItem(Dictionary<string, object> payload)
         {
-            var slot = ResolveSlotComponent(payload);
+            var component = ResolveSlotComponent(payload);
 
             if (!payload.TryGetValue("item", out var itemObj) || !(itemObj is Dictionary<string, object> itemDict))
             {
                 throw new InvalidOperationException("item object is required for setItem.");
             }
 
-            var slotData = new GameKitUISlot.SlotData
-            {
-                itemId = itemDict.TryGetValue("itemId", out var idObj) ? idObj.ToString() : "",
-                itemName = itemDict.TryGetValue("itemName", out var nameObj) ? nameObj.ToString() : "",
-                quantity = itemDict.TryGetValue("quantity", out var qtyObj) ? Convert.ToInt32(qtyObj) : 1,
-                category = itemDict.TryGetValue("category", out var catObj) ? catObj.ToString() : ""
-            };
+            // Use reflection to call SetItem with a SlotData instance
+            var compType = component.GetType();
 
-            if (itemDict.TryGetValue("iconPath", out var iconObj))
+            // Find the SlotData nested type
+            var slotDataType = compType.GetNestedType("SlotData");
+            if (slotDataType == null)
             {
-                slotData.icon = AssetDatabase.LoadAssetAtPath<Sprite>(iconObj.ToString());
+                // Try to find a non-nested SlotData type in the same assembly
+                slotDataType = compType.Assembly.GetType(compType.Namespace + ".SlotData")
+                    ?? compType.Assembly.GetType("SlotData");
             }
 
-            slot.SetItem(slotData);
-            EditorSceneManager.MarkSceneDirty(slot.gameObject.scene);
+            if (slotDataType != null)
+            {
+                var slotData = Activator.CreateInstance(slotDataType);
 
+                var itemIdField = slotDataType.GetField("itemId");
+                var itemNameField = slotDataType.GetField("itemName");
+                var quantityField = slotDataType.GetField("quantity");
+                var categoryField = slotDataType.GetField("category");
+                var iconField = slotDataType.GetField("icon");
+
+                if (itemIdField != null)
+                    itemIdField.SetValue(slotData, itemDict.TryGetValue("itemId", out var idObj) ? idObj.ToString() : "");
+                if (itemNameField != null)
+                    itemNameField.SetValue(slotData, itemDict.TryGetValue("itemName", out var nameObj) ? nameObj.ToString() : "");
+                if (quantityField != null)
+                    quantityField.SetValue(slotData, itemDict.TryGetValue("quantity", out var qtyObj) ? Convert.ToInt32(qtyObj) : 1);
+                if (categoryField != null)
+                    categoryField.SetValue(slotData, itemDict.TryGetValue("category", out var catObj) ? catObj.ToString() : "");
+
+                if (iconField != null && itemDict.TryGetValue("iconPath", out var iconObj))
+                {
+                    var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(iconObj.ToString());
+                    if (sprite != null)
+                        iconField.SetValue(slotData, sprite);
+                }
+
+                var setItemMethod = compType.GetMethod("SetItem", BindingFlags.Public | BindingFlags.Instance);
+                if (setItemMethod != null)
+                {
+                    setItemMethod.Invoke(component, new[] { slotData });
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("Could not find SlotData type for SetItem. The generated UISlot script may need to be compiled first.");
+            }
+
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
-                ("slotId", slot.SlotId),
+                ("slotId", so.FindProperty("slotId").stringValue),
                 ("itemSet", true)
             );
         }
 
         private object ClearSlot(Dictionary<string, object> payload)
         {
-            var slot = ResolveSlotComponent(payload);
-            slot.ClearSlot();
-            EditorSceneManager.MarkSceneDirty(slot.gameObject.scene);
+            var component = ResolveSlotComponent(payload);
 
+            var clearMethod = component.GetType().GetMethod("ClearSlot",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (clearMethod != null)
+            {
+                clearMethod.Invoke(component, null);
+            }
+
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
-                ("slotId", slot.SlotId),
+                ("slotId", so.FindProperty("slotId").stringValue),
                 ("cleared", true)
             );
         }
 
         private object SetHighlight(Dictionary<string, object> payload)
         {
-            var slot = ResolveSlotComponent(payload);
+            var component = ResolveSlotComponent(payload);
             var show = payload.TryGetValue("show", out var showObj) && Convert.ToBoolean(showObj);
-            slot.SetHighlight(show);
 
+            var setHighlightMethod = component.GetType().GetMethod("SetHighlight",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (setHighlightMethod != null)
+            {
+                setHighlightMethod.Invoke(component, new object[] { show });
+            }
+
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
-                ("slotId", slot.SlotId),
+                ("slotId", so.FindProperty("slotId").stringValue),
                 ("highlighted", show)
             );
         }
@@ -349,10 +446,10 @@ namespace MCP.Editor.Handlers.GameKit
                     throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
                 }
 
-                var existingBar = targetGo.GetComponent<GameKitUISlotBar>();
+                var existingBar = CodeGenHelper.FindComponentByField(targetGo, "barId", null);
                 if (existingBar != null)
                 {
-                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitUISlotBar component.");
+                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a UISlotBar component.");
                 }
             }
             // If parentPath is provided, create new UI GameObject
@@ -373,119 +470,193 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             var barId = GetString(payload, "barId") ?? $"Bar_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            int slotCount = payload.TryGetValue("slotCount", out var countObj) ? Convert.ToInt32(countObj) : 8;
+            var layout = ParseBarLayoutType(GetString(payload, "layout") ?? "horizontal");
+            var inventoryId = GetString(payload, "inventoryId") ?? "";
 
-            var bar = Undo.AddComponent<GameKitUISlotBar>(targetGo);
-            var serializedBar = new SerializedObject(bar);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(barId, "UISlotBar");
 
-            serializedBar.FindProperty("barId").stringValue = barId;
-
-            int slotCount = 8;
-            if (payload.TryGetValue("slotCount", out var countObj))
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                slotCount = Convert.ToInt32(countObj);
-                serializedBar.FindProperty("slotCount").intValue = slotCount;
+                { "BAR_ID", barId },
+                { "SLOT_COUNT", slotCount },
+                { "LAYOUT", layout },
+                { "INVENTORY_ID", inventoryId }
+            };
+
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "UISlotBar", barId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate UISlotBar script.");
             }
 
-            if (payload.TryGetValue("layout", out var layoutObj))
+            // If component was added immediately, set additional properties
+            if (result.TryGetValue("componentAdded", out var added) && (bool)added)
             {
-                var layoutType = ParseBarLayoutType(layoutObj.ToString());
-                serializedBar.FindProperty("layout").enumValueIndex = (int)layoutType;
-            }
-
-            if (payload.TryGetValue("inventoryId", out var invObj))
-            {
-                serializedBar.FindProperty("inventoryId").stringValue = invObj.ToString();
-            }
-
-            if (payload.TryGetValue("slotPrefabPath", out var prefabObj))
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabObj.ToString());
-                if (prefab != null)
+                var component = CodeGenHelper.FindComponentByField(targetGo, "barId", barId);
+                if (component != null)
                 {
-                    serializedBar.FindProperty("slotPrefab").objectReferenceValue = prefab;
+                    var so = new SerializedObject(component);
+
+                    // Set slotPrefab if provided
+                    if (payload.TryGetValue("slotPrefabPath", out var prefabObj))
+                    {
+                        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabObj.ToString());
+                        if (prefab != null)
+                        {
+                            var slotPrefabProp = so.FindProperty("slotPrefab");
+                            if (slotPrefabProp != null)
+                                slotPrefabProp.objectReferenceValue = prefab;
+                        }
+                    }
+
+                    // Set keyBindings array
+                    if (payload.TryGetValue("keyBindings", out var keysObj) && keysObj is List<object> keysList)
+                    {
+                        var keysProp = so.FindProperty("keyBindings");
+                        if (keysProp != null)
+                        {
+                            keysProp.ClearArray();
+                            for (int i = 0; i < keysList.Count; i++)
+                            {
+                                keysProp.InsertArrayElementAtIndex(i);
+                                keysProp.GetArrayElementAtIndex(i).stringValue = keysList[i].ToString();
+                            }
+                        }
+                    }
+
+                    so.ApplyModifiedProperties();
+
+                    // Call CreateSlots via reflection
+                    var createSlotsMethod = component.GetType().GetMethod("CreateSlots",
+                        BindingFlags.Public | BindingFlags.Instance);
+                    if (createSlotsMethod != null)
+                    {
+                        createSlotsMethod.Invoke(component, null);
+                    }
                 }
             }
-
-            if (payload.TryGetValue("keyBindings", out var keysObj) && keysObj is List<object> keysList)
-            {
-                var keysProp = serializedBar.FindProperty("keyBindings");
-                keysProp.ClearArray();
-                for (int i = 0; i < keysList.Count; i++)
-                {
-                    keysProp.InsertArrayElementAtIndex(i);
-                    keysProp.GetArrayElementAtIndex(i).stringValue = keysList[i].ToString();
-                }
-            }
-
-            serializedBar.ApplyModifiedProperties();
-
-            // Create slots
-            bar.CreateSlots();
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("barId", barId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("slotCount", slotCount)
-            );
+            result["barId"] = barId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["slotCount"] = slotCount;
+
+            return result;
         }
 
         private object UpdateSlotBar(Dictionary<string, object> payload)
         {
-            var bar = ResolveSlotBarComponent(payload);
+            var component = ResolveSlotBarComponent(payload);
 
-            Undo.RecordObject(bar, "Update GameKit UI Slot Bar");
+            Undo.RecordObject(component, "Update UISlotBar");
 
-            var serializedBar = new SerializedObject(bar);
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("layout", out var layoutObj))
             {
                 var layoutType = ParseBarLayoutType(layoutObj.ToString());
-                serializedBar.FindProperty("layout").enumValueIndex = (int)layoutType;
+                var prop = so.FindProperty("layout");
+                if (prop != null)
+                {
+                    var names = prop.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], layoutType, StringComparison.OrdinalIgnoreCase))
+                        {
+                            prop.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
 
             if (payload.TryGetValue("keyBindings", out var keysObj) && keysObj is List<object> keysList)
             {
-                var keysProp = serializedBar.FindProperty("keyBindings");
-                keysProp.ClearArray();
-                for (int i = 0; i < keysList.Count; i++)
+                var keysProp = so.FindProperty("keyBindings");
+                if (keysProp != null)
                 {
-                    keysProp.InsertArrayElementAtIndex(i);
-                    keysProp.GetArrayElementAtIndex(i).stringValue = keysList[i].ToString();
+                    keysProp.ClearArray();
+                    for (int i = 0; i < keysList.Count; i++)
+                    {
+                        keysProp.InsertArrayElementAtIndex(i);
+                        keysProp.GetArrayElementAtIndex(i).stringValue = keysList[i].ToString();
+                    }
                 }
             }
 
-            serializedBar.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(bar.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var barId = new SerializedObject(component).FindProperty("barId").stringValue;
 
             return CreateSuccessResponse(
-                ("barId", bar.BarId),
-                ("path", BuildGameObjectPath(bar.gameObject)),
+                ("barId", barId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
 
         private object InspectSlotBar(Dictionary<string, object> payload)
         {
-            var bar = ResolveSlotBarComponent(payload);
+            var component = ResolveSlotBarComponent(payload);
+            var so = new SerializedObject(component);
 
+            var barId = so.FindProperty("barId").stringValue;
+            var slotCount = so.FindProperty("slotCount").intValue;
+
+            // Get slots via reflection
             var slots = new List<Dictionary<string, object>>();
-            foreach (var slot in bar.Slots)
+            var slotsProp = component.GetType().GetProperty("Slots",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (slotsProp != null)
             {
-                slots.Add(new Dictionary<string, object>
+                var slotsValue = slotsProp.GetValue(component) as System.Collections.IList;
+                if (slotsValue != null)
                 {
-                    { "slotId", slot.SlotId },
-                    { "slotIndex", slot.SlotIndex },
-                    { "isEmpty", slot.IsEmpty }
-                });
+                    foreach (var slot in slotsValue)
+                    {
+                        if (slot == null) continue;
+                        var slotComp = slot as Component;
+                        if (slotComp == null) continue;
+
+                        var slotSo = new SerializedObject(slotComp);
+                        var slotIdProp = slotSo.FindProperty("slotId");
+                        var slotIndexProp = slotSo.FindProperty("slotIndex");
+
+                        var isEmptyProp = slot.GetType().GetProperty("IsEmpty",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        var isEmpty = isEmptyProp != null ? (bool)isEmptyProp.GetValue(slot) : true;
+
+                        slots.Add(new Dictionary<string, object>
+                        {
+                            { "slotId", slotIdProp?.stringValue ?? "" },
+                            { "slotIndex", slotIndexProp?.intValue ?? -1 },
+                            { "isEmpty", isEmpty }
+                        });
+                    }
+                }
             }
 
             var info = new Dictionary<string, object>
             {
-                { "barId", bar.BarId },
-                { "path", BuildGameObjectPath(bar.gameObject) },
-                { "slotCount", bar.SlotCount },
+                { "barId", barId },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "slotCount", slotCount },
                 { "slots", slots }
             };
 
@@ -494,12 +665,16 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteSlotBar(Dictionary<string, object> payload)
         {
-            var bar = ResolveSlotBarComponent(payload);
-            var path = BuildGameObjectPath(bar.gameObject);
-            var barId = bar.BarId;
-            var scene = bar.gameObject.scene;
+            var component = ResolveSlotBarComponent(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var barId = new SerializedObject(component).FindProperty("barId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(bar);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(barId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -511,7 +686,7 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object UseSlot(Dictionary<string, object> payload)
         {
-            var bar = ResolveSlotBarComponent(payload);
+            var component = ResolveSlotBarComponent(payload);
 
             if (!payload.TryGetValue("index", out var indexObj))
             {
@@ -519,22 +694,37 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             int index = Convert.ToInt32(indexObj);
-            bar.UseSlot(index);
 
+            var useSlotMethod = component.GetType().GetMethod("UseSlot",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (useSlotMethod != null)
+            {
+                useSlotMethod.Invoke(component, new object[] { index });
+            }
+
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
-                ("barId", bar.BarId),
+                ("barId", so.FindProperty("barId").stringValue),
                 ("usedIndex", index)
             );
         }
 
         private object RefreshFromInventory(Dictionary<string, object> payload)
         {
-            var bar = ResolveSlotBarComponent(payload);
-            bar.RefreshFromInventory();
-            EditorSceneManager.MarkSceneDirty(bar.gameObject.scene);
+            var component = ResolveSlotBarComponent(payload);
 
+            var refreshMethod = component.GetType().GetMethod("RefreshFromInventory",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (refreshMethod != null)
+            {
+                refreshMethod.Invoke(component, null);
+            }
+
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var so = new SerializedObject(component);
             return CreateSuccessResponse(
-                ("barId", bar.BarId),
+                ("barId", so.FindProperty("barId").stringValue),
                 ("refreshed", true)
             );
         }
@@ -551,17 +741,21 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("slotId is required for findBySlotId.");
             }
 
-            var slot = GameKitUISlot.FindById(slotId);
-            if (slot == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("slotId", slotId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("slotId", slotId));
             }
 
+            var isEmptyProp = component.GetType().GetProperty("IsEmpty",
+                BindingFlags.Public | BindingFlags.Instance);
+            var isEmpty = isEmptyProp != null ? (bool)isEmptyProp.GetValue(component) : true;
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("slotId", slot.SlotId),
-                ("path", BuildGameObjectPath(slot.gameObject)),
-                ("isEmpty", slot.IsEmpty)
+                ("slotId", slotId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("isEmpty", isEmpty)
             );
         }
 
@@ -573,17 +767,19 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("barId is required for findByBarId.");
             }
 
-            var bar = GameKitUISlotBar.FindById(barId);
-            if (bar == null)
+            var component = CodeGenHelper.FindComponentInSceneByField("barId", barId);
+            if (component == null)
             {
                 return CreateSuccessResponse(("found", false), ("barId", barId));
             }
 
+            var so = new SerializedObject(component);
+
             return CreateSuccessResponse(
                 ("found", true),
-                ("barId", bar.BarId),
-                ("path", BuildGameObjectPath(bar.gameObject)),
-                ("slotCount", bar.SlotCount)
+                ("barId", barId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("slotCount", so.FindProperty("slotCount").intValue)
             );
         }
 
@@ -698,20 +894,16 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             // Calculate size based on layout and slot count
-            var layoutType = GameKitUISlotBar.LayoutType.Horizontal;
-            if (payload.TryGetValue("layout", out var layoutObj))
-            {
-                layoutType = ParseBarLayoutType(layoutObj.ToString());
-            }
+            var layoutType = ParseBarLayoutType(GetString(payload, "layout") ?? "horizontal");
 
             float width, height;
-            switch (layoutType)
+            switch (layoutType.ToLowerInvariant())
             {
-                case GameKitUISlotBar.LayoutType.Horizontal:
+                case "horizontal":
                     width = slotCount * slotSize + (slotCount - 1) * spacing + 20;
                     height = slotSize + 20;
                     break;
-                case GameKitUISlotBar.LayoutType.Vertical:
+                case "vertical":
                     width = slotSize + 20;
                     height = slotCount * slotSize + (slotCount - 1) * spacing + 20;
                     break;
@@ -741,9 +933,9 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             // Add LayoutGroup based on layout type
-            switch (layoutType)
+            switch (layoutType.ToLowerInvariant())
             {
-                case GameKitUISlotBar.LayoutType.Horizontal:
+                case "horizontal":
                     var hlg = Undo.AddComponent<HorizontalLayoutGroup>(barGo);
                     hlg.spacing = spacing;
                     hlg.padding = new RectOffset(10, 10, 10, 10);
@@ -754,7 +946,7 @@ namespace MCP.Editor.Handlers.GameKit
                     hlg.childForceExpandHeight = false;
                     break;
 
-                case GameKitUISlotBar.LayoutType.Vertical:
+                case "vertical":
                     var vlg = Undo.AddComponent<VerticalLayoutGroup>(barGo);
                     vlg.spacing = spacing;
                     vlg.padding = new RectOffset(10, 10, 10, 10);
@@ -765,7 +957,7 @@ namespace MCP.Editor.Handlers.GameKit
                     vlg.childForceExpandHeight = false;
                     break;
 
-                case GameKitUISlotBar.LayoutType.Grid:
+                default: // Grid
                     var glg = Undo.AddComponent<GridLayoutGroup>(barGo);
                     glg.cellSize = new Vector2(slotSize, slotSize);
                     glg.spacing = new Vector2(spacing, spacing);
@@ -782,30 +974,81 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitUISlot ResolveSlotComponent(Dictionary<string, object> payload)
+        private void SetSlotUIReferences(GameObject targetGo, SerializedObject so)
         {
+            // Background image is on the slot itself
+            var bgImage = targetGo.GetComponent<Image>();
+            if (bgImage != null)
+            {
+                var bgProp = so.FindProperty("backgroundImage");
+                if (bgProp != null)
+                    bgProp.objectReferenceValue = bgImage;
+            }
+
+            // Find child elements by name
+            var iconTransform = targetGo.transform.Find("Icon");
+            if (iconTransform != null)
+            {
+                var iconImage = iconTransform.GetComponent<Image>();
+                if (iconImage != null)
+                {
+                    var iconProp = so.FindProperty("iconImage");
+                    if (iconProp != null)
+                        iconProp.objectReferenceValue = iconImage;
+                }
+            }
+
+            var quantityTransform = targetGo.transform.Find("QuantityText");
+            if (quantityTransform != null)
+            {
+                var quantityText = quantityTransform.GetComponent<Text>();
+                if (quantityText != null)
+                {
+                    var quantityProp = so.FindProperty("quantityText");
+                    if (quantityProp != null)
+                        quantityProp.objectReferenceValue = quantityText;
+                }
+            }
+
+            var highlightTransform = targetGo.transform.Find("Highlight");
+            if (highlightTransform != null)
+            {
+                var highlightImage = highlightTransform.GetComponent<Image>();
+                if (highlightImage != null)
+                {
+                    var highlightProp = so.FindProperty("highlightImage");
+                    if (highlightProp != null)
+                        highlightProp.objectReferenceValue = highlightImage;
+                }
+            }
+        }
+
+        private Component ResolveSlotComponent(Dictionary<string, object> payload)
+        {
+            // Try by slotId first
             var slotId = GetString(payload, "slotId");
             if (!string.IsNullOrEmpty(slotId))
             {
-                var slotById = GameKitUISlot.FindById(slotId);
+                var slotById = CodeGenHelper.FindComponentInSceneByField("slotId", slotId);
                 if (slotById != null)
                 {
                     return slotById;
                 }
             }
 
+            // Try by targetPath
             var targetPath = GetString(payload, "targetPath");
             if (!string.IsNullOrEmpty(targetPath))
             {
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var slotByPath = targetGo.GetComponent<GameKitUISlot>();
+                    var slotByPath = CodeGenHelper.FindComponentByField(targetGo, "slotId", null);
                     if (slotByPath != null)
                     {
                         return slotByPath;
                     }
-                    throw new InvalidOperationException($"No GameKitUISlot component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No UISlot component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -813,30 +1056,32 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either slotId or targetPath is required.");
         }
 
-        private GameKitUISlotBar ResolveSlotBarComponent(Dictionary<string, object> payload)
+        private Component ResolveSlotBarComponent(Dictionary<string, object> payload)
         {
+            // Try by barId first
             var barId = GetString(payload, "barId");
             if (!string.IsNullOrEmpty(barId))
             {
-                var barById = GameKitUISlotBar.FindById(barId);
+                var barById = CodeGenHelper.FindComponentInSceneByField("barId", barId);
                 if (barById != null)
                 {
                     return barById;
                 }
             }
 
+            // Try by targetPath
             var targetPath = GetString(payload, "targetPath");
             if (!string.IsNullOrEmpty(targetPath))
             {
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var barByPath = targetGo.GetComponent<GameKitUISlotBar>();
+                    var barByPath = CodeGenHelper.FindComponentByField(targetGo, "barId", null);
                     if (barByPath != null)
                     {
                         return barByPath;
                     }
-                    throw new InvalidOperationException($"No GameKitUISlotBar component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No UISlotBar component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -844,26 +1089,26 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either barId or targetPath is required.");
         }
 
-        private GameKitUISlot.SlotType ParseSlotType(string str)
+        private string ParseSlotType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "storage" => GameKitUISlot.SlotType.Storage,
-                "equipment" => GameKitUISlot.SlotType.Equipment,
-                "quickslot" => GameKitUISlot.SlotType.Quickslot,
-                "trash" => GameKitUISlot.SlotType.Trash,
-                _ => GameKitUISlot.SlotType.Storage
+                "storage" => "Storage",
+                "equipment" => "Equipment",
+                "quickslot" => "Quickslot",
+                "trash" => "Trash",
+                _ => "Storage"
             };
         }
 
-        private GameKitUISlotBar.LayoutType ParseBarLayoutType(string str)
+        private string ParseBarLayoutType(string str)
         {
             return str.ToLowerInvariant() switch
             {
-                "horizontal" => GameKitUISlotBar.LayoutType.Horizontal,
-                "vertical" => GameKitUISlotBar.LayoutType.Vertical,
-                "grid" => GameKitUISlotBar.LayoutType.Grid,
-                _ => GameKitUISlotBar.LayoutType.Horizontal
+                "horizontal" => "Horizontal",
+                "vertical" => "Vertical",
+                "grid" => "Grid",
+                _ => "Horizontal"
             };
         }
 

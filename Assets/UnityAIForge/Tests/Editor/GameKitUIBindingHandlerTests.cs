@@ -1,74 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
-using UnityEngine.UI;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitUIBindingHandler unit tests (3-Pillar Architecture - UI).
-    /// Tests UI data binding creation and configuration.
-    /// </summary>
     [TestFixture]
-    public class GameKitUIBindingHandlerTests
+    public class GameKitUIBindingHandlerTests : GameKitHandlerTestBase
     {
         private GameKitUIBindingHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitUIBindingHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        private void SetSerializedField(Component component, string fieldName, object value)
-        {
-            var so = new SerializedObject(component);
-            var prop = so.FindProperty(fieldName);
-            if (prop != null)
-            {
-                if (value is string strValue)
-                    prop.stringValue = strValue;
-                else if (value is int intValue)
-                    prop.intValue = intValue;
-                else if (value is float floatValue)
-                    prop.floatValue = floatValue;
-                else if (value is bool boolValue)
-                    prop.boolValue = boolValue;
-                so.ApplyModifiedPropertiesWithoutUndo();
-            }
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitUIBinding()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitUIBinding", _handler.Category);
         }
@@ -76,104 +26,68 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("setRange", operations);
-            Assert.Contains("refresh", operations);
-            Assert.Contains("findByBindingId", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "setRange", "refresh", "findByBindingId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddUIBindingComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestBinding");
+            CreateTestGameObject("UITarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "UITarget"),
+                ("bindingId", "test_binding"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestBinding",
-                ["bindingId"] = "test_binding"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var binding = go.GetComponent<GameKitUIBinding>();
-            Assert.IsNotNull(binding);
-            Assert.AreEqual("test_binding", binding.BindingId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "bindingId");
         }
 
         [Test]
-        public void Execute_Create_WithoutTargetPath_ShouldReturnError()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create"
-            };
+            CreateTestGameObject("UITarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "UITarget"),
+                ("bindingId", "test_binding"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomUIBinding"));
 
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomUIBinding");
         }
 
         #endregion
 
-        #region Delete Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_Delete_ShouldRemoveComponent()
+        public void Create_MissingTargetPath_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestBindingDelete");
-            go.AddComponent<GameKitUIBinding>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestBindingDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitUIBinding>());
+            var result = Execute(_handler, "create",
+                ("bindingId", "test_binding"),
+                ("outputPath", TestOutputDir));
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Inspect Operation Tests
+        [Test]
+        public void Execute_UnsupportedOperation_ShouldReturnError()
+        {
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
+        }
 
         [Test]
-        public void Execute_Inspect_ShouldReturnBindingInfo()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestBindingInspect");
-            var binding = go.AddComponent<GameKitUIBinding>();
-            SetSerializedField(binding, "bindingId", "inspect_test");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestBindingInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var bindingInfo = result["binding"] as Dictionary<string, object>;
-            Assert.IsNotNull(bindingInfo);
-            Assert.AreEqual("inspect_test", bindingInfo["bindingId"]);
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

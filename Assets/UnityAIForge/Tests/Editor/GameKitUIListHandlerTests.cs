@@ -1,73 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitUIListHandler unit tests (3-Pillar Architecture - UI).
-    /// Tests UI list creation, item management, and selection.
-    /// </summary>
     [TestFixture]
-    public class GameKitUIListHandlerTests
+    public class GameKitUIListHandlerTests : GameKitHandlerTestBase
     {
         private GameKitUIListHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitUIListHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        private void SetSerializedField(Component component, string fieldName, object value)
-        {
-            var so = new SerializedObject(component);
-            var prop = so.FindProperty(fieldName);
-            if (prop != null)
-            {
-                if (value is string strValue)
-                    prop.stringValue = strValue;
-                else if (value is int intValue)
-                    prop.intValue = intValue;
-                else if (value is float floatValue)
-                    prop.floatValue = floatValue;
-                else if (value is bool boolValue)
-                    prop.boolValue = boolValue;
-                so.ApplyModifiedPropertiesWithoutUndo();
-            }
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitUIList()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitUIList", _handler.Category);
         }
@@ -75,133 +26,73 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("setItems", operations);
-            Assert.Contains("addItem", operations);
-            Assert.Contains("removeItem", operations);
-            Assert.Contains("clear", operations);
-            Assert.Contains("selectItem", operations);
-            Assert.Contains("deselectItem", operations);
-            Assert.Contains("clearSelection", operations);
-            Assert.Contains("refreshFromSource", operations);
-            Assert.Contains("findByListId", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "setItems", "addItem", "removeItem", "clear",
+                "selectItem", "deselectItem", "clearSelection",
+                "refreshFromSource", "findByListId",
+                "createItemPrefab");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddUIListComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestList");
+            CreateTestGameObject("ListParent");
+            var result = Execute(_handler, "create",
+                ("parentPath", "ListParent"),
+                ("listId", "test_list"),
+                ("outputPath", TestOutputDir));
+            TrackCreatedGameObject("UIList");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestList",
-                ["listId"] = "test_list"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var list = go.GetComponent<GameKitUIList>();
-            Assert.IsNotNull(list);
-            Assert.AreEqual("test_list", list.ListId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "listId");
         }
 
         [Test]
-        public void Execute_Create_WithoutTargetPath_ShouldReturnError()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create"
-            };
+            CreateTestGameObject("ListParent");
+            var result = Execute(_handler, "create",
+                ("parentPath", "ListParent"),
+                ("listId", "test_list"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomUIList"));
+            TrackCreatedGameObject("UIList");
 
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomUIList");
         }
 
         #endregion
 
-        #region Delete Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_Delete_ShouldRemoveComponent()
+        public void Create_MissingTargetAndParentPath_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestListDelete");
-            go.AddComponent<GameKitUIList>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestListDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitUIList>());
+            var result = Execute(_handler, "create",
+                ("listId", "test_list"),
+                ("outputPath", TestOutputDir));
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Clear Operation Tests
-
         [Test]
-        public void Execute_Clear_ShouldClearItems()
+        public void Execute_UnsupportedOperation_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestListClear");
-            var list = go.AddComponent<GameKitUIList>();
-            SetSerializedField(list, "listId", "clear_test");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "clear",
-                ["targetPath"] = "TestListClear"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Inspect Operation Tests
-
         [Test]
-        public void Execute_Inspect_ShouldReturnListInfo()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestListInspect");
-            var list = go.AddComponent<GameKitUIList>();
-            SetSerializedField(list, "listId", "inspect_test");
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestListInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var listInfo = result["list"] as Dictionary<string, object>;
-            Assert.IsNotNull(listInfo);
-            Assert.AreEqual("inspect_test", listInfo["listId"]);
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

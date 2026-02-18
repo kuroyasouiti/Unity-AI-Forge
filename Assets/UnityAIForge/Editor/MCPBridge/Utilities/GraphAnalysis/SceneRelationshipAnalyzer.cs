@@ -335,30 +335,22 @@ namespace MCP.Editor.Utilities.GraphAnalysis
 
         private void AnalyzeSceneFlowAssets(SceneRelationshipResult result)
         {
-            // Find GameKitSceneFlow assets (prefabs in Resources/GameKitSceneFlows)
-            var flowGuids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/Resources/GameKitSceneFlows" });
+            // Find SceneFlow components in the current scene (generated via code generation)
+            var allMonoBehaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(UnityEngine.FindObjectsSortMode.None);
 
-            foreach (var guid in flowGuids)
+            foreach (var mb in allMonoBehaviours)
             {
-                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-                if (prefab == null) continue;
+                if (mb == null) continue;
 
-                // Check if it has GameKitSceneFlow component
-                var sceneFlowType = FindType("UnityAIForge.GameKit.GameKitSceneFlow");
-                if (sceneFlowType == null) continue;
+                // Check if this MonoBehaviour has a "flowId" and "scenes" field (SceneFlow pattern)
+                var mbType = mb.GetType();
+                var flowIdField = mbType.GetField("flowId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var scenesField = mbType.GetField("scenes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (flowIdField == null || scenesField == null) continue;
 
-                var sceneFlowComponent = prefab.GetComponent(sceneFlowType);
-                if (sceneFlowComponent == null) continue;
-
-                // Use reflection to get scene and transition data
                 try
                 {
-                    // Get scenes list
-                    var scenesField = sceneFlowType.GetField("scenes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (scenesField == null) continue;
-
-                    var scenes = scenesField.GetValue(sceneFlowComponent) as System.Collections.IList;
+                    var scenes = scenesField.GetValue(mb) as System.Collections.IList;
                     if (scenes == null) continue;
 
                     // Build scene name to path mapping from flow
@@ -378,37 +370,36 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                                 sceneNameToPath[name] = path;
                             }
                         }
-                    }
 
-                    // Get transitions
-                    var transitionsField = sceneFlowType.GetField("transitions", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (transitionsField != null)
-                    {
-                        var transitions = transitionsField.GetValue(sceneFlowComponent) as System.Collections.IList;
-                        if (transitions != null)
+                        // Get transitions from each scene entry
+                        var transitionsField = sceneDataType.GetField("transitions");
+                        if (transitionsField != null)
                         {
-                            foreach (var transObj in transitions)
+                            var transitions = transitionsField.GetValue(sceneObj) as System.Collections.IList;
+                            if (transitions != null)
                             {
-                                var transType = transObj.GetType();
-                                var fromField = transType.GetField("fromScene");
-                                var toField = transType.GetField("toScene");
-                                var triggerField = transType.GetField("trigger");
-
-                                if (fromField != null && toField != null)
+                                foreach (var transObj in transitions)
                                 {
-                                    var fromName = fromField.GetValue(transObj) as string;
-                                    var toName = toField.GetValue(transObj) as string;
-                                    var trigger = triggerField?.GetValue(transObj) as string;
+                                    var transType = transObj.GetType();
+                                    var toField = transType.GetField("toScene");
+                                    var triggerField = transType.GetField("trigger");
 
-                                    if (sceneNameToPath.TryGetValue(fromName, out var fromPath) &&
-                                        sceneNameToPath.TryGetValue(toName, out var toPath))
+                                    if (nameField != null && toField != null)
                                     {
-                                        var edge = new SceneTransitionEdge(fromPath, toPath, "sceneflow_transition")
+                                        var fromName = nameField.GetValue(sceneObj) as string;
+                                        var toName = toField.GetValue(transObj) as string;
+                                        var trigger = triggerField?.GetValue(transObj) as string;
+
+                                        if (!string.IsNullOrEmpty(fromName) && !string.IsNullOrEmpty(toName) &&
+                                            sceneNameToPath.TryGetValue(fromName, out var fromPath) &&
+                                            sceneNameToPath.TryGetValue(toName, out var toPath))
                                         {
-                                            FlowAsset = assetPath,
-                                            Trigger = trigger
-                                        };
-                                        result.AddEdge(edge);
+                                            var edge = new SceneTransitionEdge(fromPath, toPath, "sceneflow_transition")
+                                            {
+                                                Trigger = trigger
+                                            };
+                                            result.AddEdge(edge);
+                                        }
                                     }
                                 }
                             }
@@ -417,7 +408,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 }
                 catch (Exception)
                 {
-                    // Reflection errors, skip this asset
+                    // Reflection errors, skip this component
                 }
             }
         }

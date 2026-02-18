@@ -1,55 +1,24 @@
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers.GameKit;
-using UnityAIForge.GameKit;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// GameKitCollectibleHandler unit tests (Phase 2).
-    /// Tests collectible item creation with magnet effect functionality.
-    /// </summary>
     [TestFixture]
-    public class GameKitCollectibleHandlerTests
+    public class GameKitCollectibleHandlerTests : GameKitHandlerTestBase
     {
         private GameKitCollectibleHandler _handler;
-        private List<GameObject> _createdObjects;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new GameKitCollectibleHandler();
-            _createdObjects = new List<GameObject>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        #region Property Tests
+        #region Metadata
 
         [Test]
-        public void Category_ShouldReturnGamekitCollectible()
+        public void Category_ShouldReturnExpected()
         {
             Assert.AreEqual("gamekitCollectible", _handler.Category);
         }
@@ -57,158 +26,70 @@ namespace MCP.Editor.Tests
         [Test]
         public void SupportedOperations_ShouldContainExpectedOperations()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("update", operations);
-            Assert.Contains("inspect", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("collect", operations);
+            AssertOperationsContain(_handler.SupportedOperations,
+                "create", "update", "inspect", "delete",
+                "collect", "respawn", "reset", "findByCollectibleId");
         }
 
         #endregion
 
-        #region Create Operation Tests
+        #region Create
 
         [Test]
-        public void Execute_Create_ShouldAddCollectibleComponent()
+        public void Create_ShouldGenerateScript()
         {
-            var go = CreateTestGameObject("TestCollectible");
+            var result = Execute(_handler, "create",
+                ("collectibleId", "test_collectible"),
+                ("outputPath", TestOutputDir));
+            TrackCreatedGameObject("Collectible");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestCollectible",
-                ["collectibleId"] = "coin_001",
-                ["collectibleType"] = "Coin"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var collectible = go.GetComponent<GameKitCollectible>();
-            Assert.IsNotNull(collectible);
-            Assert.AreEqual("coin_001", collectible.CollectibleId);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+            AssertHasField(result, "collectibleId");
         }
 
         [Test]
-        public void Execute_Create_WithMagnet_ShouldEnableMagnetEffect()
+        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
         {
-            var go = CreateTestGameObject("TestCollectibleMagnet");
+            var result = Execute(_handler, "create",
+                ("collectibleId", "test_collectible"),
+                ("outputPath", TestOutputDir),
+                ("className", "MyCustomCollectible"));
+            TrackCreatedGameObject("Collectible");
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestCollectibleMagnet",
-                ["collectibleType"] = "Gem",
-                ["useMagnet"] = true,
-                ["magnetRange"] = 5f,
-                ["magnetSpeed"] = 10f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var collectible = go.GetComponent<GameKitCollectible>();
-            Assert.IsNotNull(collectible);
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomCollectible");
         }
 
         [Test]
-        public void Execute_Create_WithValue_ShouldSetValue()
+        public void Create_WithTargetPath_ShouldAttachToExistingGameObject()
         {
-            var go = CreateTestGameObject("TestCollectibleValue");
+            CreateTestGameObject("PickupTarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "PickupTarget"),
+                ("collectibleId", "target_collectible"),
+                ("outputPath", TestOutputDir));
 
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["targetPath"] = "TestCollectibleValue",
-                ["collectibleType"] = "Gold",
-                ["value"] = 100
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var collectible = go.GetComponent<GameKitCollectible>();
-            Assert.IsNotNull(collectible);
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
         }
 
         #endregion
 
-        #region Update Operation Tests
+        #region Error Handling
 
         [Test]
-        public void Execute_Update_ShouldModifyCollectibleProperties()
+        public void Execute_UnsupportedOperation_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestCollectibleUpdate");
-            var collectible = go.AddComponent<GameKitCollectible>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "update",
-                ["targetPath"] = "TestCollectibleUpdate",
-                ["value"] = 50
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
+            var result = Execute(_handler, "nonexistent_operation");
+            AssertError(result);
         }
 
-        #endregion
-
-        #region Inspect Operation Tests
-
         [Test]
-        public void Execute_Inspect_ShouldReturnCollectibleInfo()
+        public void Execute_NullPayload_ShouldReturnError()
         {
-            var go = CreateTestGameObject("TestCollectibleInspect");
-            var collectible = go.AddComponent<GameKitCollectible>();
-            collectible.CollectibleId = "gem_001";
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["targetPath"] = "TestCollectibleInspect"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            var collectibleInfo = result["collectible"] as Dictionary<string, object>;
-            Assert.IsNotNull(collectibleInfo);
-            Assert.AreEqual("gem_001", collectibleInfo["collectibleId"]);
-        }
-
-        #endregion
-
-        #region Delete Operation Tests
-
-        [Test]
-        public void Execute_Delete_ShouldRemoveCollectibleComponent()
-        {
-            var go = CreateTestGameObject("TestCollectibleDelete");
-            go.AddComponent<GameKitCollectible>();
-
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["targetPath"] = "TestCollectibleDelete"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNull(go.GetComponent<GameKitCollectible>());
+            var result = _handler.Execute(null) as Dictionary<string, object>;
+            AssertError(result);
         }
 
         #endregion

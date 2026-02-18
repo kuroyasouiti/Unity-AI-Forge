@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Reflection;
 using MCP.Editor.Base;
-using UnityAIForge.GameKit;
+using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -12,7 +12,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit Status Effect handler: create and manage status effect systems (buffs/debuffs).
-    /// Provides declarative status effect creation without custom scripts.
+    /// Uses code generation to produce standalone scripts with zero package dependency.
     /// </summary>
     public class GameKitStatusEffectHandler : BaseCommandHandler
     {
@@ -30,7 +30,8 @@ namespace MCP.Editor.Handlers.GameKit
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
-        protected override bool RequiresCompilationWait(string operation) => false;
+        protected override bool RequiresCompilationWait(string operation) =>
+            operation == "create" || operation == "defineEffect";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
@@ -66,177 +67,162 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var effectId = GetString(payload, "effectId") ?? $"Effect_{Guid.NewGuid().ToString().Substring(0, 8)}";
             var assetPath = GetString(payload, "assetPath") ?? $"Assets/StatusEffects/{effectId}.asset";
+            var outputDir = GetString(payload, "outputPath");
 
-            // Ensure directory exists
-            var directory = Path.GetDirectoryName(assetPath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            // Check if asset already exists
-            if (AssetDatabase.LoadAssetAtPath<GameKitStatusEffectAsset>(assetPath) != null)
+            // Check if asset already exists at path
+            if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath) != null)
             {
                 throw new InvalidOperationException($"Status effect asset already exists at: {assetPath}");
             }
 
             var displayName = GetString(payload, "displayName") ?? effectId;
-            var effectType = payload.TryGetValue("type", out var typeObj)
-                ? ParseEffectType(typeObj.ToString())
-                : GameKitStatusEffectAsset.EffectType.Buff;
+            var effectType = ParseEffectType(GetString(payload, "type") ?? "buff");
+            var effectCategory = ParseEffectCategory(GetString(payload, "category") ?? "generic");
+            var duration = GetFloat(payload, "duration", 10f);
+            var stackable = GetBool(payload, "stackable", false);
+            var maxStacks = GetInt(payload, "maxStacks", 1);
+            var tickInterval = GetFloat(payload, "tickInterval", 0f);
 
-            // Create ScriptableObject
-            var effect = ScriptableObject.CreateInstance<GameKitStatusEffectAsset>();
-            effect.Initialize(effectId, displayName, effectType);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(effectId, "StatusEffectData");
 
-            // Set properties via SerializedObject
-            var serializedEffect = new SerializedObject(effect);
-
-            if (payload.TryGetValue("description", out var descObj))
+            // Build template variables
+            var variables = new Dictionary<string, object>
             {
-                serializedEffect.FindProperty("description").stringValue = descObj.ToString();
+                { "EFFECT_ID", effectId },
+                { "DISPLAY_NAME", displayName },
+                { "EFFECT_TYPE", effectType },
+                { "EFFECT_CATEGORY", effectCategory },
+                { "DURATION", duration },
+                { "STACKABLE", stackable ? "true" : "false" },
+                { "MAX_STACKS", maxStacks },
+                { "TICK_INTERVAL", tickInterval }
+            };
+
+            // Generate the StatusEffectData ScriptableObject script
+            var result = ScriptGenerator.Generate(null, "StatusEffectData", className, effectId, variables, outputDir);
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(result.ErrorMessage ?? "Failed to generate StatusEffectData script.");
             }
 
-            if (payload.TryGetValue("category", out var catObj))
+            // Try to create the asset if the type is already compiled
+            var type = ScriptGenerator.ResolveGeneratedType(className);
+            bool assetCreated = false;
+            if (type != null)
             {
-                var category = ParseEffectCategory(catObj.ToString());
-                serializedEffect.FindProperty("category").enumValueIndex = (int)category;
-            }
-
-            if (payload.TryGetValue("duration", out var durObj))
-            {
-                serializedEffect.FindProperty("duration").floatValue = Convert.ToSingle(durObj);
-            }
-
-            if (payload.TryGetValue("isPermanent", out var permObj))
-            {
-                serializedEffect.FindProperty("isPermanent").boolValue = Convert.ToBoolean(permObj);
-            }
-
-            if (payload.TryGetValue("stackable", out var stackObj))
-            {
-                serializedEffect.FindProperty("stackable").boolValue = Convert.ToBoolean(stackObj);
-            }
-
-            if (payload.TryGetValue("maxStacks", out var maxStackObj))
-            {
-                serializedEffect.FindProperty("maxStacks").intValue = Convert.ToInt32(maxStackObj);
-            }
-
-            if (payload.TryGetValue("stackBehavior", out var stackBehaviorObj))
-            {
-                var behavior = ParseStackBehavior(stackBehaviorObj.ToString());
-                serializedEffect.FindProperty("stackBehavior").enumValueIndex = (int)behavior;
-            }
-
-            if (payload.TryGetValue("tickInterval", out var tickObj))
-            {
-                serializedEffect.FindProperty("tickInterval").floatValue = Convert.ToSingle(tickObj);
-            }
-
-            if (payload.TryGetValue("tickOnApply", out var tickApplyObj))
-            {
-                serializedEffect.FindProperty("tickOnApply").boolValue = Convert.ToBoolean(tickApplyObj);
-            }
-
-            // Visual effects
-            if (payload.TryGetValue("particleEffectId", out var particleObj))
-            {
-                serializedEffect.FindProperty("particleEffectId").stringValue = particleObj.ToString();
-            }
-
-            if (payload.TryGetValue("onApplyEffectId", out var applyEffectObj))
-            {
-                serializedEffect.FindProperty("onApplyEffectId").stringValue = applyEffectObj.ToString();
-            }
-
-            if (payload.TryGetValue("onRemoveEffectId", out var removeEffectObj))
-            {
-                serializedEffect.FindProperty("onRemoveEffectId").stringValue = removeEffectObj.ToString();
-            }
-
-            serializedEffect.ApplyModifiedPropertiesWithoutUndo();
-
-            // Add modifiers if provided
-            if (payload.TryGetValue("modifiers", out var modsObj) && modsObj is List<object> modsList)
-            {
-                foreach (var modObj in modsList)
+                var directory = Path.GetDirectoryName(assetPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
-                    if (modObj is Dictionary<string, object> modDict)
-                    {
-                        var modifier = ParseModifier(modDict);
-                        effect.AddModifier(modifier);
-                    }
+                    Directory.CreateDirectory(directory);
                 }
+
+                var effect = ScriptableObject.CreateInstance(type);
+                var so = new SerializedObject(effect);
+
+                SetPropertyIfExists(so, "effectId", effectId);
+                SetPropertyIfExists(so, "displayName", displayName);
+
+                if (payload.TryGetValue("description", out var descObj))
+                    SetPropertyIfExists(so, "description", descObj.ToString());
+
+                SetEnumPropertyIfExists(so, "type", effectType);
+                SetEnumPropertyIfExists(so, "category", effectCategory);
+
+                so.FindProperty("duration").floatValue = duration;
+
+                if (payload.TryGetValue("isPermanent", out var permObj))
+                    so.FindProperty("isPermanent").boolValue = Convert.ToBoolean(permObj);
+
+                so.FindProperty("stackable").boolValue = stackable;
+                so.FindProperty("maxStacks").intValue = maxStacks;
+
+                if (payload.TryGetValue("stackBehavior", out var stackBehaviorObj))
+                    SetEnumPropertyIfExists(so, "stackBehavior", ParseStackBehavior(stackBehaviorObj.ToString()));
+
+                so.FindProperty("tickInterval").floatValue = tickInterval;
+
+                if (payload.TryGetValue("tickOnApply", out var tickApplyObj))
+                    so.FindProperty("tickOnApply").boolValue = Convert.ToBoolean(tickApplyObj);
+
+                if (payload.TryGetValue("particleEffectId", out var particleObj))
+                    SetPropertyIfExists(so, "particleEffectId", particleObj.ToString());
+
+                if (payload.TryGetValue("onApplyEffectId", out var applyEffectObj))
+                    SetPropertyIfExists(so, "onApplyEffectId", applyEffectObj.ToString());
+
+                if (payload.TryGetValue("onRemoveEffectId", out var removeEffectObj))
+                    SetPropertyIfExists(so, "onRemoveEffectId", removeEffectObj.ToString());
+
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                // Add modifiers if provided
+                if (payload.TryGetValue("modifiers", out var modsObj) && modsObj is List<object> modsList)
+                {
+                    AddModifiersToAsset(so, modsList);
+                }
+
+                AssetDatabase.CreateAsset(effect, assetPath);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                assetCreated = true;
             }
 
-            // Save asset
-            AssetDatabase.CreateAsset(effect, assetPath);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
+            var modifierCount = 0;
+            if (payload.TryGetValue("modifiers", out var modsCountObj) && modsCountObj is List<object> modsCountList)
+                modifierCount = modsCountList.Count;
 
             return CreateSuccessResponse(
                 ("effectId", effectId),
-                ("assetPath", assetPath),
+                ("scriptPath", result.ScriptPath),
+                ("className", result.ClassName),
+                ("assetPath", assetCreated ? assetPath : ""),
+                ("assetCreated", assetCreated),
+                ("compilationRequired", !assetCreated),
                 ("displayName", displayName),
-                ("type", effectType.ToString()),
-                ("modifierCount", effect.Modifiers.Count)
+                ("type", effectType),
+                ("modifierCount", modifierCount)
             );
         }
 
         private object UpdateEffect(Dictionary<string, object> payload)
         {
             var effect = ResolveEffectAsset(payload);
-            var serializedEffect = new SerializedObject(effect);
+            var so = new SerializedObject(effect);
 
             if (payload.TryGetValue("displayName", out var nameObj))
-            {
-                serializedEffect.FindProperty("displayName").stringValue = nameObj.ToString();
-            }
+                SetPropertyIfExists(so, "displayName", nameObj.ToString());
 
             if (payload.TryGetValue("description", out var descObj))
-            {
-                serializedEffect.FindProperty("description").stringValue = descObj.ToString();
-            }
+                SetPropertyIfExists(so, "description", descObj.ToString());
 
             if (payload.TryGetValue("type", out var typeObj))
-            {
-                var type = ParseEffectType(typeObj.ToString());
-                serializedEffect.FindProperty("type").enumValueIndex = (int)type;
-            }
+                SetEnumPropertyIfExists(so, "type", ParseEffectType(typeObj.ToString()));
 
             if (payload.TryGetValue("category", out var catObj))
-            {
-                var category = ParseEffectCategory(catObj.ToString());
-                serializedEffect.FindProperty("category").enumValueIndex = (int)category;
-            }
+                SetEnumPropertyIfExists(so, "category", ParseEffectCategory(catObj.ToString()));
 
             if (payload.TryGetValue("duration", out var durObj))
-            {
-                serializedEffect.FindProperty("duration").floatValue = Convert.ToSingle(durObj);
-            }
+                so.FindProperty("duration").floatValue = Convert.ToSingle(durObj);
 
             if (payload.TryGetValue("stackable", out var stackObj))
-            {
-                serializedEffect.FindProperty("stackable").boolValue = Convert.ToBoolean(stackObj);
-            }
+                so.FindProperty("stackable").boolValue = Convert.ToBoolean(stackObj);
 
             if (payload.TryGetValue("maxStacks", out var maxStackObj))
-            {
-                serializedEffect.FindProperty("maxStacks").intValue = Convert.ToInt32(maxStackObj);
-            }
+                so.FindProperty("maxStacks").intValue = Convert.ToInt32(maxStackObj);
 
             if (payload.TryGetValue("tickInterval", out var tickObj))
-            {
-                serializedEffect.FindProperty("tickInterval").floatValue = Convert.ToSingle(tickObj);
-            }
+                so.FindProperty("tickInterval").floatValue = Convert.ToSingle(tickObj);
 
-            serializedEffect.ApplyModifiedProperties();
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(effect);
             AssetDatabase.SaveAssets();
 
+            var effectIdProp = so.FindProperty("effectId");
+            var effectId = effectIdProp != null ? effectIdProp.stringValue : "unknown";
+
             return CreateSuccessResponse(
-                ("effectId", effect.EffectId),
+                ("effectId", effectId),
                 ("updated", true)
             );
         }
@@ -244,28 +230,38 @@ namespace MCP.Editor.Handlers.GameKit
         private object InspectEffect(Dictionary<string, object> payload)
         {
             var effect = ResolveEffectAsset(payload);
+            var so = new SerializedObject(effect);
 
             var modifiers = new List<Dictionary<string, object>>();
-            foreach (var mod in effect.Modifiers)
+            var modsProp = so.FindProperty("modifiers");
+            if (modsProp != null && modsProp.isArray)
             {
-                modifiers.Add(SerializeModifier(mod));
+                for (int i = 0; i < modsProp.arraySize; i++)
+                {
+                    var modElement = modsProp.GetArrayElementAtIndex(i);
+                    modifiers.Add(SerializeModifierFromProperty(modElement));
+                }
             }
 
+            var typeProp = so.FindProperty("type");
+            var categoryProp = so.FindProperty("category");
+            var stackBehaviorProp = so.FindProperty("stackBehavior");
+
             return CreateSuccessResponse(
-                ("effectId", effect.EffectId),
+                ("effectId", GetStringProperty(so, "effectId")),
                 ("assetPath", AssetDatabase.GetAssetPath(effect)),
-                ("displayName", effect.DisplayName),
-                ("description", effect.Description),
-                ("type", effect.Type.ToString()),
-                ("category", effect.Category.ToString()),
-                ("duration", effect.Duration),
-                ("isPermanent", effect.IsPermanent),
-                ("stackable", effect.Stackable),
-                ("maxStacks", effect.MaxStacks),
-                ("stackBehavior", effect.StackingBehavior.ToString()),
-                ("tickInterval", effect.TickInterval),
-                ("tickOnApply", effect.TickOnApply),
-                ("modifierCount", effect.Modifiers.Count),
+                ("displayName", GetStringProperty(so, "displayName")),
+                ("description", GetStringProperty(so, "description")),
+                ("type", GetEnumDisplayName(typeProp)),
+                ("category", GetEnumDisplayName(categoryProp)),
+                ("duration", so.FindProperty("duration").floatValue),
+                ("isPermanent", so.FindProperty("isPermanent").boolValue),
+                ("stackable", so.FindProperty("stackable").boolValue),
+                ("maxStacks", so.FindProperty("maxStacks").intValue),
+                ("stackBehavior", GetEnumDisplayName(stackBehaviorProp)),
+                ("tickInterval", so.FindProperty("tickInterval").floatValue),
+                ("tickOnApply", so.FindProperty("tickOnApply").boolValue),
+                ("modifierCount", modsProp != null ? modsProp.arraySize : 0),
                 ("modifiers", modifiers)
             );
         }
@@ -274,9 +270,14 @@ namespace MCP.Editor.Handlers.GameKit
         {
             var effect = ResolveEffectAsset(payload);
             var assetPath = AssetDatabase.GetAssetPath(effect);
-            var effectId = effect.EffectId;
+            var so = new SerializedObject(effect);
+            var effectId = GetStringProperty(so, "effectId");
 
             AssetDatabase.DeleteAsset(assetPath);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(effectId);
+
             AssetDatabase.Refresh();
 
             return CreateSuccessResponse(
@@ -299,27 +300,37 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("modifier data is required for addModifier operation.");
             }
 
-            var modifier = ParseModifier(modDict);
-            effect.AddModifier(modifier);
+            var so = new SerializedObject(effect);
+            var modsProp = so.FindProperty("modifiers");
+            if (modsProp == null || !modsProp.isArray)
+            {
+                throw new InvalidOperationException("modifiers property not found on effect asset.");
+            }
 
+            modsProp.InsertArrayElementAtIndex(modsProp.arraySize);
+            var newElement = modsProp.GetArrayElementAtIndex(modsProp.arraySize - 1);
+            SetModifierProperties(newElement, modDict);
+
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(effect);
             AssetDatabase.SaveAssets();
 
+            var effectId = GetStringProperty(so, "effectId");
+
             return CreateSuccessResponse(
-                ("effectId", effect.EffectId),
-                ("modifierId", modifier.modifierId),
-                ("modifierCount", effect.Modifiers.Count)
+                ("effectId", effectId),
+                ("modifierCount", modsProp.arraySize)
             );
         }
 
         private object UpdateModifier(Dictionary<string, object> payload)
         {
             var effect = ResolveEffectAsset(payload);
-            var modifierId = GetString(payload, "modifierId");
+            var modifierIndex = GetInt(payload, "modifierIndex", -1);
 
-            if (string.IsNullOrEmpty(modifierId))
+            if (modifierIndex < 0)
             {
-                throw new InvalidOperationException("modifierId is required for updateModifier operation.");
+                throw new InvalidOperationException("modifierIndex is required for updateModifier operation.");
             }
 
             if (!payload.TryGetValue("modifier", out var modObj) || modObj is not Dictionary<string, object> modDict)
@@ -327,18 +338,23 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("modifier data is required for updateModifier operation.");
             }
 
-            // Remove old and add updated
-            effect.RemoveModifier(modifierId);
-            modDict["modifierId"] = modifierId;
-            var updated = ParseModifier(modDict);
-            effect.AddModifier(updated);
+            var so = new SerializedObject(effect);
+            var modsProp = so.FindProperty("modifiers");
+            if (modsProp == null || !modsProp.isArray || modifierIndex >= modsProp.arraySize)
+            {
+                throw new InvalidOperationException($"Modifier at index {modifierIndex} not found.");
+            }
 
+            var element = modsProp.GetArrayElementAtIndex(modifierIndex);
+            SetModifierProperties(element, modDict);
+
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(effect);
             AssetDatabase.SaveAssets();
 
             return CreateSuccessResponse(
-                ("effectId", effect.EffectId),
-                ("modifierId", modifierId),
+                ("effectId", GetStringProperty(so, "effectId")),
+                ("modifierIndex", modifierIndex),
                 ("updated", true)
             );
         }
@@ -346,40 +362,49 @@ namespace MCP.Editor.Handlers.GameKit
         private object RemoveModifier(Dictionary<string, object> payload)
         {
             var effect = ResolveEffectAsset(payload);
-            var modifierId = GetString(payload, "modifierId");
+            var modifierIndex = GetInt(payload, "modifierIndex", -1);
 
-            if (string.IsNullOrEmpty(modifierId))
+            if (modifierIndex < 0)
             {
-                throw new InvalidOperationException("modifierId is required for removeModifier operation.");
+                throw new InvalidOperationException("modifierIndex is required for removeModifier operation.");
             }
 
-            var removed = effect.RemoveModifier(modifierId);
-            if (!removed)
+            var so = new SerializedObject(effect);
+            var modsProp = so.FindProperty("modifiers");
+            if (modsProp == null || !modsProp.isArray || modifierIndex >= modsProp.arraySize)
             {
-                throw new InvalidOperationException($"Modifier '{modifierId}' not found in effect.");
+                throw new InvalidOperationException($"Modifier at index {modifierIndex} not found.");
             }
 
+            modsProp.DeleteArrayElementAtIndex(modifierIndex);
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(effect);
             AssetDatabase.SaveAssets();
 
             return CreateSuccessResponse(
-                ("effectId", effect.EffectId),
-                ("modifierId", modifierId),
+                ("effectId", GetStringProperty(so, "effectId")),
+                ("modifierIndex", modifierIndex),
                 ("removed", true),
-                ("modifierCount", effect.Modifiers.Count)
+                ("modifierCount", modsProp.arraySize)
             );
         }
 
         private object ClearModifiers(Dictionary<string, object> payload)
         {
             var effect = ResolveEffectAsset(payload);
-            effect.ClearModifiers();
+            var so = new SerializedObject(effect);
+            var modsProp = so.FindProperty("modifiers");
+            if (modsProp != null && modsProp.isArray)
+            {
+                modsProp.ClearArray();
+            }
 
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(effect);
             AssetDatabase.SaveAssets();
 
             return CreateSuccessResponse(
-                ("effectId", effect.EffectId),
+                ("effectId", GetStringProperty(so, "effectId")),
                 ("cleared", true),
                 ("modifierCount", 0)
             );
@@ -403,104 +428,125 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
 
-            var existingReceiver = targetGo.GetComponent<GameKitStatusEffectReceiver>();
+            // Check if already has a receiver component (by checking for receiverId field)
+            var existingReceiver = CodeGenHelper.FindComponentByField(targetGo, "receiverId", null);
             if (existingReceiver != null)
             {
-                throw new InvalidOperationException($"GameObject '{targetPath}' already has a GameKitStatusEffectReceiver component.");
+                throw new InvalidOperationException(
+                    $"GameObject '{targetPath}' already has a StatusEffectReceiver component.");
             }
 
             var receiverId = GetString(payload, "receiverId") ?? $"Receiver_{Guid.NewGuid().ToString().Substring(0, 8)}";
-            var healthId = GetString(payload, "healthId");
 
-            var receiver = Undo.AddComponent<GameKitStatusEffectReceiver>(targetGo);
-            receiver.Initialize(receiverId, healthId);
+            var className = GetString(payload, "className")
+                ?? ScriptGenerator.ToPascalCase(receiverId, "StatusEffectReceiver");
+
+            // Build template variables
+            var variables = new Dictionary<string, object>
+            {
+                { "RECEIVER_ID", receiverId }
+            };
+
+            // Build properties to set after component is added
+            var propertiesToSet = new Dictionary<string, object>();
+            if (payload.TryGetValue("immuneEffects", out var immuneObj) && immuneObj is List<object>)
+                propertiesToSet["immuneEffects"] = immuneObj;
+
+            var outputDir = GetString(payload, "outputPath");
+
+            // Generate script and optionally attach component
+            var result = CodeGenHelper.GenerateAndAttach(
+                targetGo, "StatusEffectReceiver", receiverId, className, variables, outputDir,
+                propertiesToSet.Count > 0 ? propertiesToSet : null);
+
+            if (result.TryGetValue("success", out var success) && !(bool)success)
+            {
+                throw new InvalidOperationException(result.TryGetValue("error", out var err)
+                    ? err.ToString()
+                    : "Failed to generate StatusEffectReceiver script.");
+            }
 
             EditorSceneManager.MarkSceneDirty(targetGo.scene);
 
-            return CreateSuccessResponse(
-                ("receiverId", receiverId),
-                ("path", BuildGameObjectPath(targetGo)),
-                ("created", true)
-            );
+            result["receiverId"] = receiverId;
+            result["path"] = BuildGameObjectPath(targetGo);
+            result["created"] = true;
+
+            return result;
         }
 
         private object UpdateReceiver(Dictionary<string, object> payload)
         {
-            var receiver = ResolveReceiver(payload);
-            var serializedReceiver = new SerializedObject(receiver);
+            var component = ResolveReceiver(payload);
 
-            if (payload.TryGetValue("healthId", out var healthIdObj))
-            {
-                serializedReceiver.FindProperty("healthId").stringValue = healthIdObj.ToString();
-            }
+            Undo.RecordObject(component, "Update StatusEffectReceiver");
 
-            if (payload.TryGetValue("immuneCategories", out var immuneCatObj) && immuneCatObj is List<object> catList)
-            {
-                var prop = serializedReceiver.FindProperty("immuneCategories");
-                prop.ClearArray();
-                foreach (var cat in catList)
-                {
-                    prop.InsertArrayElementAtIndex(prop.arraySize);
-                    prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = cat.ToString();
-                }
-            }
+            var so = new SerializedObject(component);
 
             if (payload.TryGetValue("immuneEffects", out var immuneEffObj) && immuneEffObj is List<object> effList)
             {
-                var prop = serializedReceiver.FindProperty("immuneEffects");
-                prop.ClearArray();
-                foreach (var eff in effList)
+                var prop = so.FindProperty("immuneEffects");
+                if (prop != null && prop.isArray)
                 {
-                    prop.InsertArrayElementAtIndex(prop.arraySize);
-                    prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = eff.ToString();
+                    prop.ClearArray();
+                    foreach (var eff in effList)
+                    {
+                        prop.InsertArrayElementAtIndex(prop.arraySize);
+                        prop.GetArrayElementAtIndex(prop.arraySize - 1).stringValue = eff.ToString();
+                    }
                 }
             }
 
-            serializedReceiver.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(receiver.gameObject.scene);
+            so.ApplyModifiedProperties();
+            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
+
+            var receiverId = new SerializedObject(component).FindProperty("receiverId").stringValue;
 
             return CreateSuccessResponse(
-                ("receiverId", receiver.ReceiverId),
-                ("path", BuildGameObjectPath(receiver.gameObject)),
+                ("receiverId", receiverId),
+                ("path", BuildGameObjectPath(component.gameObject)),
                 ("updated", true)
             );
         }
 
         private object InspectReceiver(Dictionary<string, object> payload)
         {
-            var receiver = ResolveReceiver(payload);
+            var component = ResolveReceiver(payload);
+            var so = new SerializedObject(component);
 
-            var activeEffects = new List<Dictionary<string, object>>();
-            foreach (var active in receiver.ActiveEffects)
+            var receiverId = GetStringProperty(so, "receiverId");
+
+            // Immune effects list
+            var immuneEffects = new List<string>();
+            var immuneProp = so.FindProperty("immuneEffects");
+            if (immuneProp != null && immuneProp.isArray)
             {
-                activeEffects.Add(new Dictionary<string, object>
+                for (int i = 0; i < immuneProp.arraySize; i++)
                 {
-                    { "effectId", active.EffectId },
-                    { "stacks", active.Stacks },
-                    { "remainingDuration", active.RemainingDuration },
-                    { "isPermanent", active.IsPermanent }
-                });
+                    immuneEffects.Add(immuneProp.GetArrayElementAtIndex(i).stringValue);
+                }
             }
 
             return CreateSuccessResponse(
-                ("receiverId", receiver.ReceiverId),
-                ("path", BuildGameObjectPath(receiver.gameObject)),
-                ("activeEffectCount", receiver.ActiveEffects.Count),
-                ("activeEffects", activeEffects),
-                ("isStunned", receiver.IsStunned),
-                ("isSilenced", receiver.IsSilenced),
-                ("isInvincible", receiver.IsInvincible)
+                ("receiverId", receiverId),
+                ("path", BuildGameObjectPath(component.gameObject)),
+                ("immuneEffects", immuneEffects),
+                ("note", "Active effect state is only available at runtime.")
             );
         }
 
         private object DeleteReceiver(Dictionary<string, object> payload)
         {
-            var receiver = ResolveReceiver(payload);
-            var path = BuildGameObjectPath(receiver.gameObject);
-            var receiverId = receiver.ReceiverId;
-            var scene = receiver.gameObject.scene;
+            var component = ResolveReceiver(payload);
+            var path = BuildGameObjectPath(component.gameObject);
+            var receiverId = new SerializedObject(component).FindProperty("receiverId").stringValue;
+            var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(receiver);
+            Undo.DestroyObjectImmediate(component);
+
+            // Also clean up the generated script from tracker
+            ScriptGenerator.Delete(receiverId);
+
             EditorSceneManager.MarkSceneDirty(scene);
 
             return CreateSuccessResponse(
@@ -522,14 +568,12 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("effectId is required for applyEffect operation.");
             }
 
-            // Register the effect for runtime use
-            var effect = ResolveEffectAsset(payload);
-            GameKitStatusEffectReceiver.RegisterEffect(effect);
+            // Verify the effect asset exists
+            ResolveEffectAsset(payload);
 
             return CreateSuccessResponse(
                 ("effectId", effectId),
-                ("registered", true),
-                ("note", "Effect registered. Apply effect in play mode with GameKitStatusEffectReceiver.ApplyEffect().")
+                ("note", "Effect application only works in play mode. Use the receiver's ApplyEffect() method at runtime.")
             );
         }
 
@@ -551,29 +595,21 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object GetActiveEffects(Dictionary<string, object> payload)
         {
-            var receiver = ResolveReceiver(payload);
-
-            var effects = new List<Dictionary<string, object>>();
-            foreach (var active in receiver.ActiveEffects)
-            {
-                effects.Add(new Dictionary<string, object>
-                {
-                    { "effectId", active.EffectId },
-                    { "stacks", active.Stacks },
-                    { "remainingDuration", active.RemainingDuration }
-                });
-            }
+            var component = ResolveReceiver(payload);
+            var so = new SerializedObject(component);
+            var receiverId = GetStringProperty(so, "receiverId");
 
             return CreateSuccessResponse(
-                ("receiverId", receiver.ReceiverId),
-                ("activeEffects", effects),
-                ("count", effects.Count)
+                ("receiverId", receiverId),
+                ("activeEffects", new List<Dictionary<string, object>>()),
+                ("count", 0),
+                ("note", "Active effects are only tracked at runtime.")
             );
         }
 
         private object GetStatModifier(Dictionary<string, object> payload)
         {
-            var receiver = ResolveReceiver(payload);
+            var component = ResolveReceiver(payload);
             var statName = GetString(payload, "statName");
 
             if (string.IsNullOrEmpty(statName))
@@ -581,12 +617,31 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("statName is required for getStatModifier operation.");
             }
 
-            var value = receiver.GetStatModifier(statName);
+            var so = new SerializedObject(component);
+            var receiverId = GetStringProperty(so, "receiverId");
+
+            // Try to call GetStatModifier via reflection at runtime
+            float value = 0f;
+            try
+            {
+                var method = component.GetType().GetMethod("GetStatModifier",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (method != null)
+                {
+                    var result = method.Invoke(component, new object[] { statName });
+                    if (result is float f) value = f;
+                }
+            }
+            catch
+            {
+                // Stat modifiers are runtime-only
+            }
 
             return CreateSuccessResponse(
-                ("receiverId", receiver.ReceiverId),
+                ("receiverId", receiverId),
                 ("statName", statName),
-                ("modifier", value)
+                ("modifier", value),
+                ("note", "Stat modifiers are computed at runtime from active effects.")
             );
         }
 
@@ -602,19 +657,28 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("effectId is required for findByEffectId.");
             }
 
-            var guids = AssetDatabase.FindAssets("t:GameKitStatusEffectAsset");
+            // Search all ScriptableObjects in the project for one with matching effectId
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var effect = AssetDatabase.LoadAssetAtPath<GameKitStatusEffectAsset>(path);
-                if (effect != null && effect.EffectId == effectId)
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+
+                var so = new SerializedObject(asset);
+                var effectIdProp = so.FindProperty("effectId");
+                if (effectIdProp != null && effectIdProp.propertyType == SerializedPropertyType.String
+                    && effectIdProp.stringValue == effectId)
                 {
+                    var displayNameProp = so.FindProperty("displayName");
+                    var typeProp = so.FindProperty("type");
+
                     return CreateSuccessResponse(
                         ("found", true),
-                        ("effectId", effect.EffectId),
+                        ("effectId", effectId),
                         ("assetPath", path),
-                        ("displayName", effect.DisplayName),
-                        ("type", effect.Type.ToString())
+                        ("displayName", displayNameProp != null ? displayNameProp.stringValue : ""),
+                        ("type", GetEnumDisplayName(typeProp))
                     );
                 }
             }
@@ -630,18 +694,14 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("receiverId is required for findByReceiverId.");
             }
 
-            var receivers = UnityEngine.Object.FindObjectsByType<GameKitStatusEffectReceiver>(FindObjectsSortMode.None);
-            foreach (var receiver in receivers)
+            var component = CodeGenHelper.FindComponentInSceneByField("receiverId", receiverId);
+            if (component != null)
             {
-                if (receiver.ReceiverId == receiverId)
-                {
-                    return CreateSuccessResponse(
-                        ("found", true),
-                        ("receiverId", receiver.ReceiverId),
-                        ("path", BuildGameObjectPath(receiver.gameObject)),
-                        ("activeEffectCount", receiver.ActiveEffects.Count)
-                    );
-                }
+                return CreateSuccessResponse(
+                    ("found", true),
+                    ("receiverId", receiverId),
+                    ("path", BuildGameObjectPath(component.gameObject))
+                );
             }
 
             return CreateSuccessResponse(("found", false), ("receiverId", receiverId));
@@ -649,24 +709,36 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object ListEffects(Dictionary<string, object> payload)
         {
-            var guids = AssetDatabase.FindAssets("t:GameKitStatusEffectAsset");
-
             var effects = new List<Dictionary<string, object>>();
+
+            // Search all ScriptableObjects for ones with an effectId field
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var effect = AssetDatabase.LoadAssetAtPath<GameKitStatusEffectAsset>(path);
-                if (effect != null)
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+
+                var so = new SerializedObject(asset);
+                var effectIdProp = so.FindProperty("effectId");
+                if (effectIdProp == null || effectIdProp.propertyType != SerializedPropertyType.String)
+                    continue;
+
+                // Also require displayName to filter out non-effect SOs
+                var displayNameProp = so.FindProperty("displayName");
+                if (displayNameProp == null) continue;
+
+                var typeProp = so.FindProperty("type");
+                var categoryProp = so.FindProperty("category");
+
+                effects.Add(new Dictionary<string, object>
                 {
-                    effects.Add(new Dictionary<string, object>
-                    {
-                        { "effectId", effect.EffectId },
-                        { "displayName", effect.DisplayName },
-                        { "type", effect.Type.ToString() },
-                        { "category", effect.Category.ToString() },
-                        { "assetPath", path }
-                    });
-                }
+                    { "effectId", effectIdProp.stringValue },
+                    { "displayName", displayNameProp.stringValue },
+                    { "type", GetEnumDisplayName(typeProp) },
+                    { "category", GetEnumDisplayName(categoryProp) },
+                    { "assetPath", path }
+                });
             }
 
             return CreateSuccessResponse(
@@ -679,27 +751,38 @@ namespace MCP.Editor.Handlers.GameKit
 
         #region Helpers
 
-        private GameKitStatusEffectAsset ResolveEffectAsset(Dictionary<string, object> payload)
+        private ScriptableObject ResolveEffectAsset(Dictionary<string, object> payload)
         {
             var effectId = GetString(payload, "effectId");
             var assetPath = GetString(payload, "assetPath");
 
             if (!string.IsNullOrEmpty(assetPath))
             {
-                var effect = AssetDatabase.LoadAssetAtPath<GameKitStatusEffectAsset>(assetPath);
-                if (effect != null) return effect;
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+                if (asset != null)
+                {
+                    var so = new SerializedObject(asset);
+                    var prop = so.FindProperty("effectId");
+                    if (prop != null && prop.propertyType == SerializedPropertyType.String)
+                        return asset;
+                }
             }
 
             if (!string.IsNullOrEmpty(effectId))
             {
-                var guids = AssetDatabase.FindAssets("t:GameKitStatusEffectAsset");
+                var guids = AssetDatabase.FindAssets("t:ScriptableObject");
                 foreach (var guid in guids)
                 {
                     var path = AssetDatabase.GUIDToAssetPath(guid);
-                    var effect = AssetDatabase.LoadAssetAtPath<GameKitStatusEffectAsset>(path);
-                    if (effect != null && effect.EffectId == effectId)
+                    var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                    if (asset == null) continue;
+
+                    var so = new SerializedObject(asset);
+                    var prop = so.FindProperty("effectId");
+                    if (prop != null && prop.propertyType == SerializedPropertyType.String
+                        && prop.stringValue == effectId)
                     {
-                        return effect;
+                        return asset;
                     }
                 }
             }
@@ -707,34 +790,32 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either assetPath or effectId is required to resolve effect asset.");
         }
 
-        private GameKitStatusEffectReceiver ResolveReceiver(Dictionary<string, object> payload)
+        private Component ResolveReceiver(Dictionary<string, object> payload)
         {
+            // Try by receiverId first
             var receiverId = GetString(payload, "receiverId");
-            var targetPath = GetString(payload, "targetPath");
-
             if (!string.IsNullOrEmpty(receiverId))
             {
-                var receivers = UnityEngine.Object.FindObjectsByType<GameKitStatusEffectReceiver>(FindObjectsSortMode.None);
-                foreach (var receiver in receivers)
+                var receiverById = CodeGenHelper.FindComponentInSceneByField("receiverId", receiverId);
+                if (receiverById != null)
                 {
-                    if (receiver.ReceiverId == receiverId)
-                    {
-                        return receiver;
-                    }
+                    return receiverById;
                 }
             }
 
+            // Try by targetPath
+            var targetPath = GetString(payload, "targetPath");
             if (!string.IsNullOrEmpty(targetPath))
             {
                 var targetGo = ResolveGameObject(targetPath);
                 if (targetGo != null)
                 {
-                    var receiver = targetGo.GetComponent<GameKitStatusEffectReceiver>();
-                    if (receiver != null)
+                    var receiverByPath = CodeGenHelper.FindComponentByField(targetGo, "receiverId", null);
+                    if (receiverByPath != null)
                     {
-                        return receiver;
+                        return receiverByPath;
                     }
-                    throw new InvalidOperationException($"No GameKitStatusEffectReceiver component found on '{targetPath}'.");
+                    throw new InvalidOperationException($"No StatusEffectReceiver component found on '{targetPath}'.");
                 }
                 throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
             }
@@ -742,126 +823,240 @@ namespace MCP.Editor.Handlers.GameKit
             throw new InvalidOperationException("Either receiverId or targetPath is required.");
         }
 
-        private GameKitStatusEffectAsset.EffectModifier ParseModifier(Dictionary<string, object> dict)
-        {
-            return new GameKitStatusEffectAsset.EffectModifier
-            {
-                modifierId = dict.TryGetValue("modifierId", out var id) ? id?.ToString() : $"mod_{Guid.NewGuid().ToString().Substring(0, 8)}",
-                type = dict.TryGetValue("type", out var type) ? ParseModifierType(type.ToString()) : GameKitStatusEffectAsset.ModifierType.StatModifier,
-                targetHealthId = dict.TryGetValue("targetHealthId", out var healthId) ? healthId?.ToString() : "",
-                targetStat = dict.TryGetValue("targetStat", out var stat) ? stat?.ToString() : "",
-                value = dict.TryGetValue("value", out var val) ? Convert.ToSingle(val) : 0f,
-                operation = dict.TryGetValue("operation", out var op) ? ParseModifierOperation(op.ToString()) : GameKitStatusEffectAsset.ModifierOperation.Add,
-                scaleWithStacks = dict.TryGetValue("scaleWithStacks", out var scale) && Convert.ToBoolean(scale),
-                damagePerTick = dict.TryGetValue("damagePerTick", out var dmg) ? Convert.ToSingle(dmg) : 0f,
-                healPerTick = dict.TryGetValue("healPerTick", out var heal) ? Convert.ToSingle(heal) : 0f,
-                damageType = dict.TryGetValue("damageType", out var dmgType) ? ParseDamageType(dmgType.ToString()) : GameKitStatusEffectAsset.DamageType.Physical
-            };
-        }
-
-        private Dictionary<string, object> SerializeModifier(GameKitStatusEffectAsset.EffectModifier mod)
-        {
-            return new Dictionary<string, object>
-            {
-                { "modifierId", mod.modifierId },
-                { "type", mod.type.ToString() },
-                { "targetStat", mod.targetStat },
-                { "value", mod.value },
-                { "operation", mod.operation.ToString() },
-                { "scaleWithStacks", mod.scaleWithStacks },
-                { "damagePerTick", mod.damagePerTick },
-                { "healPerTick", mod.healPerTick },
-                { "damageType", mod.damageType.ToString() }
-            };
-        }
-
-        private GameKitStatusEffectAsset.EffectType ParseEffectType(string str)
+        private string ParseEffectType(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "buff" => GameKitStatusEffectAsset.EffectType.Buff,
-                "debuff" => GameKitStatusEffectAsset.EffectType.Debuff,
-                "neutral" => GameKitStatusEffectAsset.EffectType.Neutral,
-                _ => GameKitStatusEffectAsset.EffectType.Buff
+                "buff" => "Buff",
+                "debuff" => "Debuff",
+                "neutral" => "Neutral",
+                _ => "Buff"
             };
         }
 
-        private GameKitStatusEffectAsset.EffectCategory ParseEffectCategory(string str)
+        private string ParseEffectCategory(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "generic" => GameKitStatusEffectAsset.EffectCategory.Generic,
-                "poison" => GameKitStatusEffectAsset.EffectCategory.Poison,
-                "burn" => GameKitStatusEffectAsset.EffectCategory.Burn,
-                "freeze" => GameKitStatusEffectAsset.EffectCategory.Freeze,
-                "stun" => GameKitStatusEffectAsset.EffectCategory.Stun,
-                "slow" => GameKitStatusEffectAsset.EffectCategory.Slow,
-                "haste" => GameKitStatusEffectAsset.EffectCategory.Haste,
-                "shield" => GameKitStatusEffectAsset.EffectCategory.Shield,
-                "regeneration" => GameKitStatusEffectAsset.EffectCategory.Regeneration,
-                "invincibility" => GameKitStatusEffectAsset.EffectCategory.Invincibility,
-                "weakness" => GameKitStatusEffectAsset.EffectCategory.Weakness,
-                "strength" => GameKitStatusEffectAsset.EffectCategory.Strength,
-                "custom" => GameKitStatusEffectAsset.EffectCategory.Custom,
-                _ => GameKitStatusEffectAsset.EffectCategory.Generic
+                "generic" => "Generic",
+                "poison" => "Poison",
+                "burn" => "Burn",
+                "freeze" => "Freeze",
+                "stun" => "Stun",
+                "slow" => "Slow",
+                "haste" => "Haste",
+                "shield" => "Shield",
+                "regeneration" => "Regeneration",
+                "invincibility" => "Invincibility",
+                "weakness" => "Weakness",
+                "strength" => "Strength",
+                "custom" => "Custom",
+                _ => "Generic"
             };
         }
 
-        private GameKitStatusEffectAsset.StackBehavior ParseStackBehavior(string str)
+        private string ParseStackBehavior(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "refreshduration" or "refresh" => GameKitStatusEffectAsset.StackBehavior.RefreshDuration,
-                "addduration" or "add" => GameKitStatusEffectAsset.StackBehavior.AddDuration,
-                "independent" => GameKitStatusEffectAsset.StackBehavior.Independent,
-                "increasestacks" or "increase" => GameKitStatusEffectAsset.StackBehavior.IncreaseStacks,
-                _ => GameKitStatusEffectAsset.StackBehavior.RefreshDuration
+                "refreshduration" or "refresh" => "RefreshDuration",
+                "addduration" or "add" => "AddDuration",
+                "independent" => "Independent",
+                "increasestacks" or "increase" => "IncreaseStacks",
+                _ => "RefreshDuration"
             };
         }
 
-        private GameKitStatusEffectAsset.ModifierType ParseModifierType(string str)
+        private string ParseModifierType(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "statmodifier" or "stat" => GameKitStatusEffectAsset.ModifierType.StatModifier,
-                "damageovertime" or "dot" => GameKitStatusEffectAsset.ModifierType.DamageOverTime,
-                "healovertime" or "hot" => GameKitStatusEffectAsset.ModifierType.HealOverTime,
-                "stun" => GameKitStatusEffectAsset.ModifierType.Stun,
-                "silence" => GameKitStatusEffectAsset.ModifierType.Silence,
-                "invincible" => GameKitStatusEffectAsset.ModifierType.Invincible,
-                "custom" => GameKitStatusEffectAsset.ModifierType.Custom,
-                _ => GameKitStatusEffectAsset.ModifierType.StatModifier
+                "statmodifier" or "stat" => "StatModifier",
+                "damageovertime" or "dot" => "DamageOverTime",
+                "healovertime" or "hot" => "HealOverTime",
+                "stun" => "Stun",
+                "silence" => "Silence",
+                "invincible" => "Invincible",
+                "custom" => "Custom",
+                _ => "StatModifier"
             };
         }
 
-        private GameKitStatusEffectAsset.ModifierOperation ParseModifierOperation(string str)
+        private string ParseModifierOperation(string str)
         {
             return str?.ToLowerInvariant() switch
             {
-                "add" => GameKitStatusEffectAsset.ModifierOperation.Add,
-                "subtract" => GameKitStatusEffectAsset.ModifierOperation.Subtract,
-                "multiply" => GameKitStatusEffectAsset.ModifierOperation.Multiply,
-                "divide" => GameKitStatusEffectAsset.ModifierOperation.Divide,
-                "set" => GameKitStatusEffectAsset.ModifierOperation.Set,
-                "percentadd" or "percent" => GameKitStatusEffectAsset.ModifierOperation.PercentAdd,
-                "percentmultiply" => GameKitStatusEffectAsset.ModifierOperation.PercentMultiply,
-                _ => GameKitStatusEffectAsset.ModifierOperation.Add
+                "add" => "Add",
+                "subtract" => "Subtract",
+                "multiply" => "Multiply",
+                "divide" => "Divide",
+                "set" => "Set",
+                "percentadd" or "percent" => "PercentAdd",
+                "percentmultiply" => "PercentMultiply",
+                _ => "Add"
             };
         }
 
-        private GameKitStatusEffectAsset.DamageType ParseDamageType(string str)
+        private void SetPropertyIfExists(SerializedObject so, string propertyName, string value)
         {
-            return str?.ToLowerInvariant() switch
+            var prop = so.FindProperty(propertyName);
+            if (prop != null && prop.propertyType == SerializedPropertyType.String)
+                prop.stringValue = value;
+        }
+
+        private void SetEnumPropertyIfExists(SerializedObject so, string propertyName, string enumValueName)
+        {
+            var prop = so.FindProperty(propertyName);
+            if (prop == null || prop.propertyType != SerializedPropertyType.Enum) return;
+
+            var names = prop.enumDisplayNames;
+            for (int i = 0; i < names.Length; i++)
             {
-                "physical" => GameKitStatusEffectAsset.DamageType.Physical,
-                "magic" => GameKitStatusEffectAsset.DamageType.Magic,
-                "fire" => GameKitStatusEffectAsset.DamageType.Fire,
-                "ice" => GameKitStatusEffectAsset.DamageType.Ice,
-                "lightning" => GameKitStatusEffectAsset.DamageType.Lightning,
-                "poison" => GameKitStatusEffectAsset.DamageType.Poison,
-                "true" => GameKitStatusEffectAsset.DamageType.True,
-                _ => GameKitStatusEffectAsset.DamageType.Physical
-            };
+                if (string.Equals(names[i], enumValueName, StringComparison.OrdinalIgnoreCase))
+                {
+                    prop.enumValueIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private string GetStringProperty(SerializedObject so, string propertyName)
+        {
+            var prop = so.FindProperty(propertyName);
+            return prop != null && prop.propertyType == SerializedPropertyType.String
+                ? prop.stringValue
+                : "";
+        }
+
+        private void SetModifierProperties(SerializedProperty element, Dictionary<string, object> modDict)
+        {
+            if (modDict.TryGetValue("type", out var typeObj))
+            {
+                var typeProp = element.FindPropertyRelative("type");
+                if (typeProp != null)
+                {
+                    var typeName = ParseModifierType(typeObj.ToString());
+                    var names = typeProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            typeProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (modDict.TryGetValue("targetStat", out var statObj))
+            {
+                var prop = element.FindPropertyRelative("targetStat");
+                if (prop != null) prop.stringValue = statObj.ToString();
+            }
+
+            if (modDict.TryGetValue("value", out var valObj))
+            {
+                var prop = element.FindPropertyRelative("value");
+                if (prop != null) prop.floatValue = Convert.ToSingle(valObj);
+            }
+
+            if (modDict.TryGetValue("operation", out var opObj))
+            {
+                var opProp = element.FindPropertyRelative("operation");
+                if (opProp != null)
+                {
+                    var opName = ParseModifierOperation(opObj.ToString());
+                    var names = opProp.enumDisplayNames;
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (string.Equals(names[i], opName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            opProp.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (modDict.TryGetValue("scaleWithStacks", out var scaleObj))
+            {
+                var prop = element.FindPropertyRelative("scaleWithStacks");
+                if (prop != null) prop.boolValue = Convert.ToBoolean(scaleObj);
+            }
+
+            if (modDict.TryGetValue("dotDamage", out var dmgObj))
+            {
+                var prop = element.FindPropertyRelative("dotDamage");
+                if (prop != null) prop.floatValue = Convert.ToSingle(dmgObj);
+            }
+
+            if (modDict.TryGetValue("hotHeal", out var healObj))
+            {
+                var prop = element.FindPropertyRelative("hotHeal");
+                if (prop != null) prop.floatValue = Convert.ToSingle(healObj);
+            }
+        }
+
+        private Dictionary<string, object> SerializeModifierFromProperty(SerializedProperty element)
+        {
+            var result = new Dictionary<string, object>();
+
+            var typeProp = element.FindPropertyRelative("type");
+            if (typeProp != null)
+                result["type"] = GetEnumDisplayName(typeProp);
+
+            var statProp = element.FindPropertyRelative("targetStat");
+            if (statProp != null)
+                result["targetStat"] = statProp.stringValue;
+
+            var valueProp = element.FindPropertyRelative("value");
+            if (valueProp != null)
+                result["value"] = valueProp.floatValue;
+
+            var opProp = element.FindPropertyRelative("operation");
+            if (opProp != null)
+                result["operation"] = GetEnumDisplayName(opProp);
+
+            var scaleProp = element.FindPropertyRelative("scaleWithStacks");
+            if (scaleProp != null)
+                result["scaleWithStacks"] = scaleProp.boolValue;
+
+            var dmgProp = element.FindPropertyRelative("dotDamage");
+            if (dmgProp != null)
+                result["dotDamage"] = dmgProp.floatValue;
+
+            var healProp = element.FindPropertyRelative("hotHeal");
+            if (healProp != null)
+                result["hotHeal"] = healProp.floatValue;
+
+            return result;
+        }
+
+        private void AddModifiersToAsset(SerializedObject so, List<object> modsList)
+        {
+            var modsProp = so.FindProperty("modifiers");
+            if (modsProp == null || !modsProp.isArray) return;
+
+            foreach (var modObj in modsList)
+            {
+                if (modObj is Dictionary<string, object> modDict)
+                {
+                    modsProp.InsertArrayElementAtIndex(modsProp.arraySize);
+                    var element = modsProp.GetArrayElementAtIndex(modsProp.arraySize - 1);
+                    SetModifierProperties(element, modDict);
+                }
+            }
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private string GetEnumDisplayName(SerializedProperty prop, string fallback = "")
+        {
+            if (prop == null) return fallback;
+            if (prop.propertyType != SerializedPropertyType.Enum) return fallback;
+            return prop.enumValueIndex < prop.enumDisplayNames.Length
+                ? prop.enumDisplayNames[prop.enumValueIndex]
+                : fallback;
         }
 
         #endregion
