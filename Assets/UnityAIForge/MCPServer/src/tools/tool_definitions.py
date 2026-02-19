@@ -73,12 +73,14 @@ from tools.schemas import (
     ui_hierarchy_schema,
     ui_navigation_schema,
     ui_state_schema,
+    uitk_asset_schema,
+    uitk_document_schema,
     vector_sprite_convert_schema,
 )
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 64 MCP tool definitions."""
+    """Return the list of all 66 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -276,6 +278,53 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=ui_navigation_schema(),
         ),
+        # ── UI Toolkit ──────────────────────────────────────────────
+        types.Tool(
+            name="unity_uitk_document",
+            description=(
+                "Mid-level UI Toolkit document management: create and manage UIDocument components in scene.\n\n"
+                "**Operations:**\n"
+                "- create: Create a new GameObject with UIDocument component, optional PanelSettings and UXML source\n"
+                "- inspect: View UIDocument configuration and live VisualElement tree (if available)\n"
+                "- update: Update UIDocument properties (sourceAsset, panelSettings, sortingOrder)\n"
+                "- delete: Remove UIDocument component or delete entire GameObject\n"
+                "- query: Search the live VisualElement tree by name, USS class, or element type (UQuery-style)\n\n"
+                "**Key Concepts:**\n"
+                "- UIDocument is the bridge between UXML assets and the scene\n"
+                "- PanelSettings controls rendering (scale mode, reference resolution)\n"
+                "- Live tree inspection requires play mode or active panel\n"
+                "- Use with unity_uitk_asset to create UXML/USS files, then assign to UIDocument"
+            ),
+            inputSchema=uitk_document_schema(),
+        ),
+        types.Tool(
+            name="unity_uitk_asset",
+            description=(
+                "Mid-level UI Toolkit asset management: create and manage UXML, USS, and PanelSettings assets.\n\n"
+                "**Operations:**\n"
+                "- createUXML: Generate UXML file from JSON element definitions\n"
+                "- createUSS: Generate USS stylesheet from rule definitions\n"
+                "- inspectUXML: Parse UXML file and return as JSON structure\n"
+                "- inspectUSS: Parse USS file and return rules with selectors/properties\n"
+                "- updateUXML: Add, remove, or replace elements in existing UXML\n"
+                "- updateUSS: Add, update, or remove rules in existing USS\n"
+                "- createPanelSettings: Create PanelSettings ScriptableObject asset\n"
+                "- createFromTemplate: Generate UXML+USS from built-in templates (menu, dialog, hud, settings, inventory)\n"
+                "- validateDependencies: Validate UXML references (Style src, Template src) and report missing files\n\n"
+                "**Dependency Validation:** createUXML, updateUXML, createFromTemplate, and inspectUXML automatically include "
+                "dependency validation results (dependencies, issues, isValid) in their responses. Use validateDependencies "
+                "for standalone validation of any UXML file.\n\n"
+                "**UXML Element Types:** VisualElement, Button, Label, TextField, Toggle, Slider, SliderInt, MinMaxSlider, "
+                "Foldout, ScrollView, ListView, DropdownField, RadioButton, RadioButtonGroup, GroupBox, ProgressBar, "
+                "Image, IntegerField, FloatField\n\n"
+                "**Templates:** menu (title + button list), dialog (overlay + OK/Cancel), hud (HP/MP bars + action buttons), "
+                "settings (toggles/sliders + Apply/Back), inventory (grid of slots)\n\n"
+                "UI Toolkit (UIElements) is Unity's modern UI system using Flexbox layout, UXML markup, and USS styling. "
+                "Use this for runtime UI as an alternative to uGUI (Canvas/RectTransform). "
+                "Pair with unity_uitk_document to assign generated assets to scene objects."
+            ),
+            inputSchema=uitk_asset_schema(),
+        ),
         # ── Visual ─────────────────────────────────────────────────
         types.Tool(
             name="unity_sprite2d_bundle",
@@ -397,12 +446,12 @@ def get_tool_definitions() -> list[types.Tool]:
         types.Tool(
             name="unity_gamekit_ui_command",
             description=(
-                "High-level GameKit UI Command: create command panels with buttons that send commands to GameKitActors or GameKitManagers.\n\n"
+                "High-level GameKit UI Command: create command panels using UI Toolkit (UXML/USS) with buttons that send commands to GameKitActors or GameKitManagers.\n\n"
                 "**Operations:**\n"
-                "- createCommandPanel: Create a new command panel with buttons\n"
-                "- addCommand: Add a command button to existing panel\n"
-                "- inspect: View panel configuration\n"
-                "- delete: Remove command panel\n\n"
+                "- createCommandPanel: Generate UXML/USS and UIDocument with command buttons\n"
+                "- addCommand: Add a command button to existing panel (updates UXML)\n"
+                "- inspect: View panel configuration and UXML/USS paths\n"
+                "- delete: Remove command panel and generated UXML/USS files\n\n"
                 "**Actor Commands:** move, jump, action, look, custom\n"
                 "**Manager Commands:** addResource, setResource, consumeResource, changeState, nextTurn, triggerScene"
             ),
@@ -736,7 +785,7 @@ def get_tool_definitions() -> list[types.Tool]:
         types.Tool(
             name="unity_gamekit_ui_binding",
             description=(
-                "High-level GameKit UI Binding: declarative UI data binding system.\n\n"
+                "High-level GameKit UI Binding: declarative UI data binding system using UI Toolkit.\n\n"
                 "**Operations:**\n"
                 "- create/update/inspect/delete: Binding CRUD\n"
                 "- setRange: Set min/max value range\n"
@@ -744,21 +793,20 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- findByBindingId: Find binding by ID\n\n"
                 "**Source Types:** health (GameKitHealth), economy (GameKitManager resource), timer (GameKitTimer), custom\n"
                 "**Value Formats:** raw, percent, ratio, formatted\n\n"
-                "**Auto-detected UI Components:** Slider, Image (fill), Text, TMP_Text"
+                "**Auto-detected UI Elements:** ProgressBar, Label, Slider, SliderInt, TextElement (queried from UIDocument)"
             ),
             inputSchema=gamekit_ui_binding_schema(),
         ),
         types.Tool(
             name="unity_gamekit_ui_list",
             description=(
-                "High-level GameKit UI List: dynamic list/grid for displaying collections.\n\n"
+                "High-level GameKit UI List: dynamic list/grid using UI Toolkit (UXML/USS) for displaying collections.\n\n"
                 "**Operations:**\n"
-                "- create/update/inspect/delete: List CRUD\n"
-                "- setItems/addItem/removeItem/clear: Item management\n"
-                "- selectItem/deselectItem/clearSelection: Selection\n"
+                "- create/update/inspect/delete: List CRUD (generates UIDocument with ScrollView UXML/USS)\n"
+                "- setItems/addItem/removeItem/clear: Item management (items rendered as VisualElements)\n"
+                "- selectItem/deselectItem/clearSelection: Selection with USS class toggling\n"
                 "- refreshFromSource: Refresh from data source\n"
-                "- findByListId: Lookup\n"
-                "- createItemPrefab: Create item prefab for list items\n\n"
+                "- findByListId: Lookup\n\n"
                 "**Layout Types:** vertical, horizontal, grid\n"
                 "**Data Sources:** custom, inventory, equipment"
             ),
@@ -767,28 +815,27 @@ def get_tool_definitions() -> list[types.Tool]:
         types.Tool(
             name="unity_gamekit_ui_slot",
             description=(
-                "High-level GameKit UI Slot: slot-based UI for equipment, quickslots, and drag-drop.\n\n"
+                "High-level GameKit UI Slot: slot-based UI using UI Toolkit (UXML/USS) for equipment, quickslots, and item management.\n\n"
                 "**Slot Operations:** create/update/inspect/delete, setItem/clearSlot/setHighlight\n"
                 "**Slot Bar Operations:** createSlotBar/updateSlotBar/inspectSlotBar/deleteSlotBar, useSlot/refreshFromInventory\n"
                 "**Find Operations:** findBySlotId/findByBarId\n\n"
                 "**Slot Types:** storage, equipment, quickslot, trash\n\n"
-                "**Features:** Drag-and-drop support, category filtering, inventory binding, keyboard shortcuts"
+                "**Features:** Click handling via UITK events, category filtering, inventory binding, USS class toggling for visual states"
             ),
             inputSchema=gamekit_ui_slot_schema(),
         ),
         types.Tool(
             name="unity_gamekit_ui_selection",
             description=(
-                "High-level GameKit UI Selection: selection group management for toggles, radios, checkboxes, and tabs.\n\n"
+                "High-level GameKit UI Selection: selection group management using UI Toolkit (UXML/USS) for toggles, radios, checkboxes, and tabs.\n\n"
                 "**Operations:**\n"
-                "- create/update/inspect/delete: Selection group CRUD\n"
-                "- setItems/addItem/removeItem/clear: Item management\n"
-                "- selectItem/selectItemById/deselectItem/clearSelection: Selection control\n"
+                "- create/update/inspect/delete: Selection group CRUD (generates UIDocument with UXML/USS)\n"
+                "- setItems/addItem/removeItem/clear: Item management (items rendered as VisualElements)\n"
+                "- selectItem/selectItemById/deselectItem/clearSelection: Selection control with USS class toggling\n"
                 "- setSelectionActions/setItemEnabled: Configuration\n"
-                "- findBySelectionId: Lookup\n"
-                "- createItemPrefab: Create selection item prefab\n\n"
+                "- findBySelectionId: Lookup\n\n"
                 "**Selection Types:** radio, toggle, checkbox, tab\n\n"
-                "**Features:** Visual state management, associated panels for tab mode, default selection support"
+                "**Features:** USS-based visual state management, associated panels for tab mode, default selection support"
             ),
             inputSchema=gamekit_ui_selection_schema(),
         ),

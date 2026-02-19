@@ -31,8 +31,7 @@ namespace MCP.Editor.Tests
                 "setItems", "addItem", "removeItem", "clear",
                 "selectItem", "selectItemById", "deselectItem", "clearSelection",
                 "setSelectionActions", "setItemEnabled",
-                "findBySelectionId",
-                "createItemPrefab");
+                "findBySelectionId");
         }
 
         #endregion
@@ -47,12 +46,15 @@ namespace MCP.Editor.Tests
                 ("parentPath", "SelParent"),
                 ("selectionId", "test_selection"),
                 ("selectionType", "radio"),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("UISelection");
+            TrackCreatedGameObject("test_selection");
 
             AssertSuccess(result);
             AssertScriptGenerated(result);
             AssertHasField(result, "selectionId");
+            AssertHasField(result, "uxmlPath");
+            AssertHasField(result, "ussPath");
         }
 
         [Test]
@@ -63,12 +65,30 @@ namespace MCP.Editor.Tests
                 ("parentPath", "SelParent"),
                 ("selectionId", "test_selection"),
                 ("selectionType", "radio"),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir),
                 ("className", "MyCustomUISelection"));
-            TrackCreatedGameObject("UISelection");
+            TrackCreatedGameObject("test_selection");
 
             AssertSuccess(result);
             AssertScriptContainsClass(result, "MyCustomUISelection");
+        }
+
+        [Test]
+        public void Create_TabType_ShouldGenerateScript()
+        {
+            CreateTestGameObject("TabParent");
+            var result = Execute(_handler, "create",
+                ("parentPath", "TabParent"),
+                ("selectionId", "test_tab"),
+                ("selectionType", "tab"),
+                ("layout", "horizontal"),
+                ("uiOutputDir", TestOutputDir),
+                ("outputPath", TestOutputDir));
+            TrackCreatedGameObject("test_tab");
+
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
         }
 
         #endregion

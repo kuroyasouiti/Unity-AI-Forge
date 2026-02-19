@@ -155,6 +155,10 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("tilemapBundle", new TilemapBundleHandler());
             CommandHandlerFactory.Register("sprite2DBundle", new Sprite2DBundleHandler());
             CommandHandlerFactory.Register("animation2DBundle", new Animation2DBundleHandler());
+
+            // UI Toolkit tools
+            CommandHandlerFactory.Register("uitkDocument", new UITKDocumentHandler());
+            CommandHandlerFactory.Register("uitkAsset", new UITKAssetHandler());
         }
 
         /// <summary>

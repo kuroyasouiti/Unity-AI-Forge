@@ -10,6 +10,7 @@ namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
     /// GameKit UI Binding handler: create and manage declarative UI data bindings.
+    /// Binds game state to UI Toolkit VisualElements via UIDocument queries.
     /// Uses code generation to produce standalone UIBinding scripts with zero package dependency.
     /// </summary>
     public class GameKitUIBindingHandler : BaseCommandHandler
@@ -62,8 +63,8 @@ namespace MCP.Editor.Handlers.GameKit
             var sourceType = ParseSourceType(GetString(payload, "sourceType") ?? "health");
             var sourceId = GetString(payload, "sourceId") ?? "";
             var format = ParseValueFormat(GetString(payload, "format") ?? "raw");
+            var elementName = GetString(payload, "elementName") ?? "";
             var targetProperty = GetString(payload, "targetProperty") ?? "";
-            var targetComponentType = GetString(payload, "targetComponentType") ?? "";
             var formatString = GetString(payload, "formatString") ?? "{0}";
             var minValue = GetFloat(payload, "minValue", 0f);
             var maxValue = GetFloat(payload, "maxValue", 100f);
@@ -79,7 +80,7 @@ namespace MCP.Editor.Handlers.GameKit
                 { "BINDING_ID", bindingId },
                 { "SOURCE_TYPE", sourceType },
                 { "SOURCE_ID", sourceId },
-                { "TARGET_COMPONENT_TYPE", targetComponentType },
+                { "ELEMENT_NAME", elementName },
                 { "TARGET_PROPERTY", targetProperty },
                 { "FORMAT", format },
                 { "FORMAT_STRING", formatString },
@@ -90,14 +91,10 @@ namespace MCP.Editor.Handlers.GameKit
                 { "SMOOTH_SPEED", smoothSpeed }
             };
 
-            var propertiesToSet = new Dictionary<string, object>();
-            // Set targetObject to self
-            // Note: object references must be set after component is added via reflection
             var outputDir = GetString(payload, "outputPath");
 
             var result = CodeGenHelper.GenerateAndAttach(
-                targetGo, "UIBinding", bindingId, className, variables, outputDir,
-                propertiesToSet.Count > 0 ? propertiesToSet : null);
+                targetGo, "UIBinding", bindingId, className, variables, outputDir);
 
             if (result.TryGetValue("success", out var success) && !(bool)success)
                 throw new InvalidOperationException(result.TryGetValue("error", out var err)
@@ -110,6 +107,7 @@ namespace MCP.Editor.Handlers.GameKit
             result["sourceType"] = sourceType;
             result["sourceId"] = sourceId;
             result["format"] = format;
+            result["elementName"] = elementName;
 
             return result;
         }
@@ -152,6 +150,9 @@ namespace MCP.Editor.Handlers.GameKit
                     { prop.enumValueIndex = i; break; }
                 }
             }
+
+            if (payload.TryGetValue("elementName", out var elemObj))
+                so.FindProperty("elementName").stringValue = elemObj.ToString();
 
             if (payload.TryGetValue("targetProperty", out var propObj))
                 so.FindProperty("targetProperty").stringValue = propObj.ToString();
@@ -203,6 +204,7 @@ namespace MCP.Editor.Handlers.GameKit
                 { "sourceType", sourceTypeProp.enumValueIndex < sourceTypeProp.enumDisplayNames.Length
                     ? sourceTypeProp.enumDisplayNames[sourceTypeProp.enumValueIndex] : "Health" },
                 { "sourceId", so.FindProperty("sourceId").stringValue },
+                { "elementName", so.FindProperty("elementName").stringValue },
                 { "format", formatProp.enumValueIndex < formatProp.enumDisplayNames.Length
                     ? formatProp.enumDisplayNames[formatProp.enumValueIndex] : "Raw" },
                 { "minValue", so.FindProperty("minValue").floatValue },

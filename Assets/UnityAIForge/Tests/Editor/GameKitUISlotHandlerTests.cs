@@ -45,12 +45,15 @@ namespace MCP.Editor.Tests
             var result = Execute(_handler, "create",
                 ("parentPath", "SlotParent"),
                 ("slotId", "test_slot"),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir));
             TrackCreatedGameObject("UISlot");
 
             AssertSuccess(result);
             AssertScriptGenerated(result);
             AssertHasField(result, "slotId");
+            AssertHasField(result, "uxmlPath");
+            AssertHasField(result, "ussPath");
         }
 
         [Test]
@@ -60,6 +63,7 @@ namespace MCP.Editor.Tests
             var result = Execute(_handler, "create",
                 ("parentPath", "SlotParent"),
                 ("slotId", "test_slot"),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir),
                 ("className", "MyCustomUISlot"));
             TrackCreatedGameObject("UISlot");
@@ -80,12 +84,15 @@ namespace MCP.Editor.Tests
                 ("parentPath", "BarParent"),
                 ("barId", "test_bar"),
                 ("slotCount", 4),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir));
             TrackCreatedGameObject("UISlotBar");
 
             AssertSuccess(result);
             AssertScriptGenerated(result);
             AssertHasField(result, "barId");
+            AssertHasField(result, "uxmlPath");
+            AssertHasField(result, "ussPath");
         }
 
         #endregion

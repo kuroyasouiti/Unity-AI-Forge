@@ -250,6 +250,15 @@ namespace MCP.Editor.CodeGen
             {
                 response["componentAdded"] = false;
                 response["compilationRequired"] = true;
+
+                // Mark for auto-attach after compilation
+                var tracker = GeneratedScriptTracker.Instance;
+                var entry = tracker.FindByComponentId(componentId);
+                if (entry != null)
+                {
+                    entry.pendingAttach = true;
+                    tracker.Register(entry);
+                }
             }
 
             return response;

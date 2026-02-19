@@ -246,7 +246,14 @@ def gamekit_ui_command_schema() -> dict[str, Any]:
                     "enum": ["createCommandPanel", "addCommand", "inspect", "delete"],
                 },
                 "panelId": {"type": "string", "description": "Unique command panel identifier."},
-                "canvasPath": {"type": "string", "description": "Canvas GameObject path."},
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for the UIDocument (optional, creates at scene root if omitted).",
+                },
+                "uiOutputDir": {
+                    "type": "string",
+                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
+                },
                 "targetType": {
                     "type": "string",
                     "enum": ["actor", "manager"],
@@ -309,16 +316,12 @@ def gamekit_ui_command_schema() -> dict[str, Any]:
                             },
                         },
                     },
-                    "description": "List of commands to create as buttons.",
+                    "description": "List of commands to create as buttons in UXML.",
                 },
                 "layout": {
                     "type": "string",
                     "enum": ["horizontal", "vertical", "grid"],
-                    "description": "Button layout style.",
-                },
-                "buttonSize": {
-                    "type": "object",
-                    "properties": {"width": {"type": "number"}, "height": {"type": "number"}},
+                    "description": "Button layout style (maps to USS flex-direction).",
                 },
             },
         },

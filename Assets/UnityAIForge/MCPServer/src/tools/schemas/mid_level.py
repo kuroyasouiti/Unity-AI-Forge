@@ -1091,6 +1091,227 @@ def ui_state_schema() -> dict[str, Any]:
     )
 
 
+def uitk_document_schema() -> dict[str, Any]:
+    """Schema for the unity_uitk_document MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "inspect", "update", "delete", "query"],
+                    "description": "UIDocument operation.",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "GameObject name for create operation.",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for inspect/update/delete/query.",
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for create operation.",
+                },
+                "sourceAsset": {
+                    "type": "string",
+                    "description": "UXML VisualTreeAsset path (e.g., 'Assets/UI/main.uxml'). Set to empty string to clear.",
+                },
+                "panelSettings": {
+                    "type": "string",
+                    "description": "PanelSettings asset path. Set to empty string to clear.",
+                },
+                "sortingOrder": {
+                    "type": "number",
+                    "description": "UIDocument sorting order (higher renders on top).",
+                },
+                "deleteGameObject": {
+                    "type": "boolean",
+                    "description": "If true, delete the entire GameObject instead of just the UIDocument component.",
+                },
+                "maxDepth": {
+                    "type": "integer",
+                    "description": "Max depth for VisualElement tree inspection (default: 5).",
+                },
+                "queryName": {
+                    "type": "string",
+                    "description": "Find element by name (UQuery).",
+                },
+                "queryClass": {
+                    "type": "string",
+                    "description": "Find elements by USS class name.",
+                },
+                "queryType": {
+                    "type": "string",
+                    "description": "Find elements by type name (e.g., 'Button', 'Label').",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum results for query (default: 100).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def uitk_asset_schema() -> dict[str, Any]:
+    """Schema for the unity_uitk_asset MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "createUXML",
+                        "createUSS",
+                        "inspectUXML",
+                        "inspectUSS",
+                        "updateUXML",
+                        "updateUSS",
+                        "createPanelSettings",
+                        "createFromTemplate",
+                        "validateDependencies",
+                    ],
+                    "description": "UI Toolkit asset operation.",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset file path (e.g., 'Assets/UI/main.uxml').",
+                },
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "UXML element type (e.g., VisualElement, Button, Label, TextField, Toggle, Slider, ScrollView, ProgressBar, Image, DropdownField, etc.).",
+                            },
+                            "name": {"type": "string", "description": "Element name attribute."},
+                            "classes": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "USS class names.",
+                            },
+                            "text": {"type": "string", "description": "Text content."},
+                            "style": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                                "description": "Inline style properties (e.g., {'width': '200px', 'height': '50px'}).",
+                            },
+                            "attributes": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                                "description": "Additional UXML attributes (e.g., {'tooltip': 'hint', 'value': '10'}).",
+                            },
+                            "children": {
+                                "type": "array",
+                                "description": "Nested child elements (recursive).",
+                            },
+                        },
+                    },
+                    "description": "UXML element definitions for createUXML or updateUXML (add action).",
+                },
+                "styleSheets": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "USS stylesheet paths to reference in UXML.",
+                },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "selector": {
+                                "type": "string",
+                                "description": "USS selector (e.g., '.primary', '#my-button', 'Button').",
+                            },
+                            "properties": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                                "description": "USS property-value pairs (e.g., {'background-color': '#2d5a27', 'font-size': '16px'}).",
+                            },
+                        },
+                    },
+                    "description": "USS rule definitions for createUSS or updateUSS.",
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["add", "remove", "replace", "update"],
+                    "description": "Update action type (default: 'add'). 'update' is alias for 'add' in USS.",
+                },
+                "parentElementName": {
+                    "type": "string",
+                    "description": "Parent element name for updateUXML add action (default: root).",
+                },
+                "elementName": {
+                    "type": "string",
+                    "description": "Target element name for updateUXML remove/replace.",
+                },
+                "element": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "description": "Replacement element definition for updateUXML replace action.",
+                },
+                "selector": {
+                    "type": "string",
+                    "description": "USS selector for updateUSS remove action.",
+                },
+                "scaleMode": {
+                    "type": "string",
+                    "enum": ["constantPixelSize", "scaleWithScreenSize", "constantPhysicalSize"],
+                    "description": "PanelSettings scale mode (default: scaleWithScreenSize).",
+                },
+                "referenceResolution": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Reference resolution for PanelSettings (default: 1920x1080).",
+                },
+                "match": {
+                    "type": "number",
+                    "description": "Width/height match for PanelSettings (0=width, 1=height, 0.5=both).",
+                },
+                "themeStyleSheet": {
+                    "type": "string",
+                    "description": "Theme StyleSheet asset path for PanelSettings.",
+                },
+                "templateName": {
+                    "type": "string",
+                    "enum": ["menu", "dialog", "hud", "settings", "inventory"],
+                    "description": "Template name for createFromTemplate.",
+                },
+                "outputDir": {
+                    "type": "string",
+                    "description": "Output directory for template files (default: 'Assets/UI').",
+                },
+                "prefix": {
+                    "type": "string",
+                    "description": "File name prefix for template output (default: template name).",
+                },
+                "title": {"type": "string", "description": "Title text for templates."},
+                "message": {"type": "string", "description": "Message text for dialog template."},
+                "buttons": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Button labels for menu template.",
+                },
+                "columns": {
+                    "type": "integer",
+                    "description": "Grid columns for inventory template (default: 4).",
+                },
+                "slotCount": {
+                    "type": "integer",
+                    "description": "Number of slots for inventory template (default: 16).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
 def ui_navigation_schema() -> dict[str, Any]:
     """Schema for the unity_ui_navigation MCP tool."""
     return schema_with_required(

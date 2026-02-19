@@ -63,6 +63,20 @@ namespace MCP.Editor.Tests
             AssertScriptContainsClass(result, "MyCustomUIBinding");
         }
 
+        [Test]
+        public void Create_WithElementName_ShouldGenerateScript()
+        {
+            CreateTestGameObject("UITarget");
+            var result = Execute(_handler, "create",
+                ("targetPath", "UITarget"),
+                ("bindingId", "test_binding_elem"),
+                ("elementName", "hp-bar"),
+                ("outputPath", TestOutputDir));
+
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+        }
+
         #endregion
 
         #region Error Handling

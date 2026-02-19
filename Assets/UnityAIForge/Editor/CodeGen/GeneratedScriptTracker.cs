@@ -35,6 +35,9 @@ namespace MCP.Editor.CodeGen
 
             /// <summary>Serialized variables used for generation (JSON). Enables regeneration.</summary>
             public string variablesJson;
+
+            /// <summary>True if the component needs to be attached after next compilation.</summary>
+            public bool pendingAttach;
         }
 
         [SerializeField]
@@ -117,6 +120,12 @@ namespace MCP.Editor.CodeGen
             if (string.IsNullOrEmpty(templateName))
                 return Enumerable.Empty<Entry>();
             return entries.Where(e => e.templateName == templateName);
+        }
+
+        /// <summary>Finds all entries with pending component attachment.</summary>
+        public IEnumerable<Entry> FindPendingAttach()
+        {
+            return entries.Where(e => e.pendingAttach);
         }
 
         /// <summary>Checks whether a class name is already registered.</summary>

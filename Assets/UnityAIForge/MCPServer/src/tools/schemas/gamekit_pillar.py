@@ -29,7 +29,11 @@ def gamekit_ui_binding_schema() -> dict[str, Any]:
                 "bindingId": {"type": "string", "description": "Unique binding identifier."},
                 "targetPath": {
                     "type": "string",
-                    "description": "Target UI GameObject path (e.g., 'Canvas/HUD/HPBar').",
+                    "description": "Target GameObject path with UIDocument (e.g., 'GameUI/HPBar').",
+                },
+                "elementName": {
+                    "type": "string",
+                    "description": "VisualElement name to bind to within the UIDocument (e.g., 'hp-bar'). Queried via rootVisualElement.Q(name).",
                 },
                 "sourceType": {
                     "type": "string",
@@ -95,47 +99,25 @@ def gamekit_ui_list_schema() -> dict[str, Any]:
                         "clearSelection",
                         "refreshFromSource",
                         "findByListId",
-                        "createItemPrefab",
                     ],
                     "description": "UI list operation.",
                 },
                 "listId": {"type": "string", "description": "Unique list identifier."},
-                "prefabPath": {
-                    "type": "string",
-                    "description": "Path to save item prefab (for createItemPrefab).",
-                },
-                "includeIcon": {
-                    "type": "boolean",
-                    "description": "Include icon Image in item prefab (for createItemPrefab).",
-                },
-                "includeQuantity": {
-                    "type": "boolean",
-                    "description": "Include quantity Text in item prefab (for createItemPrefab).",
-                },
                 "targetPath": {
                     "type": "string",
                     "description": "Target GameObject path for list component (use existing GameObject).",
                 },
                 "parentPath": {
                     "type": "string",
-                    "description": "Parent GameObject path to create new UI list under (auto-creates UI elements).",
+                    "description": "Parent GameObject path to create new UI list under (auto-creates UIDocument with UXML/USS).",
                 },
                 "name": {
                     "type": "string",
                     "description": "Name for the created GameObject when using parentPath.",
                 },
-                "width": {
-                    "type": "number",
-                    "description": "Width of the list UI (default: 300).",
-                },
-                "height": {
-                    "type": "number",
-                    "description": "Height of the list UI (default: 400).",
-                },
-                "backgroundColor": {
-                    "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
-                    "description": "Background color (RGBA).",
+                "uiOutputDir": {
+                    "type": "string",
+                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
                 },
                 "layout": {
                     "type": "string",
@@ -173,10 +155,6 @@ def gamekit_ui_list_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Allow multiple selection (default: false).",
                 },
-                "itemPrefabPath": {
-                    "type": "string",
-                    "description": "Path to item prefab asset.",
-                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -185,7 +163,7 @@ def gamekit_ui_list_schema() -> dict[str, Any]:
                             "id": {"type": "string", "description": "Item unique ID."},
                             "name": {"type": "string", "description": "Item display name."},
                             "description": {"type": "string", "description": "Item description."},
-                            "iconPath": {"type": "string", "description": "Path to icon sprite."},
+                            "iconPath": {"type": "string", "description": "Path to icon asset."},
                             "quantity": {"type": "integer", "description": "Item quantity."},
                             "enabled": {"type": "boolean", "description": "Item enabled state."},
                         },
@@ -253,11 +231,15 @@ def gamekit_ui_slot_schema() -> dict[str, Any]:
                 },
                 "parentPath": {
                     "type": "string",
-                    "description": "Parent GameObject path to create new UI slot under (auto-creates UI elements).",
+                    "description": "Parent GameObject path to create new UI slot under (auto-creates UIDocument with UXML/USS).",
                 },
                 "name": {
                     "type": "string",
                     "description": "Name for the created GameObject when using parentPath.",
+                },
+                "uiOutputDir": {
+                    "type": "string",
+                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
                 },
                 "size": {
                     "type": "number",
@@ -270,11 +252,6 @@ def gamekit_ui_slot_schema() -> dict[str, Any]:
                 "height": {
                     "type": "number",
                     "description": "Height of the slot UI (overrides size).",
-                },
-                "backgroundColor": {
-                    "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
-                    "description": "Background color (RGBA).",
                 },
                 "slotType": {
                     "type": "string",
@@ -327,7 +304,7 @@ def gamekit_ui_slot_schema() -> dict[str, Any]:
                 },
                 "iconPath": {
                     "type": "string",
-                    "description": "Icon sprite path for setItem.",
+                    "description": "Icon asset path for setItem.",
                 },
                 "highlighted": {
                     "type": "boolean",
@@ -363,7 +340,6 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                         "setSelectionActions",
                         "setItemEnabled",
                         "findBySelectionId",
-                        "createItemPrefab",
                     ],
                     "description": "UI selection operation.",
                 },
@@ -374,37 +350,15 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                 },
                 "parentPath": {
                     "type": "string",
-                    "description": "Parent GameObject path to create new UI selection under (auto-creates UI elements).",
+                    "description": "Parent GameObject path to create new UI selection under (auto-creates UIDocument with UXML/USS).",
                 },
                 "name": {
                     "type": "string",
                     "description": "Name for the created GameObject when using parentPath.",
                 },
-                "prefabPath": {
+                "uiOutputDir": {
                     "type": "string",
-                    "description": "Path to save item prefab (for createItemPrefab).",
-                },
-                "style": {
-                    "type": "string",
-                    "enum": ["button", "tab", "radio", "toggle"],
-                    "description": "Visual style for prefab: 'button', 'tab', 'radio', 'toggle' (for createItemPrefab).",
-                },
-                "includeIcon": {
-                    "type": "boolean",
-                    "description": "Include icon Image in item prefab (for createItemPrefab).",
-                },
-                "width": {
-                    "type": "number",
-                    "description": "Width of the selection UI when using parentPath (default: 300), or item width for createItemPrefab (default: 120).",
-                },
-                "height": {
-                    "type": "number",
-                    "description": "Height of the selection UI when using parentPath (default: 50), or item height for createItemPrefab (default: 40).",
-                },
-                "backgroundColor": {
-                    "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
-                    "description": "Background color (RGBA, optional).",
+                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
                 },
                 "selectionType": {
                     "type": "string",
@@ -428,20 +382,6 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                     "type": "number",
                     "description": "Spacing between items.",
                 },
-                "itemPrefabPath": {
-                    "type": "string",
-                    "description": "Path to item prefab asset.",
-                },
-                "normalColor": {
-                    "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
-                    "description": "Normal state color.",
-                },
-                "selectedColor": {
-                    "type": "object",
-                    "properties": {"r": {"type": "number"}, "g": {"type": "number"}, "b": {"type": "number"}, "a": {"type": "number"}},
-                    "description": "Selected state color.",
-                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -449,10 +389,10 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                         "properties": {
                             "id": {"type": "string", "description": "Item ID."},
                             "label": {"type": "string", "description": "Item display label."},
-                            "iconPath": {"type": "string", "description": "Icon sprite path."},
+                            "iconPath": {"type": "string", "description": "Icon asset path."},
                             "enabled": {"type": "boolean", "description": "Item enabled state."},
                             "defaultSelected": {"type": "boolean", "description": "Default selected."},
-                            "associatedPanelPath": {"type": "string", "description": "Panel path for tab type."},
+                            "associatedPanelPath": {"type": "string", "description": "GameObject path of associated panel for tab type."},
                         },
                     },
                     "description": "Selection items for setItems.",

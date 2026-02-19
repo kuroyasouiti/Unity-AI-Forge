@@ -88,6 +88,8 @@ from tools.schemas.mid_level import (
     ui_hierarchy_schema,
     ui_navigation_schema,
     ui_state_schema,
+    uitk_asset_schema,
+    uitk_document_schema,
 )
 from tools.schemas.utility import (
     compilation_await_schema,
@@ -145,6 +147,8 @@ __all__ = [
     "input_profile_schema",
     "character_controller_bundle_schema",
     "tilemap_bundle_schema",
+    "uitk_document_schema",
+    "uitk_asset_schema",
     # visual
     "sprite2d_bundle_schema",
     "animation2d_bundle_schema",

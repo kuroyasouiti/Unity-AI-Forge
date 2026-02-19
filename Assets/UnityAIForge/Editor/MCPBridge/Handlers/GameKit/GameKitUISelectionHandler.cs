@@ -1,19 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using MCP.Editor.Base;
 using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace MCP.Editor.Handlers.GameKit
 {
     /// <summary>
-    /// GameKit UI Selection handler: create and manage selection groups.
+    /// GameKit UI Selection handler: create and manage selection groups using UI Toolkit.
     /// Supports radio buttons, toggles, checkboxes, and tabs.
-    /// Uses code generation to produce standalone UISelection scripts with zero package dependency.
+    /// Generates UXML/USS for the selection layout and a C# script for selection logic.
     /// </summary>
     public class GameKitUISelectionHandler : BaseCommandHandler
     {
@@ -23,8 +23,7 @@ namespace MCP.Editor.Handlers.GameKit
             "setItems", "addItem", "removeItem", "clear",
             "selectItem", "selectItemById", "deselectItem", "clearSelection",
             "setSelectionActions", "setItemEnabled",
-            "findBySelectionId",
-            "createItemPrefab"
+            "findBySelectionId"
         };
 
         public override string Category => "gamekitUISelection";
@@ -53,7 +52,6 @@ namespace MCP.Editor.Handlers.GameKit
                 "setSelectionActions" => SetSelectionActions(payload),
                 "setItemEnabled" => SetItemEnabled(payload),
                 "findBySelectionId" => FindBySelectionId(payload),
-                "createItemPrefab" => CreateItemPrefab(payload),
                 _ => throw new InvalidOperationException($"Unsupported GameKit UI Selection operation: {operation}")
             };
         }
@@ -62,55 +60,36 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object CreateSelection(Dictionary<string, object> payload)
         {
-            var targetPath = GetString(payload, "targetPath");
-            var parentPath = GetString(payload, "parentPath");
-            var name = GetString(payload, "name");
-
-            GameObject targetGo;
-            bool createdNewUI = false;
-
-            // If targetPath is provided, use existing GameObject
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                targetGo = ResolveGameObject(targetPath);
-                if (targetGo == null)
-                {
-                    throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-                }
-
-                var existingSelection = CodeGenHelper.FindComponentByField(targetGo, "selectionId", null);
-                if (existingSelection != null)
-                {
-                    throw new InvalidOperationException($"GameObject '{targetPath}' already has a UISelection component.");
-                }
-            }
-            // If parentPath is provided, create new UI GameObject
-            else if (!string.IsNullOrEmpty(parentPath))
-            {
-                var parent = ResolveGameObject(parentPath);
-                if (parent == null)
-                {
-                    throw new InvalidOperationException($"Parent GameObject not found at path: {parentPath}");
-                }
-
-                var selectionName = name ?? "UISelection";
-                targetGo = CreateSelectionUIGameObject(parent, selectionName, payload);
-                createdNewUI = true;
-            }
-            else
-            {
-                throw new InvalidOperationException("Either targetPath or parentPath is required for create operation.");
-            }
-
             var selectionId = GetString(payload, "selectionId") ?? $"Selection_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var parentPath = GetString(payload, "parentPath") ?? GetString(payload, "targetPath");
             var selectionType = ParseSelectionType(GetString(payload, "selectionType") ?? "radio");
             var allowNone = GetBool(payload, "allowNone", false);
             var defaultIndex = GetInt(payload, "defaultIndex", 0);
             var layout = ParseLayoutType(GetString(payload, "layout") ?? "horizontal");
             var spacing = GetFloat(payload, "spacing", 10f);
+            var uiOutputDir = GetString(payload, "uiOutputDir") ?? UITKGenerationHelper.DefaultUIOutputDir;
+
+            Transform parent = null;
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parentGo = ResolveGameObject(parentPath);
+                parent = parentGo.transform;
+            }
 
             var className = GetString(payload, "className")
                 ?? ScriptGenerator.ToPascalCase(selectionId, "UISelection");
+
+            // Generate UXML
+            var uxmlContent = BuildSelectionUXML(className, selectionId, layout, selectionType);
+            var uxmlPath = UITKGenerationHelper.WriteUXML(uiOutputDir, className, uxmlContent);
+
+            // Generate USS
+            var ussContent = BuildSelectionUSS(layout, spacing, selectionType);
+            var ussPath = UITKGenerationHelper.WriteUSS(uiOutputDir, className, ussContent);
+
+            // Create UIDocument GameObject
+            var selectionGo = UITKGenerationHelper.CreateUIDocumentGameObject(
+                GetString(payload, "name") ?? selectionId, parent, uxmlPath, ussPath);
 
             // Build template variables
             var variables = new Dictionary<string, object>
@@ -120,51 +99,16 @@ namespace MCP.Editor.Handlers.GameKit
                 { "ALLOW_NONE", allowNone },
                 { "DEFAULT_INDEX", defaultIndex },
                 { "LAYOUT", layout },
-                { "SPACING", spacing }
+                { "SPACING", spacing },
+                { "UXML_PATH", uxmlPath },
+                { "USS_PATH", ussPath }
             };
-
-            // Build properties to set after component is added
-            var propertiesToSet = new Dictionary<string, object>();
-
-            if (createdNewUI)
-            {
-                // itemContainer reference will need to be set after component is added
-                var contentTransform = targetGo.transform.Find("Viewport/Content");
-                if (contentTransform != null)
-                {
-                    propertiesToSet["itemContainer"] = contentTransform;
-                }
-                else
-                {
-                    propertiesToSet["itemContainer"] = targetGo.transform;
-                }
-            }
-
-            if (payload.TryGetValue("itemPrefabPath", out var prefabPathObj))
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPathObj.ToString());
-                if (prefab != null)
-                {
-                    propertiesToSet["itemPrefab"] = prefab;
-                }
-            }
-
-            if (payload.TryGetValue("normalColor", out var normalObj) && normalObj is Dictionary<string, object> normalDict)
-            {
-                propertiesToSet["normalColor"] = normalDict;
-            }
-
-            if (payload.TryGetValue("selectedColor", out var selectedObj) && selectedObj is Dictionary<string, object> selectedDict)
-            {
-                propertiesToSet["selectedColor"] = selectedDict;
-            }
 
             var outputDir = GetString(payload, "outputPath");
 
-            // Generate script and optionally attach component
+            // Generate C# script and attach component
             var result = CodeGenHelper.GenerateAndAttach(
-                targetGo, "UISelection", selectionId, className, variables, outputDir,
-                propertiesToSet.Count > 0 ? propertiesToSet : null);
+                selectionGo, "UISelection", selectionId, className, variables, outputDir);
 
             if (result.TryGetValue("success", out var success) && !(bool)success)
             {
@@ -173,12 +117,91 @@ namespace MCP.Editor.Handlers.GameKit
                     : "Failed to generate UISelection script.");
             }
 
-            EditorSceneManager.MarkSceneDirty(targetGo.scene);
+            EditorSceneManager.MarkSceneDirty(selectionGo.scene);
 
             result["selectionId"] = selectionId;
-            result["path"] = BuildGameObjectPath(targetGo);
+            result["path"] = BuildGameObjectPath(selectionGo);
+            result["uxmlPath"] = uxmlPath;
+            result["ussPath"] = ussPath;
 
             return result;
+        }
+
+        private string BuildSelectionUXML(string className, string selectionId, string layout, string selectionType)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<ui:UXML xmlns:ui=\"UnityEngine.UIElements\" xmlns:uie=\"UnityEditor.UIElements\">");
+            sb.AppendLine($"    <Style src=\"{className}.uss\" />");
+            sb.AppendLine($"    <ui:VisualElement name=\"selection-container\" class=\"selection-container selection-{selectionType.ToLowerInvariant()}\">");
+            sb.AppendLine("    </ui:VisualElement>");
+            sb.AppendLine("</ui:UXML>");
+            return sb.ToString();
+        }
+
+        private string BuildSelectionUSS(string layout, float spacing, string selectionType)
+        {
+            var flexDirection = layout switch
+            {
+                "Horizontal" => "row",
+                "Grid" => "row",
+                _ => "column"
+            };
+            var flexWrap = layout == "Grid" ? "wrap" : "nowrap";
+
+            var sb = new StringBuilder();
+            sb.AppendLine(".selection-container {");
+            sb.AppendLine($"    flex-direction: {flexDirection};");
+            sb.AppendLine($"    flex-wrap: {flexWrap};");
+            sb.AppendLine($"    padding: 5px;");
+            sb.AppendLine("    align-items: stretch;");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine(".selection-item {");
+            sb.AppendLine($"    margin: {spacing / 2}px;");
+            sb.AppendLine("    padding: 8px 16px;");
+            sb.AppendLine("    background-color: rgba(60, 60, 60, 0.8);");
+            sb.AppendLine("    border-radius: 4px;");
+            sb.AppendLine("    border-width: 1px;");
+            sb.AppendLine("    border-color: rgba(100, 100, 100, 0.5);");
+            sb.AppendLine("    cursor: link;");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine(".selection-item:hover {");
+            sb.AppendLine("    background-color: rgba(80, 80, 80, 0.9);");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine(".selection-item--selected {");
+            sb.AppendLine("    background-color: rgba(50, 100, 200, 0.8);");
+            sb.AppendLine("    border-color: rgba(80, 140, 255, 0.9);");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine(".selection-item--disabled {");
+            sb.AppendLine("    opacity: 0.5;");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine(".selection-item-label {");
+            sb.AppendLine("    font-size: 14px;");
+            sb.AppendLine("    color: white;");
+            sb.AppendLine("    -unity-text-align: middle-center;");
+            sb.AppendLine("}");
+
+            // Tab-specific styling
+            if (selectionType == "Tab")
+            {
+                sb.AppendLine();
+                sb.AppendLine(".selection-tab .selection-item {");
+                sb.AppendLine("    border-bottom-left-radius: 0;");
+                sb.AppendLine("    border-bottom-right-radius: 0;");
+                sb.AppendLine("    border-bottom-width: 2px;");
+                sb.AppendLine("    border-bottom-color: transparent;");
+                sb.AppendLine("}");
+                sb.AppendLine();
+                sb.AppendLine(".selection-tab .selection-item--selected {");
+                sb.AppendLine("    border-bottom-color: rgba(80, 140, 255, 1);");
+                sb.AppendLine("}");
+            }
+
+            return sb.ToString();
         }
 
         #endregion
@@ -294,7 +317,6 @@ namespace MCP.Editor.Handlers.GameKit
                         var enabled = (bool)(itemType.GetField("enabled")?.GetValue(item) ?? true);
                         var isSelected = false;
 
-                        // Check if this index is in selectedIndices
                         if (selectedIndices is ICollection<int> selectedSet)
                         {
                             isSelected = selectedSet.Contains(i);
@@ -313,6 +335,18 @@ namespace MCP.Editor.Handlers.GameKit
                 info["items"] = itemsInfo;
             }
 
+            // Add UXML/USS paths from tracker
+            var tracker = GeneratedScriptTracker.Instance;
+            var entry = tracker.FindByComponentId(so.FindProperty("selectionId").stringValue);
+            if (entry != null)
+            {
+                var vars = ScriptGenerator.DeserializeVariables(entry.variablesJson);
+                if (vars.TryGetValue("UXML_PATH", out var uxmlPath))
+                    info["uxmlPath"] = uxmlPath;
+                if (vars.TryGetValue("USS_PATH", out var ussPath))
+                    info["ussPath"] = ussPath;
+            }
+
             return CreateSuccessResponse(("selection", info));
         }
 
@@ -327,9 +361,10 @@ namespace MCP.Editor.Handlers.GameKit
             var selectionId = new SerializedObject(component).FindProperty("selectionId").stringValue;
             var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(component);
+            // Delete UXML/USS assets
+            UITKGenerationHelper.DeleteUIAssets(selectionId);
 
-            // Also clean up the generated script from tracker
+            Undo.DestroyObjectImmediate(component.gameObject);
             ScriptGenerator.Delete(selectionId);
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -354,7 +389,6 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("items array is required for setItems.");
             }
 
-            // Build items list via reflection (create instances of the nested SelectionItem type)
             var compType = component.GetType();
             var itemType = compType.GetNestedType("SelectionItem")
                 ?? FindNestedType(compType, "SelectionItem");
@@ -376,7 +410,6 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            // Invoke SetItems method
             var setItemsMethod = compType.GetMethod("SetItems");
             if (setItemsMethod != null)
             {
@@ -724,406 +757,10 @@ namespace MCP.Editor.Handlers.GameKit
 
         #endregion
 
-        #region UI Creation Helpers
-
-        private GameObject CreateSelectionUIGameObject(GameObject parent, string name, Dictionary<string, object> payload)
-        {
-            // Get size from payload or use defaults
-            float width = 300f;
-            float height = 50f;
-            if (payload.TryGetValue("width", out var widthObj))
-            {
-                width = Convert.ToSingle(widthObj);
-            }
-            if (payload.TryGetValue("height", out var heightObj))
-            {
-                height = Convert.ToSingle(heightObj);
-            }
-
-            // Get layout type
-            var layoutType = ParseLayoutType(GetString(payload, "layout") ?? "horizontal");
-            var isHorizontal = string.Equals(layoutType, "Horizontal", StringComparison.OrdinalIgnoreCase);
-
-            float spacing = 10f;
-            if (payload.TryGetValue("spacing", out var spacingObj))
-            {
-                spacing = Convert.ToSingle(spacingObj);
-            }
-
-            // === Create ScrollView Structure ===
-
-            // 1. Create main ScrollView container
-            var scrollViewGo = new GameObject(name, typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(scrollViewGo, "Create UI Selection ScrollView");
-            scrollViewGo.transform.SetParent(parent.transform, false);
-
-            var scrollViewRect = scrollViewGo.GetComponent<RectTransform>();
-            scrollViewRect.sizeDelta = new Vector2(width, height);
-            scrollViewRect.anchorMin = new Vector2(0.5f, 0.5f);
-            scrollViewRect.anchorMax = new Vector2(0.5f, 0.5f);
-            scrollViewRect.pivot = new Vector2(0.5f, 0.5f);
-            scrollViewRect.anchoredPosition = Vector2.zero;
-
-            // Add background image
-            var bgImage = Undo.AddComponent<Image>(scrollViewGo);
-            if (payload.TryGetValue("backgroundColor", out var bgColorObj) && bgColorObj is Dictionary<string, object> bgColorDict)
-            {
-                bgImage.color = GetColorFromDict(bgColorDict, new Color(0.15f, 0.15f, 0.15f, 0.9f));
-            }
-            else
-            {
-                bgImage.color = new Color(0.15f, 0.15f, 0.15f, 0.9f);
-            }
-
-            // Add ScrollRect component
-            var scrollRect = Undo.AddComponent<ScrollRect>(scrollViewGo);
-
-            // 2. Create Viewport
-            var viewportGo = new GameObject("Viewport", typeof(RectTransform));
-            viewportGo.transform.SetParent(scrollViewGo.transform, false);
-
-            var viewportRect = viewportGo.GetComponent<RectTransform>();
-            viewportRect.anchorMin = Vector2.zero;
-            viewportRect.anchorMax = Vector2.one;
-            viewportRect.offsetMin = Vector2.zero;
-            viewportRect.offsetMax = Vector2.zero;
-            viewportRect.pivot = new Vector2(0f, 1f);
-
-            // Add Mask and Image to viewport
-            var viewportImage = viewportGo.AddComponent<Image>();
-            viewportImage.color = Color.white;
-            var mask = viewportGo.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
-
-            // 3. Create Content container
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            contentGo.transform.SetParent(viewportGo.transform, false);
-
-            var contentRect = contentGo.GetComponent<RectTransform>();
-            if (isHorizontal)
-            {
-                contentRect.anchorMin = new Vector2(0f, 0f);
-                contentRect.anchorMax = new Vector2(0f, 1f);
-                contentRect.pivot = new Vector2(0f, 0.5f);
-                contentRect.offsetMin = Vector2.zero;
-                contentRect.offsetMax = Vector2.zero;
-                contentRect.sizeDelta = new Vector2(0, 0);
-            }
-            else // Vertical or Grid
-            {
-                contentRect.anchorMin = new Vector2(0f, 1f);
-                contentRect.anchorMax = new Vector2(1f, 1f);
-                contentRect.pivot = new Vector2(0.5f, 1f);
-                contentRect.offsetMin = Vector2.zero;
-                contentRect.offsetMax = Vector2.zero;
-                contentRect.sizeDelta = new Vector2(0, 0);
-            }
-
-            // Add LayoutGroup to Content based on layout type
-            var isGrid = string.Equals(layoutType, "Grid", StringComparison.OrdinalIgnoreCase);
-            var isVertical = string.Equals(layoutType, "Vertical", StringComparison.OrdinalIgnoreCase);
-
-            if (isHorizontal)
-            {
-                var hlg = contentGo.AddComponent<HorizontalLayoutGroup>();
-                hlg.spacing = spacing;
-                hlg.padding = new RectOffset(10, 10, 5, 5);
-                hlg.childAlignment = TextAnchor.MiddleLeft;
-                hlg.childControlWidth = false;
-                hlg.childControlHeight = true;
-                hlg.childForceExpandWidth = false;
-                hlg.childForceExpandHeight = true;
-            }
-            else if (isVertical)
-            {
-                var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
-                vlg.spacing = spacing;
-                vlg.padding = new RectOffset(10, 10, 5, 5);
-                vlg.childAlignment = TextAnchor.UpperLeft;
-                vlg.childControlWidth = true;
-                vlg.childControlHeight = false;
-                vlg.childForceExpandWidth = true;
-                vlg.childForceExpandHeight = false;
-            }
-            else if (isGrid)
-            {
-                var glg = contentGo.AddComponent<GridLayoutGroup>();
-                var cellSize = new Vector2(80, 40);
-                if (payload.TryGetValue("cellSize", out var cellSizeObj) && cellSizeObj is Dictionary<string, object> cellDict)
-                {
-                    float cx = cellDict.TryGetValue("x", out var cxObj) ? Convert.ToSingle(cxObj) : cellSize.x;
-                    float cy = cellDict.TryGetValue("y", out var cyObj) ? Convert.ToSingle(cyObj) : cellSize.y;
-                    cellSize = new Vector2(cx, cy);
-                }
-                glg.cellSize = cellSize;
-                glg.spacing = new Vector2(spacing, spacing);
-                glg.padding = new RectOffset(10, 10, 5, 5);
-                glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-                int columns = 4;
-                if (payload.TryGetValue("columns", out var columnsObj))
-                {
-                    columns = Convert.ToInt32(columnsObj);
-                }
-                glg.constraintCount = columns;
-            }
-
-            // Add ContentSizeFitter to Content
-            var fitter = contentGo.AddComponent<ContentSizeFitter>();
-            if (isHorizontal)
-            {
-                fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-                fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
-            }
-            else
-            {
-                fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-                fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            }
-
-            // 4. Configure ScrollRect
-            scrollRect.content = contentRect;
-            scrollRect.viewport = viewportRect;
-            scrollRect.horizontal = isHorizontal;
-            scrollRect.vertical = !isHorizontal;
-            scrollRect.movementType = ScrollRect.MovementType.Elastic;
-            scrollRect.elasticity = 0.1f;
-            scrollRect.inertia = true;
-            scrollRect.decelerationRate = 0.135f;
-            scrollRect.scrollSensitivity = 1f;
-
-            return scrollViewGo;
-        }
-
-        #endregion
-
-        #region Prefab Creation
-
-        private object CreateItemPrefab(Dictionary<string, object> payload)
-        {
-            var prefabPath = GetString(payload, "prefabPath");
-            if (string.IsNullOrEmpty(prefabPath))
-            {
-                throw new InvalidOperationException("prefabPath is required for createItemPrefab.");
-            }
-
-            // Ensure path ends with .prefab
-            if (!prefabPath.EndsWith(".prefab"))
-            {
-                prefabPath += ".prefab";
-            }
-
-            // Ensure directory exists
-            var directory = System.IO.Path.GetDirectoryName(prefabPath);
-            if (!string.IsNullOrEmpty(directory) && !AssetDatabase.IsValidFolder(directory))
-            {
-                CreateFolderRecursively(directory);
-            }
-
-            // Get prefab configuration
-            var prefabName = GetString(payload, "name") ?? System.IO.Path.GetFileNameWithoutExtension(prefabPath);
-            float width = payload.TryGetValue("width", out var widthObj) ? Convert.ToSingle(widthObj) : 120f;
-            float height = payload.TryGetValue("height", out var heightObj) ? Convert.ToSingle(heightObj) : 40f;
-            bool includeIcon = payload.TryGetValue("includeIcon", out var iconObj) && Convert.ToBoolean(iconObj);
-            var style = GetString(payload, "style") ?? "button"; // "button" | "tab" | "radio" | "toggle"
-
-            // Create the item GameObject
-            var itemGo = new GameObject(prefabName, typeof(RectTransform));
-
-            var itemRect = itemGo.GetComponent<RectTransform>();
-            itemRect.sizeDelta = new Vector2(width, height);
-
-            // Get colors from payload or use defaults
-            Color normalColor = new Color(0.25f, 0.25f, 0.25f, 1f);
-            Color selectedColor = new Color(0.3f, 0.5f, 0.8f, 1f);
-            Color highlightedColor = new Color(0.35f, 0.35f, 0.35f, 1f);
-            Color pressedColor = new Color(0.2f, 0.2f, 0.2f, 1f);
-            Color disabledColor = new Color(0.25f, 0.25f, 0.25f, 0.5f);
-
-            if (payload.TryGetValue("normalColor", out var ncObj) && ncObj is Dictionary<string, object> ncDict)
-                normalColor = GetColorFromDict(ncDict, normalColor);
-            if (payload.TryGetValue("selectedColor", out var scObj) && scObj is Dictionary<string, object> scDict)
-                selectedColor = GetColorFromDict(scDict, selectedColor);
-            if (payload.TryGetValue("highlightedColor", out var hcObj) && hcObj is Dictionary<string, object> hcDict)
-                highlightedColor = GetColorFromDict(hcDict, highlightedColor);
-
-            // Add background Image
-            var bgImage = itemGo.AddComponent<Image>();
-            bgImage.color = normalColor;
-
-            // Style-specific setup
-            if (style == "tab")
-            {
-                bgImage.type = Image.Type.Sliced;
-            }
-            else if (style == "radio" || style == "toggle")
-            {
-                itemRect.sizeDelta = new Vector2(width, height);
-            }
-
-            // Add Button component for interactivity
-            var button = itemGo.AddComponent<Button>();
-            var colors = button.colors;
-            colors.normalColor = normalColor;
-            colors.highlightedColor = highlightedColor;
-            colors.pressedColor = pressedColor;
-            colors.selectedColor = selectedColor;
-            colors.disabledColor = disabledColor;
-            colors.colorMultiplier = 1f;
-            colors.fadeDuration = 0.1f;
-            button.colors = colors;
-
-            // Add content layout
-            var hlg = itemGo.AddComponent<HorizontalLayoutGroup>();
-            hlg.padding = new RectOffset(10, 10, 5, 5);
-            hlg.spacing = 8;
-            hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.childControlWidth = false;
-            hlg.childControlHeight = true;
-            hlg.childForceExpandWidth = false;
-            hlg.childForceExpandHeight = true;
-
-            // Create indicator for radio/toggle style
-            if (style == "radio" || style == "toggle")
-            {
-                var indicatorGo = new GameObject("Indicator", typeof(RectTransform));
-                indicatorGo.transform.SetParent(itemGo.transform, false);
-
-                var indicatorRect = indicatorGo.GetComponent<RectTransform>();
-                indicatorRect.sizeDelta = new Vector2(20, 20);
-
-                var indicatorBg = indicatorGo.AddComponent<Image>();
-                indicatorBg.color = new Color(0.15f, 0.15f, 0.15f, 1f);
-
-                // Inner check/dot
-                var checkGo = new GameObject("Check", typeof(RectTransform));
-                checkGo.transform.SetParent(indicatorGo.transform, false);
-
-                var checkRect = checkGo.GetComponent<RectTransform>();
-                checkRect.anchorMin = new Vector2(0.2f, 0.2f);
-                checkRect.anchorMax = new Vector2(0.8f, 0.8f);
-                checkRect.offsetMin = Vector2.zero;
-                checkRect.offsetMax = Vector2.zero;
-
-                var checkImage = checkGo.AddComponent<Image>();
-                checkImage.color = selectedColor;
-                checkGo.SetActive(false); // Hidden by default, shown when selected
-
-                var indicatorLayout = indicatorGo.AddComponent<LayoutElement>();
-                indicatorLayout.preferredWidth = 20;
-                indicatorLayout.preferredHeight = 20;
-            }
-
-            // Create Icon (optional)
-            if (includeIcon)
-            {
-                var iconGo = new GameObject("Icon", typeof(RectTransform));
-                iconGo.transform.SetParent(itemGo.transform, false);
-
-                var iconRect = iconGo.GetComponent<RectTransform>();
-                iconRect.sizeDelta = new Vector2(height - 16, height - 16);
-
-                var iconImage = iconGo.AddComponent<Image>();
-                iconImage.color = Color.white;
-
-                var iconLayout = iconGo.AddComponent<LayoutElement>();
-                iconLayout.preferredWidth = height - 16;
-                iconLayout.preferredHeight = height - 16;
-            }
-
-            // Create Label Text
-            var labelGo = new GameObject("Label", typeof(RectTransform));
-            labelGo.transform.SetParent(itemGo.transform, false);
-
-            var labelText = labelGo.AddComponent<Text>();
-            labelText.text = "Option";
-            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            labelText.fontSize = 16;
-            labelText.color = Color.white;
-            labelText.alignment = TextAnchor.MiddleCenter;
-
-            var labelLayout = labelGo.AddComponent<LayoutElement>();
-            labelLayout.flexibleWidth = 1;
-            labelLayout.minWidth = 40;
-
-            // Create Selection highlight overlay
-            var highlightGo = new GameObject("SelectionHighlight", typeof(RectTransform));
-            highlightGo.transform.SetParent(itemGo.transform, false);
-            highlightGo.transform.SetAsLastSibling();
-
-            var highlightRect = highlightGo.GetComponent<RectTransform>();
-            highlightRect.anchorMin = Vector2.zero;
-            highlightRect.anchorMax = Vector2.one;
-            highlightRect.offsetMin = Vector2.zero;
-            highlightRect.offsetMax = Vector2.zero;
-
-            var highlightImage = highlightGo.AddComponent<Image>();
-            highlightImage.color = new Color(selectedColor.r, selectedColor.g, selectedColor.b, 0.3f);
-            highlightImage.raycastTarget = false;
-            highlightGo.SetActive(false); // Hidden by default
-
-            // Save as prefab
-            var prefab = PrefabUtility.SaveAsPrefabAsset(itemGo, prefabPath);
-
-            // Clean up scene object
-            UnityEngine.Object.DestroyImmediate(itemGo);
-
-            // Optionally assign to a selection
-            var selectionId = GetString(payload, "selectionId");
-            var targetPath = GetString(payload, "targetPath");
-            if (!string.IsNullOrEmpty(selectionId) || !string.IsNullOrEmpty(targetPath))
-            {
-                try
-                {
-                    var component = ResolveSelectionComponent(payload);
-                    var so = new SerializedObject(component);
-                    so.FindProperty("itemPrefab").objectReferenceValue = prefab;
-                    so.ApplyModifiedProperties();
-                    EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
-
-                    return CreateSuccessResponse(
-                        ("prefabPath", prefabPath),
-                        ("style", style),
-                        ("assignedToSelection", so.FindProperty("selectionId").stringValue)
-                    );
-                }
-                catch
-                {
-                    // Selection not found, just return prefab path
-                }
-            }
-
-            AssetDatabase.Refresh();
-
-            return CreateSuccessResponse(
-                ("prefabPath", prefabPath),
-                ("prefabName", prefabName),
-                ("style", style)
-            );
-        }
-
-        private void CreateFolderRecursively(string path)
-        {
-            var parts = path.Replace("\\", "/").Split('/');
-            var currentPath = parts[0];
-
-            for (int i = 1; i < parts.Length; i++)
-            {
-                var nextPath = currentPath + "/" + parts[i];
-                if (!AssetDatabase.IsValidFolder(nextPath))
-                {
-                    AssetDatabase.CreateFolder(currentPath, parts[i]);
-                }
-                currentPath = nextPath;
-            }
-        }
-
-        #endregion
-
         #region Helpers
 
         private Component ResolveSelectionComponent(Dictionary<string, object> payload)
         {
-            // Try by selectionId first
             var selectionId = GetString(payload, "selectionId");
             if (!string.IsNullOrEmpty(selectionId))
             {
@@ -1134,7 +771,6 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            // Try by targetPath
             var targetPath = GetString(payload, "targetPath");
             if (!string.IsNullOrEmpty(targetPath))
             {
@@ -1207,36 +843,25 @@ namespace MCP.Editor.Handlers.GameKit
 
             if (dict.TryGetValue("iconPath", out var iconPathObj))
             {
-                var iconField = itemType.GetField("icon");
+                var iconField = itemType.GetField("iconPath");
                 if (iconField != null)
                 {
-                    var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(iconPathObj.ToString());
-                    if (sprite != null)
-                    {
-                        iconField.SetValue(item, sprite);
-                    }
+                    iconField.SetValue(item, iconPathObj.ToString());
                 }
             }
 
             if (dict.TryGetValue("associatedPanelPath", out var panelPathObj))
             {
-                var panelField = itemType.GetField("associatedPanel");
+                var panelField = itemType.GetField("associatedPanelPath");
                 if (panelField != null)
                 {
-                    var panel = GameObject.Find(panelPathObj.ToString());
-                    if (panel != null)
-                    {
-                        panelField.SetValue(item, panel);
-                    }
+                    panelField.SetValue(item, panelPathObj.ToString());
                 }
             }
 
             return item;
         }
 
-        /// <summary>
-        /// Find a nested type by name, searching up the inheritance chain.
-        /// </summary>
         private static Type FindNestedType(Type type, string nestedTypeName)
         {
             var current = type;
@@ -1250,9 +875,6 @@ namespace MCP.Editor.Handlers.GameKit
             return null;
         }
 
-        /// <summary>
-        /// Invoke a public method by name via reflection.
-        /// </summary>
         private static T InvokeMethod<T>(Component component, string methodName, params object[] args)
         {
             var method = component.GetType().GetMethod(methodName,
@@ -1267,9 +889,6 @@ namespace MCP.Editor.Handlers.GameKit
             return default;
         }
 
-        /// <summary>
-        /// Invoke a public void method by name via reflection.
-        /// </summary>
         private static void InvokeMethod(Component component, string methodName, params object[] args)
         {
             var method = component.GetType().GetMethod(methodName,
@@ -1280,9 +899,6 @@ namespace MCP.Editor.Handlers.GameKit
             }
         }
 
-        /// <summary>
-        /// Get a public property value via reflection.
-        /// </summary>
         private static T GetPropertyValue<T>(Component component, string propertyName)
         {
             var prop = component.GetType().GetProperty(propertyName,

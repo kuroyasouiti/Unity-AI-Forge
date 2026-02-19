@@ -30,8 +30,7 @@ namespace MCP.Editor.Tests
                 "create", "update", "inspect", "delete",
                 "setItems", "addItem", "removeItem", "clear",
                 "selectItem", "deselectItem", "clearSelection",
-                "refreshFromSource", "findByListId",
-                "createItemPrefab");
+                "refreshFromSource", "findByListId");
         }
 
         #endregion
@@ -45,12 +44,15 @@ namespace MCP.Editor.Tests
             var result = Execute(_handler, "create",
                 ("parentPath", "ListParent"),
                 ("listId", "test_list"),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir));
             TrackCreatedGameObject("UIList");
 
             AssertSuccess(result);
             AssertScriptGenerated(result);
             AssertHasField(result, "listId");
+            AssertHasField(result, "uxmlPath");
+            AssertHasField(result, "ussPath");
         }
 
         [Test]
@@ -60,6 +62,7 @@ namespace MCP.Editor.Tests
             var result = Execute(_handler, "create",
                 ("parentPath", "ListParent"),
                 ("listId", "test_list"),
+                ("uiOutputDir", TestOutputDir),
                 ("outputPath", TestOutputDir),
                 ("className", "MyCustomUIList"));
             TrackCreatedGameObject("UIList");

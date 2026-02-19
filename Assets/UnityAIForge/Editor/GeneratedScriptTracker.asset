@@ -19,36 +19,42 @@ MonoBehaviour:
     templateName: Actor
     gameObjectPath: test_actor
     variablesJson: '{"ACTOR_ID":"test_actor","BEHAVIOR_PROFILE":"Linear2D","CONTROL_MODE":"DirectController","MOVE_SPEED":5,"ACCELERATION":10,"JUMP_FORCE":5,"CLASS_NAME":"TestActorActor"}'
+    pendingAttach: 0
   - componentId: test_ai
     className: TestAiAI
     scriptPath: Assets/TestTemp/Generated/TestAiAI.cs
     templateName: AIBehavior
     gameObjectPath: TestTarget
     variablesJson: '{"AI_ID":"test_ai","BEHAVIOR_TYPE":"Patrol","USE_2D":"true","MOVE_SPEED":3,"TURN_SPEED":5,"DETECTION_RADIUS":8,"FIELD_OF_VIEW":360,"ATTACK_RANGE":1.5,"ATTACK_COOLDOWN":1,"CLASS_NAME":"TestAiAI"}'
+    pendingAttach: 0
   - componentId: test_sync
     className: TestSyncAnimationSync
     scriptPath: Assets/TestTemp/Generated/TestSyncAnimationSync.cs
     templateName: AnimationSync
     gameObjectPath: AnimTarget
     variablesJson: '{"SYNC_ID":"test_sync","AUTO_FIND_ANIMATOR":true,"CLASS_NAME":"TestSyncAnimationSync"}'
+    pendingAttach: 0
   - componentId: test_audio
     className: TestAudioAudio
     scriptPath: Assets/TestTemp/Generated/TestAudioAudio.cs
     templateName: Audio
     gameObjectPath: AudioTarget
     variablesJson: '{"AUDIO_ID":"test_audio","AUDIO_TYPE":"SFX","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":1,"PITCH":1,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"TestAudioAudio"}'
+    pendingAttach: 0
   - componentId: test_collectible
     className: TestCollectibleCollectible
     scriptPath: Assets/TestTemp/Generated/TestCollectibleCollectible.cs
     templateName: Collectible
     gameObjectPath: Collectible
     variablesJson: '{"COLLECTIBLE_ID":"test_collectible","COLLECTIBLE_TYPE":"Coin","COLLECTION_BEHAVIOR":"Destroy","VALUE":1,"INT_VALUE":0,"CUSTOM_TYPE_NAME":"","RESPAWN_DELAY":3,"IS_2D":false,"COLLIDER_RADIUS":0.5,"CLASS_NAME":"TestCollectibleCollectible"}'
+    pendingAttach: 0
   - componentId: target_collectible
     className: TargetCollectibleCollectible
     scriptPath: Assets/TestTemp/Generated/TargetCollectibleCollectible.cs
     templateName: Collectible
     gameObjectPath: PickupTarget
     variablesJson: '{"COLLECTIBLE_ID":"target_collectible","COLLECTIBLE_TYPE":"Coin","COLLECTION_BEHAVIOR":"Destroy","VALUE":1,"INT_VALUE":0,"CUSTOM_TYPE_NAME":"","RESPAWN_DELAY":3,"IS_2D":false,"COLLIDER_RADIUS":0.5,"CLASS_NAME":"TargetCollectibleCollectible"}'
+    pendingAttach: 0
   - componentId: test_combat
     className: TestCombatCombat
     scriptPath: Assets/TestTemp/Generated/TestCombatCombat.cs
@@ -56,177 +62,221 @@ MonoBehaviour:
     gameObjectPath: TestTarget
     variablesJson: '{"COMBAT_ID":"test_combat","ATTACK_TYPE":"Melee","BASE_DAMAGE":10,"DAMAGE_VARIANCE":0,"CRIT_CHANCE":0,"CRIT_MULTIPLIER":2,"ATTACK_COOLDOWN":0.5,"TARGET_TAGS":"","HIT_MULTIPLE":"false","MAX_TARGETS":1,"HITBOX_SHAPE":"Sphere","HITBOX_RADIUS":1.5,"HITBOX_SIZE":"new
       Vector3(1f, 1f, 1f)","HITBOX_OFFSET":"Vector3.zero","CAST_DISTANCE":50,"AREA_RADIUS":5,"PROJECTILE_SPEED":10,"PROJECTILE_PREFAB_PATH":"","ON_HIT_EFFECT_ID":"","ON_CRIT_EFFECT_ID":"","CLASS_NAME":"TestCombatCombat"}'
-  - componentId: MyCustomDialogueData
-    className: test_dialogue
-    scriptPath: Assets/TestTemp/Generated/test_dialogue.cs
-    templateName: DialogueData
-    gameObjectPath: 
-    variablesJson: '{"DIALOGUE_ID":"test_dialogue","CLASS_NAME":"test_dialogue"}'
+    pendingAttach: 0
   - componentId: test_dm
     className: TestDmDialogueManager
     scriptPath: Assets/TestTemp/Generated/TestDmDialogueManager.cs
     templateName: DialogueManager
     gameObjectPath: DialogueManager
     variablesJson: '{"DEFAULT_TYPING_SPEED":0.05,"PAUSE_GAME":"false","CLASS_NAME":"TestDmDialogueManager"}'
+    pendingAttach: 0
   - componentId: test_mgr
     className: TestMgr
     scriptPath: Assets/TestTemp/Generated/TestMgr.cs
     templateName: EffectManager
     gameObjectPath: test_mgr
     variablesJson: '{"MANAGER_ID":"test_mgr","PERSISTENT":"true","AUDIO_POOL_SIZE":5,"CLASS_NAME":"TestMgr"}'
+    pendingAttach: 0
   - componentId: test_feedback
     className: TestFeedbackFeedback
     scriptPath: Assets/TestTemp/Generated/TestFeedbackFeedback.cs
     templateName: Feedback
     gameObjectPath: FeedbackTarget
     variablesJson: '{"FEEDBACK_ID":"test_feedback","PLAY_ON_ENABLE":false,"GLOBAL_INTENSITY":1,"CLASS_NAME":"TestFeedbackFeedback"}'
+    pendingAttach: 0
   - componentId: test_inv
     className: TestInvInventory
     scriptPath: Assets/TestTemp/Generated/TestInvInventory.cs
     templateName: Inventory
     gameObjectPath: InvTarget
     variablesJson: '{"INVENTORY_ID":"test_inv","MAX_SLOTS":20,"DEFAULT_MAX_STACK":99,"CLASS_NAME":"TestInvInventory"}'
+    pendingAttach: 0
   - componentId: test_item
     className: TestItemItemData
     scriptPath: Assets/TestTemp/Generated/TestItemItemData.cs
     templateName: ItemData
     gameObjectPath: 
     variablesJson: '{"ITEM_ID":"test_item","DISPLAY_NAME":"Test Item","DESCRIPTION":"","CATEGORY":"Misc","STACKABLE":"false","MAX_STACK":1,"EQUIPPABLE":"false","EQUIP_SLOT":"None","BUY_PRICE":0,"SELL_PRICE":0,"CLASS_NAME":"TestItemItemData"}'
+    pendingAttach: 0
   - componentId: test_projectile
     className: TestProjectileProjectile
     scriptPath: Assets/TestTemp/Generated/TestProjectileProjectile.cs
     templateName: Projectile
     gameObjectPath: Projectile
     variablesJson: '{"PROJECTILE_ID":"test_projectile","MOVEMENT_TYPE":"Transform","SPEED":20,"LIFETIME":5,"USE_GRAVITY":false,"GRAVITY_SCALE":1,"DAMAGE":10,"DAMAGE_ON_HIT":true,"TARGET_TAG":"","CAN_BOUNCE":false,"MAX_BOUNCES":3,"BOUNCINESS":0.8,"IS_HOMING":false,"HOMING_STRENGTH":5,"MAX_HOMING_ANGLE":90,"CAN_PIERCE":false,"MAX_PIERCE_COUNT":1,"PIERCE_DAMAGE_REDUCTION":0.25,"EFFECT_DURATION":0,"CLASS_NAME":"TestProjectileProjectile"}'
+    pendingAttach: 0
   - componentId: test_qm
     className: TestQmQuestManager
     scriptPath: Assets/TestTemp/Generated/TestQmQuestManager.cs
     templateName: QuestManager
     gameObjectPath: QuestManager
     variablesJson: '{"QUEST_MANAGER_ID":"test_qm","CLASS_NAME":"TestQmQuestManager"}'
+    pendingAttach: 0
   - componentId: test_quest
     className: TestQuestQuestData
     scriptPath: Assets/TestTemp/Generated/TestQuestQuestData.cs
     templateName: QuestData
     gameObjectPath: 
     variablesJson: '{"QUEST_ID":"test_quest","TITLE":"Test Quest","DESCRIPTION":"","CATEGORY":"Side","CLASS_NAME":"TestQuestQuestData"}'
+    pendingAttach: 0
   - componentId: test_sm
     className: TestSmSaveManager
     scriptPath: Assets/TestTemp/Generated/TestSmSaveManager.cs
     templateName: SaveManager
     gameObjectPath: SaveManager
     variablesJson: '{"SAVE_MANAGER_ID":"test_sm","PERSISTENT":"true","SAVE_DIRECTORY":"Saves","FILE_EXTENSION":".sav","AUTO_SAVE_ENABLED":"false","AUTO_SAVE_INTERVAL":60,"AUTO_SAVE_SLOT_ID":"autosave","CLASS_NAME":"TestSmSaveManager"}'
+    pendingAttach: 0
   - componentId: test_profile
     className: TestProfileSaveProfile
     scriptPath: Assets/TestTemp/Generated/TestProfileSaveProfile.cs
     templateName: SaveProfile
     gameObjectPath: 
     variablesJson: '{"PROFILE_ID":"test_profile","CLASS_NAME":"TestProfileSaveProfile"}'
+    pendingAttach: 0
   - componentId: test_spawner
     className: TestSpawnerSpawner
     scriptPath: Assets/TestTemp/Generated/TestSpawnerSpawner.cs
     templateName: Spawner
     gameObjectPath: test_spawner
     variablesJson: '{"SPAWNER_ID":"test_spawner","SPAWN_MODE":"Interval","PREFAB_PATH":"","SPAWN_INTERVAL":3,"INITIAL_DELAY":0,"MAX_ACTIVE":10,"MAX_TOTAL":0,"AUTO_START":"false","USE_POOL":"false","POOL_INITIAL_SIZE":5,"CLASS_NAME":"TestSpawnerSpawner"}'
+    pendingAttach: 0
   - componentId: test_receiver
     className: TestReceiverStatusEffectReceiver
     scriptPath: Assets/TestTemp/Generated/TestReceiverStatusEffectReceiver.cs
     templateName: StatusEffectReceiver
     gameObjectPath: TestTarget
     variablesJson: '{"RECEIVER_ID":"test_receiver","CLASS_NAME":"TestReceiverStatusEffectReceiver"}'
+    pendingAttach: 0
   - componentId: test_effect
     className: TestEffectStatusEffectData
     scriptPath: Assets/TestTemp/Generated/TestEffectStatusEffectData.cs
     templateName: StatusEffectData
     gameObjectPath: 
     variablesJson: '{"EFFECT_ID":"test_effect","DISPLAY_NAME":"Test Effect","EFFECT_TYPE":"Buff","EFFECT_CATEGORY":"Generic","DURATION":10,"STACKABLE":"false","MAX_STACKS":1,"TICK_INTERVAL":0,"CLASS_NAME":"TestEffectStatusEffectData"}'
+    pendingAttach: 0
   - componentId: test_cd
     className: TestCdCooldown
     scriptPath: Assets/TestTemp/Generated/TestCdCooldown.cs
     templateName: Cooldown
     gameObjectPath: TestTarget
     variablesJson: '{"COOLDOWN_ID":"test_cd","COOLDOWN_DURATION":1,"START_READY":"true","CLASS_NAME":"TestCdCooldown"}'
+    pendingAttach: 0
   - componentId: test_timer
     className: TestTimerTimer
     scriptPath: Assets/TestTemp/Generated/TestTimerTimer.cs
     templateName: Timer
     gameObjectPath: TestTarget
     variablesJson: '{"TIMER_ID":"test_timer","DURATION":5,"LOOP":"false","AUTO_START":"false","UNSCALED_TIME":"false","CLASS_NAME":"TestTimerTimer"}'
+    pendingAttach: 0
   - componentId: test_zone
     className: TestZoneTriggerZone
     scriptPath: Assets/TestTemp/Generated/TestZoneTriggerZone.cs
     templateName: TriggerZone
     gameObjectPath: TriggerZone
     variablesJson: '{"ZONE_ID":"test_zone","ZONE_TYPE":"Generic","TRIGGER_MODE":"Repeat","CLASS_NAME":"TestZoneTriggerZone"}'
+    pendingAttach: 0
   - componentId: test_binding
     className: TestBindingUIBinding
     scriptPath: Assets/TestTemp/Generated/TestBindingUIBinding.cs
     templateName: UIBinding
     gameObjectPath: UITarget
     variablesJson: '{"BINDING_ID":"test_binding","SOURCE_TYPE":"Health","SOURCE_ID":"","TARGET_COMPONENT_TYPE":"","TARGET_PROPERTY":"","FORMAT":"Raw","FORMAT_STRING":"{0}","MIN_VALUE":0,"MAX_VALUE":100,"UPDATE_INTERVAL":0.1,"SMOOTH_TRANSITION":false,"SMOOTH_SPEED":5,"CLASS_NAME":"TestBindingUIBinding"}'
+    pendingAttach: 0
   - componentId: test_list
     className: TestListUIList
     scriptPath: Assets/TestTemp/Generated/TestListUIList.cs
     templateName: UIList
     gameObjectPath: ListParent/UIList
     variablesJson: '{"LIST_ID":"test_list","LAYOUT":"Vertical","COLUMNS":4,"CELL_SIZE_X":80,"CELL_SIZE_Y":80,"SPACING_X":10,"SPACING_Y":10,"DATA_SOURCE":"Custom","SOURCE_ID":"","SELECTABLE":"false","MULTI_SELECT":"false","CLASS_NAME":"TestListUIList"}'
+    pendingAttach: 0
   - componentId: test_selection
     className: TestSelectionUISelection
     scriptPath: Assets/TestTemp/Generated/TestSelectionUISelection.cs
     templateName: UISelection
     gameObjectPath: SelParent/UISelection
     variablesJson: '{"SELECTION_ID":"test_selection","SELECTION_TYPE":"Radio","ALLOW_NONE":false,"DEFAULT_INDEX":0,"LAYOUT":"Horizontal","SPACING":10,"CLASS_NAME":"TestSelectionUISelection"}'
+    pendingAttach: 0
   - componentId: test_slot
     className: TestSlotUISlot
     scriptPath: Assets/TestTemp/Generated/TestSlotUISlot.cs
     templateName: UISlot
     gameObjectPath: SlotParent/UISlot
     variablesJson: '{"SLOT_ID":"test_slot","SLOT_INDEX":-1,"SLOT_TYPE":"Storage","EQUIP_SLOT_NAME":"","INVENTORY_ID":"","DRAG_DROP_ENABLED":true,"CLASS_NAME":"TestSlotUISlot"}'
+    pendingAttach: 0
   - componentId: test_vfx
     className: TestVfxVFX
     scriptPath: Assets/TestTemp/Generated/TestVfxVFX.cs
     templateName: VFX
     gameObjectPath: VFXTarget
     variablesJson: '{"VFX_ID":"test_vfx","AUTO_PLAY":false,"LOOP":false,"USE_POOLING":false,"POOL_SIZE":5,"ATTACH_TO_PARENT":false,"DURATION_MULTIPLIER":1,"SIZE_MULTIPLIER":1,"EMISSION_MULTIPLIER":1,"CLASS_NAME":"TestVfxVFX"}'
+    pendingAttach: 0
+  - componentId: test_waypoint
+    className: TestWaypointWaypoint
+    scriptPath: Assets/TestTemp/Generated/TestWaypointWaypoint.cs
+    templateName: Waypoint
+    gameObjectPath: WaypointFollower
+    variablesJson: '{"WAYPOINT_ID":"test_waypoint","PATH_MODE":"Loop","AUTO_START":"false","USE_LOCAL_SPACE":"false","MOVEMENT_TYPE":"Transform","MOVE_SPEED":5,"ROTATION_SPEED":5,"ROTATION_MODE":"None","WAIT_TIME_AT_POINT":0,"START_DELAY":0,"SMOOTH_MOVEMENT":"false","SMOOTH_TIME":0.3,"ARRIVAL_THRESHOLD":0.1,"CLASS_NAME":"TestWaypointWaypoint"}'
+    pendingAttach: 0
   - componentId: dup_hp
     className: DupHealth
     scriptPath: Assets/TestTemp/Generated/DupHealth.cs
     templateName: Health
     gameObjectPath: TestDup
     variablesJson: '{"HEALTH_ID":"dup_hp","MAX_HEALTH":100,"CURRENT_HEALTH":100,"INVINCIBILITY_DURATION":0,"DEATH_BEHAVIOR":"Destroy","RESPAWN_DELAY":1,"CLASS_NAME":"DupHealth"}'
+    pendingAttach: 0
   - componentId: ns_hp
     className: NsTestHealth
     scriptPath: Assets/TestTemp/Generated/NsTestHealth.cs
     templateName: Health
     gameObjectPath: NsTest
     variablesJson: '{"HEALTH_ID":"ns_hp","MAX_HEALTH":100,"CURRENT_HEALTH":100,"INVINCIBILITY_DURATION":1,"DEATH_BEHAVIOR":"Respawn","RESPAWN_DELAY":2,"CLASS_NAME":"NsTestHealth"}'
+    pendingAttach: 0
   - componentId: orphan_hp
     className: OrphanHealth
     scriptPath: Assets/TestTemp/Generated/OrphanHealth.cs
     templateName: Health
     gameObjectPath: 
     variablesJson: '{"HEALTH_ID":"orphan_hp","MAX_HEALTH":100,"CURRENT_HEALTH":100,"INVINCIBILITY_DURATION":0,"DEATH_BEHAVIOR":"Destroy","RESPAWN_DELAY":1,"CLASS_NAME":"OrphanHealth"}'
+    pendingAttach: 0
   - componentId: tracker_hp
     className: TrackerTestHealth
     scriptPath: Assets/TestTemp/Generated/TrackerTestHealth.cs
     templateName: Health
     gameObjectPath: TrackerTest
     variablesJson: '{"HEALTH_ID":"tracker_hp","MAX_HEALTH":50,"CURRENT_HEALTH":50,"INVINCIBILITY_DURATION":0,"DEATH_BEHAVIOR":"Destroy","RESPAWN_DELAY":1,"CLASS_NAME":"TrackerTestHealth"}'
+    pendingAttach: 0
   - componentId: entity_hp
     className: TestEntityHealth
     scriptPath: Assets/TestTemp/Generated/TestEntityHealth.cs
     templateName: Health
     gameObjectPath: TestEntity
     variablesJson: '{"HEALTH_ID":"entity_hp","MAX_HEALTH":200,"CURRENT_HEALTH":200,"INVINCIBILITY_DURATION":0,"DEATH_BEHAVIOR":"Event","RESPAWN_DELAY":0,"CLASS_NAME":"TestEntityHealth"}'
+    pendingAttach: 0
   - componentId: test_hp
     className: TestPlayerHealth
     scriptPath: Assets/TestTemp/Generated/TestPlayerHealth.cs
     templateName: Health
     gameObjectPath: TestPlayer
     variablesJson: '{"HEALTH_ID":"test_hp","MAX_HEALTH":100,"CURRENT_HEALTH":100,"INVINCIBILITY_DURATION":0.5,"DEATH_BEHAVIOR":"Destroy","RESPAWN_DELAY":1,"CLASS_NAME":"TestPlayerHealth"}'
+    pendingAttach: 0
   - componentId: regen_hp
     className: RegenTestHealth
     scriptPath: Assets/TestTemp/Generated/RegenTestHealth.cs
     templateName: Health
     gameObjectPath: RegenTest
     variablesJson: '{"HEALTH_ID":"regen_hp","MAX_HEALTH":200,"CURRENT_HEALTH":100,"INVINCIBILITY_DURATION":0,"DEATH_BEHAVIOR":"Destroy","RESPAWN_DELAY":1,"CLASS_NAME":"RegenTestHealth"}'
+    pendingAttach: 0
+  - componentId: MyCustomDialogueData
+    className: test_dialogue
+    scriptPath: Assets/TestTemp/Generated/test_dialogue.cs
+    templateName: DialogueData
+    gameObjectPath: 
+    variablesJson: '{"DIALOGUE_ID":"test_dialogue","CLASS_NAME":"test_dialogue"}'
+    pendingAttach: 0
+  - componentId: test_hp_binding
+    className: TestHpBindingUIBinding
+    scriptPath: Assets/Scripts/Generated/TestHpBindingUIBinding.cs
+    templateName: UIBinding
+    gameObjectPath: test_cmd_panel
+    variablesJson: '{"BINDING_ID":"test_hp_binding","SOURCE_TYPE":"Health","SOURCE_ID":"player_hp","ELEMENT_NAME":"hp-bar","TARGET_PROPERTY":"","FORMAT":"Percent","FORMAT_STRING":"{0}","MIN_VALUE":0,"MAX_VALUE":100,"UPDATE_INTERVAL":0.1,"SMOOTH_TRANSITION":false,"SMOOTH_SPEED":5,"CLASS_NAME":"TestHpBindingUIBinding"}'
+    pendingAttach: 0
