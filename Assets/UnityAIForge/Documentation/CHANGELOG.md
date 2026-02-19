@@ -7,7 +7,30 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 ## [未リリース]
 
-（なし）
+### 修正
+
+- **GameKitManager Pythonスキーマ不一致を修正**
+  - C#ハンドラーが実装していない3オペレーション（`exportState`, `importState`, `setFlowEnabled`）をPythonスキーマから削除
+  - `gamekit_core.py` のenum定義および関連パラメータ（`stateData`, `flowId`, `enabled`）を除去
+  - `tool_definitions.py` のManagerツール説明文から「state export/import」記述を削除
+
+- **GameKitDialogueHandler のマネージャー検索を堅牢化**
+  - `GetDialogueManager()` が `defaultTypingSpeed` フィールドで検索しており、任意のfloatフィールドと誤マッチする脆弱な実装を修正
+  - `DialogueManager.cs.txt` テンプレートに `dialogueManagerId` フィールドを追加
+  - `CreateManager` で `DIALOGUE_MANAGER_ID` 変数をテンプレートに渡すよう変更
+  - `GetDialogueManager()` を `FindComponentInSceneByField("dialogueManagerId", null)` に書き換え
+
+- **GameKitUIBindingHandler の delete 孤立スクリプト対策**
+  - 親GameObjectが先に削除された場合に `ResolveBindingComponent` が失敗し、生成スクリプトが孤立する問題を修正
+  - `DeleteBinding` にフォールバック処理を追加: コンポーネントが見つからない場合は `ScriptGenerator.Delete(bindingId)` でスクリプトのみクリーンアップ
+
+### テスト
+
+- **欠落テスト4ファイルを追加**（20テスト）
+  - `GameKitManagerHandlerTests.cs` — Category, SupportedOperations, Create, ClassName, MissingManagerType, エラーハンドリング
+  - `GameKitInteractionHandlerTests.cs` — Category, SupportedOperations, Create, ClassName, WithTargetPath, エラーハンドリング
+  - `GameKitMachinationsHandlerTests.cs` — Category, SupportedOperations, Create, ClassName, DefaultDiagramId, エラーハンドリング
+  - `GameKitSceneFlowHandlerTests.cs` — Category, SupportedOperations, Create, ClassName, WithTargetPath, エラーハンドリング
 
 ## [2.8.0] - 2026-02-13
 

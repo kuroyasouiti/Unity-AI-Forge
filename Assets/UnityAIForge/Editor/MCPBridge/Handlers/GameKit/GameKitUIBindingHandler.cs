@@ -222,20 +222,36 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteBinding(Dictionary<string, object> payload)
         {
-            var component = ResolveBindingComponent(payload);
-            var path = BuildGameObjectPath(component.gameObject);
-            var bindingId = new SerializedObject(component).FindProperty("bindingId").stringValue;
-            var scene = component.gameObject.scene;
+            var bindingId = GetString(payload, "bindingId");
 
-            Undo.DestroyObjectImmediate(component);
-            ScriptGenerator.Delete(bindingId);
-            EditorSceneManager.MarkSceneDirty(scene);
+            try
+            {
+                var component = ResolveBindingComponent(payload);
+                var path = BuildGameObjectPath(component.gameObject);
+                bindingId = new SerializedObject(component).FindProperty("bindingId").stringValue;
+                var scene = component.gameObject.scene;
 
-            return CreateSuccessResponse(
-                ("bindingId", bindingId),
-                ("path", path),
-                ("deleted", true)
-            );
+                Undo.DestroyObjectImmediate(component);
+                ScriptGenerator.Delete(bindingId);
+                EditorSceneManager.MarkSceneDirty(scene);
+
+                return CreateSuccessResponse(
+                    ("bindingId", bindingId),
+                    ("path", path),
+                    ("deleted", true)
+                );
+            }
+            catch (InvalidOperationException) when (!string.IsNullOrEmpty(bindingId))
+            {
+                // Parent GO already destroyed — clean up the orphaned script via tracker
+                ScriptGenerator.Delete(bindingId);
+
+                return CreateSuccessResponse(
+                    ("bindingId", bindingId),
+                    ("deleted", true),
+                    ("note", "Component not found in scene; orphaned script cleaned up.")
+                );
+            }
         }
 
         #endregion

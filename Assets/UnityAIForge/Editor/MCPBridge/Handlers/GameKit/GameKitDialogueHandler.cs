@@ -747,6 +747,7 @@ namespace MCP.Editor.Handlers.GameKit
             // Build template variables
             var variables = new Dictionary<string, object>
             {
+                { "DIALOGUE_MANAGER_ID", dialogueManagerId },
                 { "DEFAULT_TYPING_SPEED", defaultTypingSpeed },
                 { "PAUSE_GAME", pauseGame.ToString().ToLowerInvariant() }
             };
@@ -910,41 +911,9 @@ namespace MCP.Editor.Handlers.GameKit
 
         private Component GetDialogueManager()
         {
-            // Search for any MonoBehaviour with a dialogueManagerId or that looks like a dialogue manager
-            // Use the pattern of finding by a known field from the DialogueManager template
-            var component = CodeGenHelper.FindComponentInSceneByField("defaultTypingSpeed", null);
-
-            // Fallback: search all MonoBehaviours for one that has isDialogueActive field (from template)
-            if (component == null)
-            {
-                var allMono = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
-                foreach (var mb in allMono)
-                {
-                    if (mb == null) continue;
-                    try
-                    {
-                        var so = new SerializedObject(mb);
-                        var prop = so.FindProperty("pauseGameDuringDialogue");
-                        if (prop != null && prop.propertyType == SerializedPropertyType.Boolean)
-                        {
-                            // Verify it also has the dialogueRegistry signature (has events)
-                            var onDialogueEndProp = so.FindProperty("OnDialogueEnd");
-                            if (onDialogueEndProp != null)
-                            {
-                                return mb;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Skip components that can't be serialized
-                    }
-                }
-            }
-            else
-            {
+            var component = CodeGenHelper.FindComponentInSceneByField("dialogueManagerId", null);
+            if (component != null)
                 return component;
-            }
 
             throw new InvalidOperationException("No DialogueManager found in scene. Create one first with createManager.");
         }

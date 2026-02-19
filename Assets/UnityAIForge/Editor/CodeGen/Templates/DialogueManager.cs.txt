@@ -73,6 +73,7 @@ public class {{CLASS_NAME}} : MonoBehaviour
     #region Settings
 
     [Header("Settings")]
+    [SerializeField] private string dialogueManagerId = "{{DIALOGUE_MANAGER_ID}}";
     [SerializeField] private float defaultTypingSpeed = {{DEFAULT_TYPING_SPEED}};
     [SerializeField] private bool pauseGameDuringDialogue = {{PAUSE_GAME}};
 

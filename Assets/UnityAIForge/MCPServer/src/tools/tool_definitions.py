@@ -435,7 +435,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_gamekit_manager",
-            description="High-level GameKit Manager: create centralized game system managers for turn-based games (TurnManager), real-time coordination (RealtimeManager), resource/economy management (ResourceManager with Machinations support), global events (EventHub), or finite state machines (StateManager). Supports persistence (DontDestroyOnLoad), state export/import for save/load systems, and integration with GameKitUICommand for UI control. Essential for managing game-wide state, resources (health/mana/gold), turn phases, and game flow.",
+            description="High-level GameKit Manager: create centralized game system managers for turn-based games (TurnManager), real-time coordination (RealtimeManager), resource/economy management (ResourceManager with Machinations support), global events (EventHub), or finite state machines (StateManager). Supports persistence (DontDestroyOnLoad) and integration with GameKitUICommand for UI control. Essential for managing game-wide state, resources (health/mana/gold), turn phases, and game flow.",
             inputSchema=gamekit_manager_schema(),
         ),
         types.Tool(

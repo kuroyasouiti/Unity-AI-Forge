@@ -1,6 +1,6 @@
 name: Unity-AI-Forge
-version: 2.4.3
-description: "AI-powered Unity development toolkit - MCP integration with GameKit framework (actors, managers, Machinations economics, UI commands, scene flow, state persistence, Physics2D, sorting layers, character controller, batch sequential execution)"
+version: 2.8.0
+description: "AI-powered Unity development toolkit - MCP integration with GameKit 3-Pillar Architecture (UI: Binding/List/Slot/Selection/Command, Logic: Actor/Combat/Health/AI/Spawner/Timer, Presentation: VFX/Audio/Feedback), Machinations economics, scene flow, dialogue, inventory, code generation, Physics2D/3D, batch sequential execution"
 author: "Unity-AI-Forge Team"
 license: MIT
 
@@ -30,7 +30,7 @@ dependencies:
 # Unity-side prerequisites
 prerequisites:
   - name: Unity Editor
-    version: ">=2021.3"
+    version: ">=2022.3"
     description: "Unity Editor with MCPBridge installed"
   - name: MCP Bridge
     location: "../Assets/UnityAIForge/Editor/MCPBridge/"
@@ -38,7 +38,7 @@ prerequisites:
 
 # Skill capabilities
 capabilities:
-  tools: 24
+  tools: 64
   categories:
     - scene_management        # Create, load, save, delete, inspect scenes
     - gameobject_operations   # Create, move, rename, delete GameObjects with batch support
@@ -47,22 +47,35 @@ capabilities:
     - scriptableobject_crud  # Create, inspect, update, delete, duplicate, find ScriptableObject assets
     - prefab_management      # Create, update, inspect, instantiate, unpack prefabs
     - sprite_conversion      # Generate sprites from primitives, SVG, textures, and solid colors
-    - project_settings       # Configure Unity project settings (Physics2D, sorting layers, tags/layers)
-    - batch_operations       # Mid-level batch utilities for Transform, RectTransform, Physics, Camera, UI, Audio, Input, and CharacterController
+    - project_settings       # Configure Unity project settings (Physics, tags/layers, build settings)
+    - batch_operations       # Mid-level batch utilities for Transform, RectTransform, Physics, Camera, UI, Audio, Input, Character, Material, Light, Particle, Animation, Sprite, Tilemap
     - batch_sequential       # Sequential batch execution with resume capability for complex multi-step operations
-    - gamekit_systems        # High-level GameKit tools: actors, managers, interactions, UI commands, Machinations diagrams, and scene flow
-  
+    - graph_analysis         # Scene reference graph, class dependency graph, scene relationship graph
+    - gamekit_logic          # Actor, Combat, Health, Manager, AI, Timer, Spawner, TriggerZone, StatusEffect, Interaction, Collectible, Projectile, Waypoint
+    - gamekit_ui             # UICommand, UIBinding, UIList, UISlot, UISelection
+    - gamekit_presentation   # Effect, AnimationSync, VFX, Audio, Feedback
+    - gamekit_economy        # Machinations resource economics, Inventory
+    - gamekit_flow           # SceneFlow, Dialogue, Quest
+    - code_generation        # Standalone C# script generation from templates (zero runtime dependency)
+
   gamekit_features:
-    - actor_controller_separation   # Controller-behavior separation with 8 behavior profiles
+    - actor_controller_separation   # Controller-behavior separation with 5 behavior profiles
     - manager_systems               # Turn-based, realtime, resource pool, event hub, state machines
-    - ui_command_bridge            # UI buttons → Actor/Manager commands (11 command types)
+    - ui_command_bridge            # UI buttons -> Actor/Manager commands
+    - ui_data_binding              # Declarative UI data binding to game state
+    - ui_dynamic_lists             # Dynamic list/grid for collections
     - machinations_economics       # Resource flows, converters, triggers (Machinations.io-inspired) with ScriptableObject assets
     - scene_flow_state_machine     # Scene transitions with additive loading and shared scene groups
     - interaction_triggers         # Collision/trigger/proximity/input-based interactions with declarative actions
-    - state_persistence            # Save/load system for resources and game state
-    - physics2d_support            # 2D physics configuration (gravity, iterations, thresholds)
-    - sorting_layers_management    # Sorting layer creation, deletion, and inspection
-    - character_controller_presets # CharacterController with 7 optimized presets (fps/tps/platformer/etc)
+    - dialogue_system              # Multi-node dialogue with branching, typing effects, and manager
+    - inventory_system             # Inventory management with slots and categories
+    - quest_system                 # Quest tracking with objectives and rewards
+    - combat_system                # Unified damage calculation (melee/ranged/aoe/projectile)
+    - health_system                # HP/damage with invincibility, death handling, UnityEvents
+    - ai_behaviors                 # Patrol, chase, flee, patrolAndChase AI behaviors
+    - spawner_system               # Interval, wave, burst, manual spawn modes
+    - feedback_system              # Hitstop, screen shake, flash game feel effects
+    - code_generation              # Templates generate standalone scripts; zero runtime dependency on package
 
 # MCP configuration
 mcp:
@@ -77,11 +90,6 @@ mcp:
     port: 7070
     path: /bridge
     protocol: ws
-
-# Quick examples
-examples:
-  - path: ../Documentation/Examples/01-basic-scene-setup.md
-    description: "Scene, GameObject, and component CRUD walkthrough"
 
 # Documentation structure
 documentation:
