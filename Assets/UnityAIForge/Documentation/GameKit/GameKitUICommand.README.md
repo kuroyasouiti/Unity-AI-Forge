@@ -1,409 +1,220 @@
-# GameKitUICommand - UI Command Hub
+# GameKitUICommand - Code-Generated Command Panel
 
 ## Overview
 
-`GameKitUICommand` acts as a bridge between UI controls and `GameKitActor`'s UnityEvents, providing a structured way to translate UI interactions into actor commands. It's designed for games that use UI buttons for character control, such as mobile games, touch-based interfaces, or strategic games with command panels.
+`GameKitUICommand` generates a standalone C# script with UXML/USS assets that creates a button-based command panel using UI Toolkit. The generated code has zero dependency on the Unity-AI-Forge package.
 
 ## Core Concept
 
-Instead of directly wiring UI buttons to actor methods, `GameKitUICommand` provides:
-- **Centralized Command Management**: All UI-to-actor bindings in one place
-- **Type-Safe Command System**: Predefined command types with parameter support
-- **Flexible Actor Targeting**: Switch targets dynamically
-- **Performance Optimization**: Cached actor references
+Instead of using runtime MonoBehaviours, GameKitUICommand uses **code generation**:
+
+1. **UXML** - UI layout definition (buttons, labels)
+2. **USS** - Stylesheet (colors, spacing, sizes)
+3. **C# Script** - Component with UnityEvent bindings and button wiring
+
+All three files are generated from templates and placed in the user's `Assets/` folder.
+
+## MCP Tool
+
+**Tool name:** `unity_gamekit_ui_command`
+**Bridge name:** `gamekitUICommand`
+
+## Operations
+
+| Operation | Description | Compilation Required |
+|-----------|-------------|---------------------|
+| `createCommandPanel` | Generate UXML/USS + C# with buttons | Yes |
+| `addCommand` | Add button to existing panel | No |
+| `inspect` | View panel configuration | No |
+| `delete` | Remove panel and generated files | No |
 
 ## Command Types
 
-### Move Command
-Maps to `GameKitActor.OnMoveInput(Vector3)`
+| Type | Description |
+|------|-------------|
+| `move` | Movement direction command (Vector3) |
+| `jump` | Jump action |
+| `action` | Generic action with string parameter |
+| `look` | Look direction command (Vector2) |
+| `custom` | Custom command (backward compatibility) |
 
-```csharp
-// Register directional button
-uiCommand.RegisterDirectionalButton("moveRight", rightButton, new Vector3(1, 0, 0));
+## Usage via MCP
 
-// Or execute directly
-uiCommand.ExecuteMoveCommand(Vector3.forward);
-```
+### Create a Command Panel
 
-### Jump Command
-Maps to `GameKitActor.OnJumpInput()`
-
-```csharp
-uiCommand.RegisterButton("jump", jumpButton, GameKitUICommand.CommandType.Jump);
-
-// Or execute directly
-uiCommand.ExecuteJumpCommand();
-```
-
-### Action Command
-Maps to `GameKitActor.OnActionInput(string)` with parameter support
-
-```csharp
-// Register with custom parameter
-uiCommand.RegisterButton("attack", attackButton, GameKitUICommand.CommandType.Action, "sword");
-uiCommand.RegisterButton("heal", healButton, GameKitUICommand.CommandType.Action, "potion");
-
-// Or execute directly
-uiCommand.ExecuteActionCommand("interact");
-```
-
-### Look Command
-Maps to `GameKitActor.OnLookInput(Vector2)`
-
-```csharp
-// Register look direction button
-var binding = new GameKitUICommand.UICommandBinding
-{
-    commandName = "lookRight",
-    commandType = GameKitUICommand.CommandType.Look,
-    button = lookButton,
-    lookDirection = new Vector2(1, 0)
-};
-uiCommand.RegisterButton("lookRight", lookButton, GameKitUICommand.CommandType.Look);
-
-// Or execute directly
-uiCommand.ExecuteLookCommand(new Vector2(0, 1));
-```
-
-### Custom Command
-Sends `SendMessage` for backward compatibility
-
-```csharp
-uiCommand.RegisterButton("special", specialButton, GameKitUICommand.CommandType.Custom);
-// Sends "OnCommand_special" message to actor GameObject
-```
-
-## Setup Examples
-
-### Mobile Touch Controls
-
-```csharp
-public class MobileTouchController : MonoBehaviour
-{
-    public GameKitUICommand uiCommand;
-    public GameKitActor player;
-    
-    // UI Buttons
-    public Button upButton;
-    public Button downButton;
-    public Button leftButton;
-    public Button rightButton;
-    public Button jumpButton;
-    public Button attackButton;
-    
-    void Start()
-    {
-        // Set target
-        uiCommand.SetTargetActor(player);
-        
-        // Register directional buttons (for 2D)
-        uiCommand.RegisterDirectionalButton("moveUp", upButton, new Vector3(0, 1, 0));
-        uiCommand.RegisterDirectionalButton("moveDown", downButton, new Vector3(0, -1, 0));
-        uiCommand.RegisterDirectionalButton("moveLeft", leftButton, new Vector3(-1, 0, 0));
-        uiCommand.RegisterDirectionalButton("moveRight", rightButton, new Vector3(1, 0, 0));
-        
-        // Register action buttons
-        uiCommand.RegisterButton("jump", jumpButton, GameKitUICommand.CommandType.Jump);
-        uiCommand.RegisterButton("attack", attackButton, GameKitUICommand.CommandType.Action, "melee");
-    }
-}
-```
-
-### Virtual Joystick Integration
-
-```csharp
-public class VirtualJoystickController : MonoBehaviour
-{
-    public GameKitUICommand uiCommand;
-    public GameKitActor player;
-    public Joystick virtualJoystick; // Your joystick component
-    
-    void Start()
-    {
-        uiCommand.SetTargetActor(player);
-    }
-    
-    void Update()
-    {
-        // Convert joystick input to move command
-        Vector3 direction = new Vector3(virtualJoystick.Horizontal, 0, virtualJoystick.Vertical);
-        
-        if (direction.magnitude > 0.1f)
+```python
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "playerControls",
+    "layout": "horizontal",
+    "commands": [
         {
-            uiCommand.ExecuteMoveCommand(direction.normalized);
-        }
-    }
-}
-```
-
-### Action Button Panel
-
-```csharp
-public class ActionPanel : MonoBehaviour
-{
-    public GameKitUICommand uiCommand;
-    public Button[] actionButtons;
-    public string[] actionNames = { "attack", "defend", "useItem", "special" };
-    
-    void Start()
-    {
-        // Register all action buttons
-        for (int i = 0; i < actionButtons.Length && i < actionNames.Length; i++)
+            "name": "moveLeft",
+            "label": "←",
+            "commandType": "move",
+            "moveDirection": {"x": -1, "y": 0, "z": 0}
+        },
         {
-            string actionName = actionNames[i];
-            uiCommand.RegisterButton(
-                actionName,
-                actionButtons[i],
-                GameKitUICommand.CommandType.Action,
-                actionName
-            );
-        }
-    }
-}
-```
-
-### Strategy Game Command Panel
-
-```csharp
-public class StrategyCommandPanel : MonoBehaviour
-{
-    public GameKitUICommand uiCommand;
-    public Button moveButton;
-    public Button attackButton;
-    public Button defendButton;
-    public Button specialButton;
-    
-    private GameKitActor selectedUnit;
-    
-    public void SelectUnit(GameKitActor unit)
-    {
-        selectedUnit = unit;
-        uiCommand.SetTargetActor(unit);
-        UpdateButtonStates();
-    }
-    
-    void Start()
-    {
-        // Register commands
-        uiCommand.RegisterButton("move", moveButton, GameKitUICommand.CommandType.Action, "move");
-        uiCommand.RegisterButton("attack", attackButton, GameKitUICommand.CommandType.Action, "attack");
-        uiCommand.RegisterButton("defend", defendButton, GameKitUICommand.CommandType.Action, "defend");
-        uiCommand.RegisterButton("special", specialButton, GameKitUICommand.CommandType.Action, "special");
-    }
-    
-    void UpdateButtonStates()
-    {
-        // Enable/disable buttons based on selected unit's abilities
-        bool hasUnit = selectedUnit != null;
-        moveButton.interactable = hasUnit;
-        attackButton.interactable = hasUnit && selectedUnit.Behavior == GameKitActor.BehaviorProfile.TwoDLinear;
-        // etc.
-    }
-}
-```
-
-### Dynamic Actor Switching
-
-```csharp
-public class PartyController : MonoBehaviour
-{
-    public GameKitUICommand uiCommand;
-    public GameKitActor[] partyMembers;
-    private int currentMemberIndex = 0;
-    
-    void Start()
-    {
-        SwitchToMember(0);
-    }
-    
-    public void SwitchToNextMember()
-    {
-        currentMemberIndex = (currentMemberIndex + 1) % partyMembers.Length;
-        SwitchToMember(currentMemberIndex);
-    }
-    
-    void SwitchToMember(int index)
-    {
-        if (index >= 0 && index < partyMembers.Length)
+            "name": "moveRight",
+            "label": "→",
+            "commandType": "move",
+            "moveDirection": {"x": 1, "y": 0, "z": 0}
+        },
         {
-            uiCommand.SetTargetActor(partyMembers[index]);
-            Debug.Log($"Switched to {partyMembers[index].ActorId}");
+            "name": "jump",
+            "label": "Jump",
+            "commandType": "jump"
+        },
+        {
+            "name": "attack",
+            "label": "Attack",
+            "commandType": "action",
+            "commandParameter": "melee"
         }
+    ]
+})
+
+# Wait for compilation (required after create)
+unity_compilation_await()
+```
+
+### Add a Command
+
+```python
+unity_gamekit_ui_command({
+    "operation": "addCommand",
+    "panelId": "playerControls",
+    "command": {
+        "name": "dodge",
+        "label": "Dodge",
+        "commandType": "action",
+        "commandParameter": "dodge"
     }
-}
+})
 ```
 
-## Best Practices
+### Inspect
 
-### 1. Actor Reference Management
+```python
+unity_gamekit_ui_command({
+    "operation": "inspect",
+    "panelId": "playerControls"
+})
+```
 
-**Preferred: Direct Reference**
+### Delete
+
+```python
+unity_gamekit_ui_command({
+    "operation": "delete",
+    "panelId": "playerControls"
+})
+```
+
+## Generated Code
+
+### What Gets Generated
+
+When you call `createCommandPanel`, three files are generated:
+
+```
+Assets/Scripts/Generated/PlayerControlsCommandPanel.cs   ← C# component
+Assets/UI/Generated/playerControls.uxml                  ← UI layout
+Assets/UI/Generated/playerControls.uss                   ← Stylesheet
+```
+
+### Generated C# Features
+
+The generated script includes:
+
+- **Static Registry**: `FindById(string id)` for easy access from other scripts
+- **UnityEvent Bindings**: Each command fires a UnityEvent
+- **Auto-wiring**: Buttons are automatically bound to their commands on `OnEnable`
+- **Inspector Support**: Serialized fields for editor configuration
+
+### Using Generated Code in Scripts
+
 ```csharp
-// Best performance - no lookup needed
-uiCommand.SetTargetActor(playerActor);
+// Find the generated command panel by its ID
+var controls = PlayerControlsCommandPanel.FindById("playerControls");
+
+// Subscribe to command events
+controls.OnCommandExecuted.AddListener((commandName) => {
+    Debug.Log($"Command executed: {commandName}");
+});
+
+// Execute commands programmatically
+controls.ExecuteCommand("jump");
+controls.ExecuteCommand("attack");
 ```
 
-**Alternative: ID Lookup**
-```csharp
-// Useful when actor isn't immediately available
-uiCommand.SetTargetActor("player_001");
-// Actor will be found on first command execution
-```
+## Parameters Reference
 
-### 2. Command Naming
+### createCommandPanel
 
-Use clear, descriptive names:
-```csharp
-// Good
-uiCommand.RegisterButton("moveUp", upButton, ...);
-uiCommand.RegisterButton("attackPrimary", attackButton, ...);
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `panelId` | string | Yes | Unique identifier for the panel |
+| `commands` | array | Yes | Array of command definitions |
+| `layout` | string | No | `horizontal`, `vertical`, `grid` |
+| `className` | string | No | Custom C# class name |
+| `outputPath` | string | No | Custom output directory |
 
-// Avoid
-uiCommand.RegisterButton("btn1", button1, ...);
-uiCommand.RegisterButton("cmd", commandButton, ...);
-```
+### Command Object
 
-### 3. Parameter Organization
-
-Group related actions with parameters:
-```csharp
-// Weapon actions
-uiCommand.RegisterButton("attackSword", swordButton, CommandType.Action, "sword");
-uiCommand.RegisterButton("attackBow", bowButton, CommandType.Action, "bow");
-uiCommand.RegisterButton("attackMagic", magicButton, CommandType.Action, "magic");
-
-// Item actions
-uiCommand.RegisterButton("useHealthPotion", healthButton, CommandType.Action, "potion_health");
-uiCommand.RegisterButton("useManaPotion", manaButton, CommandType.Action, "potion_mana");
-```
-
-### 4. Performance
-
-Enable actor caching for better performance:
-```csharp
-// In Inspector or code:
-uiCommand.cacheActorReference = true; // Default is true
-```
-
-### 5. Debugging
-
-Enable command logging during development:
-```csharp
-uiCommand.logCommands = true; // Will log all executed commands
-```
-
-## API Reference
-
-### Properties
-
-- `string PanelId` - Unique identifier for this command panel
-- `string TargetActorId` - Target actor's ID
-- `GameKitActor TargetActor` - Direct reference to target actor
-- `bool cacheActorReference` - Cache actor lookup for performance
-- `bool logCommands` - Log command execution for debugging
-
-### Methods
-
-#### Initialization
-- `void Initialize(string id, string actorId)` - Initialize panel with ID and target actor ID
-- `void SetTargetActor(GameKitActor actor)` - Set target by reference
-- `void SetTargetActor(string actorId)` - Set target by ID
-
-#### Button Registration
-- `void RegisterButton(string commandName, Button button, CommandType commandType = Action, string commandParam = null)` - Register a button with command
-- `void RegisterDirectionalButton(string commandName, Button button, Vector3 direction)` - Register movement button with direction
-
-#### Command Execution
-- `void ExecuteCommand(string commandName)` - Execute registered command by name
-- `void ExecuteMoveCommand(Vector3 direction)` - Execute move command
-- `void ExecuteJumpCommand()` - Execute jump command
-- `void ExecuteActionCommand(string actionName)` - Execute action command
-- `void ExecuteLookCommand(Vector2 direction)` - Execute look command
-
-#### Management
-- `void ClearBindings()` - Remove all command bindings
-- `List<string> GetCommandNames()` - Get list of registered command names
-- `bool HasCommand(string commandName)` - Check if command exists
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | string | Yes | Command identifier |
+| `label` | string | Yes | Button display text |
+| `commandType` | string | Yes | `move`, `jump`, `action`, `look`, `custom` |
+| `commandParameter` | string | No | Parameter for action/custom |
+| `moveDirection` | Vector3 | No | Direction for move commands |
+| `lookDirection` | Vector2 | No | Direction for look commands |
+| `icon` | string | No | Icon path |
 
 ## Common Patterns
 
-### D-Pad Controller
-```csharp
-// 4-directional movement
-uiCommand.RegisterDirectionalButton("up", upBtn, Vector3.forward);
-uiCommand.RegisterDirectionalButton("down", downBtn, Vector3.back);
-uiCommand.RegisterDirectionalButton("left", leftBtn, Vector3.left);
-uiCommand.RegisterDirectionalButton("right", rightBtn, Vector3.right);
+### Mobile D-Pad
+
+```python
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "dpad",
+    "layout": "grid",
+    "commands": [
+        {"name": "up", "label": "↑", "commandType": "move",
+         "moveDirection": {"x": 0, "y": 0, "z": 1}},
+        {"name": "down", "label": "↓", "commandType": "move",
+         "moveDirection": {"x": 0, "y": 0, "z": -1}},
+        {"name": "left", "label": "←", "commandType": "move",
+         "moveDirection": {"x": -1, "y": 0, "z": 0}},
+        {"name": "right", "label": "→", "commandType": "move",
+         "moveDirection": {"x": 1, "y": 0, "z": 0}}
+    ]
+})
 ```
 
-### 8-Directional Controller
-```csharp
-// Include diagonals
-uiCommand.RegisterDirectionalButton("up", upBtn, Vector3.forward);
-uiCommand.RegisterDirectionalButton("upRight", upRightBtn, (Vector3.forward + Vector3.right).normalized);
-uiCommand.RegisterDirectionalButton("right", rightBtn, Vector3.right);
-// ... etc
+### Action Button Bar
+
+```python
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "actionBar",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "attack", "label": "Attack", "commandType": "action",
+         "commandParameter": "attack"},
+        {"name": "defend", "label": "Defend", "commandType": "action",
+         "commandParameter": "defend"},
+        {"name": "skill", "label": "Skill", "commandType": "action",
+         "commandParameter": "skill"},
+        {"name": "item", "label": "Item", "commandType": "action",
+         "commandParameter": "item"}
+    ]
+})
 ```
-
-### Context-Sensitive Actions
-```csharp
-// Update action button based on context
-public void UpdateContextAction(string context)
-{
-    // Clear old binding
-    uiCommand.ClearBindings();
-    
-    // Register new context-specific action
-    switch (context)
-    {
-        case "door":
-            uiCommand.RegisterButton("action", actionBtn, CommandType.Action, "openDoor");
-            actionButtonText.text = "Open";
-            break;
-        case "chest":
-            uiCommand.RegisterButton("action", actionBtn, CommandType.Action, "openChest");
-            actionButtonText.text = "Loot";
-            break;
-        case "npc":
-            uiCommand.RegisterButton("action", actionBtn, CommandType.Action, "talk");
-            actionButtonText.text = "Talk";
-            break;
-    }
-}
-```
-
-## Integration with GameKit Actor
-
-`GameKitUICommand` is specifically designed to work with actors using `ControlMode.UICommand`:
-
-```csharp
-// Create actor with UI command mode
-var actor = gameObject.AddComponent<GameKitActor>();
-actor.Initialize("player", BehaviorProfile.TwoDLinear, ControlMode.UICommand);
-
-// Actor's events are now ready to receive UI commands
-uiCommand.SetTargetActor(actor);
-```
-
-## Troubleshooting
-
-**Commands not executing:**
-- Verify target actor is set: `uiCommand.TargetActor != null`
-- Check command is registered: `uiCommand.HasCommand("commandName")`
-- Enable logging: `uiCommand.logCommands = true`
-
-**Performance issues:**
-- Enable actor caching: `uiCommand.cacheActorReference = true`
-- Use direct actor reference instead of ID lookup
-
-**Button not responding:**
-- Ensure button has `Button` component
-- Check button `interactable` is true
-- Verify canvas has `GraphicRaycaster`
 
 ## See Also
 
-- [GameKit Actor](./README.md#gamekit-actor)
-- [GameKitInputSystemController](./README.md#gamekitinputsystemcontroller)
-- [GameKitSimpleAI](./README.md#gamekitsimpleai)
-
+- [GameKit Overview](./README.md) - 3-pillar architecture overview
+- [GameKit Complete Guide](../MCPServer/SKILL_GAMEKIT.md) - All tool documentation

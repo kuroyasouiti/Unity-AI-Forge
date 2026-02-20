@@ -1,976 +1,1006 @@
-# GameKit Framework - Complete Guide
+# GameKit Framework - Complete MCP Tool Guide
 
-**High-level game development framework integrated with Unity-AI-Forge MCP tools.**
+**High-level game development framework with 3-pillar architecture: UI, Presentation, and Logic.**
 
-GameKit provides production-ready components for rapid game development, including actors, managers, UI command systems, resource management with Machinations-inspired economics, scene flow, and interactions.
+GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Table of Contents
 
-1. [GameKit Overview](#gamekit-overview)
-2. [GameKit Actor](#gamekit-actor)
-3. [GameKit Manager](#gamekit-manager)
-4. [GameKit UICommand](#gamekit-uicommand)
-5. [GameKit Machinations (Resource System)](#gamekit-machinations)
-6. [GameKit SceneFlow](#gamekit-sceneflow)
-7. [GameKit Interaction](#gamekit-interaction)
-8. [Complete Game Examples](#complete-game-examples)
+1. [Architecture Overview](#architecture-overview)
+2. [UI Pillar](#ui-pillar)
+   - [UICommand](#uicommand)
+   - [UIBinding](#uibinding)
+   - [UIList](#uilist)
+   - [UISlot](#uislot)
+   - [UISelection](#uiselection)
+3. [Presentation Pillar](#presentation-pillar)
+   - [AnimationSync](#animationsync)
+   - [Effect](#effect)
+   - [Feedback](#feedback)
+   - [VFX](#vfx)
+   - [Audio](#audio)
+4. [Logic Pillar](#logic-pillar)
+5. [Code Generation Workflow](#code-generation-workflow)
+6. [Complete Game Example](#complete-game-example)
+7. [Best Practices](#best-practices)
 
 ---
 
-## GameKit Overview
+## Architecture Overview
 
-### What is GameKit?
+GameKit is organized into three pillars:
 
-GameKit is a high-level framework that sits on top of Unity's standard components, providing:
+| Pillar | Tools | Purpose |
+|--------|-------|---------|
+| **UI** | 5 tools | Generate UI Toolkit-based components (UXML/USS + C#) |
+| **Presentation** | 5 tools | Generate visual effects, animation, feedback, and audio components |
+| **Logic** | 5 tools | Scene/code analysis and integrity validation |
 
-- **🎭 Actor System**: Player/NPC controllers with input abstraction
-- **📊 Manager System**: Game state, resources, turns, events
-- **🎮 UI Command System**: Bridge UI to game logic
-- **💰 Resource Economics**: Machinations-inspired resource flows
-- **🎬 Scene Flow**: State-based scene transitions
-- **⚡ Interaction System**: Trigger-based game events
-
-### Architecture
-
-```
-GameKit Framework
-├── Actors (Controller-Behavior separation)
-│   ├── Input Controllers (DirectController, AI, UI, Script)
-│   ├── Movement Behaviors (2D/3D Physics, Grid, NavMesh, etc.)
-│   └── UnityEvents (OnMove, OnJump, OnAction, OnLook)
-│
-├── Managers (Centralized game systems)
-│   ├── TurnManager (Turn-based games)
-│   ├── StateManager (FSM for game states)
-│   ├── ResourceManager (Economy & resources)
-│   ├── RealtimeManager (Real-time event coordination)
-│   └── EventHub (Global event system)
-│
-├── UICommand (UI → Game Logic bridge)
-│   ├── Actor Commands (Move, Jump, Action)
-│   └── Manager Commands (Resources, State, Turn, Scene)
-│
-├── Machinations (Economic system)
-│   ├── Resource Pools (Storage with constraints)
-│   ├── Resource Flows (Automatic generation/consumption)
-│   ├── Converters (Transform resources)
-│   └── Triggers (Threshold events)
-│
-├── SceneFlow (Scene management)
-│   ├── State Machine (Scene transitions)
-│   ├── Additive Loading (Shared scenes)
-│   └── Persistent Manager (Cross-scene data)
-│
-└── Interaction (Event triggers)
-    ├── Collision/Trigger Zones
-    ├── Proximity Detection
-    ├── Input-based Triggers
-    └── Declarative Actions
-```
-
-### MCP Tools for GameKit
-
-All GameKit components are accessible via MCP tools with the `gamekit*` prefix:
-
-| Tool | Purpose |
-|------|---------|
-| `gamekitActor` | Create and manage game actors |
-| `gamekitManager` | Create and manage game managers |
-| `gamekitUICommand` | Create UI command panels |
-| `gamekitMachinations` | Manage Machinations asset diagrams |
-| `gamekitSceneflow` | Manage scene transitions |
-| `gamekitInteraction` | Create interaction triggers |
+All UI and Presentation pillar tools use **code generation**:
+- Templates in `Assets/UnityAIForge/Editor/CodeGen/Templates/`
+- Generated scripts output to `Assets/Scripts/Generated/` by default
+- Generated code uses only standard Unity APIs (zero package dependency)
+- `create` operations require `unity_compilation_await` afterward
 
 ---
 
-## GameKit Actor
+## UI Pillar
 
-### Overview
+### UICommand
 
-**GameKitActor** is a controller-behavior hub that separates input from movement logic using UnityEvents.
+**MCP Tool:** `unity_gamekit_ui_command`
 
-### Control Modes
+Creates button command panels using UI Toolkit. Generates UXML, USS, and a C# script with UnityEvent bindings.
 
-1. **DirectController**: Player input (New Input System or legacy)
-2. **AIAutonomous**: AI-driven behavior (patrol, follow, wander)
-3. **UICommand**: Button/UI-driven control
-4. **ScriptTriggerOnly**: Event-driven from scripts
+#### Operations
 
-### Behavior Profiles
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `createCommandPanel` | Generate panel with buttons | Yes |
+| `addCommand` | Add button to existing panel | No |
+| `inspect` | View panel configuration | No |
+| `delete` | Remove panel and generated files | No |
 
-| Profile | Description | Use Case |
-|---------|-------------|----------|
-| `2dLinear` | Simple 2D movement | Side-scrollers, puzzle games |
-| `2dPhysics` | Rigidbody2D physics | Physics platformers |
-| `2dTileGrid` | Grid-based movement | Turn-based tactics, roguelikes |
-| `graphNode` | A* pathfinding | Strategy games, AI navigation |
-| `splineMovement` | Rail-based movement | Rail shooters, 2.5D games |
-| `3dCharacterController` | CharacterController-based | FPS, TPS games |
-| `3dPhysics` | Rigidbody physics | Physics-based 3D games |
-| `3dNavMesh` | NavMesh agent | RTS, MOBA, strategy games |
+#### Parameters (createCommandPanel)
 
-### Creating Actors via MCP
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `panelId` | string | Yes | Unique identifier |
+| `commands` | array | Yes | Array of command definitions |
+| `layout` | string | No | `horizontal`, `vertical`, `grid` |
+| `className` | string | No | Custom class name |
+| `outputPath` | string | No | Output directory |
 
-```python
-# Create a 3D player character
-gamekit Actor({
-    "operation": "create",
-    "actorId": "Player",
-    "controlMode": "directController",  # Player input
-    "behaviorProfile": "3dCharacterController",
-    "position": {"x": 0, "y": 1, "z": 0}
-})
+**Command object properties:**
 
-# Create an AI enemy with NavMesh
-gamekitActor({
-    "operation": "create",
-    "actorId": "EnemyGuard",
-    "controlMode": "aiAutonomous",  # AI-driven
-    "behaviorProfile": "3dNavMesh",
-    "position": {"x": 10, "y": 0, "z": 5}
-})
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Command identifier |
+| `label` | string | Button display text |
+| `commandType` | string | `move`, `jump`, `action`, `look`, `custom` |
+| `commandParameter` | string | Parameter for action commands |
+| `moveDirection` | Vector3 | Direction for move commands |
+| `lookDirection` | Vector2 | Direction for look commands |
 
-# Create a 2D platformer player
-gamekitActor({
-    "operation": "create",
-    "actorId": "Player2D",
-    "controlMode": "directController",
-    "behaviorProfile": "2dPhysics",
-    "spritePath": "Assets/Sprites/Player.png"
-})
-
-# Create a grid-based tactical unit
-gamekitActor({
-    "operation": "create",
-    "actorId": "TacticalUnit",
-    "controlMode": "uiCommand",  # Controlled by UI buttons
-    "behaviorProfile": "2dTileGrid"
-})
-```
-
-### Actor UnityEvents
-
-Actors expose UnityEvents that behaviors listen to:
-
-- `OnMoveInput(Vector3)` - Movement direction
-- `OnJumpInput()` - Jump action
-- `OnActionInput(string)` - Generic action with parameter
-- `OnLookInput(Vector2)` - Camera/aim direction
-
----
-
-## GameKit Manager
-
-### Overview
-
-**GameKitManager** is a centralized hub for game systems (resources, states, turns).
-
-### Manager Types
-
-| Type | Purpose | Use Case |
-|------|---------|----------|
-| `resourcePool` | Resource management | RPG stats, economy, crafting |
-| `turnBased` | Turn-based game flow | Chess, card games, tactics |
-| `stateManager` | Finite state machine | Menu states, game phases |
-| `realtime` | Real-time coordination | Action games, simulations |
-| `eventHub` | Global event system | Observer pattern, decoupling |
-
-### Creating Managers via MCP
+#### Example
 
 ```python
-# Create a resource manager for RPG
-gamekitManager({
-    "operation": "create",
-    "managerId": "PlayerStats",
-    "managerType": "resourcepool",
-    "initialResources": {
-        "health": 100,
-        "mana": 50,
-        "gold": 0,
-        "experience": 0
-    }
-})
-
-# Create a turn-based manager
-gamekitManager({
-    "operation": "create",
-    "managerId": "BattleManager",
-    "managerType": "turnBased",
-    "turnPhases": ["PlayerTurn", "EnemyTurn", "ResolveEffects"]
-})
-
-# Create a game state manager
-gamekitManager({
-    "operation": "create",
-    "managerId": "GameStateManager",
-    "managerType": "stateManager",
-    "persistent": True  # Don't destroy on scene load
-})
-```
-
-### Resource Operations
-
-```python
-# Add resources
-gamekitManager({
-    "operation": "update",
-    "managerId": "PlayerStats",
-    "initialResources": {
-        "health": 75,  # Update existing
-        "gold": 100    # Existing + 100
-    }
-})
-
-# Inspect resources
-gamekitManager({
-    "operation": "inspect",
-    "managerId": "PlayerStats"
-})
-```
-
-### State Persistence (Save/Load)
-
-```python
-# Export current state
-result = gamekitManager({
-    "operation": "exportState",
-    "managerId": "PlayerStats"
-})
-# Returns JSON-serializable state
-
-# Import saved state
-gamekitManager({
-    "operation": "importState",
-    "managerId": "PlayerStats",
-    "stateData": saved_state_json
-})
-```
-
----
-
-## GameKit UICommand
-
-### Overview
-
-**GameKitUICommand** bridges UI controls (buttons, sliders) to **GameKitActor** or **GameKitManager** via UnityEvents.
-
-### Target Types
-
-- **Actor**: Control actors (move, jump, action)
-- **Manager**: Control managers (resources, state, turns, scenes)
-
-### Creating UI Command Panels
-
-#### For Actor Control
-
-```python
-# Create a virtual joystick panel
-gamekitUICommand({
+# Create a mobile game control panel
+unity_gamekit_ui_command({
     "operation": "createCommandPanel",
-    "panelId": "VirtualJoystick",
-    "canvasPath": "Canvas",
-    "targetType": "actor",
-    "targetActorId": "Player",
+    "panelId": "mobileControls",
+    "layout": "grid",
     "commands": [
-        {
-            "name": "moveUp",
-            "label": "↑",
-            "commandType": "move",
-            "moveDirection": {"x": 0, "y": 0, "z": 1}
-        },
-        {
-            "name": "moveDown",
-            "label": "↓",
-            "commandType": "move",
-            "moveDirection": {"x": 0, "y": 0, "z": -1}
-        },
-        {
-            "name": "jump",
-            "label": "Jump",
-            "commandType": "jump"
-        },
-        {
-            "name": "attack",
-            "label": "Attack",
-            "commandType": "action",
-            "commandParameter": "attack"
-        }
+        {"name": "moveUp", "label": "↑", "commandType": "move",
+         "moveDirection": {"x": 0, "y": 0, "z": 1}},
+        {"name": "moveDown", "label": "↓", "commandType": "move",
+         "moveDirection": {"x": 0, "y": 0, "z": -1}},
+        {"name": "moveLeft", "label": "←", "commandType": "move",
+         "moveDirection": {"x": -1, "y": 0, "z": 0}},
+        {"name": "moveRight", "label": "→", "commandType": "move",
+         "moveDirection": {"x": 1, "y": 0, "z": 0}},
+        {"name": "jump", "label": "Jump", "commandType": "jump"},
+        {"name": "attack", "label": "Attack", "commandType": "action",
+         "commandParameter": "melee"}
     ]
 })
+unity_compilation_await()
 ```
-
-#### For Manager Control
-
-```python
-# Create resource management UI
-gamekitUICommand({
-    "operation": "createCommandPanel",
-    "panelId": "ShopPanel",
-    "canvasPath": "Canvas",
-    "targetType": "manager",  # Target manager instead of actor
-    "targetManagerId": "PlayerEconomy",
-    "commands": [
-        {
-            "name": "buyHealthPotion",
-            "label": "HP Potion (50g)",
-            "commandType": "consumeResource",  # Manager command
-            "commandParameter": "gold",
-            "resourceAmount": 50
-        },
-        {
-            "name": "buyManaPotion",
-            "label": "MP Potion (30g)",
-            "commandType": "consumeResource",
-            "commandParameter": "gold",
-            "resourceAmount": 30
-        },
-        {
-            "name": "endTurn",
-            "label": "End Turn",
-            "commandType": "nextTurn"  # Advance turn phase
-        }
-    ]
-})
-```
-
-### Manager Command Types
-
-| Command Type | Action | Example |
-|-------------|--------|---------|
-| `addResource` | Add resource amount | Give rewards |
-| `setResource` | Set exact amount | Initialize values |
-| `consumeResource` | Subtract if sufficient | Buy items, cast spells |
-| `changeState` | Change game state | Menu → Game → GameOver |
-| `nextTurn` | Advance turn phase | Player → Enemy turn |
-| `triggerScene` | Trigger scene transition | Level complete → Next level |
 
 ---
 
-## GameKit Machinations
+### UIBinding
 
-### Overview
+**MCP Tool:** `unity_gamekit_ui_binding`
 
-**GameKitMachinationsAsset** is a ScriptableObject that defines resource economies inspired by Machinations.io.
+Declarative data binding from game state to UI elements. Supports ProgressBar, Label, Slider, and other UI Toolkit elements.
 
-### Components
+#### Operations
 
-1. **Resource Pools**: Storage with min/max constraints
-2. **Resource Flows**: Automatic generation/consumption over time
-3. **Converters**: Transform one resource into another
-4. **Triggers**: Fire events when thresholds are crossed
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create data binding | Yes |
+| `update` | Modify binding settings | No |
+| `inspect` | View binding config | No |
+| `delete` | Remove binding | No |
+| `setRange` | Update min/max range | No |
+| `refresh` | Force refresh (play mode) | No |
+| `findByBindingId` | Find binding by ID | No |
 
-### Creating Machinations Diagrams
+#### Parameters (create)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `bindingId` | string | Yes | Unique identifier |
+| `sourceType` | string | Yes | `health`, `economy`, `timer`, `custom` |
+| `sourceId` | string | Yes | Source component ID |
+| `elementName` | string | Yes | UI element name |
+| `targetProperty` | string | No | Property to bind |
+| `format` | string | No | `raw`, `percent`, `formatted`, `ratio` |
+| `formatString` | string | No | Custom format (e.g., `"HP: {0}/{1}"`) |
+| `minValue` | number | No | Minimum value |
+| `maxValue` | number | No | Maximum value |
+| `updateInterval` | number | No | Polling interval (seconds) |
+| `smoothTransition` | boolean | No | Enable smooth interpolation |
+| `smoothSpeed` | number | No | Interpolation speed |
+
+#### Example
 
 ```python
-# Create an RPG economy diagram
-gamekitMachinations({
+# Bind health bar to health component
+unity_gamekit_ui_binding({
     "operation": "create",
-    "diagramId": "RPGEconomy",
-    "assetPath": "Assets/Economy/RPGEconomy.asset",
-    "initialResources": [
-        {
-            "name": "health",
-            "initialAmount": 100,
-            "minValue": 0,
-            "maxValue": 100
-        },
-        {
-            "name": "mana",
-            "initialAmount": 50,
-            "minValue": 0,
-            "maxValue": 100
-        },
-        {
-            "name": "gold",
-            "initialAmount": 0,
-            "minValue": 0,
-            "maxValue": 999999
-        }
-    ],
-    "flows": [
-        {
-            "flowId": "manaRegen",
-            "resourceName": "mana",
-            "ratePerSecond": 1.0,
-            "isSource": True,  # Generate mana
-            "enabledByDefault": True
-        },
-        {
-            "flowId": "poisonDamage",
-            "resourceName": "health",
-            "ratePerSecond": 2.0,
-            "isSource": False,  # Drain health
-            "enabledByDefault": False
-        }
-    ],
-    "converters": [
-        {
-            "converterId": "buyHealthPotion",
-            "fromResource": "gold",
-            "toResource": "health",
-            "conversionRate": 50,  # 1 gold → 50 HP
-            "inputCost": 10
-        }
-    ],
-    "triggers": [
-        {
-            "triggerName": "playerDied",
-            "resourceName": "health",
-            "thresholdType": "below",
-            "thresholdValue": 1
-        },
-        {
-            "triggerName": "lowHealth",
-            "resourceName": "health",
-            "thresholdType": "below",
-            "thresholdValue": 20
-        }
+    "bindingId": "playerHP",
+    "sourceType": "health",
+    "sourceId": "player_health",
+    "elementName": "hp-progress",
+    "targetProperty": "value",
+    "format": "percent",
+    "minValue": 0,
+    "maxValue": 100,
+    "smoothTransition": true,
+    "smoothSpeed": 8.0
+})
+unity_compilation_await()
+
+# Bind gold counter to economy manager
+unity_gamekit_ui_binding({
+    "operation": "create",
+    "bindingId": "goldDisplay",
+    "sourceType": "economy",
+    "sourceId": "player_economy",
+    "elementName": "gold-label",
+    "targetProperty": "gold",
+    "format": "formatted",
+    "formatString": "Gold: {0}"
+})
+unity_compilation_await()
+```
+
+---
+
+### UIList
+
+**MCP Tool:** `unity_gamekit_ui_list`
+
+Dynamic ScrollView-based list/grid for displaying item collections with selection support.
+
+#### Operations
+
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create list component | Yes |
+| `update` | Modify layout/settings | No |
+| `inspect` | View list state | No |
+| `delete` | Remove list | No |
+| `setItems` | Replace all items | No |
+| `addItem` | Add single item | No |
+| `removeItem` | Remove item | No |
+| `clear` | Remove all items | No |
+| `selectItem` | Select by index | No |
+| `deselectItem` | Deselect by index | No |
+| `clearSelection` | Clear all selections | No |
+| `refreshFromSource` | Reload from source | No |
+| `findByListId` | Find list by ID | No |
+
+#### Parameters (create)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `listId` | string | Yes | Unique identifier |
+| `layout` | string | No | `vertical`, `horizontal`, `grid` |
+| `columns` | integer | No | Column count (grid layout) |
+| `cellSize` | Vector2 | No | Cell dimensions |
+| `spacing` | Vector2 | No | Gap between items |
+| `dataSource` | string | No | `custom`, `inventory`, `equipment` |
+| `sourceId` | string | No | Data source ID |
+| `selectable` | boolean | No | Enable selection |
+| `multiSelect` | boolean | No | Allow multi-selection |
+
+**Item object:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | string | Item identifier |
+| `name` | string | Display name |
+| `description` | string | Item description |
+| `iconPath` | string | Icon asset path |
+| `quantity` | integer | Item count |
+| `enabled` | boolean | Interactable |
+
+#### Example
+
+```python
+# Create inventory grid
+unity_gamekit_ui_list({
+    "operation": "create",
+    "listId": "inventory",
+    "layout": "grid",
+    "columns": 5,
+    "cellSize": {"x": 80, "y": 80},
+    "spacing": {"x": 4, "y": 4},
+    "selectable": true,
+    "multiSelect": false
+})
+unity_compilation_await()
+
+# Populate with items
+unity_gamekit_ui_list({
+    "operation": "setItems",
+    "listId": "inventory",
+    "items": [
+        {"id": "sword", "name": "Iron Sword", "quantity": 1,
+         "iconPath": "Assets/Icons/sword.png"},
+        {"id": "potion", "name": "Health Potion", "quantity": 5,
+         "iconPath": "Assets/Icons/potion.png"},
+        {"id": "shield", "name": "Wood Shield", "quantity": 1,
+         "iconPath": "Assets/Icons/shield.png"}
     ]
-})
-```
-
-### Applying to Managers
-
-```python
-# Apply Machinations asset to a resource manager
-gamekitMachinations({
-    "operation": "apply",
-    "assetPath": "Assets/Economy/RPGEconomy.asset",
-    "managerId": "PlayerStats",
-    "resetExisting": True
-})
-```
-
-### Controlling Flows at Runtime
-
-```python
-# Enable/disable flows dynamically
-# (Flows run automatically in ResourceManager.Update())
-gamekit Manager({
-    "operation": "setFlowEnabled",
-    "managerId": "PlayerStats",
-    "flowId": "poisonDamage",
-    "enabled": True  # Start poison damage
 })
 ```
 
 ---
 
-## GameKit SceneFlow
+### UISlot
 
-### Overview
+**MCP Tool:** `unity_gamekit_ui_slot`
 
-**GameKitSceneFlow** manages scene transitions using a state machine with **granular operations**. Build scene flows step by step by adding individual scenes and transitions.
+Slot-based UI for equipment, quickslots, and inventory management. Supports both individual slots and slot bars (grouped slots).
 
-### Granular Operations
+#### Operations
 
-SceneFlow now uses individual operations for precise control:
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create single slot | Yes |
+| `update` | Modify slot settings | No |
+| `inspect` | View slot state | No |
+| `delete` | Remove slot | No |
+| `setItem` | Place item in slot | No |
+| `clearSlot` | Remove item from slot | No |
+| `setHighlight` | Toggle highlight visual | No |
+| `createSlotBar` | Create slot bar | Yes |
+| `updateSlotBar` | Modify bar settings | No |
+| `inspectSlotBar` | View bar details | No |
+| `deleteSlotBar` | Remove bar | No |
+| `useSlot` | Use item (play mode) | No |
+| `refreshFromInventory` | Reload from source | No |
+| `findBySlotId` | Find slot by ID | No |
+| `findByBarId` | Find bar by ID | No |
 
-| Operation | Purpose |
-|-----------|---------|
-| `create` | Initialize empty scene flow |
-| `addScene` | Add one scene with load mode and shared scenes |
-| `removeScene` | Remove a scene definition |
-| `updateScene` | Update scene properties |
-| `addTransition` | Add one transition between scenes |
-| `removeTransition` | Remove a transition |
-| `addSharedScene` | Add a shared scene to a scene |
-| `removeSharedScene` | Remove a shared scene from a scene |
-| `inspect` | Get scene flow information |
-| `delete` | Delete entire scene flow |
-| `transition` | Trigger scene transition (runtime) |
+#### Parameters (createSlotBar)
 
-### Creating Scene Flows (Step by Step)
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `barId` | string | Yes | Unique bar identifier |
+| `slotCount` | integer | Yes | Number of slots |
+| `slotType` | string | No | `storage`, `equipment`, `quickslot`, `trash` |
+| `layout` | string | No | `horizontal`, `vertical`, `grid` |
+| `dragDropEnabled` | boolean | No | Enable drag and drop |
+| `acceptedCategories` | array | No | Allowed item categories |
+| `slotSize` | Vector2 | No | Slot pixel dimensions |
+
+#### Example
 
 ```python
-# 1. Create empty flow
-gamekitSceneflow({
+# Create equipment slots
+unity_gamekit_ui_slot({
     "operation": "create",
-    "flowId": "MainGameFlow"
+    "slotId": "helmet_slot",
+    "slotType": "equipment",
+    "equipmentSlot": "head",
+    "acceptedCategories": ["helmet", "hat"]
 })
+unity_compilation_await()
 
-# 2. Add scenes one by one
-gamekitSceneflow({
-    "operation": "addScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "MainMenu",
-    "scenePath": "Assets/Scenes/MainMenu.unity",
-    "loadMode": "single"
+# Create quickslot bar
+unity_gamekit_ui_slot({
+    "operation": "createSlotBar",
+    "barId": "quickslots",
+    "slotCount": 8,
+    "slotType": "quickslot",
+    "layout": "horizontal",
+    "dragDropEnabled": true
 })
+unity_compilation_await()
 
-gamekitSceneflow({
-    "operation": "addScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "GameLevel1",
-    "scenePath": "Assets/Scenes/Level1.unity",
-    "loadMode": "additive",
-    "sharedScenePaths": [
-        "Assets/Scenes/UIOverlay.unity",
-        "Assets/Scenes/AudioManager.unity"
-    ]
-})
-
-gamekitSceneflow({
-    "operation": "addScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "GameLevel2",
-    "scenePath": "Assets/Scenes/Level2.unity",
-    "loadMode": "additive",
-    "sharedScenePaths": [
-        "Assets/Scenes/UIOverlay.unity",
-        "Assets/Scenes/AudioManager.unity"
-    ]
-})
-
-# 3. Add transitions one by one
-gamekitSceneflow({
-    "operation": "addTransition",
-    "flowId": "MainGameFlow",
-    "fromScene": "MainMenu",
-    "trigger": "startGame",
-    "toScene": "GameLevel1"
-})
-
-gamekitSceneflow({
-    "operation": "addTransition",
-    "flowId": "MainGameFlow",
-    "fromScene": "GameLevel1",
-    "trigger": "levelComplete",
-    "toScene": "GameLevel2"
-})
-```
-
-### Managing Scenes
-
-```python
-# Update scene properties
-gamekitSceneflow({
-    "operation": "updateScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "GameLevel1",
-    "loadMode": "single",  # Change load mode
-    "sharedScenePaths": ["Assets/Scenes/NewUI.unity"]  # Replace shared scenes
-})
-
-# Remove scene
-gamekitSceneflow({
-    "operation": "removeScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "GameLevel1"
-})
-
-# Add shared scene to existing scene
-gamekitSceneflow({
-    "operation": "addSharedScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "GameLevel2",
-    "sharedScenePath": "Assets/Scenes/NewFeature.unity"
-})
-
-# Remove shared scene
-gamekitSceneflow({
-    "operation": "removeSharedScene",
-    "flowId": "MainGameFlow",
-    "sceneName": "GameLevel2",
-    "sharedScenePath": "Assets/Scenes/OldFeature.unity"
-})
-```
-
-### Managing Transitions
-
-```python
-# Add transition
-gamekitSceneflow({
-    "operation": "addTransition",
-    "flowId": "MainGameFlow",
-    "fromScene": "GameLevel2",
-    "trigger": "victory",
-    "toScene": "Victory"
-})
-
-# Remove transition
-gamekitSceneflow({
-    "operation": "removeTransition",
-    "flowId": "MainGameFlow",
-    "fromScene": "MainMenu",
-    "trigger": "startGame"
-})
-```
-
-### Triggering Transitions
-
-```python
-# Trigger scene transition at runtime
-gamekitSceneflow({
-    "operation": "transition",
-    "flowId": "MainGameFlow",
-    "triggerName": "startGame"
+# Place item in slot
+unity_gamekit_ui_slot({
+    "operation": "setItem",
+    "slotId": "quickslots_slot_0",
+    "itemId": "potion_hp",
+    "itemName": "Health Potion",
+    "quantity": 5,
+    "iconPath": "Assets/Icons/potion_hp.png"
 })
 ```
 
 ---
 
-## GameKit Interaction
+### UISelection
 
-### Overview
+**MCP Tool:** `unity_gamekit_ui_selection`
 
-**GameKitInteraction** creates trigger-based interactions with declarative actions.
+Selection groups for radio buttons, toggles, checkboxes, and tabs. Supports SelectionActions to control panel visibility based on selection.
 
-### Trigger Types
+#### Operations
 
-- **collision**: OnCollisionEnter
-- **trigger**: OnTriggerEnter
-- **proximity**: Distance-based
-- **input**: Key press
-- **raycast**: Ray hit detection
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create selection group | Yes |
+| `update` | Modify settings | No |
+| `inspect` | View selection state | No |
+| `delete` | Remove group | No |
+| `setItems` | Replace all items | No |
+| `addItem` | Add item | No |
+| `removeItem` | Remove item | No |
+| `clear` | Remove all items | No |
+| `selectItem` | Select by index | No |
+| `selectItemById` | Select by ID | No |
+| `deselectItem` | Deselect by index | No |
+| `clearSelection` | Clear all | No |
+| `setSelectionActions` | Set visibility rules | No |
+| `setItemEnabled` | Enable/disable item | No |
+| `findBySelectionId` | Find by ID | No |
 
-### Creating Interactions
+#### Parameters (create)
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `selectionId` | string | Yes | Unique identifier |
+| `selectionType` | string | Yes | `radio`, `toggle`, `checkbox`, `tab` |
+| `items` | array | Yes | Selection item objects |
+| `layout` | string | No | `horizontal`, `vertical`, `grid` |
+| `allowNone` | boolean | No | Allow empty selection |
+| `defaultIndex` | integer | No | Initial selection |
+| `spacing` | number | No | Gap between items (px) |
+
+**Item object:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | string | Item identifier |
+| `label` | string | Display text |
+| `iconPath` | string | Icon asset path |
+| `enabled` | boolean | Interactable |
+| `defaultSelected` | boolean | Selected by default |
+| `associatedPanelPath` | string | Panel to show on select |
+
+**SelectionAction object:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `selectedId` | string | Item ID that triggers this action |
+| `showPaths` | array | Paths to show when selected |
+| `hidePaths` | array | Paths to hide when selected |
+
+#### Example
 
 ```python
-# Create a collectible item
-gamekitInteraction({
+# Create difficulty selection (radio)
+unity_gamekit_ui_selection({
     "operation": "create",
-    "interactionId": "GoldCoin",
-    "parentPath": "Items/Coins",
-    "triggerType": "trigger",
-    "triggerShape": "sphere",
-    "triggerSize": {"x": 1, "y": 1, "z": 1},
-    "conditions": [
-        {"type": "tag", "value": "Player"}
-    ],
+    "selectionId": "difficulty",
+    "selectionType": "radio",
+    "layout": "vertical",
+    "items": [
+        {"id": "easy", "label": "Easy"},
+        {"id": "normal", "label": "Normal", "defaultSelected": true},
+        {"id": "hard", "label": "Hard"}
+    ]
+})
+unity_compilation_await()
+
+# Create tab navigation with panel switching
+unity_gamekit_ui_selection({
+    "operation": "create",
+    "selectionId": "menuTabs",
+    "selectionType": "tab",
+    "layout": "horizontal",
+    "items": [
+        {"id": "status", "label": "Status"},
+        {"id": "inventory", "label": "Inventory"},
+        {"id": "skills", "label": "Skills"}
+    ]
+})
+unity_compilation_await()
+
+unity_gamekit_ui_selection({
+    "operation": "setSelectionActions",
+    "selectionId": "menuTabs",
     "actions": [
-        {
-            "type": "sendMessage",
-            "target": "GameManager",
-            "parameter": "CollectGold:10"
-        },
-        {
-            "type": "playSound",
-            "parameter": "Assets/Audio/CoinPickup.wav"
-        },
-        {
-            "type": "destroyObject",
-            "target": "self"
-        }
-    ]
-})
-
-# Create a door that opens on proximity
-gamekitInteraction({
-    "operation": "create",
-    "interactionId": "AutoDoor",
-    "parentPath": "Environment/Doors",
-    "triggerType": "proximity",
-    "triggerSize": {"x": 3, "y": 2, "z": 3},
-    "conditions": [
-        {"type": "tag", "value": "Player"}
-    ],
-    "actions": [
-        {
-            "type": "sendMessage",
-            "target": "AutoDoor",
-            "parameter": "Open"
-        }
+        {"selectedId": "status",
+         "showPaths": ["StatusPanel"],
+         "hidePaths": ["InventoryPanel", "SkillPanel"]},
+        {"selectedId": "inventory",
+         "showPaths": ["InventoryPanel"],
+         "hidePaths": ["StatusPanel", "SkillPanel"]},
+        {"selectedId": "skills",
+         "showPaths": ["SkillPanel"],
+         "hidePaths": ["StatusPanel", "InventoryPanel"]}
     ]
 })
 ```
 
 ---
 
-## Complete Game Examples
+## Presentation Pillar
 
-### Example 1: RPG Character System
+### AnimationSync
+
+**MCP Tool:** `unity_gamekit_animation_sync`
+
+Declaratively sync Animator parameters with game state (velocity, health, etc.) and set up trigger rules for events.
+
+#### Operations
+
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create animation sync | Yes |
+| `update` | Modify animator reference | No |
+| `inspect` | View sync rules | No |
+| `delete` | Remove component | No |
+| `addSyncRule` | Add parameter sync | No |
+| `removeSyncRule` | Remove sync rule | No |
+| `addTriggerRule` | Add trigger rule | No |
+| `removeTriggerRule` | Remove trigger rule | No |
+| `fireTrigger` | Fire trigger (play mode) | No |
+| `setParameter` | Set parameter (play mode) | No |
+| `findBySyncId` | Find by ID | No |
+
+#### Sync Rule Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `parameter` | string | Animator parameter name |
+| `parameterType` | string | `float`, `int`, `bool` |
+| `sourceType` | string | `rigidbody3d`, `rigidbody2d`, `transform`, `health`, `custom` |
+| `sourceProperty` | string | Property name (e.g., `velocity.magnitude`) |
+| `multiplier` | number | Value scaling factor |
+| `boolThreshold` | number | Threshold for bool conversion |
+
+#### Trigger Rule Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `triggerName` | string | Animator trigger name |
+| `eventSource` | string | `health`, `input`, `manual` |
+| `inputAction` | string | Input action name |
+| `healthId` | string | Health component ID |
+| `healthEvent` | string | `OnDamaged`, `OnHealed`, `OnDeath`, `OnRespawn`, `OnInvincibilityStart`, `OnInvincibilityEnd` |
+
+#### Example
 
 ```python
-# 1. Create resource manager for player stats
-gamekitManager({
+unity_gamekit_animation_sync({
     "operation": "create",
-    "managerId": "PlayerStats",
-    "managerType": "resourcepool",
-    "initialResources": {
-        "health": 100,
-        "mana": 50,
-        "stamina": 100,
-        "gold": 0,
-        "experience": 0
-    }
-})
-
-# 2. Create Machinations diagram for economy
-gamekitMachinations({
-    "operation": "create",
-    "diagramId": "RPGEconomy",
-    "assetPath": "Assets/Economy/RPG.asset",
-    "initialResources": [
-        {"name": "health", "initialAmount": 100, "minValue": 0, "maxValue": 100},
-        {"name": "mana", "initialAmount": 50, "minValue": 0, "maxValue": 100}
-    ],
-    "flows": [
-        {
-            "flowId": "manaRegen",
-            "resourceName": "mana",
-            "ratePerSecond": 1.0,
-            "isSource": True
-        }
-    ],
-    "converters": [
-        {
-            "converterId": "castSpell",
-            "fromResource": "mana",
-            "toResource": "damage",
-            "conversionRate": 10,
-            "inputCost": 20
-        }
+    "syncId": "playerAnimSync",
+    "autoFindAnimator": true,
+    "syncRules": [
+        {"parameter": "Speed", "parameterType": "float",
+         "sourceType": "rigidbody3d",
+         "sourceProperty": "velocity.magnitude"},
+        {"parameter": "VelocityY", "parameterType": "float",
+         "sourceType": "rigidbody3d",
+         "sourceProperty": "velocity.y"},
+        {"parameter": "IsMoving", "parameterType": "bool",
+         "sourceType": "rigidbody3d",
+         "sourceProperty": "velocity.magnitude",
+         "boolThreshold": 0.1}
     ],
     "triggers": [
-        {
-            "triggerName": "playerDied",
-            "resourceName": "health",
-            "thresholdType": "below",
-            "thresholdValue": 1
-        }
+        {"triggerName": "TakeDamage", "eventSource": "health",
+         "healthEvent": "OnDamaged"},
+        {"triggerName": "Die", "eventSource": "health",
+         "healthEvent": "OnDeath"}
     ]
 })
+unity_compilation_await()
+```
 
-# 3. Apply Machinations to manager
-gamekitMachinations({
-    "operation": "apply",
-    "assetPath": "Assets/Economy/RPG.asset",
-    "managerId": "PlayerStats"
-})
+---
 
-# 4. Create player actor
-gamekitActor({
+### Effect
+
+**MCP Tool:** `unity_gamekit_effect`
+
+Composite effect system combining particles, sound, camera shake, screen flash, and time scale. Includes EffectManager for centralized registration.
+
+#### Operations
+
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create effect | Yes |
+| `update` | Modify effect ID | No |
+| `inspect` | View components | No |
+| `delete` | Remove effect | No |
+| `addComponent` | Add effect component | No |
+| `removeComponent` | Remove by index | No |
+| `clearComponents` | Remove all | No |
+| `play` | Play effect | No |
+| `playAtPosition` | Play at coordinates | No |
+| `playAtTransform` | Play at transform | No |
+| `shakeCamera` | Direct camera shake | No |
+| `flashScreen` | Direct screen flash | No |
+| `setTimeScale` | Direct time scale | No |
+| `createManager` | Create EffectManager | Yes |
+| `registerEffect` | Register with manager | No |
+| `unregisterEffect` | Unregister | No |
+| `findByEffectId` | Find by ID | No |
+| `listEffects` | List all effects | No |
+
+#### Effect Component Types
+
+| Type | Key Parameters |
+|------|---------------|
+| `particle` | `prefabPath`, `duration`, `attachToTarget`, `positionOffset`, `particleScale` |
+| `sound` | `clipPath`, `volume`, `pitchVariation`, `spatialBlend` |
+| `cameraShake` | `intensity`, `shakeDuration`, `frequency` |
+| `screenFlash` | `color` (RGBA), `flashDuration`, `fadeTime` |
+| `timeScale` | `targetTimeScale`, `timeScaleDuration`, `timeScaleTransition` |
+
+#### Example
+
+```python
+# Create hit effect
+unity_gamekit_effect({
     "operation": "create",
-    "actorId": "Player",
-    "controlMode": "directController",
-    "behaviorProfile": "3dCharacterController"
-})
-
-# 5. Create UI for resource management
-gamekitUICommand({
-    "operation": "createCommandPanel",
-    "panelId": "PlayerUI",
-    "canvasPath": "Canvas",
-    "targetType": "manager",
-    "targetManagerId": "PlayerStats",
-    "commands": [
-        {
-            "name": "useHealthPotion",
-            "label": "HP Potion",
-            "commandType": "addResource",
-            "commandParameter": "health",
-            "resourceAmount": 50
-        },
-        {
-            "name": "useManaPotion",
-            "label": "MP Potion",
-            "commandType": "addResource",
-            "commandParameter": "mana",
-            "resourceAmount": 30
-        }
+    "effectId": "hitEffect",
+    "components": [
+        {"type": "particle",
+         "prefabPath": "Assets/VFX/HitSpark.prefab",
+         "duration": 0.5},
+        {"type": "sound",
+         "clipPath": "Assets/Audio/Hit.wav",
+         "volume": 0.7, "pitchVariation": 0.1},
+        {"type": "cameraShake",
+         "intensity": 0.3, "shakeDuration": 0.15, "frequency": 30},
+        {"type": "timeScale",
+         "targetTimeScale": 0.1, "timeScaleDuration": 0.05}
     ]
+})
+unity_compilation_await()
+
+# Create global effect manager
+unity_gamekit_effect({
+    "operation": "createManager",
+    "managerId": "globalFX",
+    "persistent": true
+})
+unity_compilation_await()
+
+# Register effect with manager
+unity_gamekit_effect({
+    "operation": "registerEffect",
+    "managerId": "globalFX",
+    "effectId": "hitEffect"
 })
 ```
 
-### Example 2: Tower Defense Economy
+---
+
+### Feedback
+
+**MCP Tool:** `unity_gamekit_feedback`
+
+Game feel effects: hitstop, screen shake, flash, scale punch, haptics, and more.
+
+#### Operations
+
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create feedback | Yes |
+| `update` | Modify settings | No |
+| `inspect` | View components | No |
+| `delete` | Remove feedback | No |
+| `addComponent` | Add feedback type | No |
+| `clearComponents` | Remove all | No |
+| `setIntensity` | Set global multiplier | No |
+| `findByFeedbackId` | Find by ID | No |
+
+#### Feedback Component Types
+
+| Type | Key Parameters |
+|------|---------------|
+| `hitstop` | `hitstopTimeScale` (0 = frozen) |
+| `screenShake` | `shakeFrequency` (Hz) |
+| `flash` | `color` (RGBA), `fadeTime` |
+| `colorFlash` | `color` (RGBA) |
+| `scale` | `scaleAmount` (Vector3) |
+| `position` | `positionAmount` (Vector3) |
+| `rotation` | `rotationAmount` (Vector3) |
+| `sound` | `soundVolume` |
+| `particle` | (particle parameters) |
+| `haptic` | `hapticIntensity` |
+
+**Common parameters for all components:** `delay`, `duration`, `intensity`
+
+#### Example
 
 ```python
-# 1. Create economy manager
-gamekitManager({
+unity_gamekit_feedback({
     "operation": "create",
-    "managerId": "TowerDefenseEconomy",
-    "managerType": "resourcepool",
-    "initialResources": {
-        "gold": 200,
-        "lives": 20,
-        "score": 0
-    }
-})
-
-# 2. Create Machinations diagram
-gamekitMachinations({
-    "operation": "create",
-    "diagramId": "TowerDefense",
-    "assetPath": "Assets/Economy/TowerDefense.asset",
-    "initialResources": [
-        {"name": "gold", "initialAmount": 200, "minValue": 0, "maxValue": 999999},
-        {"name": "lives", "initialAmount": 20, "minValue": 0, "maxValue": 20}
-    ],
-    "flows": [
-        {
-            "flowId": "passiveIncome",
-            "resourceName": "gold",
-            "ratePerSecond": 5.0,
-            "isSource": True
-        }
-    ],
-    "converters": [
-        {
-            "converterId": "buildBasicTower",
-            "fromResource": "gold",
-            "toResource": "defense",
-            "conversionRate": 1,
-            "inputCost": 50
-        },
-        {
-            "converterId": "buildAdvancedTower",
-            "fromResource": "gold",
-            "toResource": "defense",
-            "conversionRate": 3,
-            "inputCost": 150
-        }
-    ],
-    "triggers": [
-        {
-            "triggerName": "gameOver",
-            "resourceName": "lives",
-            "thresholdType": "below",
-            "thresholdValue": 1
-        }
+    "feedbackId": "heavyAttack",
+    "playOnEnable": false,
+    "globalIntensityMultiplier": 1.0,
+    "components": [
+        {"type": "hitstop", "duration": 0.08, "hitstopTimeScale": 0},
+        {"type": "screenShake", "duration": 0.3, "intensity": 0.5,
+         "shakeFrequency": 20},
+        {"type": "flash", "duration": 0.15, "intensity": 0.8,
+         "color": {"r": 1, "g": 1, "b": 1, "a": 0.4}},
+        {"type": "scale", "duration": 0.2, "intensity": 1.3}
     ]
 })
+unity_compilation_await()
+```
 
-# 3. Apply to manager
-gamekitMachinations({
-    "operation": "apply",
-    "assetPath": "Assets/Economy/TowerDefense.asset",
-    "managerId": "TowerDefenseEconomy"
+---
+
+### VFX
+
+**MCP Tool:** `unity_gamekit_vfx`
+
+ParticleSystem wrapper with object pooling and runtime parameter control.
+
+#### Operations
+
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create VFX component | Yes |
+| `update` | Modify settings | No |
+| `inspect` | View configuration | No |
+| `delete` | Remove component | No |
+| `setMultipliers` | Set duration/size/emission | No |
+| `setColor` | Set particle color | No |
+| `setLoop` | Enable/disable loop | No |
+| `findByVFXId` | Find by ID | No |
+
+#### Parameters (create)
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `vfxId` | string | Unique identifier |
+| `particlePrefabPath` | string | Particle prefab path |
+| `autoPlay` | boolean | Auto-play on enable |
+| `loop` | boolean | Loop playback |
+| `usePooling` | boolean | Enable object pool |
+| `poolSize` | integer | Pool size (default: 5) |
+| `attachToParent` | boolean | Attach to parent |
+| `durationMultiplier` | number | Duration scale |
+| `sizeMultiplier` | number | Size scale |
+| `emissionMultiplier` | number | Emission rate scale |
+
+#### Example
+
+```python
+unity_gamekit_vfx({
+    "operation": "create",
+    "vfxId": "muzzleFlash",
+    "particlePrefabPath": "Assets/VFX/MuzzleFlash.prefab",
+    "autoPlay": false,
+    "loop": false,
+    "usePooling": true,
+    "poolSize": 10,
+    "sizeMultiplier": 0.8,
+    "emissionMultiplier": 1.5
+})
+unity_compilation_await()
+```
+
+---
+
+### Audio
+
+**MCP Tool:** `unity_gamekit_audio`
+
+Sound management wrapper supporting SFX, music, ambient, voice, and UI sounds with fade support and 3D spatialization.
+
+#### Operations
+
+| Operation | Description | Requires Compilation |
+|-----------|-------------|---------------------|
+| `create` | Create audio component | Yes |
+| `update` | Modify settings | No |
+| `inspect` | View configuration | No |
+| `delete` | Remove component | No |
+| `setVolume` | Set volume | No |
+| `setPitch` | Set pitch | No |
+| `setLoop` | Enable/disable loop | No |
+| `setClip` | Change audio clip | No |
+| `findByAudioId` | Find by ID | No |
+
+#### Parameters (create)
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `audioId` | string | Unique identifier |
+| `audioType` | string | `sfx`, `music`, `ambient`, `voice`, `ui` |
+| `audioClipPath` | string | AudioClip asset path |
+| `playOnEnable` | boolean | Auto-play |
+| `loop` | boolean | Loop playback |
+| `volume` | number | Volume (0-1) |
+| `pitch` | number | Pitch multiplier |
+| `pitchVariation` | number | Random pitch variation |
+| `spatialBlend` | number | 0 = 2D, 1 = 3D |
+| `fadeInDuration` | number | Fade-in time (seconds) |
+| `fadeOutDuration` | number | Fade-out time (seconds) |
+| `minDistance` | number | 3D min distance |
+| `maxDistance` | number | 3D max distance |
+
+#### Example
+
+```python
+# Background music
+unity_gamekit_audio({
+    "operation": "create",
+    "audioId": "bgm_main",
+    "audioType": "music",
+    "audioClipPath": "Assets/Audio/MainTheme.ogg",
+    "playOnEnable": true,
+    "loop": true,
+    "volume": 0.6,
+    "fadeInDuration": 3.0,
+    "fadeOutDuration": 2.0
+})
+unity_compilation_await()
+
+# Spatialized sound effect
+unity_gamekit_audio({
+    "operation": "create",
+    "audioId": "sfx_footstep",
+    "audioType": "sfx",
+    "audioClipPath": "Assets/Audio/Footstep.wav",
+    "volume": 0.8,
+    "pitchVariation": 0.15,
+    "spatialBlend": 1.0,
+    "minDistance": 1,
+    "maxDistance": 15
+})
+unity_compilation_await()
+```
+
+---
+
+## Logic Pillar
+
+The Logic pillar provides analysis and validation tools. These do not use code generation.
+
+| Tool | Description |
+|------|-------------|
+| `unity_validate_integrity` | Check for missing scripts, null references, broken events/prefabs |
+| `unity_class_catalog` | Enumerate and inspect types (classes, MonoBehaviours, enums) |
+| `unity_class_dependency_graph` | Analyze C# class dependencies |
+| `unity_scene_reference_graph` | Analyze references between GameObjects in scene |
+| `unity_scene_relationship_graph` | Analyze scene transitions and relationships |
+
+### Verifying Changes
+
+Use logic pillar tools after making significant changes:
+
+```python
+# Check for broken references
+unity_scene_relationship_graph({
+    "operation": "analyze",
+    "includeReferences": true,
+    "includeEvents": true
 })
 
-# 4. Create build UI
-gamekitUICommand({
-    "operation": "createCommandPanel",
-    "panelId": "BuildPanel",
-    "canvasPath": "Canvas",
-    "targetType": "manager",
-    "targetManagerId": "TowerDefenseEconomy",
-    "commands": [
-        {
-            "name": "buildBasic",
-            "label": "Basic Tower (50g)",
-            "commandType": "consumeResource",
-            "commandParameter": "gold",
-            "resourceAmount": 50
-        },
-        {
-            "name": "buildAdvanced",
-            "label": "Advanced Tower (150g)",
-            "commandType": "consumeResource",
-            "commandParameter": "gold",
-            "resourceAmount": 150
-        }
-    ]
+# Check before deleting an object
+unity_scene_reference_graph({
+    "operation": "analyze",
+    "rootPath": "TargetObject",
+    "direction": "incoming"
 })
 ```
 
-### Example 3: Turn-Based Strategy
+---
+
+## Code Generation Workflow
+
+### Generated File Structure
+
+```
+Assets/Scripts/Generated/
+├── PlayerControlsCommandPanel.cs     ← UICommand
+├── PlayerHPBinding.cs                ← UIBinding
+├── InventoryList.cs                  ← UIList
+├── QuickSlots.cs                     ← UISlot
+├── DifficultySelection.cs            ← UISelection
+├── PlayerAnimSync.cs                 ← AnimationSync
+├── HitEffect.cs                      ← Effect
+├── GlobalFXManager.cs                ← EffectManager
+├── HeavyAttackFeedback.cs            ← Feedback
+├── MuzzleFlashVFX.cs                 ← VFX
+└── BattleBGMAudio.cs                 ← Audio
+
+Assets/UI/Generated/                  ← UI Toolkit assets
+├── PlayerControls.uxml
+├── PlayerControls.uss
+├── Inventory.uxml
+└── Inventory.uss
+```
+
+### Registry Pattern
+
+All generated components register themselves using a static dictionary:
+
+```csharp
+// From any script, find a generated component by its ID
+var hpBar = PlayerHPBinding.FindById("playerHP");
+var controls = PlayerControlsCommandPanel.FindById("mobileControls");
+var inventory = InventoryList.FindById("inventory");
+```
+
+### Compilation Flow
+
+```
+1. Call create operation     → Script file generated
+2. unity_compilation_await   → Wait for Unity to compile
+3. Component auto-attached   → Ready to use
+4. Subsequent operations     → No compilation needed
+```
+
+---
+
+## Complete Game Example
+
+### RPG with UI, Effects, and Audio
 
 ```python
-# 1. Create turn manager
-gamekitManager({
+# === Step 1: Create UI ===
+
+# Tab navigation
+unity_gamekit_ui_selection({
     "operation": "create",
-    "managerId": "BattleManager",
-    "managerType": "turnBased",
-    "turnPhases": ["PlayerTurn", "EnemyTurn", "ResolveEffects", "CheckVictory"]
-})
-
-# 2. Create tactical units
-for i in range(3):
-    gamekitActor({
-        "operation": "create",
-        "actorId": f"PlayerUnit{i}",
-        "controlMode": "uiCommand",
-        "behaviorProfile": "2dTileGrid",
-        "position": {"x": i, "y": 0, "z": 0}
-    })
-
-# 3. Create unit command UI
-gamekitUICommand({
-    "operation": "createCommandPanel",
-    "panelId": "UnitCommands",
-    "canvasPath": "Canvas",
-    "targetType": "actor",
-    "targetActorId": "PlayerUnit0",  # Dynamically change target
-    "commands": [
-        {
-            "name": "moveUp",
-            "label": "Move Up",
-            "commandType": "move",
-            "moveDirection": {"x": 0, "y": 1, "z": 0}
-        },
-        {
-            "name": "attack",
-            "label": "Attack",
-            "commandType": "action",
-            "commandParameter": "attack"
-        }
+    "selectionId": "gameTabs",
+    "selectionType": "tab",
+    "items": [
+        {"id": "game", "label": "Game"},
+        {"id": "inventory", "label": "Inventory"},
+        {"id": "status", "label": "Status"}
     ]
 })
+unity_compilation_await()
 
-# 4. Create turn management UI
-gamekitUICommand({
-    "operation": "createCommandPanel",
-    "panelId": "TurnPanel",
-    "canvasPath": "Canvas",
-    "targetType": "manager",
-    "targetManagerId": "BattleManager",
-    "commands": [
-        {
-            "name": "endTurn",
-            "label": "End Turn",
-            "commandType": "nextTurn"
-        }
+# HP bar binding
+unity_gamekit_ui_binding({
+    "operation": "create",
+    "bindingId": "hpBar",
+    "sourceType": "health",
+    "sourceId": "player_hp",
+    "elementName": "hp-progress",
+    "format": "ratio",
+    "formatString": "{0}/{1}",
+    "smoothTransition": true,
+    "smoothSpeed": 5.0
+})
+unity_compilation_await()
+
+# Quickslot bar
+unity_gamekit_ui_slot({
+    "operation": "createSlotBar",
+    "barId": "quickbar",
+    "slotCount": 6,
+    "slotType": "quickslot",
+    "layout": "horizontal"
+})
+unity_compilation_await()
+
+# === Step 2: Presentation ===
+
+# Animation sync
+unity_gamekit_animation_sync({
+    "operation": "create",
+    "syncId": "playerAnim",
+    "autoFindAnimator": true,
+    "syncRules": [
+        {"parameter": "Speed", "parameterType": "float",
+         "sourceType": "rigidbody3d",
+         "sourceProperty": "velocity.magnitude"}
+    ],
+    "triggers": [
+        {"triggerName": "Hit", "eventSource": "health",
+         "healthEvent": "OnDamaged"}
     ]
 })
+unity_compilation_await()
+
+# Hit feedback
+unity_gamekit_feedback({
+    "operation": "create",
+    "feedbackId": "onHit",
+    "components": [
+        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
+        {"type": "screenShake", "duration": 0.2, "intensity": 0.3},
+        {"type": "flash", "duration": 0.1,
+         "color": {"r": 1, "g": 0, "b": 0, "a": 0.3}}
+    ]
+})
+unity_compilation_await()
+
+# Background music
+unity_gamekit_audio({
+    "operation": "create",
+    "audioId": "bgm_field",
+    "audioType": "music",
+    "audioClipPath": "Assets/Audio/FieldBGM.ogg",
+    "loop": true,
+    "volume": 0.5,
+    "fadeInDuration": 2.0
+})
+unity_compilation_await()
+
+# === Step 3: Verify integrity ===
+unity_validate_integrity({"operation": "checkAll"})
 ```
 
 ---
 
 ## Best Practices
 
-### DO ✅
+### 1. Compilation Batching
 
-1. **Use Machinations for economies** - Model resource flows declaratively
-2. **Separate input from behavior** - Use Actor's controller/behavior architecture
-3. **UICommand for non-player control** - Perfect for strategy/tactics games
-4. **Manager for centralized systems** - Resources, turns, states in one place
-5. **Save/load with exportState/importState** - Easy persistence
-6. **SceneFlow for complex transitions** - State machine-based scene management
+Minimize compilation waits by creating multiple components before awaiting:
 
-### DON'T ❌
+```python
+# Create multiple components
+unity_gamekit_ui_command({"operation": "createCommandPanel", ...})
+# Don't await yet - create more components first if they don't depend on each other
 
-1. **Don't mix input in movement scripts** - Use Actor's event-driven design
-2. **Don't scatter resources** - Centralize in ResourceManager
-3. **Don't hardcode scene transitions** - Use SceneFlow
-4. **Don't manually track game states** - Use StateManager
-5. **Don't skip Machinations validation** - Check your economic balance
+# Await once for all
+unity_compilation_await()
+```
+
+### 2. ID Naming Convention
+
+Use consistent, descriptive IDs:
+- UI: `playerHP`, `inventoryList`, `quickbar`
+- Effects: `hitEffect`, `explosionFX`
+- Audio: `bgm_battle`, `sfx_sword`, `ambient_forest`
+
+### 3. Use FindById for Cross-References
+
+Generated components expose `FindById()` for easy access:
+```csharp
+// From any script
+var audio = BattleBGMAudio.FindById("bgm_battle");
+```
+
+### 4. Inspect Before Modify
+
+Always inspect existing components before making changes:
+```python
+unity_gamekit_ui_list({"operation": "inspect", "listId": "inventory"})
+```
+
+### 5. Verify After Major Changes
+
+Use logic pillar tools to validate:
+```python
+unity_validate_integrity({"operation": "checkAll"})
+unity_scene_reference_graph({"operation": "analyze", "rootPath": "Player"})
+```
 
 ---
 
-## Troubleshooting
-
-### Actor not responding to input
-- Check controlMode is `directController`
-- Verify Input Actions asset is assigned
-- Check behavior profile matches your setup (2D vs 3D)
-
-### Manager resources not updating
-- Verify manager exists with `inspect` operation
-- Check resource names match exactly (case-sensitive)
-- Ensure flows are enabled if using automatic generation
-
-### UICommand buttons not working
-- Check target Actor/Manager ID is correct
-- Verify commandType matches target (Actor vs Manager commands)
-- Ensure button onClick is properly connected
-
-### Machinations flows not running
-- Check `autoProcessFlows` is enabled in ResourceManager
-- Verify flows are enabled (`SetFlowEnabled`)
-- Ensure resource pools exist before flows start
-
----
-
-**GameKit provides everything you need to build complete games. Start simple, scale up with assets!** 🎮
-
+**GameKit provides a complete toolkit for AI-driven game development. Use the 3-pillar architecture to build polished games efficiently.**

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**📚 すべてのドキュメントへの総合索引**
+**すべてのドキュメントへの総合索引**
 
 Unity-AI-Forge を使いこなすための完全ガイド
 
@@ -12,28 +12,49 @@ Unity-AI-Forge を使いこなすための完全ガイド
 
 ---
 
-## 🎯 Quick Navigation
+## Quick Navigation
 
-### 👤 初めての方
+### 初めての方
 
 | ドキュメント | 目的 | 所要時間 |
 |:---|:---|:---:|
-| [**🚀 Getting Started**](GETTING_STARTED.md) | Unity-AI-Forge を始める | 15分 |
-| [**⚙️ Quick Start**](Installation/QUICKSTART.md) | 最速インストール | 5分 |
+| [**Getting Started**](GETTING_STARTED.md) | Unity-AI-Forge を始める | 15分 |
+| [**Quick Start**](Installation/QUICKSTART.md) | 最速インストール | 5分 |
 | [**01. 基本シーン**](Examples/01-basic-scene-setup.md) | 最初のシーンを作る | 10分 |
 
-### 🎮 GameKit を使う
+### GameKit を使う（3ピラーアーキテクチャ）
 
-| コンポーネント | 用途 | 難易度 |
-|:---|:---|:---:|
-| [**Actor**](GameKit/README.md#gamekit-actor) | プレイヤー/NPC | ⭐ |
-| [**Manager**](GameKit/README.md#gamekit-manager) | リソース/状態管理 | ⭐⭐ |
-| [**UICommand**](GameKit/GameKitUICommand.README.md) | UI → ロジック連携 | ⭐ |
-| [**Machinations**](GameKit/GameKitMachinations.README.md) | 経済システム設計 | ⭐⭐⭐ |
-| [**SceneFlow**](GameKit/GameKitSceneFlow.README.md) | シーン遷移管理 | ⭐⭐ |
-| [**Interaction**](GameKit/GameKitInteraction.README.md) | トリガーアクション | ⭐ |
+#### UI ピラー
 
-### 🤖 AI と連携
+| コンポーネント | 用途 | MCP ツール |
+|:---|:---|:---|
+| [**UICommand**](GameKit/GameKitUICommand.README.md) | ボタンコマンドパネル | `unity_gamekit_ui_command` |
+| **UIBinding** | データバインディング | `unity_gamekit_ui_binding` |
+| **UIList** | リスト/グリッド | `unity_gamekit_ui_list` |
+| **UISlot** | スロット（インベントリ等） | `unity_gamekit_ui_slot` |
+| **UISelection** | 選択グループ（ラジオ/タブ等） | `unity_gamekit_ui_selection` |
+
+#### プレゼンテーションピラー
+
+| コンポーネント | 用途 | MCP ツール |
+|:---|:---|:---|
+| **AnimationSync** | アニメーションパラメータ同期 | `unity_gamekit_animation_sync` |
+| **Effect** | 複合エフェクト | `unity_gamekit_effect` |
+| **Feedback** | ゲームフィール | `unity_gamekit_feedback` |
+| **VFX** | ビジュアルエフェクト | `unity_gamekit_vfx` |
+| **Audio** | サウンド管理 | `unity_gamekit_audio` |
+
+#### ロジックピラー
+
+| コンポーネント | 用途 | MCP ツール |
+|:---|:---|:---|
+| **SceneIntegrity** | シーン整合性チェック | `unity_validate_integrity` |
+| **ClassCatalog** | クラス一覧 | `unity_class_catalog` |
+| **ClassDependencyGraph** | クラス依存関係 | `unity_class_dependency_graph` |
+| **SceneReferenceGraph** | シーン参照分析 | `unity_scene_reference_graph` |
+| **SceneRelationshipGraph** | シーン関係分析 | `unity_scene_relationship_graph` |
+
+### AI と連携
 
 | ドキュメント | 内容 |
 |:---|:---|
@@ -41,60 +62,52 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | [**49 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
 | [**Batch Sequential**](MCPServer/BATCH_SEQUENTIAL.md) | バッチ逐次処理（レジューム対応） |
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
-| [**Claude AI**](CLAUDE.md) | Claude 連携情報 |
 
 ---
 
-## 📖 Documentation Structure
+## Documentation Structure
 
 ```
 Documentation/
-├── 🚀 Getting Started ────────────── 初心者向けガイド
+├── Getting Started ──────────── 初心者向けガイド
 │
-├── 📦 Installation/
-│   ├── QUICKSTART.md ──────────── 5分でセットアップ
-│   └── INSTALL_GUIDE.md ───────── 詳細インストール手順
+├── Installation/
+│   ├── QUICKSTART.md ────────── 5分でセットアップ
+│   └── INSTALL_GUIDE.md ─────── 詳細インストール手順
 │
-├── 🎮 GameKit/
-│   ├── README.md ──────────────── GameKit 概要
-│   ├── GameKitActor ───────────── プレイヤー/NPC
-│   ├── GameKitManager ─────────── リソース/状態管理
-│   ├── GameKitMachinations ────── 経済システム
-│   ├── GameKitSceneFlow ───────── シーン遷移
-│   ├── GameKitUICommand ───────── UI コマンド
-│   ├── GameKitInteraction ─────── トリガーシステム
-│   ├── SplineMovement ─────────── スプライン移動
-│   └── GraphNodeMovement ──────── グラフ移動
+├── GameKit/
+│   ├── README.md ────────────── GameKit 概要（3ピラーアーキテクチャ）
+│   └── GameKitUICommand ─────── UICommand 詳細ガイド
 │
-├── 🤖 MCPServer/
-│   ├── README.md ──────────────── MCP サーバー概要
-│   ├── SKILL.md ───────────────── 全49ツール解説
-│   ├── BATCH_SEQUENTIAL.md ────── バッチ逐次処理
-│   └── SKILL_GAMEKIT.md ───────── GameKit 完全ガイド
+├── MCPServer/
+│   ├── README.md ────────────── MCP サーバー概要
+│   ├── SKILL.md ─────────────── 全49ツール解説
+│   ├── BATCH_SEQUENTIAL.md ──── バッチ逐次処理
+│   └── SKILL_GAMEKIT.md ─────── GameKit 完全ガイド
 │
-├── 💡 Examples/
+├── Examples/
 │   ├── 01-basic-scene-setup.md ── 基本シーン
 │   ├── 02-ui-creation.md ──────── UI 作成
 │   ├── 03-game-level.md ───────── ゲームレベル
 │   ├── 04-prefab-workflow.md ──── Prefab ワークフロー
 │   └── 05-design-patterns.md ──── デザインパターン
 │
-├── 🛠️ Handlers/
-│   └── CharacterControllerBundle ─ キャラクター制御
+├── Handlers/
+│   ├── CharacterControllerBundle ─ キャラクター制御
+│   └── TilemapBundle ──────────── タイルマップ
 │
-├── 🧪 Testing/
-│   └── README.md ──────────────── テスト実行方法
+├── Testing/
+│   └── README.md ────────────── テスト実行方法
 │
-├── 📝 CHANGELOG.md ────────────── 変更履歴
-├── 🔮 GAMEKIT_ROADMAP.md ─────── 今後の開発計画
-├── 🤖 CLAUDE.md ───────────────── Claude AI 連携
-├── 🇯🇵 README_ja.md ──────────── プロジェクト概要（日本語）
-└── 🇬🇧 README.md ─────────────── Project Overview (English)
+├── CHANGELOG.md ──────────────── 変更履歴
+├── GAMEKIT_ROADMAP.md ────────── 今後の開発計画
+├── README_ja.md ──────────────── プロジェクト概要（日本語）
+└── README.md ─────────────────── Project Overview (English)
 ```
 
 ---
 
-## 🎓 Learning Path
+## Learning Path
 
 ### Level 1: 基礎を学ぶ (1-2時間)
 
@@ -104,82 +117,82 @@ Documentation/
 
 ### Level 2: GameKit を使う (2-4時間)
 
-4. [GameKit 概要](GameKit/README.md) - フレームワーク理解
-5. [Actor](GameKit/README.md#gamekit-actor) - キャラクター作成
-6. [Manager](GameKit/README.md#gamekit-manager) - リソース管理
-7. [UICommand](GameKit/GameKitUICommand.README.md) - UI 連携
+4. [GameKit 概要](GameKit/README.md) - 3ピラーアーキテクチャの理解
+5. [GameKit 完全ガイド](MCPServer/SKILL_GAMEKIT.md) - 全10ツールの使い方
+6. [UICommand](GameKit/GameKitUICommand.README.md) - UIコマンドパネル
 
 ### Level 3: 高度な機能 (4-8時間)
 
-8. [Machinations](GameKit/GameKitMachinations.README.md) - 経済設計
-9. [SceneFlow](GameKit/GameKitSceneFlow.README.md) - シーン遷移
-10. [MCP Tools](MCPServer/SKILL.md) - AI 連携
+7. [全49ツール](MCPServer/SKILL.md) - Low/Mid/High レベルツール
+8. [03. ゲームレベル](Examples/03-game-level.md) - レベル構築
+9. [05. デザインパターン](Examples/05-design-patterns.md) - 設計
 
 ### Level 4: プロジェクト開発 (実践)
 
-11. [03. ゲームレベル](Examples/03-game-level.md) - レベル構築
-12. [04. Prefab ワークフロー](Examples/04-prefab-workflow.md) - 再利用
-13. [05. デザインパターン](Examples/05-design-patterns.md) - 設計
+10. [04. Prefab ワークフロー](Examples/04-prefab-workflow.md) - 再利用
+11. [Batch Sequential](MCPServer/BATCH_SEQUENTIAL.md) - バッチ処理
 
 ---
 
-## 📚 Complete Documentation List
+## Complete Documentation List
 
 ---
 
-## 🔍 By Category
+## By Category
 
 <details>
-<summary><b>🚀 Getting Started & Installation</b></summary>
+<summary><b>Getting Started & Installation</b></summary>
 
-- [Getting Started Guide](GETTING_STARTED.md) ⭐ **Start Here!**
+- [Getting Started Guide](GETTING_STARTED.md) - **Start Here!**
 - [Quick Start (5 min)](Installation/QUICKSTART.md)
-- [Installation Guide (詳細)](Installation/INSTALL_GUIDE.md)
+- [Installation Guide](Installation/INSTALL_GUIDE.md)
 - [Project README (English)](README.md)
 - [プロジェクト README (日本語)](README_ja.md)
 
 </details>
 
 <details>
-<summary><b>🎮 GameKit Framework</b></summary>
+<summary><b>GameKit Framework（3ピラーアーキテクチャ）</b></summary>
 
-#### Core Components
+#### 概要
 
-- [GameKit Overview](GameKit/README.md)
-- [GameKitActor](GameKit/README.md#gamekit-actor) - Player/NPC system
-- [GameKitManager](GameKit/README.md#gamekit-manager) - Resource/State/Turn management
+- [GameKit Overview](GameKit/README.md) - 3ピラーアーキテクチャ概要
 
-#### Resource & Economy
+#### UI ピラー
 
-- [GameKitResourceManager](GameKit/GameKitResourceManager.README.md) - Resource pools and flows
-- [GameKitMachinations](GameKit/GameKitMachinations.README.md) - Economic system design
+- [UICommand](GameKit/GameKitUICommand.README.md) - ボタンコマンドパネル
+- UIBinding - データバインディング（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uibinding)参照）
+- UIList - リスト/グリッド（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uilist)参照）
+- UISlot - スロット（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uislot)参照）
+- UISelection - 選択グループ（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uiselection)参照）
 
-#### UI & Interaction
+#### プレゼンテーションピラー
 
-- [GameKitUICommand](GameKit/GameKitUICommand.README.md) - UI button → Logic bridge
-- [GameKitInteraction](GameKit/GameKitInteraction.README.md) - Trigger-based interactions
+- AnimationSync - アニメーション同期（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#animationsync)参照）
+- Effect - 複合エフェクト（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#effect)参照）
+- Feedback - ゲームフィール（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#feedback)参照）
+- VFX - ビジュアルエフェクト（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#vfx)参照）
+- Audio - サウンド管理（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#audio)参照）
 
-#### Scene & Navigation
+#### ロジックピラー
 
-- [GameKitSceneFlow](GameKit/GameKitSceneFlow.README.md) - Scene transition state machine
-- [SplineMovement](GameKit/SplineMovement.README.md) - Spline-based movement
-- [GraphNodeMovement](GameKit/GraphNodeMovement.README.md) - A* pathfinding
+- SceneIntegrity, ClassCatalog, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
+- 詳細: [GameKit Overview](GameKit/README.md#ロジックピラー)
 
 </details>
 
 <details>
-<summary><b>🤖 MCP & AI Integration</b></summary>
+<summary><b>MCP & AI Integration</b></summary>
 
 - [MCP Server Overview](MCPServer/README.md)
 - [All 49 Tools Reference](MCPServer/SKILL.md)
 - [Batch Sequential Tool](MCPServer/BATCH_SEQUENTIAL.md)
 - [GameKit Complete Guide](MCPServer/SKILL_GAMEKIT.md)
-- [Claude AI Integration](CLAUDE.md)
 
 </details>
 
 <details>
-<summary><b>💡 Examples & Tutorials</b></summary>
+<summary><b>Examples & Tutorials</b></summary>
 
 - [Examples Overview](Examples/README.md)
 - [01. Basic Scene Setup](Examples/01-basic-scene-setup.md)
@@ -191,40 +204,35 @@ Documentation/
 </details>
 
 <details>
-<summary><b>🛠️ Advanced & Tools</b></summary>
+<summary><b>Advanced & Tools</b></summary>
 
 - [CharacterController Bundle](Handlers/CharacterControllerBundle.README.md)
+- [Tilemap Bundle](Handlers/TilemapBundle.README.md)
 - [Testing Guide](Testing/README.md)
 - [Changelog](CHANGELOG.md)
-- [GameKit Roadmap](GAMEKIT_ROADMAP.md) - 今後の開発計画
+- [GameKit Roadmap](GAMEKIT_ROADMAP.md)
 
 </details>
 
 ---
 
-## 🎯 By Use Case
+## By Use Case
 
-### "ゲームを作り始めたい"
-→ [Getting Started](GETTING_STARTED.md) → [Basic Scene](Examples/01-basic-scene-setup.md)
+### "ゲームの UI を作りたい"
+→ [GameKit Overview](GameKit/README.md#ui-ピラー) → [UICommand](GameKit/GameKitUICommand.README.md)
 
-### "経済システムを設計したい"
-→ [Machinations](GameKit/GameKitMachinations.README.md) → [ResourceManager](GameKit/GameKitResourceManager.README.md)
+### "エフェクトやフィードバックを追加したい"
+→ [GameKit Overview](GameKit/README.md#プレゼンテーションピラー) → [完全ガイド - Effect/Feedback](MCPServer/SKILL_GAMEKIT.md#effect)
 
-### "プレイヤーキャラクターを作りたい"
-→ [GameKitActor](GameKit/README.md#gamekit-actor) → [Example 03](Examples/03-game-level.md)
-
-### "UIとロジックを分離したい"
-→ [UICommand](GameKit/GameKitUICommand.README.md) → [UI Example](Examples/02-ui-creation.md)
-
-### "シーン遷移を管理したい"
-→ [SceneFlow](GameKit/GameKitSceneFlow.README.md)
+### "シーンの整合性をチェックしたい"
+→ [GameKit Overview](GameKit/README.md#ロジックピラー)
 
 ### "AI でゲームを作りたい"
 → [MCP Server](MCPServer/README.md) → [All Tools](MCPServer/SKILL.md)
 
 ---
 
-## 💬 Community & Support
+## Community & Support
 
 | リソース | リンク |
 |:---|:---|
@@ -235,24 +243,21 @@ Documentation/
 
 ---
 
-## 📝 Document Status
+## Document Status
 
 | ドキュメント | 状態 | 最終更新 |
 |:---|:---:|:---|
-| Getting Started | ✅ 完成 | 2025-12-09 |
-| GameKit Guide | ✅ 完成 | 2025-12-09 |
-| MCP Tools (49) | ✅ 完成 | 2026-02-20 |
-| Examples | ✅ 完成 | 2025-12-03 |
-| GameKit Roadmap | 📋 計画中 | 2025-12-29 |
-| API Reference | 🚧 作成中 | - |
+| Getting Started | 完成 | 2025-12-09 |
+| GameKit Guide (3-Pillar) | 完成 | 2026-02-20 |
+| MCP Tools (49) | 完成 | 2026-02-20 |
+| Examples | 完成 | 2025-12-03 |
+| GameKit Roadmap | 計画中 | 2025-12-29 |
+| API Reference | 作成中 | - |
 
 ---
 
 <div align="center">
 
-**📚 Happy Reading & Coding! 🎮**
-
-[⬅️ Back to Main README](../../../README.md) | [🚀 Getting Started](GETTING_STARTED.md)
+[Back to Main README](../../../README.md) | [Getting Started](GETTING_STARTED.md)
 
 </div>
-

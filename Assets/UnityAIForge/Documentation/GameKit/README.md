@@ -1,604 +1,573 @@
-# GameKitランタイムコンポーネント
+# GameKit フレームワーク
 
 <div align="center">
 
-**🎮 高レベルゲーム開発フレームワーク**
+**3ピラーアーキテクチャによるAI駆動ゲーム開発フレームワーク**
 
-迅速なゲーム開発のための柔軟でモジュール式のコンポーネント
+コード生成を活用した、ランタイム依存ゼロのスタンドアロンコンポーネント
 
-[📚 インデックスに戻る](../INDEX.md) | [🚀 はじめに](../GETTING_STARTED.md) | [🎓 完全ガイド](../MCPServer/SKILL_GAMEKIT.md)
+[📚 インデックスに戻る](../INDEX.md) | [🚀 はじめに](../GETTING_STARTED.md) | [🔧 全ツールガイド](../MCPServer/SKILL_GAMEKIT.md)
 
 </div>
 
 ---
 
-GameKitは、柔軟性とモジュール性を重視した高レベルのゲーム開発コンポーネントを提供します。
+## 概要
 
-## 📖 クイックナビゲーション
+GameKit は Unity-AI-Forge の高レベルゲーム開発フレームワークです。MCP ツールを通じて AI がゲーム開発を支援します。
 
-| コンポーネント | 説明 | ドキュメント |
-|:---|:---|:---|
-| **🎭 Actor** | プレイヤー/NPCシステム | [詳細](#actorシステム) |
-| **🎯 Manager** | リソース/状態/ターン管理 | [詳細](#managerシステム) |
-| **💰 Resources** | 経済とリソースプール | [README](GameKitResourceManager.README.md) |
-| **📊 Machinations** | 経済システム設計 | [README](GameKitMachinations.README.md) |
-| **🔄 SceneFlow** | シーン遷移ステートマシン | [README](GameKitSceneFlow.README.md) |
-| **🎨 UICommand** | UI → ロジックブリッジ | [README](GameKitUICommand.README.md) |
-| **🎯 Interaction** | トリガーベースインタラクション | [README](GameKitInteraction.README.md) |
-| **🛤️ Spline** | レールベース移動 | [README](SplineMovement.README.md) |
-| **🗺️ Graph** | A*パスファインディング | [README](GraphNodeMovement.README.md) |
+### 主な特徴
+
+- **コード生成アーキテクチャ**: テンプレートからスタンドアロン C# スクリプトを生成
+- **ランタイム依存ゼロ**: 生成されたコードは Unity-AI-Forge パッケージに依存しない
+- **UI Toolkit ベース**: UXML/USS を活用したモダンな UI 構築
+- **3ピラー構造**: UI、プレゼンテーション、ロジックの3層で包括的なゲーム機能を提供
 
 ---
 
-## Actorシステム
+## 3ピラーアーキテクチャ
 
-### GameKitActor
-
-コントローラーから動作コンポーネントへの入力をUnityEventsを介して中継するコアハブコンポーネント。
-
-**イベント:**
-- `OnMoveInput(Vector3)` - 移動方向
-- `OnJumpInput()` - ジャンプアクション
-- `OnActionInput(string)` - 汎用アクション（例: "interact"、"attack"）
-- `OnLookInput(Vector2)` - 視点/回転入力
-
-**動作プロファイル:**
-- `TwoDLinear` - 2Dトランスフォームベース移動
-- `TwoDPhysics` - 2D物理ベース移動（Rigidbody2D）
-- `TwoDTileGrid` - 2Dタイルベースグリッド移動
-- `GraphNode` - A*パスファインディング付きノードベースグラフ移動（2D/3D非依存）
-- `SplineMovement` - 2.5Dゲーム、レールシューター、サイドスクローラー用のレール/スプライン移動
-- `ThreeDCharacterController` - 3Dキャラクターコントローラー
-- `ThreeDPhysics` - 3D物理ベース移動（Rigidbody）
-- `ThreeDNavMesh` - 3D NavMeshエージェント
-
-**制御モード:**
-- `DirectController` - プレイヤー入力制御
-- `AIAutonomous` - AI駆動制御
-- `UICommand` - UIボタン制御
-- `ScriptTriggerOnly` - スクリプトのみの制御
-
-### 入力コントローラー
-
-#### GameKitInputSystemController（推奨）
-
-Unityの新しいInput Systemを使用（Input Systemパッケージが必要）。
-
-**機能:**
-- 自動PlayerInput統合
-- 事前設定されたアクションマップ（Move、Look、Jump、Action、Fire）
-- WASD/方向キー + ゲームパッドサポート
-- マウス + 右スティックによる視点入力
-- 動作プロファイルに基づく自動2D/3D入力変換
-
-**要件:**
-- Input Systemパッケージ（`com.unity.inputsystem`）
-- PlayerInputコンポーネント（自動追加）
-- DefaultGameKitInputActionsアセット（自動生成）
-
-**使用方法:**
-```csharp
-// DirectControllerモードでアクターを作成すると自動的に追加されます
-// デフォルトバインディング:
-// - WASD/左スティック: Move
-// - マウス/右スティック: Look
-// - Space/Aボタン: Jump
-// - E/Xボタン: Action
-// - 左クリック/RT: Fire
+```
+GameKit Framework
+├── UI ピラー（5ツール）── UI コンポーネント生成
+│   ├── UICommand ─────── ボタンコマンドパネル
+│   ├── UIBinding ─────── データバインディング
+│   ├── UIList ────────── リスト／グリッド表示
+│   ├── UISlot ────────── スロット（インベントリ等）
+│   └── UISelection ───── 選択グループ（ラジオ/タブ等）
+│
+├── プレゼンテーションピラー（5ツール）── 演出・フィードバック
+│   ├── AnimationSync ─── アニメーションパラメータ同期
+│   ├── Effect ────────── 複合エフェクト（パーティクル/サウンド/カメラ）
+│   ├── Feedback ──────── ゲームフィール（ヒットストップ/画面シェイク等）
+│   ├── VFX ───────────── ビジュアルエフェクトラッパー
+│   └── Audio ─────────── サウンド管理（SFX/BGM/環境音等）
+│
+└── ロジックピラー（5ツール）── 分析・検証
+    ├── SceneIntegrity ── シーン整合性チェック
+    ├── ClassCatalog ──── クラス一覧と検査
+    ├── ClassDependencyGraph ── クラス依存関係分析
+    ├── SceneReferenceGraph ── シーン参照分析
+    └── SceneRelationshipGraph ── シーン関係分析
 ```
 
-#### GameKitSimpleInput（レガシーフォールバック）
+---
 
-最大限の互換性のためにUnityのレガシーInputシステムを使用。
+## UI ピラー
 
-**機能:**
-- Input.GetAxis()ベースの移動
-- キーボード + ゲームパッドサポート
-- 自動2D/3D変換
-- 追加パッケージ不要
+UI ピラーは UI Toolkit（UXML/USS）を使用したUI コンポーネントを生成します。生成された C# スクリプトは `FindById()` による静的レジストリパターンを採用し、他のコンポーネントから簡単にアクセスできます。
 
-**フォールバック動作:**
-- Input Systemがインストールされていない場合に自動使用
-- GameKitInputSystemControllerを削除することで手動切り替え可能
+### UICommand（コマンドパネル）
 
-### AIコントローラー
+MCP ツール: `unity_gamekit_ui_command`
 
-#### GameKitSimpleAI
+ボタンベースのコマンドパネルを生成します。UXML/USS と C# スクリプトを自動生成し、UIDocument として配置します。
 
-NPCと敵のための自律AIコントローラー。
-
-**動作:**
-- `Idle` - 何もしない
-- `Patrol` - ウェイポイントを巡回
-- `Follow` - ターゲットを追跡
-- `Wander` - ランダム移動
-
-**例:**
-```csharp
-var ai = actor.GetComponent<GameKitSimpleAI>();
-ai.SetBehavior(GameKitSimpleAI.AIBehaviorType.Patrol);
-ai.SetPatrolPoints(waypointArray);
-```
-
-### UIコマンドハブ
-
-#### GameKitUICommand
-
-UIコントロールをGameKitActorのUnityEventsにブリッジし、UI-toアクター通信の中心ハブとして機能。
-
-**機能:**
-- コマンドタイプマッピング（Move、Jump、Action、Look、Custom）
-- 移動用の方向ボタンサポート
-- パラメータベースアクション
-- パフォーマンスのためのActor参照キャッシング
-- コマンドバインディング管理
+**オペレーション:** `createCommandPanel`, `addCommand`, `inspect`, `delete`
 
 **コマンドタイプ:**
-- `Move` - `OnMoveInput(Vector3)`にマップ
-- `Jump` - `OnJumpInput()`にマップ
-- `Action` - `OnActionInput(string)`にマップ
-- `Look` - `OnLookInput(Vector2)`にマップ
-- `Custom` - 後方互換性のためのSendMessage
+- `move` - 移動方向コマンド
+- `jump` - ジャンプコマンド
+- `action` - アクションコマンド（パラメータ付き）
+- `look` - 視点方向コマンド
+- `custom` - カスタムコマンド
 
-**例:**
-```csharp
-// UIコマンドハブをセットアップ
-var uiCommand = commandPanel.GetComponent<GameKitUICommand>();
-uiCommand.SetTargetActor(playerActor);
-
-// 方向ボタンを登録
-uiCommand.RegisterDirectionalButton("moveUp", upButton, Vector3.up);
-uiCommand.RegisterDirectionalButton("moveDown", downButton, Vector3.down);
-
-// アクションボタンを登録
-uiCommand.RegisterButton("jump", jumpButton, GameKitUICommand.CommandType.Jump);
-uiCommand.RegisterButton("attack", attackButton, GameKitUICommand.CommandType.Action, "sword");
-
-// またはコマンドを直接実行
-uiCommand.ExecuteMoveCommand(new Vector3(1, 0, 0));
-uiCommand.ExecuteActionCommand("usePotion");
+**使用例:**
+```python
+# コマンドパネルを作成
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "PlayerControls",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "moveUp", "label": "↑", "commandType": "move",
+         "moveDirection": {"x": 0, "y": 0, "z": 1}},
+        {"name": "jump", "label": "Jump", "commandType": "jump"},
+        {"name": "attack", "label": "Attack", "commandType": "action",
+         "commandParameter": "sword"}
+    ]
+})
+# → コンパイル待ち: unity_compilation_await が必要
 ```
 
-**ユースケース:**
-- モバイルゲームのタッチコントロール
-- 仮想ジョイスティックとD-pad
-- アクションボタンパネル
-- クイックアクションラジアルメニュー
-- コマンドパレットシステム
+### UIBinding（データバインディング）
 
-## 移動コンポーネント
+MCP ツール: `unity_gamekit_ui_binding`
 
-### TileGridMovement
+UI 要素をデータソースに宣言的にバインドします。ProgressBar、Label、Slider 等をリアルタイムに更新できます。
 
-タイルベースゲーム用のグリッドベース移動。
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `setRange`, `refresh`, `findByBindingId`
 
-**機能:**
-- スムーズな補間による離散タイル移動
-- 設定可能なグリッドサイズ
-- 斜め移動サポート
-- 衝突検出
-- 移動キューイング
+**ソースタイプ:** `health`, `economy`, `timer`, `custom`
 
-**自動リスニング:**
-- `GameKitActor.OnMoveInput` - グリッド方向入力用
+**表示フォーマット:** `raw`, `percent`, `formatted`, `ratio`
 
-### GraphNodeMovement
-
-離散移動空間のためのA*パスファインディング付きノードベースグラフ移動。
-
-**機能:**
-- 2Dと3Dの両方で動作（次元非依存）
-- ノード間のA*パスファインディング
-- 重み付け、通過可能な接続
-- 到達可能ノードクエリ
-- スムーズな補間または即座の移動
-- デバッグ可視化
-
-**ユースケース:**
-- ボードゲーム（チェス、チェッカー）
-- タクティカルRPG（ファイアーエムブレムスタイル）
-- パズルゲーム（スライディングパズル）
-- アドベンチャーゲーム（部屋から部屋へのナビゲーション）
-- タワーディフェンス（敵のパス追従）
-
-**主要コンポーネント:**
-
-#### GraphNode
-移動グラフ内の位置/場所を表します。
-
-**メソッド:**
-- `AddConnection(node, cost, bidirectional)` - 別のノードに接続
-- `RemoveConnection(node, bidirectional)` - ノードから切断
-- `IsConnectedTo(node)` - 直接接続されているか確認
-- `SetConnectionTraversable(node, traversable)` - 接続を有効/無効化
-- `AutoConnectToNearbyNodes(radius)` - 半径内で自動接続
-- `ClearConnections(bidirectional)` - すべての接続を削除
-
-#### GraphNodeMovement
-グラフに沿ったアクター移動を処理。
-
-**メソッド:**
-- `MoveToNode(node)` - 隣接ノードに移動（パスファインディングなし）
-- `MoveToNodeWithPathfinding(node)` - パスを見つけて任意のノードに移動
-- `SnapToNearestNode()` - 最も近いノードを見つけてスナップ
-- `TeleportToNode(node)` - ノードへの即座の移動
-- `GetReachableNodes(maxDistance)` - 距離内のすべてのノードを取得
-
-**プロパティ:**
-- `CurrentNode` - アクターが現在いるノード
-- `IsMoving` - アクターが現在移動中かどうか
-- `CurrentPath` - 追従中のアクティブなパス
-
-**自動リスニング:**
-- `GameKitActor.OnMoveInput` - 方向に基づいて最適な隣接ノードを選択
-
-**セットアップ例:**
-```csharp
-// グラフノードを作成
-var node1 = new GameObject("Node1").AddComponent<GraphNode>();
-var node2 = new GameObject("Node2").AddComponent<GraphNode>();
-var node3 = new GameObject("Node3").AddComponent<GraphNode>();
-
-node1.transform.position = new Vector3(0, 0, 0);
-node2.transform.position = new Vector3(5, 0, 0);
-node3.transform.position = new Vector3(10, 0, 0);
-
-// ノードを接続
-node1.AddConnection(node2, 1f, true);
-node2.AddConnection(node3, 1f, true);
-
-// アクターを作成
-var actor = CreateActor("Player", graphNode);
-var movement = actor.GetComponent<GraphNodeMovement>();
-movement.SnapToNearestNode();
-
-// ノードに移動（直接）
-movement.MoveToNode(node2);
-
-// またはパスファインディングを使用
-movement.MoveToNodeWithPathfinding(node3);
-
-// 到達可能ノードをクエリ
-var reachable = movement.GetReachableNodes(2);
-```
-
-## Managerシステム
-
-### GameKitManager（ハブ）
-
-`ManagerType`に基づいてモード固有コンポーネントを自動的に追加するゲーム管理の中心ハブ。
-
-**アーキテクチャ:**
-- GameKitManagerは軽量ハブとして機能
-- 初期化時にモード固有コンポーネントを自動アタッチ
-- 便利メソッドはモード固有コンポーネントにデリゲート
-- `GetModeComponent<T>()`による直接アクセス
-
-**マネージャータイプとコンポーネント:**
-
-#### TurnBased → GameKitTurnManager
-ターンベースゲームフロー管理。
-
-**機能:**
-- ターンフェーズ管理
-- ターンカウンター
-- フェーズ遷移
-- イベント: `OnPhaseChanged`、`OnTurnAdvanced`
-
-**例:**
-```csharp
-var manager = managerGo.AddComponent<GameKitManager>();
-manager.Initialize("gameManager", ManagerType.TurnBased, false);
-
-manager.AddTurnPhase("PlayerTurn");
-manager.AddTurnPhase("EnemyTurn");
-manager.AddTurnPhase("EndTurn");
-
-manager.NextPhase(); // PlayerTurn → EnemyTurn
-
-// TurnManagerへの直接アクセス
-var turnManager = manager.GetModeComponent<GameKitTurnManager>();
-turnManager.OnPhaseChanged.AddListener(phase => {
-    Debug.Log($"フェーズ変更: {phase}");
-});
-```
-
-#### ResourcePool → GameKitResourceManager
-ゲーム経済のためのMachinations風リソースフローシステム。
-
-**機能:**
-- 最小/最大制約付きリソースプール
-- 自動フロー（ソースは生成、ドレインは消費）
-- リソースコンバーター（クラフティング、変換チェーン）
-- リソーストリガー（しきい値ベースイベント）
-- イベント: `OnResourceChanged`、`OnResourceTriggered`
-
-**例:**
-```csharp
-var manager = managerGo.AddComponent<GameKitManager>();
-manager.Initialize("resourceManager", ManagerType.ResourcePool, false);
-
-// ResourceManagerへの直接アクセス
-var resourceManager = manager.GetModeComponent<GameKitResourceManager>();
-
-// 基本リソース
-manager.SetResource("gold", 100);
-resourceManager.SetResourceConstraints("health", 0f, 100f);
-
-// 自動フロー
-resourceManager.AddFlow("gold", 5f, isSource: true);  // 5ゴールド/秒の収入
-resourceManager.AddFlow("mana", 2f, isSource: false); // 2マナ/秒のドレイン
-
-// リソース変換（クラフティング）
-resourceManager.AddConverter("wood", "planks", conversionRate: 4f, inputCost: 1f);
-bool crafted = resourceManager.Convert("wood", "planks", 10f); // 10木材 → 40板材
-
-// しきい値トリガー
-resourceManager.AddTrigger("lowHealth", "health", ThresholdType.Below, 30f);
-resourceManager.OnResourceTriggered.AddListener((trigger, resource, value) => {
-    if (trigger == "lowHealth") ShowWarning();
-});
-
-// または便利メソッドを使用
-bool consumed = manager.ConsumeResource("gold", 75);
-```
-
-詳細なドキュメントは[GameKitResourceManager.README.md](./GameKitResourceManager.README.md)を参照。
-
-#### EventHub → GameKitEventManager
-カスタムイベント用のゲームワイドイベントハブ。
-
-**機能:**
-- イベント登録/登録解除
-- イベントトリガー
-- 名前付きイベントシステム
-
-**例:**
-```csharp
-var manager = managerGo.AddComponent<GameKitManager>();
-manager.Initialize("eventHub", ManagerType.EventHub, false);
-
-manager.RegisterEventListener("OnLevelComplete", () => {
-    Debug.Log("レベルクリア!");
-});
-
-manager.TriggerEvent("OnLevelComplete");
-```
-
-#### StateManager → GameKitStateManager
-ゲーム状態管理（メニュー、プレイ中、一時停止など）
-
-**機能:**
-- 状態遷移
-- 状態履歴
-- 前の状態の追跡
-- イベント: `OnStateChanged`
-
-**例:**
-```csharp
-var manager = managerGo.AddComponent<GameKitManager>();
-manager.Initialize("stateManager", ManagerType.StateManager, false);
-
-manager.ChangeState("MainMenu");
-manager.ChangeState("Playing");
-manager.ChangeState("Paused");
-
-manager.ReturnToPreviousState(); // Paused → Playing
-
-var currentState = manager.GetCurrentState(); // "Playing"
-
-// StateManagerへの直接アクセス
-var stateManager = manager.GetModeComponent<GameKitStateManager>();
-stateManager.OnStateChanged.AddListener((newState, oldState) => {
-    Debug.Log($"状態: {oldState} → {newState}");
-});
-```
-
-#### Realtime → GameKitRealtimeManager
-リアルタイムゲームフロー管理（タイムスケール、一時停止、タイマー）
-
-**機能:**
-- タイムスケール制御
-- 一時停止/再開
-- タイマー管理
-- 経過時間追跡
-- イベント: `OnTimeScaleChanged`、`OnPauseChanged`
-
-**例:**
-```csharp
-var manager = managerGo.AddComponent<GameKitManager>();
-manager.Initialize("timeManager", ManagerType.Realtime, false);
-
-manager.SetTimeScale(0.5f); // スローモーション
-manager.Pause();
-manager.Resume();
-
-// タイマー用のRealtimeManagerへの直接アクセス
-var realtimeManager = manager.GetModeComponent<GameKitRealtimeManager>();
-realtimeManager.AddTimer("powerup", 5f, () => {
-    Debug.Log("パワーアップ期限切れ!");
-});
-```
-
-**後方互換性:**
-GameKitManagerを使用する既存のコードはすべて引き続き動作します。便利メソッドは適切なモード固有コンポーネントに自動的にデリゲートします。
-
-## 統合例
-
-### プレイヤーキャラクターの作成
-
-```csharp
-// MCP経由
-unity_gamekit_actor({
+**使用例:**
+```python
+# HPバーのバインディングを作成
+unity_gamekit_ui_binding({
     "operation": "create",
-    "actorId": "Player",
-    "behaviorProfile": "2dPhysics",
-    "controlMode": "directController",
-    "spritePath": "Assets/Sprites/player.png",
-    "position": {"x": 0, "y": 0, "z": 0}
+    "bindingId": "playerHP",
+    "sourceType": "health",
+    "sourceId": "player_health",
+    "elementName": "hp-bar",
+    "targetProperty": "value",
+    "format": "percent",
+    "minValue": 0,
+    "maxValue": 100,
+    "smoothTransition": true,
+    "smoothSpeed": 5.0
 })
 ```
 
-結果:
-- GameKitActor付きGameObject
-- Rigidbody2D + BoxCollider2D（2dPhysicsプロファイルから）
-- PlayerInput + GameKitInputSystemController（directControllerモードから）
-- 割り当てられたスプライト付きSpriteRenderer
+### UIList（リスト/グリッド）
 
-### AI敵の作成
+MCP ツール: `unity_gamekit_ui_list`
 
-```csharp
-unity_gamekit_actor({
+ScrollView ベースの動的リスト/グリッド表示を生成します。アイテム管理と選択機能を備えています。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `setItems`, `addItem`, `removeItem`, `clear`, `selectItem`, `deselectItem`, `clearSelection`, `refreshFromSource`, `findByListId`
+
+**レイアウト:** `vertical`, `horizontal`, `grid`
+
+**使用例:**
+```python
+# インベントリリストを作成
+unity_gamekit_ui_list({
     "operation": "create",
-    "actorId": "Enemy",
-    "behaviorProfile": "2dPhysics",
-    "controlMode": "aiAutonomous",
-    "spritePath": "Assets/Sprites/enemy.png"
+    "listId": "inventory",
+    "layout": "grid",
+    "columns": 4,
+    "dataSource": "inventory",
+    "selectable": true,
+    "multiSelect": false
+})
+
+# アイテムを追加
+unity_gamekit_ui_list({
+    "operation": "addItem",
+    "listId": "inventory",
+    "item": {
+        "id": "potion_hp",
+        "name": "HPポーション",
+        "description": "HPを50回復",
+        "iconPath": "Assets/Icons/potion_hp.png",
+        "quantity": 3
+    }
 })
 ```
 
-結果:
-- GameKitActor付きGameObject
-- Rigidbody2D + BoxCollider2D
-- GameKitSimpleAI（aiAutonomousモードから）
+### UISlot（スロット）
 
-### グリッドベースキャラクターの作成
+MCP ツール: `unity_gamekit_ui_slot`
 
-```csharp
-unity_gamekit_actor({
+単体スロットとスロットバー（複数スロット）を生成します。インベントリ、装備、クイックスロットに適しています。
+
+**オペレーション:**
+- スロット: `create`, `update`, `inspect`, `delete`, `setItem`, `clearSlot`, `setHighlight`
+- スロットバー: `createSlotBar`, `updateSlotBar`, `inspectSlotBar`, `deleteSlotBar`
+- その他: `useSlot`, `refreshFromInventory`, `findBySlotId`, `findByBarId`
+
+**スロットタイプ:** `storage`, `equipment`, `quickslot`, `trash`
+
+**使用例:**
+```python
+# クイックスロットバーを作成
+unity_gamekit_ui_slot({
+    "operation": "createSlotBar",
+    "barId": "quickbar",
+    "slotCount": 8,
+    "slotType": "quickslot",
+    "layout": "horizontal",
+    "dragDropEnabled": true
+})
+
+# スロットにアイテムをセット
+unity_gamekit_ui_slot({
+    "operation": "setItem",
+    "slotId": "quickbar_slot_0",
+    "itemId": "potion_hp",
+    "itemName": "HPポーション",
+    "quantity": 3,
+    "iconPath": "Assets/Icons/potion_hp.png"
+})
+```
+
+### UISelection（選択グループ）
+
+MCP ツール: `unity_gamekit_ui_selection`
+
+ラジオボタン、トグル、チェックボックス、タブなどの選択グループを生成します。選択時のパネル表示/非表示を制御する SelectionAction 機能も備えています。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `setItems`, `addItem`, `removeItem`, `clear`, `selectItem`, `selectItemById`, `deselectItem`, `clearSelection`, `setSelectionActions`, `setItemEnabled`, `findBySelectionId`
+
+**選択タイプ:** `radio`, `toggle`, `checkbox`, `tab`
+
+**使用例:**
+```python
+# タブグループを作成
+unity_gamekit_ui_selection({
     "operation": "create",
-    "actorId": "GridHero",
-    "behaviorProfile": "2dTileGrid",
-    "controlMode": "directController"
-})
-```
-
-結果:
-- GameKitActor付きGameObject
-- TileGridMovementコンポーネント
-- 入力コントローラー（Input Systemまたはレガシー）
-
-### グラフベースキャラクターの作成（ボードゲーム）
-
-```csharp
-// 1. グラフノードを作成
-unity_gameobject_crud({
-    "operation": "create",
-    "objectName": "BoardSpace1",
-    "position": {"x": 0, "y": 0, "z": 0}
+    "selectionId": "mainTabs",
+    "selectionType": "tab",
+    "layout": "horizontal",
+    "items": [
+        {"id": "inventory", "label": "インベントリ"},
+        {"id": "equipment", "label": "装備"},
+        {"id": "skills", "label": "スキル"}
+    ]
 })
 
-unity_component_crud({
-    "operation": "add",
-    "gameObjectPath": "BoardSpace1",
-    "componentType": "Unity-AI-Forge.GameKit.GraphNode"
-})
-
-// さらにノードを繰り返し...
-
-// 2. ノードを接続（スクリプトまたはエディタで手動）
-// node1.AddConnection(node2, cost: 1.0f, bidirectional: true)
-
-// 3. グラフ移動付きアクターを作成
-unity_gamekit_actor({
-    "operation": "create",
-    "actorId": "GamePiece",
-    "behaviorProfile": "graphNode",
-    "controlMode": "uiCommand",
-    "position": {"x": 0, "y": 0, "z": 0}
+# タブ切替時のパネル表示制御
+unity_gamekit_ui_selection({
+    "operation": "setSelectionActions",
+    "selectionId": "mainTabs",
+    "actions": [
+        {"selectedId": "inventory",
+         "showPaths": ["InventoryPanel"],
+         "hidePaths": ["EquipmentPanel", "SkillPanel"]},
+        {"selectedId": "equipment",
+         "showPaths": ["EquipmentPanel"],
+         "hidePaths": ["InventoryPanel", "SkillPanel"]}
+    ]
 })
 ```
-
-結果:
-- GameKitActor付きGameObject
-- GraphNodeMovementコンポーネント
-- 開始時に最も近いノードにスナップ
-- 入力方向またはパスファインディングAPIで移動
-
-**一般的なグラフパターン:**
-- **ボードゲーム**: 斜め接続付き正方形グリッド
-- **タクティカルRPG**: 六角形グリッドまたは不規則な地形ノード
-- **パズルゲーム**: 接続されたパズルピース/タイル
-- **アドベンチャーゲーム**: 部屋から部屋へのナビゲーショングラフ
-- **タワーディフェンス**: 敵パスウェイポイント
-
-### SplineMovementコンポーネント
-
-Catmull-Romスプラインを使用した2.5Dゲーム用のスムーズなレール/スプラインベース移動を提供。
-
-**機能:**
-- 制御点で定義された滑らかな曲線パス
-- 自然な回転のための自動接線計算
-- 円形トラック用のクローズドループサポート
-- レーンベースゲームプレイのための横方向オフセット
-- 手動または自動速度制御
-- 前進および後進移動サポート
-- Scene viewでのビジュアルスプラインデバッグ
-
-**主要プロパティ:**
-- `controlPoints` - スプラインパスを定義するTransform配列
-- `moveSpeed` - スプラインに沿った移動速度
-- `closedLoop` - 最後の点を最初の点に接続
-- `autoRotate` - 移動方向を向く
-- `allowManualControl` - 入力を速度制御に使用
-- `lateralOffset` - パスからのオフセット（レーン用）
-
-**一般的なユースケース:**
-- **レールシューター**: カメラが横移動で固定パスを追従
-- **サイドスクローラー**: キャラクターが2.5D環境の曲がりくねったパスを追従
-- **レーシングゲーム**: 車両がレーン変更付きトラックを追従
-- **オンレールシーケンス**: パスに沿ったカットシーンまたはスクリプト移動
-- **ジェットコースター**: トラックに沿った物理無効化ライド
-
-## アーキテクチャ
-
-```
-入力ソース（キーボード/AI/UI）
-    ↓
-コントローラーコンポーネント（GameKitInputSystemController/GameKitSimpleAI）
-    ↓
-GameKitActor（UnityEvents付きハブ）
-    ↓
-動作コンポーネント（TileGridMovement/カスタムスクリプト）
-    ↓
-ゲームロジック
-```
-
-この疎結合アーキテクチャにより：
-- 動作を変更せずに入力ソースを交換
-- コントローラーを変更せずに動作を交換
-- イベントごとに複数のリスナー
-- 簡単なテストとデバッグ
-
-## バージョン定義
-
-- `UNITY_INPUT_SYSTEM_INSTALLED` - Input Systemパッケージがインストールされている場合に定義
 
 ---
 
-## 📚 関連ドキュメント
+## プレゼンテーションピラー
 
-### 詳細ガイド
+プレゼンテーションピラーはゲームの演出・フィードバック・音響を担当します。
 
-- [**GameKitResourceManager**](GameKitResourceManager.README.md) - リソースプール、フロー、経済
-- [**GameKitMachinations**](GameKitMachinations.README.md) - アセットとしての経済システム設計
-- [**GameKitSceneFlow**](GameKitSceneFlow.README.md) - シーン遷移ステートマシン
-- [**GameKitUICommand**](GameKitUICommand.README.md) - UIボタン → ロジックコマンド
-- [**GameKitInteraction**](GameKitInteraction.README.md) - トリガーベースインタラクション
-- [**SplineMovement**](SplineMovement.README.md) - レールベース移動システム
-- [**GraphNodeMovement**](GraphNodeMovement.README.md) - グラフノードでのA*パスファインディング
+### AnimationSync（アニメーション同期）
 
-### チュートリアル
+MCP ツール: `unity_gamekit_animation_sync`
 
-- [**はじめに**](../GETTING_STARTED.md) - GameKitの最初のステップ
-- [**完全ガイド**](../MCPServer/SKILL_GAMEKIT.md) - 例付き包括的GameKitガイド
-- [**例**](../Examples/README.md) - 実践的なチュートリアル
+Animator パラメータをゲーム状態（速度、HP等）に宣言的に同期します。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `addSyncRule`, `removeSyncRule`, `addTriggerRule`, `removeTriggerRule`, `fireTrigger`, `setParameter`, `findBySyncId`
+
+**同期ルール - ソースタイプ:**
+- `rigidbody3d` / `rigidbody2d` - Rigidbody の速度等
+- `transform` - Transform の位置/回転等
+- `health` - HP コンポーネント
+- `custom` - カスタムソース
+
+**トリガールール - イベントソース:**
+- `health` - HP イベント（OnDamaged, OnHealed, OnDeath 等）
+- `input` - 入力アクション
+- `manual` - 手動トリガー
+
+**使用例:**
+```python
+# アニメーション同期コンポーネントを作成
+unity_gamekit_animation_sync({
+    "operation": "create",
+    "syncId": "playerAnim",
+    "autoFindAnimator": true,
+    "syncRules": [
+        {"parameter": "Speed", "parameterType": "float",
+         "sourceType": "rigidbody3d",
+         "sourceProperty": "velocity.magnitude", "multiplier": 1.0},
+        {"parameter": "IsGrounded", "parameterType": "bool",
+         "sourceType": "transform",
+         "sourceProperty": "position.y", "boolThreshold": 0.1}
+    ],
+    "triggers": [
+        {"triggerName": "Hit", "eventSource": "health",
+         "healthEvent": "OnDamaged"},
+        {"triggerName": "Die", "eventSource": "health",
+         "healthEvent": "OnDeath"}
+    ]
+})
+```
+
+### Effect（複合エフェクト）
+
+MCP ツール: `unity_gamekit_effect`
+
+パーティクル、サウンド、カメラシェイク、画面フラッシュ、タイムスケールを組み合わせた複合エフェクトシステムです。EffectManager による一元管理も可能です。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `addComponent`, `removeComponent`, `clearComponents`, `play`, `playAtPosition`, `playAtTransform`, `shakeCamera`, `flashScreen`, `setTimeScale`, `createManager`, `registerEffect`, `unregisterEffect`, `findByEffectId`, `listEffects`
+
+**エフェクトコンポーネントタイプ:**
+- `particle` - パーティクルシステム
+- `sound` - サウンド再生
+- `cameraShake` - カメラ振動
+- `screenFlash` - 画面フラッシュ
+- `timeScale` - スローモーション
+
+**使用例:**
+```python
+# 爆発エフェクトを作成
+unity_gamekit_effect({
+    "operation": "create",
+    "effectId": "explosion",
+    "components": [
+        {"type": "particle", "prefabPath": "Assets/VFX/Explosion.prefab",
+         "duration": 2.0},
+        {"type": "sound", "clipPath": "Assets/Audio/Explosion.wav",
+         "volume": 0.8},
+        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3},
+        {"type": "screenFlash", "color": {"r": 1, "g": 0.8, "b": 0, "a": 0.5},
+         "flashDuration": 0.1}
+    ]
+})
+
+# エフェクトマネージャーを作成して登録
+unity_gamekit_effect({
+    "operation": "createManager",
+    "managerId": "globalEffects",
+    "persistent": true
+})
+```
+
+### Feedback（ゲームフィール）
+
+MCP ツール: `unity_gamekit_feedback`
+
+ヒットストップ、画面シェイク、フラッシュ、スケールパンチなどのゲームフィールエフェクトを管理します。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `addComponent`, `clearComponents`, `setIntensity`, `findByFeedbackId`
+
+**フィードバックコンポーネントタイプ:**
+- `hitstop` - 時間停止エフェクト
+- `screenShake` - 画面振動
+- `flash` / `colorFlash` - 画面フラッシュ
+- `scale` / `position` / `rotation` - トランスフォームパンチ
+- `sound` - サウンドフィードバック
+- `particle` - パーティクルエフェクト
+- `haptic` - コントローラー振動
+
+**使用例:**
+```python
+# ヒットフィードバックを作成
+unity_gamekit_feedback({
+    "operation": "create",
+    "feedbackId": "onHit",
+    "playOnEnable": false,
+    "globalIntensityMultiplier": 1.0,
+    "components": [
+        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0.0},
+        {"type": "screenShake", "duration": 0.2, "intensity": 0.3,
+         "shakeFrequency": 25},
+        {"type": "flash", "duration": 0.1, "color": {"r": 1, "g": 0, "b": 0, "a": 0.3}},
+        {"type": "scale", "duration": 0.15, "intensity": 1.2}
+    ]
+})
+```
+
+### VFX（ビジュアルエフェクト）
+
+MCP ツール: `unity_gamekit_vfx`
+
+ParticleSystem のラッパーコンポーネントを生成します。オブジェクトプーリングと各種パラメータの動的制御が可能です。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `setMultipliers`, `setColor`, `setLoop`, `findByVFXId`
+
+**使用例:**
+```python
+# VFXコンポーネントを作成
+unity_gamekit_vfx({
+    "operation": "create",
+    "vfxId": "fireTrail",
+    "particlePrefabPath": "Assets/VFX/FireTrail.prefab",
+    "autoPlay": true,
+    "loop": true,
+    "usePooling": true,
+    "poolSize": 10,
+    "sizeMultiplier": 1.5,
+    "emissionMultiplier": 2.0
+})
+```
+
+### Audio（サウンド管理）
+
+MCP ツール: `unity_gamekit_audio`
+
+SFX、BGM、環境音、ボイス、UI サウンドを管理するコンポーネントを生成します。フェードイン/フェードアウト、3D サウンド、ピッチバリエーションに対応しています。
+
+**オペレーション:** `create`, `update`, `inspect`, `delete`, `setVolume`, `setPitch`, `setLoop`, `setClip`, `findByAudioId`
+
+**オーディオタイプ:** `sfx`, `music`, `ambient`, `voice`, `ui`
+
+**使用例:**
+```python
+# BGM コンポーネントを作成
+unity_gamekit_audio({
+    "operation": "create",
+    "audioId": "bgm_battle",
+    "audioType": "music",
+    "audioClipPath": "Assets/Audio/BattleBGM.ogg",
+    "playOnEnable": true,
+    "loop": true,
+    "volume": 0.7,
+    "fadeInDuration": 2.0,
+    "fadeOutDuration": 1.5
+})
+
+# SEコンポーネントを作成
+unity_gamekit_audio({
+    "operation": "create",
+    "audioId": "sfx_sword",
+    "audioType": "sfx",
+    "audioClipPath": "Assets/Audio/SwordSwing.wav",
+    "volume": 0.9,
+    "pitchVariation": 0.1,
+    "spatialBlend": 1.0,
+    "minDistance": 1,
+    "maxDistance": 20
+})
+```
+
+---
+
+## ロジックピラー
+
+ロジックピラーはシーンやコードの分析・検証ツールを提供します。
+
+### SceneIntegrity（シーン整合性）
+
+MCP ツール: `unity_validate_integrity`
+
+不足スクリプト、null 参照、壊れたイベントやプレハブをチェックします。
+
+### ClassCatalog（クラスカタログ）
+
+MCP ツール: `unity_class_catalog`
+
+プロジェクト内のクラス、MonoBehaviour、enum 等を列挙・検査します。
+
+### ClassDependencyGraph（クラス依存関係）
+
+MCP ツール: `unity_class_dependency_graph`
+
+C# スクリプトの依存関係を分析します。
+
+### SceneReferenceGraph（シーン参照分析）
+
+MCP ツール: `unity_scene_reference_graph`
+
+シーン内 GameObject 間の参照関係を分析します。
+
+### SceneRelationshipGraph（シーン関係分析）
+
+MCP ツール: `unity_scene_relationship_graph`
+
+シーン遷移と関係性を分析します。
+
+---
+
+## コード生成の仕組み
+
+GameKit のハンドラー（UI ピラー、プレゼンテーションピラー）は、テンプレートベースのコード生成を採用しています。
+
+### ワークフロー
+
+```
+MCP ツール呼び出し（create オペレーション）
+    ↓
+ハンドラーがテンプレート変数を準備
+    ↓
+CodeGenHelper.GenerateAndAttach() 呼び出し
+    ↓
+テンプレート (.cs.txt) から C# スクリプトを生成
+    ↓
+UI Toolkit: UXML/USS ファイルも生成（UIピラーのみ）
+    ↓
+AssetDatabase.ImportAsset() でコンパイル開始
+    ↓
+unity_compilation_await でコンパイル待ち（必須）
+    ↓
+コンポーネントが GameObject にアタッチ
+```
+
+### テンプレート一覧
+
+| テンプレート | ピラー | 説明 |
+|:---|:---|:---|
+| `UICommand.cs.txt` | UI | コマンドパネル |
+| `UIBinding.cs.txt` | UI | データバインディング |
+| `UIList.cs.txt` | UI | リスト/グリッド |
+| `UISlot.cs.txt` | UI | スロット/スロットバー |
+| `UISelection.cs.txt` | UI | 選択グループ |
+| `AnimationSync.cs.txt` | プレゼンテーション | アニメーション同期 |
+| `Effect.cs.txt` | プレゼンテーション | 個別エフェクト |
+| `EffectManager.cs.txt` | プレゼンテーション | エフェクトマネージャー |
+| `Feedback.cs.txt` | プレゼンテーション | ゲームフィール |
+| `VFX.cs.txt` | プレゼンテーション | VFX ラッパー |
+| `Audio.cs.txt` | プレゼンテーション | オーディオラッパー |
+
+### 生成コードの特徴
+
+- **ランタイム依存ゼロ**: `using UnityEngine` 等の標準 Unity API のみ使用
+- **レジストリパターン**: `FindById(id)` で他のスクリプトから簡単にアクセス
+- **UnityEvent 連携**: 外部からの購読が可能なイベントを公開
+- **Inspector 対応**: シリアライズフィールドでエディタ上から設定可能
+
+### 生成先
+
+デフォルトの出力先: `Assets/Scripts/Generated/`
+
+---
+
+## コンパイル待ちについて
+
+`create` オペレーション（および `createSlotBar`, `createManager`）は C# スクリプトを生成するため、コンパイルが完了するまで待つ必要があります。
+
+```python
+# 1. コンポーネントを作成
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "controls",
+    "commands": [...]
+})
+
+# 2. コンパイル完了を待つ（必須）
+unity_compilation_await()
+
+# 3. 後続の操作が可能に
+unity_gamekit_ui_command({
+    "operation": "addCommand",
+    "panelId": "controls",
+    "command": {"name": "fire", "label": "Fire", "commandType": "action"}
+})
+```
+
+---
+
+## MCP ツール一覧
+
+| MCP ツール名 | ブリッジ名 | ピラー | 説明 |
+|:---|:---|:---|:---|
+| `unity_gamekit_ui_command` | gamekitUICommand | UI | コマンドパネル |
+| `unity_gamekit_ui_binding` | gamekitUIBinding | UI | データバインディング |
+| `unity_gamekit_ui_list` | gamekitUIList | UI | リスト/グリッド |
+| `unity_gamekit_ui_slot` | gamekitUISlot | UI | スロット |
+| `unity_gamekit_ui_selection` | gamekitUISelection | UI | 選択グループ |
+| `unity_gamekit_animation_sync` | gamekitAnimationSync | プレゼンテーション | アニメーション同期 |
+| `unity_gamekit_effect` | gamekitEffect | プレゼンテーション | 複合エフェクト |
+| `unity_gamekit_feedback` | gamekitFeedback | プレゼンテーション | ゲームフィール |
+| `unity_gamekit_vfx` | gamekitVFX | プレゼンテーション | VFX ラッパー |
+| `unity_gamekit_audio` | gamekitAudio | プレゼンテーション | サウンド管理 |
+| `unity_validate_integrity` | sceneIntegrity | ロジック | シーン整合性 |
+| `unity_class_catalog` | classCatalog | ロジック | クラスカタログ |
+| `unity_class_dependency_graph` | classDependencyGraph | ロジック | 依存関係分析 |
+| `unity_scene_reference_graph` | sceneReferenceGraph | ロジック | 参照分析 |
+| `unity_scene_relationship_graph` | sceneRelationshipGraph | ロジック | 関係分析 |
+
+---
+
+## 関連ドキュメント
+
+- [GameKit 完全ガイド（英語）](../MCPServer/SKILL_GAMEKIT.md) - 全ツールの詳細パラメータ
+- [全49ツール リファレンス](../MCPServer/SKILL.md) - GameKit 含む全ツール
+- [はじめに](../GETTING_STARTED.md) - セットアップ
+- [例](../Examples/README.md) - 実践チュートリアル
 
 ---
 
 <div align="center">
-
-**🎮 ハッピーゲーム開発！ ✨**
 
 [📚 インデックスに戻る](../INDEX.md) | [🚀 はじめに](../GETTING_STARTED.md) | [💡 例](../Examples/README.md)
 
