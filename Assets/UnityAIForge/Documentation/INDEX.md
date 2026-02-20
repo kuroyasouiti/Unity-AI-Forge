@@ -38,7 +38,7 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | ドキュメント | 内容 |
 |:---|:---|
 | [**MCP Server**](MCPServer/README.md) | MCP サーバーセットアップ |
-| [**64 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
+| [**49 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
 | [**Batch Sequential**](MCPServer/BATCH_SEQUENTIAL.md) | バッチ逐次処理（レジューム対応） |
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
 | [**Claude AI**](CLAUDE.md) | Claude 連携情報 |
@@ -68,7 +68,7 @@ Documentation/
 │
 ├── 🤖 MCPServer/
 │   ├── README.md ──────────────── MCP サーバー概要
-│   ├── SKILL.md ───────────────── 全24ツール解説
+│   ├── SKILL.md ───────────────── 全49ツール解説
 │   ├── BATCH_SEQUENTIAL.md ────── バッチ逐次処理
 │   └── SKILL_GAMEKIT.md ───────── GameKit 完全ガイド
 │
@@ -171,7 +171,7 @@ Documentation/
 <summary><b>🤖 MCP & AI Integration</b></summary>
 
 - [MCP Server Overview](MCPServer/README.md)
-- [All 24 Tools Reference](MCPServer/SKILL.md)
+- [All 49 Tools Reference](MCPServer/SKILL.md)
 - [Batch Sequential Tool](MCPServer/BATCH_SEQUENTIAL.md)
 - [GameKit Complete Guide](MCPServer/SKILL_GAMEKIT.md)
 - [Claude AI Integration](CLAUDE.md)
@@ -241,7 +241,7 @@ Documentation/
 |:---|:---:|:---|
 | Getting Started | ✅ 完成 | 2025-12-09 |
 | GameKit Guide | ✅ 完成 | 2025-12-09 |
-| MCP Tools | ✅ 完成 | 2025-12-09 |
+| MCP Tools (49) | ✅ 完成 | 2026-02-20 |
 | Examples | ✅ 完成 | 2025-12-03 |
 | GameKit Roadmap | 📋 計画中 | 2025-12-29 |
 | API Reference | 🚧 作成中 | - |
