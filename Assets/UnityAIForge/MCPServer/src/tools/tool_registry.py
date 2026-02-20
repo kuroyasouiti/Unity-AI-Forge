@@ -49,46 +49,22 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_particle_bundle": "particleBundle",
     "unity_animation3d_bundle": "animation3DBundle",
     "unity_event_wiring": "eventWiring",
-    # ── High-Level GameKit – Core ────────────────────────────
-    "unity_gamekit_actor": "gamekitActor",
-    "unity_gamekit_manager": "gamekitManager",
-    "unity_gamekit_interaction": "gamekitInteraction",
+    # ── High-Level GameKit – UI Pillar ───────────────────────
     "unity_gamekit_ui_command": "gamekitUICommand",
-    "unity_gamekit_machinations": "gamekitMachinations",
-    "unity_gamekit_sceneflow": "gamekitSceneFlow",
-    # ── High-Level GameKit – Phase 1 ────────────────────────
-    "unity_gamekit_health": "gamekitHealth",
-    "unity_gamekit_spawner": "gamekitSpawner",
-    "unity_gamekit_timer": "gamekitTimer",
-    "unity_gamekit_ai": "gamekitAI",
-    # ── High-Level GameKit – Phase 2 ────────────────────────
-    "unity_gamekit_collectible": "gamekitCollectible",
-    "unity_gamekit_projectile": "gamekitProjectile",
-    "unity_gamekit_waypoint": "gamekitWaypoint",
-    "unity_gamekit_trigger_zone": "gamekitTriggerZone",
-    # ── High-Level GameKit – Phase 3 ────────────────────────
-    "unity_gamekit_animation_sync": "gamekitAnimationSync",
-    "unity_gamekit_effect": "gamekitEffect",
-    # ── High-Level GameKit – Phase 4 ────────────────────────
-    "unity_gamekit_save": "gamekitSave",
-    "unity_gamekit_inventory": "gamekitInventory",
-    # ── High-Level GameKit – Phase 5 ────────────────────────
-    "unity_gamekit_dialogue": "gamekitDialogue",
-    "unity_gamekit_quest": "gamekitQuest",
-    "unity_gamekit_status_effect": "gamekitStatusEffect",
-    # ── 3-Pillar Architecture – UI ───────────────────────────
     "unity_gamekit_ui_binding": "gamekitUIBinding",
     "unity_gamekit_ui_list": "gamekitUIList",
     "unity_gamekit_ui_slot": "gamekitUISlot",
     "unity_gamekit_ui_selection": "gamekitUISelection",
-    # ── 3-Pillar Architecture – Logic ────────────────────────
-    "unity_gamekit_combat": "gamekitCombat",
-    # ── 3-Pillar Architecture – Presentation ─────────────────
+    # ── High-Level GameKit – Presentation Pillar ──────────────
+    "unity_gamekit_animation_sync": "gamekitAnimationSync",
+    "unity_gamekit_effect": "gamekitEffect",
     "unity_gamekit_feedback": "gamekitFeedback",
     "unity_gamekit_vfx": "gamekitVFX",
     "unity_gamekit_audio": "gamekitAudio",
-    # ── Graph Analysis ───────────────────────────────────────
+    # ── High-Level GameKit – Logic Pillar ─────────────────────
+    "unity_validate_integrity": "sceneIntegrity",
     "unity_class_dependency_graph": "classDependencyGraph",
+    "unity_class_catalog": "classCatalog",
     "unity_scene_reference_graph": "sceneReferenceGraph",
     "unity_scene_relationship_graph": "sceneRelationshipGraph",
 }

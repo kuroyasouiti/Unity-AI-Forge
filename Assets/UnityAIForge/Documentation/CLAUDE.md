@@ -4,9 +4,9 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 ## プロジェクト概要
 
-Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。64のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
+Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。49のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
 
-**バージョン:** 2.8.0
+**バージョン:** 2.9.0
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
 
 ### 通信フロー
@@ -20,12 +20,12 @@ AIクライアント (Claude Code / Cursor) <--MCP--> Python Server <--WebSocket
 ツールは上位レベルから順に使用してください。上位ツールほど少ないコマンドで多くの処理を実行できます。
 
 ```
-High-Level GameKit (29ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
-High-Level Analysis  (3ツール)  ← 参照解析・依存関係の可視化
-Mid-Level Batch     (18ツール)  ← 複数設定をまとめて適用
-Low-Level CRUD       (8ツール)  ← 個別のUnity操作
-Utility              (5ツール)  ← 接続確認・コンパイル待機など
-Batch Operations     (1ツール)  ← 複数コマンドの順次実行
+High-Level GameKit (15ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
+  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (5)
+Mid-Level Batch    (20ツール)  ← 複数設定をまとめて適用（UI Toolkit含む）
+Low-Level CRUD      (8ツール)  ← 個別のUnity操作
+Utility             (5ツール)  ← 接続確認・コンパイル待機など
+Batch Operations    (1ツール)  ← 複数コマンドの順次実行
 ```
 
 ## コード生成アーキテクチャ
@@ -39,63 +39,41 @@ GameKitツールはMonoBehaviourを直接追加するのではなく、テンプ
 
 ## ツール一覧
 
-### High-Level GameKit（29ツール）
+### High-Level GameKit（14ツール）
 
-GameKitは3本柱（UI・Logic・Presentation）で構成されています。
+GameKitは3本柱（UI・Logic・Presentation）で構成されています。ハンドラーはコード生成でスタンドアロンC#スクリプトを生成し、Unity-AI-Forgeパッケージへのランタイム依存はありません。
 
-**Logicピラー:**
-
-| ツール名 | 用途 |
-|----------|------|
-| `unity_gamekit_actor` | キャラクター制御（8種の移動プロファイル） |
-| `unity_gamekit_manager` | ゲーム管理（スコア、ステート、ゲームオーバー） |
-| `unity_gamekit_health` | HP・ダメージシステム |
-| `unity_gamekit_combat` | 攻撃・ダメージ計算 |
-| `unity_gamekit_spawner` | オブジェクト生成（ウェーブ、ランダム） |
-| `unity_gamekit_ai` | AIビヘイビア（パトロール、追跡、攻撃） |
-| `unity_gamekit_trigger_zone` | トリガーゾーン（ダメージ、回復、テレポート） |
-| `unity_gamekit_timer` | タイマー（カウントダウン、繰り返し） |
-| `unity_gamekit_machinations` | 経済システム（リソースプール、フロー） |
-| `unity_gamekit_sceneflow` | シーン遷移管理 |
-| `unity_gamekit_save` | セーブ/ロードシステム |
-| `unity_gamekit_status_effect` | ステータスエフェクト（バフ/デバフ） |
-| `unity_gamekit_interaction` | インタラクション（ドア、スイッチ） |
-| `unity_gamekit_collectible` | 収集アイテム |
-| `unity_gamekit_projectile` | 弾丸・投射物 |
-| `unity_gamekit_waypoint` | ウェイポイント移動 |
-| `unity_gamekit_inventory` | インベントリシステム |
-| `unity_gamekit_dialogue` | ダイアログシステム |
-| `unity_gamekit_quest` | クエストシステム |
-
-**UIピラー:**
+**UIピラー（5ツール）:**
 
 | ツール名 | 用途 |
 |----------|------|
+| `unity_gamekit_ui_command` | UIボタンとコマンドのバインディング |
 | `unity_gamekit_ui_binding` | UIデータバインディング |
 | `unity_gamekit_ui_list` | 動的リスト/グリッド |
 | `unity_gamekit_ui_slot` | アイテムスロット（インベントリ/装備） |
 | `unity_gamekit_ui_selection` | 選択グループ（ラジオ、トグル、タブ） |
-| `unity_gamekit_ui_command` | UIボタンとコマンドのバインディング |
 
-**Presentationピラー:**
+**Presentationピラー（5ツール）:**
 
 | ツール名 | 用途 |
 |----------|------|
-| `unity_gamekit_effect` | エフェクト管理 |
 | `unity_gamekit_animation_sync` | アニメーション同期 |
+| `unity_gamekit_effect` | エフェクト管理 |
+| `unity_gamekit_feedback` | ゲームフィール（ヒットストップ、画面揺れ） |
 | `unity_gamekit_vfx` | VFXラッパー（プーリング対応） |
 | `unity_gamekit_audio` | オーディオラッパー（フェード対応） |
-| `unity_gamekit_feedback` | ゲームフィール（ヒットストップ、画面揺れ） |
 
-### High-Level Analysis（3ツール）
+**Logicピラー（4ツール）:**
 
 | ツール名 | 用途 |
 |----------|------|
-| `unity_scene_reference_graph` | シーン内のオブジェクト間参照を解析 |
+| `unity_validate_integrity` | シーン整合性の検証 |
+| `unity_class_catalog` | プロジェクト内の型を列挙・詳細検査 |
 | `unity_class_dependency_graph` | C#スクリプトのクラス依存関係を解析 |
+| `unity_scene_reference_graph` | シーン内のオブジェクト間参照を解析 |
 | `unity_scene_relationship_graph` | シーン全体の関係性を包括的に解析 |
 
-### Mid-Level Batch（18ツール）
+### Mid-Level Batch（20ツール）
 
 | ツール名 | 用途 |
 |----------|------|
@@ -117,6 +95,8 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。
 | `unity_light_bundle` | ライト設定 |
 | `unity_particle_bundle` | パーティクル設定 |
 | `unity_animation3d_bundle` | 3Dアニメーション設定 |
+| `unity_uitk_document` | UI Toolkitドキュメント操作 |
+| `unity_uitk_asset` | UI Toolkitアセット管理 |
 
 ### Low-Level CRUD（8ツール）
 

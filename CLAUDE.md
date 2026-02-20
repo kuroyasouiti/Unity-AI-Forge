@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 64 tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation) for rapid prototyping.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 49 tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Requirements
 
@@ -47,10 +47,9 @@ uv run pytest
 
 ### Assembly Structure
 
-The project uses Unity's Assembly Definition system with three main assemblies:
+The project uses Unity's Assembly Definition system with two main assemblies:
 
-- **UnityAIForge.Editor** (`Assets/UnityAIForge/Editor/`) - Editor-only code containing the MCP Bridge and command handlers. Namespace: `MCP.Editor`
-- **UnityAIForge.GameKit.Runtime** (`Assets/UnityAIForge/GameKit/Runtime/`) - Runtime GameKit components. Namespace: `UnityAIForge.GameKit`
+- **UnityAIForge.Editor** (`Assets/UnityAIForge/Editor/`) - Editor-only code containing the MCP Bridge, command handlers, and code generation infrastructure. Namespace: `MCP.Editor`
 - **UnityAIForge.Editor.Tests** (`Assets/UnityAIForge/Tests/Editor/`) - Editor tests. Namespace: `MCP.Editor.Tests`
 
 ### MCP Bridge (C# Editor)
@@ -82,9 +81,11 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `AudioSourceBundleHandler.cs` - Audio setup
 - Animation, Sprite, Material, Light, Particle bundle handlers
 
-**HighLevel/** - Analysis and graph tools:
-- `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
+**HighLevel/** - Analysis and integrity tools (registered as GameKit Logic Pillar):
+- `SceneIntegrityHandler.cs` - Scene integrity validation
+- `ClassCatalogHandler.cs` - Type enumeration and inspection
 - `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
+- `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
 - `SceneRelationshipGraphHandler.cs` - Comprehensive scene relationship analysis
 
 **Utility/** - Helper tools:
@@ -94,21 +95,18 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `PlayModeControlHandler.cs` - Play mode control
 - `EventWiringHandler.cs` - UnityEvent wiring
 
-**GameKit/** - Game systems (3-Pillar Architecture):
-- UI Pillar: `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`, `GameKitUICommandHandler.cs`
-- Logic Pillar: `GameKitActorHandler.cs`, `GameKitCombatHandler.cs`, `GameKitHealthHandler.cs`, `GameKitManagerHandler.cs`, `GameKitAIHandler.cs`, `GameKitTimerHandler.cs`, `GameKitSpawnerHandler.cs`
-- Presentation Pillar: `GameKitFeedbackHandler.cs`, `GameKitVFXHandler.cs`, `GameKitAudioHandler.cs`, `GameKitProjectileHandler.cs`, `GameKitEffectHandler.cs`
-- Economy: `GameKitMachinationsHandler.cs`, `GameKitInventoryHandler.cs`
-- Flow: `GameKitSceneFlowHandler.cs`, `GameKitInteractionHandler.cs`, `GameKitDialogueHandler.cs`
+**GameKit/** - Game systems (3-Pillar Architecture, code generation):
+- UI Pillar: `GameKitUICommandHandler.cs`, `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`
+- Presentation Pillar: `GameKitAnimationSyncHandler.cs`, `GameKitEffectHandler.cs`, `GameKitFeedbackHandler.cs`, `GameKitVFXHandler.cs`, `GameKitAudioHandler.cs`
 
 ### MCP Server (Python)
 
 Located in `Assets/UnityAIForge/MCPServer/src/`:
 
 - `main.py` - Entry point
-- `tools/register_tools.py` - MCP tool registration and dispatch (~240 lines). Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 59 tools via dict lookup.
-- `tools/tool_registry.py` - Single source of truth for 63 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`.
-- `tools/tool_definitions.py` - All 64 `types.Tool` definitions with descriptions and schema references.
+- `tools/register_tools.py` - MCP tool registration and dispatch (~240 lines). Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 43 tools via dict lookup.
+- `tools/tool_registry.py` - Single source of truth for 47 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`.
+- `tools/tool_definitions.py` - All 48 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
 - `tools/schemas/` - JSON Schema definitions split into 8 category files:
   - `common.py` - Shared type helpers (Vector3, Color, etc.)
@@ -117,37 +115,15 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `bridge/` - WebSocket client to Unity Bridge
 - `server/` - MCP server implementation
 
-### GameKit Runtime Components (3-Pillar Architecture)
+### Code Generation Architecture
 
-GameKit uses a 3-pillar architecture separating UI, Logic, and Presentation concerns:
+GameKit handlers generate standalone C# scripts from templates instead of using runtime MonoBehaviours. Generated scripts have zero dependency on the Unity-AI-Forge package.
 
-**UI Pillar** (`Assets/UnityAIForge/GameKit/Runtime/UI/`):
-- `GameKitUIBinding.cs` - Declarative UI data binding to game state
-- `GameKitUIList.cs` - Dynamic list/grid for collections
-- `GameKitUISlot.cs` - Item slots for inventory/equipment
-- `GameKitUISelection.cs` - Selection groups (radio, toggle, tabs)
-- `GameKitUICommand.cs` - UI button to command binding
-
-**Logic Pillar** (`Assets/UnityAIForge/GameKit/Runtime/Logic/`):
-- `GameKitActor.cs` - Character controller with 8 movement profiles
-- `GameKitCombat.cs` - Unified damage calculation and attack system
-- `GameKitHealth.cs` - HP/damage system with UnityEvents
-- `GameKitManager.cs` - Central game management
-- `GameKitSpawner.cs`, `GameKitTimer.cs`, `GameKitAIBehavior.cs`
-- `GameKitMachinationsAsset.cs` - Economic system
-- `GameKitInventory.cs`, `GameKitInteraction.cs`, `GameKitDialogueManager.cs`
-
-**Presentation Pillar** (`Assets/UnityAIForge/GameKit/Runtime/Presentation/`):
-- `GameKitFeedback.cs` - Game feel effects (hitstop, screen shake, flash)
-- `GameKitVFX.cs` - Visual effects wrapper with pooling
-- `GameKitAudio.cs` - Audio wrapper with fade controls
-- `GameKitProjectile.cs`, `GameKitWaypoint.cs`, `GameKitEffectManager.cs`
-
-**Supporting Modules**:
-- `Managers/` - GameKitResourceManager, StateManager, TurnManager, EventManager
-- `Movement/` - GraphNodeMovement, SplineMovement, TileGridMovement
-- `SceneFlow/` - GameKitSceneFlow and state classes
-- `Input/` - GameKitInputSystemController, GameKitSimpleInput
+- **Templates**: `Assets/UnityAIForge/Editor/CodeGen/Templates/*.cs.txt`
+- **Infrastructure**: `Assets/UnityAIForge/Editor/CodeGen/` (ScriptGenerator, TemplateRenderer, GeneratedScriptTracker, CodeGenHelper)
+- **Output**: Generated scripts are placed in the user's `Assets/` folder
+- **Entry point**: `CodeGenHelper.GenerateAndAttach(go, templateName, componentId, className, variables, outputDir)`
+- **After create operations**: Compilation wait is required (`unity_compilation_await`)
 
 ## Key Patterns
 

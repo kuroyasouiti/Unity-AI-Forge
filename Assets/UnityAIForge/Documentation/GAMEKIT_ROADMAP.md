@@ -2,34 +2,32 @@
 
 This document outlines the planned MCP tools for future GameKit development. These tools are designed to prevent LLMs from writing custom C# logic code by providing declarative, high-level abstractions.
 
-## Current Status (v2.8.0)
+## Current Status (v2.9.0)
 
-### ✅ Implemented Tools
+### ✅ Implemented Tools (14 GameKit tools)
 
-**Phase 1 - Core Game Mechanics:**
-- `unity_gamekit_health` - HP/ダメージシステム
-- `unity_gamekit_spawner` - スポーンシステム
-- `unity_gamekit_timer` - タイマー/クールダウン
-- `unity_gamekit_ai` - AI行動
+v2.9.0でコード生成アーキテクチャに移行。ランタイムMonoBehaviourからテンプレートベースのスタンドアロンC#スクリプト生成に変更。
 
-**Phase 2 - Additional Game Mechanics:**
-- `unity_gamekit_collectible` - 収集アイテム
-- `unity_gamekit_projectile` - 弾丸/ミサイル
-- `unity_gamekit_waypoint` - パス追従
-- `unity_gamekit_trigger_zone` - トリガーゾーン
+**UI Pillar (5):**
+- `unity_gamekit_ui_command` - UIボタンとコマンドのバインディング
+- `unity_gamekit_ui_binding` - UIデータバインディング
+- `unity_gamekit_ui_list` - 動的リスト/グリッド
+- `unity_gamekit_ui_slot` - アイテムスロット
+- `unity_gamekit_ui_selection` - 選択グループ
 
-**Phase 3 - Animation & Effects:**
+**Presentation Pillar (5):**
 - `unity_gamekit_animation_sync` - アニメーション同期
-- `unity_gamekit_effect` - エフェクトシステム（パーティクル/サウンド/カメラシェイク/スクリーンフラッシュ）
+- `unity_gamekit_effect` - エフェクトシステム
+- `unity_gamekit_feedback` - ゲームフィール（ヒットストップ、画面揺れ）
+- `unity_gamekit_vfx` - VFXラッパー（プーリング対応）
+- `unity_gamekit_audio` - オーディオラッパー（フェード対応）
 
-**Phase 4 - Persistence & Inventory:**
-- `unity_gamekit_save` - 宣言的セーブ/ロードシステム（プロファイル・スロット管理）
-- `unity_gamekit_inventory` - インベントリシステム（アイテム・スタック・装備）
-
-**Phase 5 - Story & Quest Systems:**
-- `unity_gamekit_dialogue` - 宣言的対話システム（ノード・選択肢・条件・アクション）
-- `unity_gamekit_quest` - クエストシステム（目標・前提条件・報酬）
-- `unity_gamekit_status_effect` - ステータス効果システム（バフ/デバフ・DoT・スタック）
+**Logic Pillar (5):**
+- `unity_validate_integrity` - シーン整合性検証
+- `unity_class_catalog` - 型カタログ（列挙・詳細検査）
+- `unity_class_dependency_graph` - クラス依存関係解析
+- `unity_scene_reference_graph` - シーン参照解析
+- `unity_scene_relationship_graph` - シーン関係性解析
 
 ---
 
@@ -754,5 +752,5 @@ public class GameKitStatusEffectReceiver : MonoBehaviour
 
 ---
 
-*Last Updated: 2024-12 (v2.8.0)*
+*Last Updated: 2026-02 (v2.9.0)*
 *Document Status: Phase 5 Implemented*

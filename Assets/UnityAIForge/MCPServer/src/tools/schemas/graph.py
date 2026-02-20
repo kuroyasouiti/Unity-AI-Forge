@@ -143,3 +143,109 @@ def scene_relationship_graph_schema() -> dict[str, Any]:
         },
         ["operation"],
     )
+
+
+def class_catalog_schema() -> dict[str, Any]:
+    """Schema for the unity_class_catalog MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["listTypes", "inspectType"],
+                    "description": "Class catalog operation.",
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": "Limit search to folder (e.g. 'Assets/Scripts').",
+                },
+                "typeKind": {
+                    "type": "string",
+                    "enum": [
+                        "class",
+                        "struct",
+                        "interface",
+                        "enum",
+                        "MonoBehaviour",
+                        "ScriptableObject",
+                    ],
+                    "description": "Filter by type kind.",
+                },
+                "namespace": {
+                    "type": "string",
+                    "description": "Filter by namespace prefix.",
+                },
+                "baseClass": {
+                    "type": "string",
+                    "description": "Filter by direct base class name.",
+                },
+                "namePattern": {
+                    "type": "string",
+                    "description": "Wildcard pattern for type name (e.g. '*Controller').",
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default 100, max 1000).",
+                    "default": 100,
+                },
+                "className": {
+                    "type": "string",
+                    "description": "Type name (simple or fully qualified) for inspectType.",
+                },
+                "includeFields": {
+                    "type": "boolean",
+                    "description": "Include field information in inspectType (default true).",
+                    "default": True,
+                },
+                "includeMethods": {
+                    "type": "boolean",
+                    "description": "Include method information in inspectType (default false).",
+                    "default": False,
+                },
+                "includeProperties": {
+                    "type": "boolean",
+                    "description": "Include property information in inspectType (default false).",
+                    "default": False,
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def validate_integrity_schema() -> dict[str, Any]:
+    """Schema for the unity_validate_integrity MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "missingScripts",
+                        "nullReferences",
+                        "brokenEvents",
+                        "brokenPrefabs",
+                        "all",
+                    ],
+                    "description": (
+                        "Integrity check operation. "
+                        "'missingScripts': detect null MonoBehaviours. "
+                        "'nullReferences': detect dangling object references. "
+                        "'brokenEvents': detect UnityEvent listeners with null targets or missing methods. "
+                        "'brokenPrefabs': detect prefab instances with missing or disconnected assets. "
+                        "'all': run all checks and return categorized summary."
+                    ),
+                },
+                "rootPath": {
+                    "type": "string",
+                    "description": (
+                        "Optional GameObject path to limit analysis to a subtree "
+                        "(e.g., '/Canvas/Panel'). If omitted, scans the entire active scene."
+                    ),
+                },
+            },
+        },
+        ["operation"],
+    )

@@ -186,64 +186,24 @@ namespace MCP.Editor.Base
         /// </summary>
         private static void RegisterGameKitHandlers()
         {
-            // Core GameKit handlers
-            CommandHandlerFactory.Register("gamekitActor", new Handlers.GameKit.GameKitActorHandler());
-            CommandHandlerFactory.Register("gamekitManager", new Handlers.GameKit.GameKitManagerHandler());
-            CommandHandlerFactory.Register("gamekitInteraction", new Handlers.GameKit.GameKitInteractionHandler());
-            CommandHandlerFactory.Register("gamekitUICommand", new Handlers.GameKit.GameKitUICommandHandler());
-            CommandHandlerFactory.Register("gamekitMachinations", new Handlers.GameKit.GameKitMachinationsHandler());
-            CommandHandlerFactory.Register("gamekitSceneFlow", new Handlers.GameKit.GameKitSceneFlowHandler());
-
-            // Phase 1 GameKit handlers - Common game mechanics
-            CommandHandlerFactory.Register("gamekitHealth", new Handlers.GameKit.GameKitHealthHandler());
-            CommandHandlerFactory.Register("gamekitSpawner", new Handlers.GameKit.GameKitSpawnerHandler());
-            CommandHandlerFactory.Register("gamekitTimer", new Handlers.GameKit.GameKitTimerHandler());
-            CommandHandlerFactory.Register("gamekitAI", new Handlers.GameKit.GameKitAIHandler());
-
-            // Phase 2 GameKit handlers - Additional game mechanics
-            CommandHandlerFactory.Register("gamekitCollectible", new Handlers.GameKit.GameKitCollectibleHandler());
-            CommandHandlerFactory.Register("gamekitProjectile", new Handlers.GameKit.GameKitProjectileHandler());
-            CommandHandlerFactory.Register("gamekitWaypoint", new Handlers.GameKit.GameKitWaypointHandler());
-            CommandHandlerFactory.Register("gamekitTriggerZone", new Handlers.GameKit.GameKitTriggerZoneHandler());
-
-            // Phase 3 GameKit handlers - Animation & Effects
-            CommandHandlerFactory.Register("gamekitAnimationSync", new Handlers.GameKit.GameKitAnimationSyncHandler());
-            CommandHandlerFactory.Register("gamekitEffect", new Handlers.GameKit.GameKitEffectHandler());
-
-            // Phase 4 GameKit handlers - Persistence & Inventory
-            CommandHandlerFactory.Register("gamekitSave", new Handlers.GameKit.GameKitSaveHandler());
-            CommandHandlerFactory.Register("gamekitInventory", new Handlers.GameKit.GameKitInventoryHandler());
-
-            // Phase 5 GameKit handlers - Story & Quest Systems
-            CommandHandlerFactory.Register("gamekitDialogue", new Handlers.GameKit.GameKitDialogueHandler());
-            CommandHandlerFactory.Register("gamekitQuest", new Handlers.GameKit.GameKitQuestHandler());
-            CommandHandlerFactory.Register("gamekitStatusEffect", new Handlers.GameKit.GameKitStatusEffectHandler());
-
-            // 3-Pillar Architecture handlers (v2.7.0)
             // UI Pillar
+            CommandHandlerFactory.Register("gamekitUICommand", new Handlers.GameKit.GameKitUICommandHandler());
             CommandHandlerFactory.Register("gamekitUIBinding", new Handlers.GameKit.GameKitUIBindingHandler());
             CommandHandlerFactory.Register("gamekitUIList", new Handlers.GameKit.GameKitUIListHandler());
             CommandHandlerFactory.Register("gamekitUISlot", new Handlers.GameKit.GameKitUISlotHandler());
             CommandHandlerFactory.Register("gamekitUISelection", new Handlers.GameKit.GameKitUISelectionHandler());
 
-            // Logic Pillar
-            CommandHandlerFactory.Register("gamekitCombat", new Handlers.GameKit.GameKitCombatHandler());
-
             // Presentation Pillar
+            CommandHandlerFactory.Register("gamekitAnimationSync", new Handlers.GameKit.GameKitAnimationSyncHandler());
+            CommandHandlerFactory.Register("gamekitEffect", new Handlers.GameKit.GameKitEffectHandler());
             CommandHandlerFactory.Register("gamekitFeedback", new Handlers.GameKit.GameKitFeedbackHandler());
             CommandHandlerFactory.Register("gamekitVFX", new Handlers.GameKit.GameKitVFXHandler());
             CommandHandlerFactory.Register("gamekitAudio", new Handlers.GameKit.GameKitAudioHandler());
 
-            // Graph Analysis handlers
-            RegisterGraphAnalysisHandlers();
-        }
-
-        /// <summary>
-        /// 関係性グラフ解析ツールのハンドラーを登録します。
-        /// </summary>
-        private static void RegisterGraphAnalysisHandlers()
-        {
+            // Logic Pillar — 整合性検証・依存関係/参照解析・型カタログ
+            CommandHandlerFactory.Register("sceneIntegrity", new Handlers.HighLevel.SceneIntegrityHandler());
             CommandHandlerFactory.Register("classDependencyGraph", new Handlers.HighLevel.ClassDependencyGraphHandler());
+            CommandHandlerFactory.Register("classCatalog", new Handlers.HighLevel.ClassCatalogHandler());
             CommandHandlerFactory.Register("sceneReferenceGraph", new Handlers.HighLevel.SceneReferenceGraphHandler());
             CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
         }

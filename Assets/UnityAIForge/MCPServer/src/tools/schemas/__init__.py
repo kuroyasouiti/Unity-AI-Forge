@@ -6,10 +6,10 @@ This module organizes tool schemas into logical groups:
 - low_level: CRUD operations (Scene, GameObject, Component, Asset, etc.)
 - mid_level: Batch operations and presets (Transform, Physics, UI, etc.)
 - visual: Sprite, animation, material, light, particle, event wiring
-- gamekit_core: Actor, Manager, Interaction, UICommand, Machinations, SceneFlow
-- gamekit_systems: Health, Spawner, Timer, AI, and other game mechanics
-- gamekit_pillar: 3-Pillar UI/Logic/Presentation tools
-- graph: Class dependency and scene reference/relationship analysis
+- gamekit_core: UICommand (UI Pillar)
+- gamekit_systems: AnimationSync, Effect (Presentation Pillar)
+- gamekit_pillar: UI Pillar + Presentation Pillar tools
+- graph: Integrity validation, class/scene dependency & reference analysis (Logic Pillar)
 """
 
 from tools.schemas.common import (
@@ -26,16 +26,10 @@ from tools.schemas.common import (
     vector3_schema,
 )
 from tools.schemas.gamekit_core import (
-    gamekit_actor_schema,
-    gamekit_interaction_schema,
-    gamekit_machinations_schema,
-    gamekit_manager_schema,
-    gamekit_sceneflow_schema,
     gamekit_ui_command_schema,
 )
 from tools.schemas.gamekit_pillar import (
     gamekit_audio_schema,
-    gamekit_combat_schema,
     gamekit_feedback_schema,
     gamekit_ui_binding_schema,
     gamekit_ui_list_schema,
@@ -44,26 +38,15 @@ from tools.schemas.gamekit_pillar import (
     gamekit_vfx_schema,
 )
 from tools.schemas.gamekit_systems import (
-    gamekit_ai_schema,
     gamekit_animation_sync_schema,
-    gamekit_collectible_schema,
-    gamekit_dialogue_schema,
     gamekit_effect_schema,
-    gamekit_health_schema,
-    gamekit_inventory_schema,
-    gamekit_projectile_schema,
-    gamekit_quest_schema,
-    gamekit_save_schema,
-    gamekit_spawner_schema,
-    gamekit_status_effect_schema,
-    gamekit_timer_schema,
-    gamekit_trigger_zone_schema,
-    gamekit_waypoint_schema,
 )
 from tools.schemas.graph import (
+    class_catalog_schema,
     class_dependency_graph_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
+    validate_integrity_schema,
 )
 from tools.schemas.low_level import (
     asset_manage_schema,
@@ -157,39 +140,22 @@ __all__ = [
     "light_bundle_schema",
     "particle_bundle_schema",
     "event_wiring_schema",
-    # gamekit_core
-    "gamekit_actor_schema",
-    "gamekit_manager_schema",
-    "gamekit_interaction_schema",
+    # gamekit_core (UI Pillar)
     "gamekit_ui_command_schema",
-    "gamekit_machinations_schema",
-    "gamekit_sceneflow_schema",
-    # gamekit_systems
-    "gamekit_health_schema",
-    "gamekit_spawner_schema",
-    "gamekit_timer_schema",
-    "gamekit_ai_schema",
-    "gamekit_collectible_schema",
-    "gamekit_projectile_schema",
-    "gamekit_waypoint_schema",
-    "gamekit_trigger_zone_schema",
+    # gamekit_systems (Presentation Pillar)
     "gamekit_animation_sync_schema",
     "gamekit_effect_schema",
-    "gamekit_save_schema",
-    "gamekit_inventory_schema",
-    "gamekit_dialogue_schema",
-    "gamekit_quest_schema",
-    "gamekit_status_effect_schema",
-    # gamekit_pillar
+    # gamekit_pillar (UI + Presentation Pillar)
     "gamekit_ui_binding_schema",
     "gamekit_ui_list_schema",
     "gamekit_ui_slot_schema",
     "gamekit_ui_selection_schema",
-    "gamekit_combat_schema",
     "gamekit_feedback_schema",
     "gamekit_vfx_schema",
     "gamekit_audio_schema",
-    # graph
+    # graph (Logic Pillar — integrity validation + dependency/reference analysis + type catalog)
+    "validate_integrity_schema",
+    "class_catalog_schema",
     "class_dependency_graph_schema",
     "scene_reference_graph_schema",
     "scene_relationship_graph_schema",

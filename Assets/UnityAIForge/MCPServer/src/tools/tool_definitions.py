@@ -1,4 +1,4 @@
-"""Tool definitions for all 64 MCP tools.
+"""Tool definitions for all 49 MCP tools.
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -17,41 +17,23 @@ from tools.schemas import (
     audio_source_bundle_schema,
     camera_rig_schema,
     character_controller_bundle_schema,
+    class_catalog_schema,
     class_dependency_graph_schema,
     compilation_await_schema,
     component_manage_schema,
     console_log_schema,
     event_wiring_schema,
     game_object_manage_schema,
-    gamekit_actor_schema,
-    gamekit_ai_schema,
     gamekit_animation_sync_schema,
     gamekit_audio_schema,
-    gamekit_collectible_schema,
-    gamekit_combat_schema,
-    gamekit_dialogue_schema,
     gamekit_effect_schema,
     gamekit_feedback_schema,
-    gamekit_health_schema,
-    gamekit_interaction_schema,
-    gamekit_inventory_schema,
-    gamekit_machinations_schema,
-    gamekit_manager_schema,
-    gamekit_projectile_schema,
-    gamekit_quest_schema,
-    gamekit_save_schema,
-    gamekit_sceneflow_schema,
-    gamekit_spawner_schema,
-    gamekit_status_effect_schema,
-    gamekit_timer_schema,
-    gamekit_trigger_zone_schema,
     gamekit_ui_binding_schema,
     gamekit_ui_command_schema,
     gamekit_ui_list_schema,
     gamekit_ui_selection_schema,
     gamekit_ui_slot_schema,
     gamekit_vfx_schema,
-    gamekit_waypoint_schema,
     input_profile_schema,
     light_bundle_schema,
     material_bundle_schema,
@@ -75,12 +57,13 @@ from tools.schemas import (
     ui_state_schema,
     uitk_asset_schema,
     uitk_document_schema,
+    validate_integrity_schema,
     vector_sprite_convert_schema,
 )
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 66 MCP tool definitions."""
+    """Return the list of all 49 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -136,7 +119,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), update (modify file contents), delete, rename, duplicate, inspect (view properties and content), updateImporter (modify asset import settings), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Essential for managing scripts, textures, audio, data files, and all Unity assets. Use with unity_script_template_generate for creating properly structured C# scripts.",
+            description="Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), update (modify file contents), delete, rename, duplicate, inspect (view properties and content), updateImporter (modify asset import settings), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Essential for managing scripts, textures, audio, data files, and all Unity assets.",
             inputSchema=asset_manage_schema(),
         ),
         types.Tool(
@@ -427,22 +410,7 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=event_wiring_schema(),
         ),
-        # ── GameKit Core ───────────────────────────────────────────
-        types.Tool(
-            name="unity_gamekit_actor",
-            description="High-level GameKit Actor: create game actors with controller-behavior separation. Choose from 8 behavior profiles (2dLinear/2dPhysics/2dTileGrid/graphNode/splineMovement/3dCharacterController/3dPhysics/3dNavMesh) and 4 control modes (directController for player input via New Input System or legacy, aiAutonomous for AI patrol/follow/wander, uiCommand for UI button control, scriptTriggerOnly for event-driven). Actors relay input to behaviors via UnityEvents (OnMoveInput/OnJumpInput/OnActionInput/OnLookInput). Perfect for players, NPCs, enemies, and interactive characters.",
-            inputSchema=gamekit_actor_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_manager",
-            description="High-level GameKit Manager: create centralized game system managers for turn-based games (TurnManager), real-time coordination (RealtimeManager), resource/economy management (ResourceManager with Machinations support), global events (EventHub), or finite state machines (StateManager). Supports persistence (DontDestroyOnLoad) and integration with GameKitUICommand for UI control. Essential for managing game-wide state, resources (health/mana/gold), turn phases, and game flow.",
-            inputSchema=gamekit_manager_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_interaction",
-            description="High-level GameKit Interaction: create trigger-based interactions with declarative actions. Choose from 5 trigger types (collision/trigger/raycast/proximity/input) and 5 action types (spawnPrefab/destroyObject/playSound/sendMessage/changeScene). Add conditions (tag/layer/distance/custom) for filtering. Supports both 2D (BoxCollider2D, CircleCollider2D, CapsuleCollider2D, PolygonCollider2D) and 3D (BoxCollider, SphereCollider, CapsuleCollider, MeshCollider) colliders via is2D parameter. Perfect for collectibles, doors, switches, treasure chests, and interactive objects. No scripting required - define complete interactions declaratively. **When to use:** For custom script actions (sendMessage, spawnPrefab). For built-in zone effects (damage, heal, checkpoint, teleport), use unity_gamekit_trigger_zone instead.",
-            inputSchema=gamekit_interaction_schema(),
-        ),
+        # ── GameKit – UI Pillar ────────────────────────────────────
         types.Tool(
             name="unity_gamekit_ui_command",
             description=(
@@ -457,331 +425,6 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=gamekit_ui_command_schema(),
         ),
-        types.Tool(
-            name="unity_gamekit_machinations",
-            description=(
-                "High-level GameKit Machinations: create and manage Machinations diagram assets for economic systems.\n\n"
-                "**Operations:**\n"
-                "- create: Create a new Machinations asset (ScriptableObject)\n"
-                "- update: Update asset properties (pools, flows, converters, triggers)\n"
-                "- inspect: View diagram configuration\n"
-                "- delete: Delete Machinations asset\n"
-                "- apply: Apply diagram to a ResourceManager\n"
-                "- export: Export ResourceManager state to asset\n\n"
-                "**Components:**\n"
-                "- **Resource Pools:** Define resources with initial/min/max values (health, mana, gold)\n"
-                "- **Flows:** Automatic generation/consumption over time (mana regen, hunger drain)\n"
-                "- **Converters:** Transform resources (gold \u2192 health potion)\n"
-                "- **Triggers:** Threshold events (HP\u22640 \u2192 death event)"
-            ),
-            inputSchema=gamekit_machinations_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_sceneflow",
-            description=(
-                "High-level GameKit SceneFlow: manage scene transitions with granular control.\n\n"
-                "**Operations:**\n"
-                "- create: Initialize a new SceneFlow\n"
-                "- inspect: View flow configuration\n"
-                "- delete: Delete SceneFlow\n"
-                "- transition: Execute a transition at runtime\n"
-                "- addScene: Add a scene to the flow\n"
-                "- removeScene: Remove a scene\n"
-                "- updateScene: Update scene settings\n"
-                "- addTransition: Add transition between scenes\n"
-                "- removeTransition: Remove a transition\n"
-                "- addSharedScene: Add shared scene (UI, Audio overlay)\n"
-                "- removeSharedScene: Remove shared scene\n\n"
-                "**Load Modes:**\n"
-                "- single: Unload all scenes, load new one\n"
-                "- additive: Load on top of existing scenes\n\n"
-                "Perfect for level progression, menu systems, and complex scene workflows."
-            ),
-            inputSchema=gamekit_sceneflow_schema(),
-        ),
-        # ── GameKit Systems ────────────────────────────────────────
-        types.Tool(
-            name="unity_gamekit_health",
-            description=(
-                "High-level GameKit Health: create and manage health/damage systems for game entities.\n\n"
-                "**Operations:**\n"
-                "- create: Add GameKitHealth component with configurable settings\n"
-                "- update: Modify health parameters (maxHealth, invincibilityDuration, deathBehavior)\n"
-                "- inspect: View health status and configuration\n"
-                "- delete: Remove GameKitHealth component\n"
-                "- applyDamage: Deal damage to the entity\n"
-                "- heal: Restore health\n"
-                "- kill: Instantly kill the entity\n"
-                "- respawn: Respawn at configured position\n"
-                "- setInvincible: Enable/disable invincibility\n"
-                "- findByHealthId: Find health component by ID\n\n"
-                "**Death Behaviors:** Destroy, Disable, Respawn, EventOnly\n\n"
-                "**Features:**\n"
-                "- Invincibility frames after damage\n"
-                "- UnityEvents: OnDamage, OnHeal, OnDeath, OnRespawn, OnInvincibilityStart/End\n"
-                "- Auto-respawn with configurable delay"
-            ),
-            inputSchema=gamekit_health_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_spawner",
-            description=(
-                "High-level GameKit Spawner: create spawn systems for enemies, items, and objects.\n\n"
-                "**Operations:**\n"
-                "- create: Add GameKitSpawner component\n"
-                "- update: Modify spawner settings\n"
-                "- inspect: View spawner status\n"
-                "- delete: Remove spawner\n"
-                "- start/stop/reset: Control spawning\n"
-                "- spawnOne: Spawn a single instance\n"
-                "- spawnBurst: Spawn multiple at once\n"
-                "- despawnAll: Despawn all spawned objects\n"
-                "- addSpawnPoint: Add spawn position\n"
-                "- addWave: Add wave configuration\n"
-                "- findBySpawnerId: Find spawner by ID\n\n"
-                "**Spawn Modes:** Interval, Wave, Burst, Manual\n\n"
-                "**Features:**\n"
-                "- Object pooling support\n"
-                "- Multiple spawn points\n"
-                "- Wave system with enemy counts and delays\n"
-                "- UnityEvents: OnSpawn, OnDespawn, OnWaveStart/Complete, OnAllWavesComplete"
-            ),
-            inputSchema=gamekit_spawner_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_timer",
-            description=(
-                "High-level GameKit Timer: create timers and cooldown systems.\n\n"
-                "**Operations:**\n"
-                "- createTimer/updateTimer/inspectTimer/deleteTimer: Timer CRUD\n"
-                "- startTimer/stopTimer/pauseTimer/resumeTimer/resetTimer: Timer control\n"
-                "- createCooldown/inspectCooldown/triggerCooldown/resetCooldown/deleteCooldown: Cooldown management\n"
-                "- findByTimerId: Find timer by ID\n\n"
-                "**Timer Features:**\n"
-                "- Loop mode for repeating timers\n"
-                "- Unscaled time for pause-immune timers\n"
-                "- UnityEvents: OnTimerStart, OnTimerComplete, OnTimerTick\n\n"
-                "**Cooldown Features:**\n"
-                "- Multiple cooldowns on single GameObject\n"
-                "- Ready state checking\n"
-                "- Remaining time queries"
-            ),
-            inputSchema=gamekit_timer_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_ai",
-            description=(
-                "High-level GameKit AI: create AI behaviors for NPCs and enemies.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: AI component CRUD\n"
-                "- setTarget/clearTarget: Target management\n"
-                "- setState: Force state change\n"
-                "- addPatrolPoint/clearPatrolPoints: Patrol configuration\n"
-                "- findByAIId: Find AI by ID\n\n"
-                "**Behavior Types:** Patrol, Chase, Flee, PatrolAndChase\n"
-                "**AI States:** Idle, Patrol, Chase, Attack, Flee, Return\n"
-                "**Patrol Modes:** Loop, PingPong, Random\n\n"
-                "**Detection:**\n"
-                "- Detection radius, field of view angle\n"
-                "- Line of sight (raycast), target layer mask\n\n"
-                "**When to use:** For intelligent behaviors (patrol + chase, detection, state machines). "
-                "For simple path following without AI (moving platforms, rails), use unity_gamekit_waypoint instead."
-            ),
-            inputSchema=gamekit_ai_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_collectible",
-            description=(
-                "High-level GameKit Collectible: create collectible items for games.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Collectible CRUD\n"
-                "- collect: Simulate collection (editor mode)\n"
-                "- respawn/reset: State management\n"
-                "- findByCollectibleId: Find by ID\n\n"
-                "**Collectible Types:** Coin, Health, Mana, PowerUp, Key, Ammo, Experience, Custom\n"
-                "**Collection Behaviors:** Destroy, Disable, Respawn\n\n"
-                "**Features:**\n"
-                "- Auto-apply values to GameKitHealth/ResourceManager\n"
-                "- Float animation (bobbing) and rotation animation\n"
-                "- Customizable collider, tag/layer filtering"
-            ),
-            inputSchema=gamekit_collectible_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_projectile",
-            description=(
-                "High-level GameKit Projectile: create projectiles for games.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Projectile CRUD\n"
-                "- launch: Set launch direction (play mode)\n"
-                "- setHomingTarget: Set homing target\n"
-                "- destroy: Destroy projectile\n"
-                "- findByProjectileId: Find by ID\n\n"
-                "**Movement Types:** Transform, Rigidbody, Rigidbody2D\n\n"
-                "**Features:**\n"
-                "- Homing missiles (target tracking)\n"
-                "- Bouncing and piercing projectiles\n"
-                "- Gravity support\n"
-                "- Damage on hit (GameKitHealth integration)\n"
-                "- Target tag/layer filtering"
-            ),
-            inputSchema=gamekit_projectile_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_waypoint",
-            description=(
-                "High-level GameKit Waypoint: create path followers for NPCs and platforms.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Waypoint CRUD\n"
-                "- addWaypoint/removeWaypoint/clearWaypoints: Path editing\n"
-                "- startPath/stopPath/pausePath/resumePath/resetPath: Path control\n"
-                "- goToWaypoint: Jump to waypoint index\n"
-                "- findByWaypointId: Find by ID\n\n"
-                "**Path Modes:** Once, Loop, PingPong\n"
-                "**Movement Types:** Transform, Rigidbody, Rigidbody2D\n"
-                "**Rotation Modes:** None, LookAtTarget, AlignToPath\n\n"
-                "**When to use:** For simple path following (moving platforms, rails, fixed NPC routes). "
-                "For AI behaviors with detection and chase, use unity_gamekit_ai instead."
-            ),
-            inputSchema=gamekit_waypoint_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_trigger_zone",
-            description=(
-                "High-level GameKit TriggerZone: create trigger zones for game mechanics.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Zone CRUD\n"
-                "- activate/deactivate: Enable/disable zone\n"
-                "- reset: Reset trigger state\n"
-                "- setTeleportDestination: Set teleport target\n"
-                "- findByZoneId: Find by ID\n\n"
-                "**Zone Types:** Generic, Checkpoint, DamageZone, HealZone, Teleport, SpeedBoost, SlowDown, KillZone, SafeZone, Trigger\n"
-                "**Trigger Modes:** Once, OncePerEntity, Repeat, WhileInside\n\n"
-                "**Features:**\n"
-                "- 2D/3D collider support, tag/layer filtering\n"
-                "- Cooldown system, effect intervals, editor gizmo visualization\n\n"
-                "**When to use:** For built-in zone effects (damage, heal, checkpoint, teleport, speed zones). "
-                "For custom script actions (sendMessage, spawnPrefab), use unity_gamekit_interaction instead."
-            ),
-            inputSchema=gamekit_trigger_zone_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_animation_sync",
-            description=(
-                "High-level GameKit Animation Sync: declarative animation synchronization with game state.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: AnimationSync CRUD\n"
-                "- addSyncRule/removeSyncRule: Parameter sync rule management\n"
-                "- addTriggerRule/removeTriggerRule: Trigger rule management\n"
-                "- fireTrigger: Manually fire an animator trigger\n"
-                "- setParameter: Set an animator parameter value\n"
-                "- findBySyncId: Find animation sync by ID\n\n"
-                "**Sync Source Types:** rigidbody3d/rigidbody2d (velocity), transform (position/rotation/scale), health (GameKitHealth), custom\n\n"
-                "**Trigger Event Sources:** health (damage/heal/death), input (action), manual (API call)"
-            ),
-            inputSchema=gamekit_animation_sync_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_effect",
-            description=(
-                "High-level GameKit Effect: composite effect system for particles, sound, camera shake, and screen flash.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Effect asset CRUD\n"
-                "- addComponent/removeComponent/clearComponents: Effect component management\n"
-                "- play/playAtPosition/playAtTransform: Play effect (runtime)\n"
-                "- shakeCamera/flashScreen/setTimeScale: Direct effects (runtime)\n"
-                "- createManager/registerEffect/unregisterEffect: Manager management\n"
-                "- findByEffectId/listEffects: Lookup\n\n"
-                "**Effect Component Types:** particle, sound, cameraShake, screenFlash, timeScale"
-            ),
-            inputSchema=gamekit_effect_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_save",
-            description=(
-                "High-level GameKit Save: declarative save/load system with profiles and slots.\n\n"
-                "**Operations:**\n"
-                "- createProfile/updateProfile/inspectProfile/deleteProfile: Profile CRUD\n"
-                "- addTarget/removeTarget/clearTargets: Save target management\n"
-                "- save/load: Execute save/load\n"
-                "- listSlots/deleteSlot: Slot management\n"
-                "- createManager/inspectManager/deleteManager: Manager CRUD\n"
-                "- findByProfileId: Lookup\n\n"
-                "**Save Target Types:** transform, component, resourceManager, health, sceneFlow, inventory, playerPrefs"
-            ),
-            inputSchema=gamekit_save_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_inventory",
-            description=(
-                "High-level GameKit Inventory: complete inventory system with items, stacking, and equipment.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Inventory CRUD\n"
-                "- defineItem/updateItem/inspectItem/deleteItem: Item asset CRUD\n"
-                "- addItem/removeItem/useItem: Item management\n"
-                "- equip/unequip/getEquipped: Equipment management\n"
-                "- clear/sort: Inventory utilities\n"
-                "- findByInventoryId/findByItemId: Lookup\n\n"
-                "**Item Categories:** weapon, armor, consumable, material, key, quest, misc\n"
-                "**Equipment Slots:** mainHand, offHand, head, body, hands, feet, accessory1, accessory2"
-            ),
-            inputSchema=gamekit_inventory_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_dialogue",
-            description=(
-                "High-level GameKit Dialogue: declarative dialogue system for NPC conversations with choices and conditions.\n\n"
-                "**Operations:**\n"
-                "- createDialogue/updateDialogue/inspectDialogue/deleteDialogue: Dialogue asset CRUD\n"
-                "- addNode/updateNode/removeNode: Dialogue node management\n"
-                "- addChoice/updateChoice/removeChoice: Choice management\n"
-                "- startDialogue/selectChoice/advanceDialogue/endDialogue: Runtime control\n"
-                "- createManager/inspectManager/deleteManager: Manager CRUD\n"
-                "- findByDialogueId: Lookup\n\n"
-                "**Node Types:** dialogue, choice, branch, action, exit\n"
-                "**Condition Types:** quest, resource, inventory, variable, health, custom"
-            ),
-            inputSchema=gamekit_dialogue_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_quest",
-            description=(
-                "High-level GameKit Quest: complete quest system with objectives, prerequisites, and rewards.\n\n"
-                "**Operations:**\n"
-                "- createQuest/updateQuest/inspectQuest/deleteQuest: Quest asset CRUD\n"
-                "- addObjective/updateObjective/removeObjective: Objective management\n"
-                "- addPrerequisite/removePrerequisite: Prerequisite management\n"
-                "- addReward/removeReward: Reward management\n"
-                "- startQuest/completeQuest/failQuest/abandonQuest: Quest state control\n"
-                "- updateProgress: Update objective progress\n"
-                "- listQuests: List quests by filter\n"
-                "- createManager/inspectManager/deleteManager: Manager CRUD\n"
-                "- findByQuestId: Lookup\n\n"
-                "**Quest Categories:** main, side, daily, weekly, event, tutorial, hidden, custom\n"
-                "**Objective Types:** kill, collect, talk, location, interact, escort, defend, deliver, explore, craft, custom\n"
-                "**Reward Types:** resource, item, experience, reputation, unlock, dialogue, custom"
-            ),
-            inputSchema=gamekit_quest_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_status_effect",
-            description=(
-                "High-level GameKit Status Effect: buff/debuff system with DoT, stat modifiers, and stacking.\n\n"
-                "**Operations:**\n"
-                "- defineEffect/updateEffect/inspectEffect/deleteEffect: Effect asset CRUD\n"
-                "- addModifier/updateModifier/removeModifier/clearModifiers: Modifier management\n"
-                "- create/update/inspect/delete: StatusEffectReceiver CRUD\n"
-                "- applyEffect/removeEffect/clearEffects: Active effect management\n"
-                "- getActiveEffects/getStatModifier: Queries\n"
-                "- findByEffectId/findByReceiverId/listEffects: Lookup\n\n"
-                "**Effect Types:** buff, debuff, neutral\n"
-                "**Categories:** generic, poison, burn, freeze, stun, slow, haste, shield, regeneration, invincibility, weakness, strength, custom\n"
-                "**Modifier Types:** statModifier, damageOverTime, healOverTime, stun, silence, invincible\n"
-                "**Stack Behaviors:** refreshDuration, addDuration, independent, increaseStacks"
-            ),
-            inputSchema=gamekit_status_effect_schema(),
-        ),
-        # ── GameKit Pillar (3-Pillar Architecture v2.7.0) ──────────
         types.Tool(
             name="unity_gamekit_ui_binding",
             description=(
@@ -839,21 +482,37 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=gamekit_ui_selection_schema(),
         ),
+        # ── GameKit – Presentation Pillar ──────────────────────────
         types.Tool(
-            name="unity_gamekit_combat",
+            name="unity_gamekit_animation_sync",
             description=(
-                "High-level GameKit Combat: unified damage calculation and attack system.\n\n"
+                "High-level GameKit Animation Sync: declarative animation synchronization with game state.\n\n"
                 "**Operations:**\n"
-                "- create/update/inspect/delete: Combat component CRUD\n"
-                "- addTargetTag/removeTargetTag: Target filtering\n"
-                "- resetCooldown: Reset attack cooldown\n"
-                "- findByCombatId: Find combat by ID\n\n"
-                "**Attack Types:** melee, ranged, aoe, projectile\n"
-                "**Hitbox Shapes:** sphere, box, capsule, cone\n\n"
-                "**Features:** Damage variance, critical hit system, multi-target support, cooldown management, "
-                "integration with GameKitHealth, effect triggers on hit/crit"
+                "- create/update/inspect/delete: AnimationSync CRUD\n"
+                "- addSyncRule/removeSyncRule: Parameter sync rule management\n"
+                "- addTriggerRule/removeTriggerRule: Trigger rule management\n"
+                "- fireTrigger: Manually fire an animator trigger\n"
+                "- setParameter: Set an animator parameter value\n"
+                "- findBySyncId: Find animation sync by ID\n\n"
+                "**Sync Source Types:** rigidbody3d/rigidbody2d (velocity), transform (position/rotation/scale), health (GameKitHealth), custom\n\n"
+                "**Trigger Event Sources:** health (damage/heal/death), input (action), manual (API call)"
             ),
-            inputSchema=gamekit_combat_schema(),
+            inputSchema=gamekit_animation_sync_schema(),
+        ),
+        types.Tool(
+            name="unity_gamekit_effect",
+            description=(
+                "High-level GameKit Effect: composite effect system for particles, sound, camera shake, and screen flash.\n\n"
+                "**Operations:**\n"
+                "- create/update/inspect/delete: Effect asset CRUD\n"
+                "- addComponent/removeComponent/clearComponents: Effect component management\n"
+                "- play/playAtPosition/playAtTransform: Play effect (runtime)\n"
+                "- shakeCamera/flashScreen/setTimeScale: Direct effects (runtime)\n"
+                "- createManager/registerEffect/unregisterEffect: Manager management\n"
+                "- findByEffectId/listEffects: Lookup\n\n"
+                "**Effect Component Types:** particle, sound, cameraShake, screenFlash, timeScale"
+            ),
+            inputSchema=gamekit_effect_schema(),
         ),
         types.Tool(
             name="unity_gamekit_feedback",
@@ -894,6 +553,85 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=gamekit_audio_schema(),
         ),
+        # ── GameKit – Logic Pillar ─────────────────────────────────
+        types.Tool(
+            name="unity_validate_integrity",
+            description=(
+                "High-level GameKit Integrity: validate scene integrity by detecting broken references and missing assets.\n\n"
+                "**Operations:**\n"
+                "- missingScripts: Detect GameObjects with missing (null) MonoBehaviour scripts\n"
+                "- nullReferences: Detect SerializedProperty object references pointing to destroyed objects\n"
+                "- brokenEvents: Detect UnityEvent listeners with null targets or missing methods\n"
+                "- brokenPrefabs: Detect prefab instances with missing or disconnected assets\n"
+                "- all: Run all checks and return categorized summary\n\n"
+                "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
+                "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
+                "Returns a flat issue list with type, severity (error/warning), gameObjectPath, and message. "
+                "Use 'rootPath' parameter to limit analysis to a specific subtree."
+            ),
+            inputSchema=validate_integrity_schema(),
+        ),
+        types.Tool(
+            name="unity_class_dependency_graph",
+            description=(
+                "High-level GameKit Class Dependency Graph: analyze class/script dependency relationships in the Unity project.\n\n"
+                "**Operations:**\n"
+                "- analyzeClass: Analyze a single class and its dependencies\n"
+                "- analyzeAssembly: Analyze all classes in an assembly\n"
+                "- analyzeNamespace: Analyze all classes in a namespace\n"
+                "- findDependents: Find classes that depend on the specified class\n"
+                "- findDependencies: Find classes that the specified class depends on\n\n"
+                "**Dependency Types:** field_reference, inherits, implements, requires_component\n"
+                "**Output Formats:** json, dot, mermaid, summary"
+            ),
+            inputSchema=class_dependency_graph_schema(),
+        ),
+        types.Tool(
+            name="unity_class_catalog",
+            description=(
+                "High-level GameKit Class Catalog: enumerate and inspect types (classes, structs, interfaces, enums, MonoBehaviours, ScriptableObjects) in the Unity project.\n\n"
+                "**Operations:**\n"
+                "- listTypes: List types with optional filters (searchPath, typeKind, namespace, baseClass, namePattern, maxResults)\n"
+                "- inspectType: Inspect a single type in detail (fields, methods, properties, attributes)\n\n"
+                "**Use Cases:**\n"
+                "- Discover available MonoBehaviours/ScriptableObjects before using unity_component_crud or unity_scriptableObject_crud\n"
+                "- Find serializable fields to know which properties can be set via unity_component_crud propertyChanges\n"
+                "- Explore project type structure by namespace, base class, or name pattern\n\n"
+                "**Complements unity_class_dependency_graph** which focuses on relationships between types, "
+                "while this tool focuses on the types themselves and their members."
+            ),
+            inputSchema=class_catalog_schema(),
+        ),
+        types.Tool(
+            name="unity_scene_reference_graph",
+            description=(
+                "High-level GameKit Scene Reference Graph: analyze object reference relationships within a Unity scene.\n\n"
+                "**Operations:**\n"
+                "- analyzeScene: Analyze all references in the current or specified scene\n"
+                "- analyzeObject: Analyze references for a specific GameObject\n"
+                "- findReferencesTo: Find all objects that reference the specified object\n"
+                "- findReferencesFrom: Find all objects that the specified object references\n"
+                "- findOrphans: Find objects not referenced by anything\n\n"
+                "**Reference Types:** component_reference, unity_event, hierarchy_child, prefab_source\n"
+                "**Output Formats:** json, dot, mermaid, summary"
+            ),
+            inputSchema=scene_reference_graph_schema(),
+        ),
+        types.Tool(
+            name="unity_scene_relationship_graph",
+            description=(
+                "High-level GameKit Scene Relationship Graph: analyze relationships between Unity scenes (transitions, dependencies).\n\n"
+                "**Operations:**\n"
+                "- analyzeAll: Analyze all scene relationships in the project\n"
+                "- analyzeScene: Analyze transitions from a specific scene\n"
+                "- findTransitionsTo: Find scenes that can transition to the specified scene\n"
+                "- findTransitionsFrom: Find scenes the specified scene can transition to\n"
+                "- validateBuildSettings: Validate that referenced scenes are in Build Settings\n\n"
+                "**Transition Types:** scene_load, scene_load_additive, sceneflow_transition\n"
+                "**Output Formats:** json, dot, mermaid, summary"
+            ),
+            inputSchema=scene_relationship_graph_schema(),
+        ),
         # ── Development Cycle & Visual Tools ───────────────────────
         types.Tool(
             name="unity_playmode_control",
@@ -925,51 +663,5 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Essential for LLMs to debug and fix issues autonomously."
             ),
             inputSchema=console_log_schema(),
-        ),
-        # ── Graph Analysis ─────────────────────────────────────────
-        types.Tool(
-            name="unity_class_dependency_graph",
-            description=(
-                "Analyze class/script dependency relationships in the Unity project.\n\n"
-                "**Operations:**\n"
-                "- analyzeClass: Analyze a single class and its dependencies\n"
-                "- analyzeAssembly: Analyze all classes in an assembly\n"
-                "- analyzeNamespace: Analyze all classes in a namespace\n"
-                "- findDependents: Find classes that depend on the specified class\n"
-                "- findDependencies: Find classes that the specified class depends on\n\n"
-                "**Dependency Types:** field_reference, inherits, implements, requires_component\n"
-                "**Output Formats:** json, dot, mermaid, summary"
-            ),
-            inputSchema=class_dependency_graph_schema(),
-        ),
-        types.Tool(
-            name="unity_scene_reference_graph",
-            description=(
-                "Analyze object reference relationships within a Unity scene.\n\n"
-                "**Operations:**\n"
-                "- analyzeScene: Analyze all references in the current or specified scene\n"
-                "- analyzeObject: Analyze references for a specific GameObject\n"
-                "- findReferencesTo: Find all objects that reference the specified object\n"
-                "- findReferencesFrom: Find all objects that the specified object references\n"
-                "- findOrphans: Find objects not referenced by anything\n\n"
-                "**Reference Types:** component_reference, unity_event, hierarchy_child, prefab_source\n"
-                "**Output Formats:** json, dot, mermaid, summary"
-            ),
-            inputSchema=scene_reference_graph_schema(),
-        ),
-        types.Tool(
-            name="unity_scene_relationship_graph",
-            description=(
-                "Analyze relationships between Unity scenes (transitions, dependencies).\n\n"
-                "**Operations:**\n"
-                "- analyzeAll: Analyze all scene relationships in the project\n"
-                "- analyzeScene: Analyze transitions from a specific scene\n"
-                "- findTransitionsTo: Find scenes that can transition to the specified scene\n"
-                "- findTransitionsFrom: Find scenes the specified scene can transition to\n"
-                "- validateBuildSettings: Validate that referenced scenes are in Build Settings\n\n"
-                "**Transition Types:** scene_load, scene_load_additive, sceneflow_transition\n"
-                "**Output Formats:** json, dot, mermaid, summary"
-            ),
-            inputSchema=scene_relationship_graph_schema(),
         ),
     ]
