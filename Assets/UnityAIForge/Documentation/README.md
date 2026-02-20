@@ -91,15 +91,17 @@ Unity-AI-Forge/
 ├── Assets/
 │   └── UnityAIForge/                           # Unity Package
 │       ├── Editor/
-│       │   └── MCPBridge/                      # Unity C# WebSocketブリッジ
-│       ├── GameKit/                            # GameKitフレームワーク ランタイム
-│       ├── MCPServer/                          # ⭐ MCPサーバー（Python、docs、tools）
+│       │   ├── MCPBridge/                      # Unity C# WebSocketブリッジ
+│       │   │   └── Handlers/                   # 48ハンドラー（6カテゴリ）
+│       │   ├── CodeGen/                        # コード生成インフラ
+│       │   │   └── Templates/                  # 11テンプレート（*.cs.txt）
+│       │   └── MCPServerManager/               # サーバー管理UI
+│       ├── MCPServer/                          # ⭐ MCPサーバー（Python）
 │       │   ├── src/                            # Python MCPサーバー
 │       │   ├── setup/                          # インストールスクリプト
-│       │   ├── examples/                       # 実践的なチュートリアル
-│       │   ├── config/                         # 設定テンプレート
-│       │   └── docs/                           # 追加ドキュメント
+│       │   └── config/                         # 設定テンプレート
 │       ├── Tests/                              # テストスイート
+│       ├── Documentation/                      # ドキュメント
 │       └── package.json                        # Unity Package定義
 ```
 
@@ -188,16 +190,17 @@ AIは`unity_ping()`を呼び出し、Unityのバージョン情報を表示し�
 
 ### ユーザー向け
 
-- **[MCP Server QUICKSTART](Assets/UnityAIForge/MCPServer/QUICKSTART.md)** - 5分で始める
-- **[MCP Server README](Assets/UnityAIForge/MCPServer/README.md)** - 完全なMCPサーバードキュメント
-- **[インストールガイド](Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md)** - 詳細なインストール手順
-- **[Examples](Assets/UnityAIForge/MCPServer/examples/)** - 実践的なチュートリアルとウォークスルー
+- **[Getting Started](../GETTING_STARTED.md)** - はじめてのセットアップガイド
+- **[Quick Start](../Installation/QUICKSTART.md)** - 5分で始める
+- **[Installation Guide](../Installation/INSTALL_GUIDE.md)** - 詳細なインストール手順
+- **[MCP Server README](../MCPServer/README.md)** - 完全なMCPサーバードキュメント
+- **[Examples](../Examples/README.md)** - 実践的なチュートリアルとウォークスルー
 
 ### 開発者向け
 
-- **[CLAUDE.md](CLAUDE.md)** - Claude Code統合の手順
-- **[テストスイート](Assets/UnityAIForge/Tests/Editor/README.md)** - すべてのツールの包括的なテストスイート
-- **[ドキュメントインデックス](docs/)** - 追加のガイドとリリースノート
+- **[CLAUDE.md](../CLAUDE.md)** - Claude Code統合の手順
+- **[テストスイート](../Testing/README.md)** - すべてのツールの包括的なテストスイート
+- **[ドキュメントインデックス](../INDEX.md)** - 全ドキュメント索引
 
 ## 🏗️ アーキテクチャ
 
@@ -210,12 +213,12 @@ AIクライアント (Claude/Cursor) <--(MCP)--> Python MCPサーバー <--(WebS
 
 | コンポーネント | 場所 | 説明 |
 |-----------|----------|-------------|
-| **Unity C# Bridge** | `Assets/UnityAIForge/Editor/MCPBridge/` | Unity Editor内で実行されるWebSocketサーバー |
-| **Python MCPサーバー** | `Assets/UnityAIForge/MCPServer/src/` | MCPプロトコル実装 |
-| **GameKitコード生成** | `Assets/UnityAIForge/Editor/CodeGen/` | テンプレートベースのコード生成インフラ |
-| **セットアップスクリプト** | `Assets/UnityAIForge/MCPServer/setup/` | インストールと設定ヘルパー |
-| **Examples** | `Assets/UnityAIForge/MCPServer/examples/` | 実践的なチュートリアルとガイド |
-| **Tests** | `Assets/UnityAIForge/Tests/Editor/` | 包括的なテストスイート |
+| **Unity C# Bridge** | `Editor/MCPBridge/` | Unity Editor内で実行されるWebSocketサーバー |
+| **Python MCPサーバー** | `MCPServer/src/` | MCPプロトコル実装 |
+| **GameKitコード生成** | `Editor/CodeGen/` | テンプレートベースのコード生成インフラ |
+| **MCP Server Manager** | `Editor/MCPServerManager/` | サーバーライフサイクル管理UI |
+| **セットアップスクリプト** | `MCPServer/setup/` | インストールと設定ヘルパー |
+| **Tests** | `Tests/Editor/` | 包括的なテストスイート |
 
 ## 🧪 テスト
 
@@ -231,7 +234,7 @@ Unity Test Frameworkによる包括的なテストスイート:
 - PowerShell: `.\run-tests.ps1`
 - Bash: `./run-tests.sh`
 
-詳細は[テストスイートドキュメント](Assets/Unity-AI-Forge/Tests/Editor/README.md)を参照してください。
+詳細は[テストスイートドキュメント](../Testing/README.md)を参照してください。
 
 ## ✨ 機能
 
@@ -257,13 +260,13 @@ Unity Test Frameworkによる包括的なテストスイート:
 - **Audio Source Bundle** (`unity_audio_source_bundle`) - プリセット（music、sfx、ambient、voice、ui）、2D/3D空間オーディオ、ミキサーグループ統合によるAudioSourceの作成と設定
 - **Input Profile** (`unity_input_profile`) - 新Input SystemでのPlayerInput作成、アクションマップの設定、通知動作の設定、InputActionsアセットの作成
 
-### 高レベルGameKitツール（14ツール）
+### 高レベルGameKitツール（15ツール）
 
 GameKitはコード生成方式でスタンドアロンC#スクリプトを生成します。3本柱アーキテクチャ:
 
-- **UIピラー** - UICommand, UIBinding, UIList, UISlot, UISelection
-- **Presentationピラー** - AnimationSync, Effect, Feedback, VFX, Audio
-- **Logicピラー** - Integrity検証, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
+- **UIピラー** (5) - UICommand, UIBinding, UIList, UISlot, UISelection
+- **Presentationピラー** (5) - AnimationSync, Effect, Feedback, VFX, Audio
+- **Logicピラー** (5) - Integrity検証, ClassCatalog, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
 
 ## 📦 ScriptableObject管理の例
 
@@ -323,35 +326,35 @@ Unity-AI-Forge/
 ├── Assets/
 │   └── UnityAIForge/                # Unity Package
 │       ├── Editor/
-│       │   └── MCPBridge/           # Unity C# Bridge
-│       │       ├── McpBridgeService.cs
-│       │       ├── McpCommandProcessor.cs
-│       │       ├── McpContextCollector.cs
-│       │       └── Handlers/        # ツール実装
-│       ├── GameKit/
-│       │   └── Runtime/             # GameKitフレームワーク
-│       │       ├── Actor/
-│       │       ├── Manager/
-│       │       ├── Interaction/
-│       │       └── SceneFlow/
+│       │   ├── MCPBridge/           # Unity C# Bridge
+│       │   │   ├── Base/            # ハンドラー基盤クラス
+│       │   │   ├── Handlers/        # 48ハンドラー（6カテゴリ）
+│       │   │   │   ├── LowLevel/    # 基本CRUD操作（7）
+│       │   │   │   ├── MidLevel/    # バッチ・プリセット（20）
+│       │   │   │   ├── HighLevel/   # 分析・整合性（5）
+│       │   │   │   ├── GameKit/     # UI・Presentation（10）
+│       │   │   │   ├── Utility/     # ユーティリティ（5）
+│       │   │   │   └── Settings/    # プロジェクト設定（1）
+│       │   │   └── Utilities/       # 共通ユーティリティ
+│       │   ├── CodeGen/             # コード生成インフラ
+│       │   │   └── Templates/       # 11テンプレート（*.cs.txt）
+│       │   └── MCPServerManager/    # サーバー管理UI
 │       ├── MCPServer/               # MCPサーバー（Python）
 │       │   ├── src/                 # サーバーソース
 │       │   │   ├── bridge/          # Unity Bridge通信
-│       │   │   ├── tools/           # MCPツール定義
+│       │   │   ├── tools/           # MCPツール定義・スキーマ
 │       │   │   ├── resources/       # MCPリソース
 │       │   │   └── main.py          # エントリーポイント
 │       │   ├── setup/               # インストールスクリプト
-│       │   ├── examples/            # チュートリアル
 │       │   ├── config/              # 設定テンプレート
-│       │   ├── skill.yml            # MCPサーバーマニフェスト
 │       │   └── pyproject.toml       # Pythonパッケージ設定
 │       ├── Tests/
 │       │   └── Editor/              # Unity Test Frameworkテスト
+│       ├── Documentation/           # ドキュメント
 │       └── package.json             # Unity Package定義
 │
 ├── ProjectSettings/                 # Unityプロジェクト設定
 ├── Packages/                        # Unityパッケージ
-├── docs/                            # プロジェクトドキュメント
 └── README.md                        # このファイル
 ```
 
@@ -401,9 +404,9 @@ MITライセンス - 詳細は[MITライセンス](https://opensource.org/licens
 
 ## 🆘 サポート
 
-- **クイックスタート**: [Assets/UnityAIForge/MCPServer/QUICKSTART.md](Assets/UnityAIForge/MCPServer/QUICKSTART.md)
-- **Examples**: [Assets/UnityAIForge/MCPServer/examples/](Assets/UnityAIForge/MCPServer/examples/)
-- **インストールガイド**: [Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md](Assets/UnityAIForge/MCPServer/INSTALL_GUIDE.md)
+- **クイックスタート**: [Installation/QUICKSTART.md](../Installation/QUICKSTART.md)
+- **インストールガイド**: [Installation/INSTALL_GUIDE.md](../Installation/INSTALL_GUIDE.md)
+- **Examples**: [Examples/README.md](../Examples/README.md)
 - **Issues**: [GitHub Issues](https://github.com/kuroyasouiti/Unity-AI-Forge/issues)
 
 ## 🔄 旧構造からの移行

@@ -15,11 +15,18 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - `tool_registry.py`, `tool_definitions.py`, `schemas/__init__.py` のセクション整理
   - Logic Pillarツールの説明に「High-level GameKit」プレフィックスを追加
 
-- **コード生成アーキテクチャへの完全移行（ツール数 64 → 48）**
+### 追加
+
+- **`unity_class_catalog` ツール追加**
+  - `ClassCatalogHandler.cs` — 型列挙・検査（クラス、MonoBehaviour、enum）
+  - `TypeCatalogAnalyzer.cs` — リフレクションによる型カタログ分析
+  - GameKit Logic Pillarの5番目のツールとして登録（Logic 4 → 5）
+
+- **コード生成アーキテクチャへの完全移行（ツール数 64 → 49）**
   - GameKit Logic Pillar の19ハンドラー（Actor, Combat, Health, Manager, AI, Timer, Spawner 等）を削除
   - ランタイムライブラリ（`UnityAIForge.GameKit.Runtime`）を削除
-  - 残存する14のGameKitハンドラーはすべてコード生成方式に統一
-  - ツール内訳: GameKit 14 (UI 5 + Presentation 5 + Logic 4) / Mid-Level 20 / Low-Level 8 / Utility 5 / Batch 1
+  - 残存する15のGameKitハンドラーはすべてコード生成方式に統一
+  - ツール内訳: GameKit 15 (UI 5 + Presentation 5 + Logic 5) / Mid-Level 20 / Low-Level 8 / Utility 5 / Batch 1
 
 - **`unity_asset_crud` 説明文から削除済み `unity_script_template_generate` への参照を除去**
 

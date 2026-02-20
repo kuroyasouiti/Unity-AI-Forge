@@ -97,7 +97,7 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `ScriptableObjectCommandHandler.cs` - ScriptableObject management
 - `VectorSpriteConvertHandler.cs` - Vector/primitive to sprite conversion
 
-**MidLevel/** (17 handlers) - Batch operations, presets, and UI Toolkit:
+**MidLevel/** (20 handlers) - Batch operations, presets, visual control, and UI Toolkit:
 - `TransformBatchHandler.cs` - Transform batch operations (arrange, rename patterns)
 - `RectTransformBatchHandler.cs` - UI RectTransform batch (anchors, alignment, distribution)
 - `PhysicsBundleHandler.cs` - Physics2D/3D setup with presets
@@ -113,6 +113,9 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `Sprite2DBundleHandler.cs` - 2D sprite management and sprite sheet slicing
 - `Animation2DBundleHandler.cs` - 2D animation setup (Animator, AnimatorController, clips)
 - `Animation3DBundleHandler.cs` - 3D animation setup (BlendTree, AvatarMask)
+- `MaterialBundleHandler.cs` - Material creation and property management (Standard, URP, HDRP)
+- `LightBundleHandler.cs` - Light setup with presets (directional, point, spot, area)
+- `ParticleBundleHandler.cs` - Particle system creation and configuration
 - `UITKDocumentHandler.cs` - UI Toolkit UIDocument management in scene
 - `UITKAssetHandler.cs` - UI Toolkit asset creation (UXML, USS, PanelSettings)
 
@@ -144,8 +147,8 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `main.py` - Entry point, sys.path setup and server launch
 - `version.py` - Package version info
 - `logger.py` - Logging configuration
-- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 44 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
-- `tools/tool_registry.py` - Single source of truth for 48 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
+- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 45 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
+- `tools/tool_registry.py` - Single source of truth for 49 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
 - `tools/tool_definitions.py` - All 49 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
 - `tools/schemas/` - JSON Schema definitions split into 8 category files:
