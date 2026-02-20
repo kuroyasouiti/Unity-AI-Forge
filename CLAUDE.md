@@ -47,82 +47,151 @@ uv run pytest
 
 ### Assembly Structure
 
-The project uses Unity's Assembly Definition system with two main assemblies:
+The project uses Unity's Assembly Definition system with three assemblies:
 
-- **UnityAIForge.Editor** (`Assets/UnityAIForge/Editor/`) - Editor-only code containing the MCP Bridge, command handlers, and code generation infrastructure. Namespace: `MCP.Editor`
-- **UnityAIForge.Editor.Tests** (`Assets/UnityAIForge/Tests/Editor/`) - Editor tests. Namespace: `MCP.Editor.Tests`
+- **UnityAIForge.Editor** (`Assets/UnityAIForge/Editor/`) - Editor-only code containing the MCP Bridge, command handlers, code generation, and server management. Namespace: `MCP.Editor`
+- **UnityAIForge.Editor.Tests** (`Assets/UnityAIForge/Tests/Editor/`) - Editor tests. References: `UnityAIForge.Editor`, `Unity.TextMeshPro`. Namespace: `MCP.Editor.Tests`
+- **UnityAIForge.Tests.Runtime** (`Assets/UnityAIForge/Tests/Runtime/`) - Runtime test assembly (placeholder). Namespace: `MCP.Tests.Runtime`
 
 ### MCP Bridge (C# Editor)
 
-The bridge enables WebSocket communication between AI clients and Unity Editor:
+The bridge enables WebSocket communication between AI clients and Unity Editor. Core files in `Assets/UnityAIForge/Editor/MCPBridge/`:
 
 - `McpBridgeService.cs` - Core WebSocket server handling connections and message routing
 - `McpBridgeWindow.cs` - Unity Editor window for controlling the bridge
 - `McpCommandProcessor.cs` - Dispatches incoming commands to appropriate handlers
+- `McpBridgeSettings.cs` - Bridge configuration (port, auto-start, etc.)
+- `McpBridgeMessages.cs` - Message type definitions for WebSocket protocol
+- `McpContextCollector.cs` - Collects context information from Unity Editor
+- `McpPendingCommandStorage.cs` - Persists pending commands across domain reloads
+- `McpConstantConverter.cs` - Converts constant values between MCP and Unity types
+
+### Handler Infrastructure
+
+Located in `Assets/UnityAIForge/Editor/MCPBridge/Base/`:
+
+- `BaseCommandHandler.cs` - Abstract base class for all command handlers
+- `CommandHandlerInitializer.cs` - `[InitializeOnLoad]` class that registers all handlers at startup
+- `CommandHandlerFactory.cs` - Factory for handler lookup by bridge name
+- `StandardPayloadValidator.cs` - Validates incoming command payloads
+- `ComponentPropertyApplier.cs` - Applies property changes to Unity components
+- `ValueConverterManager.cs` - Manages type conversions (string/JSON to Unity types)
+- `UnityResourceResolver.cs` - Resolves asset paths and scene object references
+- `JsonConverters/UnityJsonSettings.cs` - JSON serialization settings for Unity types
+- `JsonConverters/UnityTypesJsonConverter.cs` - Custom JSON converters for Vector3, Color, etc.
+
+Interfaces in `Assets/UnityAIForge/Editor/MCPBridge/Interfaces/`:
+
+- `ICommandHandler.cs`, `IOperationHandler.cs`, `IPayloadValidator.cs`, `IPropertyApplier.cs`, `IResourceResolver.cs`, `IRectTransformOperationHandler.cs`
 
 ### Command Handlers
 
-Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organized into categories:
+Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organized into 6 categories:
 
-**LowLevel/** - Basic Unity operations:
-- `SceneCommandHandler.cs` - Scene management
-- `GameObjectCommandHandler.cs` - GameObject operations
-- `ComponentCommandHandler.cs` - Component manipulation
-- `AssetCommandHandler.cs` - Asset management
-- `PrefabCommandHandler.cs` - Prefab operations
+**LowLevel/** (7 handlers) - Basic Unity operations:
+- `SceneCommandHandler.cs` - Scene management (create/load/save/delete/inspect)
+- `GameObjectCommandHandler.cs` - GameObject lifecycle (create/delete/move/rename/duplicate/inspect/batch)
+- `ComponentCommandHandler.cs` - Component manipulation (add/remove/update/inspect/batch)
+- `AssetCommandHandler.cs` - Asset file management (create/update/delete/rename/inspect)
+- `PrefabCommandHandler.cs` - Prefab operations (create/instantiate/apply/revert/unpack)
 - `ScriptableObjectCommandHandler.cs` - ScriptableObject management
-- `VectorSpriteConvertHandler.cs` - Sprite generation
+- `VectorSpriteConvertHandler.cs` - Vector/primitive to sprite conversion
 
-**MidLevel/** - Batch operations and presets:
-- `TransformBatchHandler.cs`, `RectTransformBatchHandler.cs` - Transform batching
-- `PhysicsBundleHandler.cs` - Physics2D/3D setup
-- `UIFoundationHandler.cs`, `UIHierarchyHandler.cs`, `UIStateHandler.cs`, `UINavigationHandler.cs` - UI systems
-- `CameraRigHandler.cs` - Camera presets
-- `AudioSourceBundleHandler.cs` - Audio setup
-- Animation, Sprite, Material, Light, Particle bundle handlers
+**MidLevel/** (17 handlers) - Batch operations, presets, and UI Toolkit:
+- `TransformBatchHandler.cs` - Transform batch operations (arrange, rename patterns)
+- `RectTransformBatchHandler.cs` - UI RectTransform batch (anchors, alignment, distribution)
+- `PhysicsBundleHandler.cs` - Physics2D/3D setup with presets
+- `CameraRigHandler.cs` - Camera rig presets (follow, orbit, splitScreen, etc.)
+- `UIFoundationHandler.cs` - UGUI element creation (Canvas, Button, Text, ScrollView, etc.)
+- `UIHierarchyHandler.cs` - Declarative UI hierarchy from JSON definitions
+- `UIStateHandler.cs` - UI state management (define/apply/save/load states)
+- `UINavigationHandler.cs` - Keyboard/gamepad navigation setup
+- `AudioSourceBundleHandler.cs` - AudioSource setup with presets (music, sfx, ambient, etc.)
+- `InputProfileHandler.cs` - New Input System setup with action maps
+- `CharacterControllerBundleHandler.cs` - CharacterController setup with character presets
+- `TilemapBundleHandler.cs` - Tilemap creation and tile management
+- `Sprite2DBundleHandler.cs` - 2D sprite management and sprite sheet slicing
+- `Animation2DBundleHandler.cs` - 2D animation setup (Animator, AnimatorController, clips)
+- `Animation3DBundleHandler.cs` - 3D animation setup (BlendTree, AvatarMask)
+- `UITKDocumentHandler.cs` - UI Toolkit UIDocument management in scene
+- `UITKAssetHandler.cs` - UI Toolkit asset creation (UXML, USS, PanelSettings)
 
-**HighLevel/** - Analysis and integrity tools (registered as GameKit Logic Pillar):
-- `SceneIntegrityHandler.cs` - Scene integrity validation
-- `ClassCatalogHandler.cs` - Type enumeration and inspection
+**HighLevel/** (5 handlers) - Analysis and integrity tools (registered as GameKit Logic Pillar):
+- `SceneIntegrityHandler.cs` - Scene integrity validation (missing scripts, null refs, broken events/prefabs)
+- `ClassCatalogHandler.cs` - Type enumeration and inspection (classes, MonoBehaviours, enums)
 - `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
 - `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
-- `SceneRelationshipGraphHandler.cs` - Comprehensive scene relationship analysis
+- `SceneRelationshipGraphHandler.cs` - Scene transition and relationship analysis
 
-**Utility/** - Helper tools:
+**Utility/** (5 handlers) - Helper tools:
 - `PingHandler.cs` - Bridge connectivity check
-- `CompilationAwaitHandler.cs` - Compilation monitoring
-- `ConsoleLogHandler.cs` - Console log retrieval
-- `PlayModeControlHandler.cs` - Play mode control
-- `EventWiringHandler.cs` - UnityEvent wiring
+- `CompilationAwaitHandler.cs` - Compilation monitoring with async polling
+- `ConsoleLogHandler.cs` - Console log retrieval and filtering
+- `PlayModeControlHandler.cs` - Play mode control (play/pause/stop/step)
+- `EventWiringHandler.cs` - UnityEvent wiring (Button.onClick, Slider.onValueChanged, etc.)
 
-**GameKit/** - Game systems (3-Pillar Architecture, code generation):
+**GameKit/** (10 handlers) - Game systems (3-Pillar Architecture, code generation):
 - UI Pillar: `GameKitUICommandHandler.cs`, `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`
 - Presentation Pillar: `GameKitAnimationSyncHandler.cs`, `GameKitEffectHandler.cs`, `GameKitFeedbackHandler.cs`, `GameKitVFXHandler.cs`, `GameKitAudioHandler.cs`
+
+**Settings/** (1 handler):
+- `ProjectSettingsManageHandler.cs` - Project settings management (player, quality, physics, tags/layers, build settings)
 
 ### MCP Server (Python)
 
 Located in `Assets/UnityAIForge/MCPServer/src/`:
 
-- `main.py` - Entry point
-- `tools/register_tools.py` - MCP tool registration and dispatch (~240 lines). Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 43 tools via dict lookup.
-- `tools/tool_registry.py` - Single source of truth for 47 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`.
-- `tools/tool_definitions.py` - All 48 `types.Tool` definitions with descriptions and schema references.
+- `main.py` - Entry point, sys.path setup and server launch
+- `version.py` - Package version info
+- `logger.py` - Logging configuration
+- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 44 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
+- `tools/tool_registry.py` - Single source of truth for 48 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
+- `tools/tool_definitions.py` - All 49 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
 - `tools/schemas/` - JSON Schema definitions split into 8 category files:
   - `common.py` - Shared type helpers (Vector3, Color, etc.)
   - `utility.py`, `low_level.py`, `mid_level.py`, `visual.py`
   - `gamekit_core.py`, `gamekit_systems.py`, `gamekit_pillar.py`, `graph.py`
-- `bridge/` - WebSocket client to Unity Bridge
-- `server/` - MCP server implementation
+- `bridge/bridge_connector.py` - WebSocket connection to Unity Bridge
+- `bridge/bridge_manager.py` - Bridge lifecycle, heartbeat, and compilation await
+- `bridge/messages.py` - Bridge message serialization
+- `config/env.py` - Environment variable configuration
+- `config/port_discovery.py` - Auto-discovers Unity Bridge port from port file
+- `server/create_mcp_server.py` - MCP server factory (creates Server instance, registers tools/resources/prompts)
+- `prompts/loader.py` - MCP prompt template loader
+- `resources/register_resources.py` - MCP resource registration
+- `resources/batch_queue.py` - Batch command queue management
+- `services/editor_log_watcher.py` - Unity Editor log file watcher
+- `utils/client_detector.py` - Detects MCP client type (Claude Desktop, Cursor, etc.)
+- `utils/fs_utils.py` - File system utilities
+- `utils/json_utils.py` - JSON serialization helpers (`as_pretty_json`, etc.)
+
+### MCP Server Manager (C# Editor)
+
+Located in `Assets/UnityAIForge/Editor/MCPServerManager/`, provides Unity Editor UI for managing the Python MCP Server:
+
+- `McpServerManager.cs` - Server lifecycle management (start/stop/restart)
+- `McpConfigManager.cs` - MCP client configuration file management
+- `McpToolRegistry.cs` - Tool registration and discovery
+- `McpProjectRegistry.cs` - Project-specific registry
+- `McpServerInstaller.cs` - Python environment and dependency installation
+- `McpCliRegistry.cs` - CLI tool registry for MCP client integration
 
 ### Code Generation Architecture
 
 GameKit handlers generate standalone C# scripts from templates instead of using runtime MonoBehaviours. Generated scripts have zero dependency on the Unity-AI-Forge package.
 
-- **Templates**: `Assets/UnityAIForge/Editor/CodeGen/Templates/*.cs.txt`
-- **Infrastructure**: `Assets/UnityAIForge/Editor/CodeGen/` (ScriptGenerator, TemplateRenderer, GeneratedScriptTracker, CodeGenHelper)
+- **Templates** (11 files): `Assets/UnityAIForge/Editor/CodeGen/Templates/*.cs.txt`
+  - UI Pillar: `UICommand.cs.txt`, `UIBinding.cs.txt`, `UIList.cs.txt`, `UISlot.cs.txt`, `UISelection.cs.txt`
+  - Presentation Pillar: `AnimationSync.cs.txt`, `Effect.cs.txt`, `EffectManager.cs.txt`, `Feedback.cs.txt`, `VFX.cs.txt`, `Audio.cs.txt`
+- **Infrastructure**: `Assets/UnityAIForge/Editor/CodeGen/`
+  - `CodeGenHelper.cs` - Entry point: `CodeGenHelper.GenerateAndAttach(go, templateName, componentId, className, variables, outputDir)`
+  - `ScriptGenerator.cs` - Script file generation logic
+  - `TemplateRenderer.cs` - Template variable substitution engine
+  - `GeneratedScriptTracker.cs` - Tracks generated scripts for cleanup
+  - `PendingComponentAttacher.cs` - Attaches generated components after compilation
+  - `UITKGenerationHelper.cs` - UI Toolkit (UXML/USS) specific generation
 - **Output**: Generated scripts are placed in the user's `Assets/` folder
-- **Entry point**: `CodeGenHelper.GenerateAndAttach(go, templateName, componentId, className, variables, outputDir)`
 - **After create operations**: Compilation wait is required (`unity_compilation_await`)
 
 ## Key Patterns
@@ -154,8 +223,20 @@ ComponentCommandHandler supports multiple reference formats:
 - `SceneReferenceAnalyzer.cs` - Analyzes component references in scene
 - `ClassDependencyAnalyzer.cs` - Analyzes C# class dependencies
 - `SceneRelationshipAnalyzer.cs` - Combines multiple relationship types
+- `SceneIntegrityAnalyzer.cs` - Scene integrity validation logic
+- `TypeCatalogAnalyzer.cs` - Type enumeration and reflection analysis
 
-**HandlerUtilities.cs** - Common utilities for command handlers (GameObject finding, component operations).
+**Other Utilities** (`Assets/UnityAIForge/Editor/MCPBridge/`):
+- `Utilities/HandlerUtilities.cs` - Common utilities for command handlers (GameObject finding, component operations)
+- `Utilities/McpCommandProcessor.Utilities.cs` - Command processor utility methods
+- `Core/McpCommandProcessor.Helpers.cs` - Helper methods for command processing
+- `Helpers/UI/RectTransformHelper.cs` - RectTransform utility methods
+- `McpWildcardUtility.cs` - Wildcard pattern matching (`*`, `?`)
+- `ProcessHelper.cs` - External process management
+- `PatternTemplates.cs` - Pattern template definitions
+- `PortDiscoveryFile.cs` - Port discovery file I/O for bridge connection
+- `MiniJson.cs` - Lightweight JSON parser (zero-dependency)
+- `Samples/SceneCommandHandlerSample.cs` - Example handler implementation
 
 ### Verifying Changes with Relationship Graphs
 
