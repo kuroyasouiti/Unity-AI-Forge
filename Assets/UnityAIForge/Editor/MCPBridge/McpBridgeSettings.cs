@@ -112,9 +112,8 @@ namespace MCP.Editor
         {
             get
             {
-                // Use McpServerManager's default path
-                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                return Path.Combine(userProfile, "Unity-AI-Forge");
+                // パッケージマネージャーでインストールされたMCPServerのパスを使用
+                return ServerManager.McpServerManager.SourcePath;
             }
         }
 
