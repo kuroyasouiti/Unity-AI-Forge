@@ -1,6 +1,5 @@
 ﻿<Solution>
   <Project Path="UnityAIForge.Editor.Tests.csproj" />
   <Project Path="UnityAIForge.Editor.csproj" />
-  <Project Path="UnityAIForge.Tests.Runtime.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
 </Solution>

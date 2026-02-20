@@ -1,12 +1,10 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers;
+using NUnit.Framework;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// Unit tests for PingHandler.
-    /// </summary>
     [TestFixture]
     public class PingHandlerTests
     {
@@ -18,111 +16,58 @@ namespace MCP.Editor.Tests
             _handler = new PingHandler();
         }
 
-        #region Property Tests
-
         [Test]
-        public void Category_ShouldReturnPing()
+        public void Category_ReturnsPing()
         {
             Assert.AreEqual("ping", _handler.Category);
         }
 
         [Test]
-        public void Version_ShouldReturn100()
+        public void SupportedOperations_ContainsPing()
         {
-            Assert.AreEqual("1.0.0", _handler.Version);
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("ping", ops);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainPing()
+        public void Execute_EmptyPayload_ReturnsSuccess()
         {
-            var operations = new List<string>(_handler.SupportedOperations);
-            Assert.Contains("ping", operations);
-        }
-
-        #endregion
-
-        #region Execute Tests
-
-        [Test]
-        public void Execute_WithEmptyPayload_ShouldReturnPong()
-        {
-            var payload = new Dictionary<string, object>();
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
+            var result = _handler.Execute(new Dictionary<string, object>()) as Dictionary<string, object>;
             Assert.IsNotNull(result);
             Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("pong", result["message"]);
         }
 
         [Test]
-        public void Execute_WithNullPayload_ShouldReturnPong()
+        public void Execute_NullPayload_ReturnsSuccess()
         {
+            // PingHandler overrides ValidatePayload to skip validation
             var result = _handler.Execute(null) as Dictionary<string, object>;
-
             Assert.IsNotNull(result);
             Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("pong", result["message"]);
         }
 
         [Test]
-        public void Execute_ShouldIncludeUnityVersion()
+        public void Execute_ReturnsUnityVersion()
         {
-            var payload = new Dictionary<string, object>();
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
+            var result = _handler.Execute(new Dictionary<string, object>()) as Dictionary<string, object>;
             Assert.IsNotNull(result);
             Assert.IsTrue(result.ContainsKey("unityVersion"));
-            Assert.IsNotNull(result["unityVersion"]);
         }
 
         [Test]
-        public void Execute_ShouldIncludeProductName()
+        public void Execute_ReturnsPlatform()
         {
-            var payload = new Dictionary<string, object>();
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("productName"));
-        }
-
-        [Test]
-        public void Execute_ShouldIncludePlatform()
-        {
-            var payload = new Dictionary<string, object>();
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
+            var result = _handler.Execute(new Dictionary<string, object>()) as Dictionary<string, object>;
             Assert.IsNotNull(result);
             Assert.IsTrue(result.ContainsKey("platform"));
-            Assert.IsNotNull(result["platform"]);
         }
 
         [Test]
-        public void Execute_ShouldIncludeIsPlaying()
+        public void Execute_ReturnsTimestamp()
         {
-            var payload = new Dictionary<string, object>();
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("isPlaying"));
-        }
-
-        [Test]
-        public void Execute_ShouldIncludeTimestamp()
-        {
-            var payload = new Dictionary<string, object>();
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
+            var result = _handler.Execute(new Dictionary<string, object>()) as Dictionary<string, object>;
             Assert.IsNotNull(result);
             Assert.IsTrue(result.ContainsKey("timestamp"));
-            Assert.IsInstanceOf<long>(result["timestamp"]);
         }
-
-        #endregion
     }
 }

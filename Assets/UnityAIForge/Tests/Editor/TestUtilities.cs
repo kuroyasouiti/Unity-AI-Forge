@@ -1,306 +1,169 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
     /// <summary>
-    /// テスト用のユーティリティクラス。
-    /// テスト全体で共通して使用するヘルパーメソッドを提供します。
+    /// Shared test utilities for MCP Editor tests.
     /// </summary>
     public static class TestUtilities
     {
         /// <summary>
-        /// テスト用の一時ディレクトリパス。
+        /// Creates a payload dictionary with the given operation.
         /// </summary>
-        public const string TestAssetsPath = "Assets/TestTemp";
-
-        /// <summary>
-        /// テスト用の一時ディレクトリを作成します。
-        /// </summary>
-        public static void CreateTestDirectory()
-        {
-            if (!Directory.Exists(TestAssetsPath))
-            {
-                Directory.CreateDirectory(TestAssetsPath);
-                AssetDatabase.Refresh();
-            }
-        }
-
-        /// <summary>
-        /// テスト用の一時ディレクトリを削除します。
-        /// </summary>
-        public static void CleanupTestDirectory()
-        {
-            if (Directory.Exists(TestAssetsPath))
-            {
-                AssetDatabase.DeleteAsset(TestAssetsPath);
-                AssetDatabase.Refresh();
-            }
-        }
-
-        /// <summary>
-        /// テスト用のGameObjectを作成します。
-        /// </summary>
-        /// <param name="name">GameObjectの名前</param>
-        /// <param name="parent">親Transform（オプション）</param>
-        /// <returns>作成されたGameObject</returns>
-        public static GameObject CreateGameObject(string name, Transform parent = null)
-        {
-            var go = new GameObject(name);
-            if (parent != null)
-            {
-                go.transform.SetParent(parent, false);
-            }
-            return go;
-        }
-
-        /// <summary>
-        /// テスト用のコンポーネント付きGameObjectを作成します。
-        /// </summary>
-        /// <typeparam name="T">追加するコンポーネントの型</typeparam>
-        /// <param name="name">GameObjectの名前</param>
-        /// <returns>作成されたGameObjectとコンポーネントのタプル</returns>
-        public static (GameObject gameObject, T component) CreateGameObjectWithComponent<T>(string name) 
-            where T : Component
-        {
-            var go = new GameObject(name);
-            var component = go.AddComponent<T>();
-            return (go, component);
-        }
-
-        /// <summary>
-        /// テスト用の階層構造を作成します。
-        /// </summary>
-        /// <param name="rootName">ルートGameObjectの名前</param>
-        /// <param name="childNames">子GameObjectの名前リスト</param>
-        /// <returns>ルートGameObject</returns>
-        public static GameObject CreateHierarchy(string rootName, params string[] childNames)
-        {
-            var root = new GameObject(rootName);
-            foreach (var childName in childNames)
-            {
-                var child = new GameObject(childName);
-                child.transform.SetParent(root.transform, false);
-            }
-            return root;
-        }
-
-        /// <summary>
-        /// GameObjectの階層パスを取得します。
-        /// </summary>
-        /// <param name="gameObject">対象のGameObject</param>
-        /// <returns>階層パス</returns>
-        public static string GetHierarchyPath(GameObject gameObject)
-        {
-            if (gameObject == null)
-                return null;
-
-            var path = gameObject.name;
-            var parent = gameObject.transform.parent;
-
-            while (parent != null)
-            {
-                path = parent.name + "/" + path;
-                parent = parent.parent;
-            }
-
-            return path;
-        }
-
-        /// <summary>
-        /// テスト用のペイロードを作成します。
-        /// </summary>
-        /// <param name="operation">操作名</param>
-        /// <param name="additionalParams">追加パラメータ</param>
-        /// <returns>ペイロード辞書</returns>
-        public static Dictionary<string, object> CreatePayload(
-            string operation, 
-            params (string key, object value)[] additionalParams)
+        public static Dictionary<string, object> CreatePayload(string operation, params (string key, object value)[] extras)
         {
             var payload = new Dictionary<string, object>
             {
                 ["operation"] = operation
             };
-
-            foreach (var (key, value) in additionalParams)
+            foreach (var (key, value) in extras)
             {
                 payload[key] = value;
             }
-
             return payload;
         }
 
         /// <summary>
-        /// テスト用のMcpIncomingCommandを作成します。
+        /// Creates a new GameObject and registers it for cleanup.
         /// </summary>
-        /// <param name="toolName">ツール名</param>
-        /// <param name="payload">ペイロード</param>
-        /// <returns>McpIncomingCommand</returns>
-        internal static McpIncomingCommand CreateCommand(
-            string toolName, 
-            Dictionary<string, object> payload)
+        public static GameObject CreateGameObject(string name = "TestObject")
         {
-            var commandId = Guid.NewGuid().ToString();
-            return new McpIncomingCommand(commandId, toolName, payload);
-        }
-
-        /// <summary>
-        /// 結果が成功かどうかを確認します。
-        /// </summary>
-        /// <param name="result">結果辞書</param>
-        /// <returns>成功の場合true</returns>
-        public static bool IsSuccess(Dictionary<string, object> result)
-        {
-            if (result == null)
-                return false;
-
-            return result.TryGetValue("success", out var success) && 
-                   success is bool boolValue && 
-                   boolValue;
-        }
-
-        /// <summary>
-        /// 結果からエラーメッセージを取得します。
-        /// </summary>
-        /// <param name="result">結果辞書</param>
-        /// <returns>エラーメッセージ、または null</returns>
-        public static string GetError(Dictionary<string, object> result)
-        {
-            if (result == null)
-                return null;
-
-            if (result.TryGetValue("error", out var error))
-            {
-                return error?.ToString();
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// テスト用のスクリプトファイルを作成します。
-        /// </summary>
-        /// <param name="fileName">ファイル名（.cs含む）</param>
-        /// <param name="content">スクリプトの内容</param>
-        /// <returns>作成されたファイルのパス</returns>
-        public static string CreateScriptFile(string fileName, string content)
-        {
-            CreateTestDirectory();
-            var path = Path.Combine(TestAssetsPath, fileName);
-            File.WriteAllText(path, content);
-            AssetDatabase.ImportAsset(path);
-            return path;
-        }
-
-        /// <summary>
-        /// テスト用のマテリアルを作成します。
-        /// </summary>
-        /// <param name="name">マテリアル名</param>
-        /// <returns>作成されたマテリアルのパス</returns>
-        public static string CreateMaterial(string name)
-        {
-            CreateTestDirectory();
-            var material = new Material(Shader.Find("Standard"));
-            var path = Path.Combine(TestAssetsPath, $"{name}.mat");
-            AssetDatabase.CreateAsset(material, path);
-            return path;
-        }
-
-        /// <summary>
-        /// GameObjectリストをクリーンアップします。
-        /// </summary>
-        /// <param name="gameObjects">クリーンアップするGameObjectリスト</param>
-        public static void CleanupGameObjects(List<GameObject> gameObjects)
-        {
-            if (gameObjects == null)
-                return;
-
-            foreach (var obj in gameObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    UnityEngine.Object.DestroyImmediate(obj);
-                }
-            }
-            gameObjects.Clear();
-        }
-    }
-
-    /// <summary>
-    /// テスト用のGameObjectトラッカー。
-    /// テスト中に作成されたGameObjectを追跡し、TearDownで自動的にクリーンアップします。
-    /// </summary>
-    public class GameObjectTracker : IDisposable
-    {
-        private readonly List<GameObject> _trackedObjects = new List<GameObject>();
-
-        /// <summary>
-        /// GameObjectを作成し、追跡リストに追加します。
-        /// </summary>
-        /// <param name="name">GameObjectの名前</param>
-        /// <param name="parent">親Transform（オプション）</param>
-        /// <returns>作成されたGameObject</returns>
-        public GameObject Create(string name, Transform parent = null)
-        {
-            var go = TestUtilities.CreateGameObject(name, parent);
-            _trackedObjects.Add(go);
+            var go = new GameObject(name);
+            Undo.RegisterCreatedObjectUndo(go, "Create test object");
             return go;
         }
 
         /// <summary>
-        /// コンポーネント付きGameObjectを作成し、追跡リストに追加します。
-        /// Transformの場合は既存のTransformを返します（Transformは全GameObjectに自動的に存在するため）。
+        /// Creates a hierarchy of GameObjects: parent/child/grandchild.
+        /// Returns the root.
         /// </summary>
-        /// <typeparam name="T">追加するコンポーネントの型</typeparam>
-        /// <param name="name">GameObjectの名前</param>
-        /// <returns>作成されたGameObjectとコンポーネントのタプル</returns>
-        public (GameObject gameObject, T component) CreateWithComponent<T>(string name)
-            where T : Component
+        public static GameObject CreateHierarchy(string parentName, params string[] childNames)
         {
-            // Transformは全GameObjectに自動的に存在するため、AddComponentではなくGetComponentを使用
-            if (typeof(T) == typeof(Transform))
+            var parent = CreateGameObject(parentName);
+            foreach (var childName in childNames)
             {
-                var go = new GameObject(name);
-                _trackedObjects.Add(go);
-                return (go, go.GetComponent<T>());
+                var child = CreateGameObject(childName);
+                child.transform.SetParent(parent.transform);
             }
-
-            var (gameObject, component) = TestUtilities.CreateGameObjectWithComponent<T>(name);
-            _trackedObjects.Add(gameObject);
-            return (gameObject, component);
+            return parent;
         }
 
         /// <summary>
-        /// 既存のGameObjectを追跡リストに追加します。
+        /// Gets the full hierarchy path for a GameObject.
         /// </summary>
-        /// <param name="gameObject">追跡するGameObject</param>
-        public void Track(GameObject gameObject)
+        public static string GetHierarchyPath(GameObject go)
         {
-            if (gameObject != null && !_trackedObjects.Contains(gameObject))
+            if (go == null) return string.Empty;
+            var path = go.name;
+            var parent = go.transform.parent;
+            while (parent != null)
             {
-                _trackedObjects.Add(gameObject);
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// Asserts that a result dictionary indicates success.
+        /// </summary>
+        public static void AssertSuccess(object result)
+        {
+            Assert.IsNotNull(result, "Result should not be null");
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict, "Result should be a Dictionary<string, object>");
+            Assert.IsTrue(dict.ContainsKey("success"), "Result should contain 'success' key");
+            Assert.IsTrue((bool)dict["success"], $"Expected success but got error: {(dict.ContainsKey("error") ? dict["error"] : "unknown")}");
+        }
+
+        /// <summary>
+        /// Asserts that a result dictionary indicates failure.
+        /// </summary>
+        public static void AssertError(object result, string expectedMessageContains = null)
+        {
+            Assert.IsNotNull(result, "Result should not be null");
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict, "Result should be a Dictionary<string, object>");
+            Assert.IsTrue(dict.ContainsKey("success"), "Result should contain 'success' key");
+            Assert.IsFalse((bool)dict["success"], "Expected failure but got success");
+            if (expectedMessageContains != null)
+            {
+                Assert.IsTrue(dict.ContainsKey("error"), "Result should contain 'error' key");
+                StringAssert.Contains(expectedMessageContains, dict["error"].ToString());
             }
         }
 
         /// <summary>
-        /// 追跡中のGameObjectから削除します（クリーンアップ対象外にします）。
+        /// Gets a value from a result dictionary.
         /// </summary>
-        /// <param name="gameObject">追跡を解除するGameObject</param>
-        public void Untrack(GameObject gameObject)
+        public static T GetResultValue<T>(object result, string key)
         {
-            _trackedObjects.Remove(gameObject);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict, "Result should be a Dictionary<string, object>");
+            Assert.IsTrue(dict.ContainsKey(key), $"Result should contain '{key}' key");
+            return (T)dict[key];
         }
 
         /// <summary>
-        /// 追跡中の全てのGameObjectをクリーンアップします。
+        /// Creates a temporary directory under Assets for test assets.
+        /// Returns the path relative to Assets (e.g., "Assets/_TestTemp_xxx").
         /// </summary>
+        public static string CreateTempAssetDirectory()
+        {
+            var dirName = $"_TestTemp_{Guid.NewGuid():N}";
+            var fullPath = Path.Combine(Application.dataPath, dirName);
+            Directory.CreateDirectory(fullPath);
+            AssetDatabase.Refresh();
+            return $"Assets/{dirName}";
+        }
+
+        /// <summary>
+        /// Cleans up a temporary asset directory.
+        /// </summary>
+        public static void CleanupTempAssetDirectory(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath)) return;
+            if (AssetDatabase.IsValidFolder(assetPath))
+            {
+                AssetDatabase.DeleteAsset(assetPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tracks GameObjects created during a test for cleanup in TearDown.
+    /// </summary>
+    public class GameObjectTracker : IDisposable
+    {
+        private readonly List<GameObject> _tracked = new List<GameObject>();
+
+        public GameObject Track(GameObject go)
+        {
+            if (go != null)
+                _tracked.Add(go);
+            return go;
+        }
+
+        public GameObject Create(string name = "TestObject")
+        {
+            var go = new GameObject(name);
+            _tracked.Add(go);
+            return go;
+        }
+
         public void Dispose()
         {
-            TestUtilities.CleanupGameObjects(_trackedObjects);
+            foreach (var go in _tracked)
+            {
+                if (go != null)
+                    UnityEngine.Object.DestroyImmediate(go);
+            }
+            _tracked.Clear();
         }
     }
 }

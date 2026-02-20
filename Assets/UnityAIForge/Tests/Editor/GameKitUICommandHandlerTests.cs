@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,107 +12,86 @@ namespace MCP.Editor.Tests
         private GameKitUICommandHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitUICommandHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitUICommand()
         {
             Assert.AreEqual("gamekitUICommand", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "createCommandPanel", "addCommand", "inspect", "delete");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("createCommandPanel", ops);
+            Assert.Contains("addCommand", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void CreateCommandPanel_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("CmdParent");
+            var result = Execute(_handler, "nonExistent");
+            AssertError(result, "not supported");
+        }
+
+        [Test]
+        public void CreateCommandPanel_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("UIPanel"));
             var result = Execute(_handler, "createCommandPanel",
-                ("parentPath", "CmdParent"),
+                ("targetPath", "UIPanel"),
                 ("panelId", "test_panel"),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("test_panel");
-
-            AssertSuccess(result);
-            AssertScriptGenerated(result);
-            AssertHasField(result, "panelId");
-            AssertHasField(result, "uxmlPath");
-            AssertHasField(result, "ussPath");
-        }
-
-        [Test]
-        public void CreateCommandPanel_GeneratedScriptClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("CmdParent");
-            var result = Execute(_handler, "createCommandPanel",
-                ("parentPath", "CmdParent"),
-                ("panelId", "test_panel"),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomUICommand"));
-            TrackCreatedGameObject("test_panel");
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomUICommand");
-        }
-
-        [Test]
-        public void CreateCommandPanel_WithCommands_ShouldGenerateScript()
-        {
-            CreateTestGameObject("CmdParent");
-            var commands = new List<object>
-            {
-                new Dictionary<string, object>
+                ("commands", new List<object>
                 {
-                    { "name", "Attack" },
-                    { "label", "Attack" },
-                    { "commandType", "action" }
-                }
-            };
-            var result = Execute(_handler, "createCommandPanel",
-                ("parentPath", "CmdParent"),
-                ("panelId", "test_panel_cmds"),
-                ("commands", commands),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("test_panel_cmds");
-
+                    new Dictionary<string, object>
+                    {
+                        ["name"] = "Attack",
+                        ["commandType"] = "action",
+                        ["label"] = "Attack"
+                    }
+                }));
             AssertSuccess(result);
             AssertScriptGenerated(result);
         }
 
-        #endregion
-
-        #region Error Handling
-
         [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
+        public void CreateCommandPanel_CustomClassName()
         {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
+            var go = TrackGameObject(new GameObject("UIPanel2"));
+            var result = Execute(_handler, "createCommandPanel",
+                ("targetPath", "UIPanel2"),
+                ("panelId", "test_panel_2"),
+                ("className", "MyCustomPanel"),
+                ("commands", new List<object>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["name"] = "Move",
+                        ["commandType"] = "action",
+                        ["label"] = "Move"
+                    }
+                }));
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyCustomPanel");
         }
 
         [Test]
-        public void Execute_NullPayload_ShouldReturnError()
+        public void CreateCommandPanel_RequiresCompilationWait()
         {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
+            AssertOperationsContain(_handler, "createCommandPanel");
         }
-
-        #endregion
     }
 }

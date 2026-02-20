@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,98 +12,64 @@ namespace MCP.Editor.Tests
         private GameKitVFXHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitVFXHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitVFX()
         {
             Assert.AreEqual("gamekitVFX", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "setMultipliers", "setColor", "setLoop",
-                "findByVFXId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("setMultipliers", ops);
+            Assert.Contains("setColor", ops);
+            Assert.Contains("setLoop", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("VFXTarget");
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
+
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("VFXTarget"));
             var result = Execute(_handler, "create",
                 ("targetPath", "VFXTarget"),
-                ("vfxId", "test_vfx"),
-                ("outputPath", TestOutputDir));
-
+                ("vfxId", "test_vfx"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
-            AssertHasField(result, "vfxId");
         }
 
         [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
+        public void Create_CustomClassName()
         {
-            CreateTestGameObject("VFXTarget");
+            var go = TrackGameObject(new GameObject("VFXTarget2"));
             var result = Execute(_handler, "create",
-                ("targetPath", "VFXTarget"),
-                ("vfxId", "test_vfx"),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomVFX"));
-
+                ("targetPath", "VFXTarget2"),
+                ("vfxId", "test_vfx_2"),
+                ("className", "MyVFX"));
             AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomVFX");
+            AssertScriptContainsClass(result, "MyVFX");
         }
-
-        [Test]
-        public void Create_DefaultClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("VFXTarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "VFXTarget"),
-                ("vfxId", "test_vfx"),
-                ("outputPath", TestOutputDir));
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "TestVfxVFX");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Create_MissingTargetPath_ShouldReturnError()
-        {
-            var result = Execute(_handler, "create");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

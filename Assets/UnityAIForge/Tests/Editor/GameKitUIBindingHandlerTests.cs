@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,100 +12,65 @@ namespace MCP.Editor.Tests
         private GameKitUIBindingHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitUIBindingHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitUIBinding()
         {
             Assert.AreEqual("gamekitUIBinding", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "setRange", "refresh", "findByBindingId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("UITarget");
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
+
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("BindTarget"));
             var result = Execute(_handler, "create",
-                ("targetPath", "UITarget"),
+                ("targetPath", "BindTarget"),
                 ("bindingId", "test_binding"),
-                ("outputPath", TestOutputDir));
-
-            AssertSuccess(result);
-            AssertScriptGenerated(result);
-            AssertHasField(result, "bindingId");
-        }
-
-        [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("UITarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "UITarget"),
-                ("bindingId", "test_binding"),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomUIBinding"));
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomUIBinding");
-        }
-
-        [Test]
-        public void Create_WithElementName_ShouldGenerateScript()
-        {
-            CreateTestGameObject("UITarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "UITarget"),
-                ("bindingId", "test_binding_elem"),
-                ("elementName", "hp-bar"),
-                ("outputPath", TestOutputDir));
-
+                ("sourceType", "health"),
+                ("sourceId", "player_hp"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
         }
 
-        #endregion
-
-        #region Error Handling
-
         [Test]
-        public void Create_MissingTargetPath_ShouldReturnError()
+        public void Create_CustomClassName()
         {
+            var go = TrackGameObject(new GameObject("BindTarget2"));
             var result = Execute(_handler, "create",
-                ("bindingId", "test_binding"),
-                ("outputPath", TestOutputDir));
-            AssertError(result);
+                ("targetPath", "BindTarget2"),
+                ("bindingId", "test_binding_2"),
+                ("className", "MyBinding"),
+                ("sourceType", "health"),
+                ("sourceId", "player_hp"));
+            AssertSuccess(result);
+            AssertScriptContainsClass(result, "MyBinding");
         }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

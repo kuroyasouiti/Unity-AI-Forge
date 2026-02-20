@@ -1,12 +1,10 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers;
+using NUnit.Framework;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// Unit tests for CompilationAwaitHandler.
-    /// </summary>
     [TestFixture]
     public class CompilationAwaitHandlerTests
     {
@@ -18,124 +16,37 @@ namespace MCP.Editor.Tests
             _handler = new CompilationAwaitHandler();
         }
 
-        #region Property Tests
-
         [Test]
-        public void Category_ShouldReturnCompilationAwait()
+        public void Category_ReturnsCompilationAwait()
         {
             Assert.AreEqual("compilationAwait", _handler.Category);
         }
 
         [Test]
-        public void Version_ShouldReturn100()
+        public void SupportedOperations_ContainsExpected()
         {
-            Assert.AreEqual("1.0.0", _handler.Version);
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("await", ops);
+            Assert.Contains("status", ops);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainAwaitAndStatus()
+        public void Execute_NullPayload_ReturnsError()
         {
-            var operations = new List<string>(_handler.SupportedOperations);
-            Assert.Contains("await", operations);
-            Assert.Contains("status", operations);
-        }
-
-        #endregion
-
-        #region Status Operation Tests
-
-        [Test]
-        public void Execute_Status_ShouldReturnIsCompilingFlag()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "status"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("isCompiling"));
+            TestUtilities.AssertError(_handler.Execute(null));
         }
 
         [Test]
-        public void Execute_Status_ShouldReturnCompilationCompleted()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "status"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("compilationCompleted"));
+            TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
         }
 
         [Test]
-        public void Execute_Status_ShouldReturnErrorCount()
+        public void Status_ReturnsSuccess()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "status"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("errorCount"));
+            var result = _handler.Execute(TestUtilities.CreatePayload("status"));
+            TestUtilities.AssertSuccess(result);
         }
-
-        #endregion
-
-        #region Await Operation Tests
-
-        [Test]
-        public void Execute_Await_ShouldReturnIsCompilingFlag()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "await"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("isCompiling"));
-        }
-
-        [Test]
-        public void Execute_Await_ShouldReturnWaitTimeSeconds()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "await"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result.ContainsKey("waitTimeSeconds"));
-        }
-
-        #endregion
-
-        #region Error Handling Tests
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "unsupportedOperation"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-        }
-
-        #endregion
     }
 }

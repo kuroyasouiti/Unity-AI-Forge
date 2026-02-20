@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,119 +12,75 @@ namespace MCP.Editor.Tests
         private GameKitEffectHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitEffectHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitEffect()
         {
             Assert.AreEqual("gamekitEffect", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "addComponent", "removeComponent", "clearComponents",
-                "play", "playAtPosition", "playAtTransform",
-                "shakeCamera", "flashScreen", "setTimeScale",
-                "createManager", "registerEffect", "unregisterEffect",
-                "findByEffectId", "listEffects");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("addComponent", ops);
+            Assert.Contains("createManager", ops);
+            Assert.Contains("play", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
+
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("EffectTarget"));
             var result = Execute(_handler, "create",
-                ("effectId", "test_effect"),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("test_effect");
-
-            AssertSuccess(result);
-            AssertScriptGenerated(result);
-            AssertHasField(result, "effectId");
-        }
-
-        [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
-        {
-            var result = Execute(_handler, "create",
-                ("effectId", "test_effect"),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomEffect"));
-            TrackCreatedGameObject("test_effect");
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomEffect");
-        }
-
-        [Test]
-        public void Create_DefaultClassName_ShouldBeCorrect()
-        {
-            var result = Execute(_handler, "create",
-                ("effectId", "test_effect"),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("test_effect");
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "TestEffectEffect");
-        }
-
-        #endregion
-
-        #region CreateManager
-
-        [Test]
-        public void CreateManager_ShouldGenerateScript()
-        {
-            var result = Execute(_handler, "createManager",
-                ("managerId", "test_mgr"),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("test_mgr");
-
+                ("targetPath", "EffectTarget"),
+                ("effectId", "test_effect"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
         }
 
         [Test]
-        public void CreateManager_DefaultClassName_ShouldBeCorrect()
+        public void Create_CustomClassName()
         {
-            var result = Execute(_handler, "createManager",
-                ("managerId", "test_mgr"),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("test_mgr");
-
+            var go = TrackGameObject(new GameObject("EffectTarget2"));
+            var result = Execute(_handler, "create",
+                ("targetPath", "EffectTarget2"),
+                ("effectId", "test_effect_2"),
+                ("className", "MyEffect"));
             AssertSuccess(result);
-            AssertScriptContainsClass(result, "TestMgr");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
+            AssertScriptContainsClass(result, "MyEffect");
         }
 
         [Test]
-        public void Execute_NullPayload_ShouldReturnError()
+        public void CreateManager_GeneratesScript()
         {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
+            var go = TrackGameObject(new GameObject("EffectMgr"));
+            var result = Execute(_handler, "createManager",
+                ("targetPath", "EffectMgr"),
+                ("managerId", "test_manager"));
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
         }
-
-        #endregion
     }
 }

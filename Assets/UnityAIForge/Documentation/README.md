@@ -3,101 +3,26 @@
 **AI連携でUnityゲームを創造。Model Context ProtocolとGameKitフレームワークの統合。**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black)](https://unity.com/)
+[![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.3.5-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.9.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🆕 v2.3.5の新機能
+## v2.9.0 のハイライト
 
-- **🖥️ CLI ベースの MCP サーバー登録機能**
-  - AIツール（Cursor、Claude Code、Cline、Windsurf）への MCP サーバー登録を CLI 経由で実行
-  - JSON 設定ファイル直接編集よりも信頼性が高く、公式CLIコマンドを使用
-  - CLI 非対応ツール（Claude Desktop）は従来の JSON 編集にフォールバック
-  - Claude Code サポート追加（`claude mcp add/remove` コマンド対応）
+- **コード生成アーキテクチャへの完全移行**
+  - GameKitハンドラーがスタンドアロンC#スクリプトをテンプレートから生成
+  - ランタイムライブラリ（`UnityAIForge.GameKit.Runtime`）を削除し、ゼロ依存を実現
+  - ユーザープロジェクトはUnity-AI-Forgeパッケージをアンインストールしても動作可能
 
-- **🛠️ MCP Bridge Window 機能強化**
-  - 「AI Tool Registration (CLI)」セクションを新規追加
-  - 各 AI ツールの CLI 利用可否と登録状態をリアルタイム表示
-  - Register All/Unregister All による一括操作
+- **GameKit Logic PillarにAnalysisツールを統合**
+  - クラス依存関係・シーン参照・シーン関係性グラフツールをLogic Pillarに移動
+  - 3本柱アーキテクチャの一貫性を向上
 
-### v2.3.4の修正と追加
-
-- **🔗 Unity オブジェクト参照の文字列パス解決**
-  - `propertyChanges` で文字列パスから Unity オブジェクト参照を自動解決
-  - `TMP_Text`, `Button`, `InputField` などのコンポーネント参照をパスで指定可能に
-  - 例: `"titleText": "Canvas/Panel/TitleText"` → 自動的にTMP_Text参照に変換
-
-### v2.3.3の修正と追加
-
-- **🎨 ComponentCommandHandler の機能強化**
-  - **propertyFilter 修正**: `inspect` 操作で指定したプロパティのみを取得可能に
-  - **addMultiple 初期プロパティ**: コンポーネント追加時に `propertyChanges` で初期値を設定可能
-  - **Unity型変換の大幅拡張**: Color, Vector2/3/4, Quaternion, Rect, Bounds, Enum 型のDictionary形式からの自動変換
-
-### v2.3.2の修正と追加
-
-- **🎬 GameKitSceneFlow 自動ロードシステム**
-  - **プレハブベース管理**: `Resources/GameKitSceneFlows/` にプレハブを配置
-  - **自動ロード**: Editor (Play Mode) と Runtime (ビルド) で自動読み込み
-  - **初期シーン不要**: どのシーンからでも使用可能
-  - **Git管理可能**: プレハブファイルでチーム協業をサポート
-  - **DontDestroyOnLoad**: 自動的に永続化
-  - Unity Editorメニュー: `Tools → Unity-AI-Forge → GameKit → Create SceneFlows Directory`
-
-- **🐛 Unity Editorフリーズ問題の完全解決**
-  - C#スクリプト作成・更新・削除時のフリーズを修正
-  - Unity側の同期待機を削除し、MCPサーバー側で非同期処理を実装
-  - コンパイル結果（成功/失敗、エラー数、経過時間）をレスポンスに含めるように改善
-  - Unity Editorのメインスレッドをブロックしない最適化
-
-### トピックアップデート
-
-- **🔐 ブリッジトークン自動同期**: MCPサーバーインストール時に `.mcp_bridge_token` をコピー/生成。Pythonサーバーはインストール先のトークンを自動参照し、WebSocketはクエリパラメータで認証する互換仕様に。
-- **🎛 ビルド設定管理**: `unity_projectSettings_crud` でシーンの追加/削除/並び替え/有効化をサポート。
-- **🖌 レンダリングレイヤー管理**: URP/HDRPのレンダリングレイヤー追加/削除に対応。
-
-### 前回のリリース（v2.3.0）のハイライト
-
-- **⚙️ Physics2D 完全サポート**: 2D物理設定の読み書き
-  - 2D重力の設定 (gravity x/y)
-  - 速度・位置反復回数、閾値の調整
-  - シミュレーションモードの制御
-  - 2Dゲームに必要な全物理パラメータに対応
-
-- **🎨 ソートレイヤー管理**: 2Dスプライトの描画順序を完全制御
-  - ソートレイヤーの追加/削除
-  - レイヤー一覧の取得
-  - Unity Editorの手動設定が不要に
-
-- **🏃 CharacterController Bundle**: 3Dキャラクター設定を簡単に
-  - 7つの最適化プリセット (fps/tps/platformer/child/large/narrow/custom)
-  - 自動的に適切なカプセルサイズと物理パラメータを設定
-  - バッチ適用で複数キャラクターを一括設定
-
-- **📋 Batch Sequential Execute**: 複雑な多段階処理を確実に
-  - 順次実行でエラー発生時に自動停止
-  - レジューム機能で中断した処理を再開
-  - 進捗状態の保存と確認が可能
-
-- **📖 GameKit Machinations詳細ドキュメント**: 経済システム設計ガイド
-  - Resource Pools/Flows/Converters/Triggersの4要素を詳しく解説
-  - 実践的な使用例とユースケースを追加
-  - RPG、リソース管理、カードゲームでの活用方法
-
-**ツール総数: 22 → 24ツール** (Mid-Level Batchに2ツール追加)
-
-### 前回のリリース（v2.1.0）のハイライト
-
-- **💾 ステート永続化システム**: 完全なsave/load機能
-  - リソース状態をJSONでエクスポート/インポート
-  - ファイルまたはPlayerPrefsへの保存
-  - タイムスタンプとメタデータの自動追跡
-  - シリアライズ可能な状態でクラウドセーブ対応
-  - 簡単な統合のためのManager便利メソッド
-
-- **🎮 GameKit UICommand拡張**: Manager制御のサポート
-  - **新しいターゲットタイプ**: ActorまたはManager
+- **ツール構成の最適化（48ツール）**
+  - GameKit 14 (UI 5 + Presentation 5 + Logic 4)
+  - Mid-Level 20 (バッチ操作 + UI Toolkit)
+  - Low-Level 8 / Utility 5 / Batch 1
   - **11種類のコマンド**: Move/Jump/Action/Look/Custom + AddResource/SetResource/ConsumeResource/ChangeState/NextTurn/TriggerScene
   - UIボタンでゲーム経済、状態、ターンを制御可能
   - ストラテジーゲーム、ショップUI、リソース管理に最適
@@ -287,7 +212,7 @@ AIクライアント (Claude/Cursor) <--(MCP)--> Python MCPサーバー <--(WebS
 |-----------|----------|-------------|
 | **Unity C# Bridge** | `Assets/UnityAIForge/Editor/MCPBridge/` | Unity Editor内で実行されるWebSocketサーバー |
 | **Python MCPサーバー** | `Assets/UnityAIForge/MCPServer/src/` | MCPプロトコル実装 |
-| **GameKitフレームワーク** | `Assets/UnityAIForge/GameKit/Runtime/` | 高レベルゲーム開発コンポーネント |
+| **GameKitコード生成** | `Assets/UnityAIForge/Editor/CodeGen/` | テンプレートベースのコード生成インフラ |
 | **セットアップスクリプト** | `Assets/UnityAIForge/MCPServer/setup/` | インストールと設定ヘルパー |
 | **Examples** | `Assets/UnityAIForge/MCPServer/examples/` | 実践的なチュートリアルとガイド |
 | **Tests** | `Assets/UnityAIForge/Tests/Editor/` | 包括的なテストスイート |
@@ -332,13 +257,13 @@ Unity Test Frameworkによる包括的なテストスイート:
 - **Audio Source Bundle** (`unity_audio_source_bundle`) - プリセット（music、sfx、ambient、voice、ui）、2D/3D空間オーディオ、ミキサーグループ統合によるAudioSourceの作成と設定
 - **Input Profile** (`unity_input_profile`) - 新Input SystemでのPlayerInput作成、アクションマップの設定、通知動作の設定、InputActionsアセットの作成
 
-### 高レベルGameKitツール
+### 高レベルGameKitツール（14ツール）
 
-- **GameKit Actor** (`unity_gamekit_actor`) - UnityEvents（OnMoveInput、OnJumpInput、OnActionInput、OnLookInput）を介して入力を中継するコントローラー-動作ハブとしてのゲームアクターを作成
-- **GameKit Manager** (`unity_gamekit_manager`) - 永続性、ターンフェーズ、リソース管理を備えたゲームマネージャー（ターンベース、リアルタイム、リソースプール、イベントハブ、ステートマネージャー）の作成
-- **GameKit Interaction** (`unity_gamekit_interaction`) - 宣言的アクション（spawn、destroy、sound、message、scene change）と条件を備えたインタラクショントリガー（collision、raycast、proximity、input）の作成
-- **GameKit UI Command** (`unity_gamekit_ui_command`) - UIコマンド制御モードのアクターにコマンドを送信するボタン付きコマンドパネルの作成、水平/垂直/グリッドレイアウトのサポート
-- **GameKit SceneFlow** (`unity_gamekit_sceneflow`) - ステートマシン、加算読み込み、永続マネージャーシーン、共有シーングループ（UI/Audio）、トリガーベース遷移によるシーン遷移の管理
+GameKitはコード生成方式でスタンドアロンC#スクリプトを生成します。3本柱アーキテクチャ:
+
+- **UIピラー** - UICommand, UIBinding, UIList, UISlot, UISelection
+- **Presentationピラー** - AnimationSync, Effect, Feedback, VFX, Audio
+- **Logicピラー** - Integrity検証, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
 
 ## 📦 ScriptableObject管理の例
 

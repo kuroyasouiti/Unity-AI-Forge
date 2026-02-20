@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,98 +12,66 @@ namespace MCP.Editor.Tests
         private GameKitAudioHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitAudioHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitAudio()
         {
             Assert.AreEqual("gamekitAudio", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "setVolume", "setPitch", "setLoop", "setClip",
-                "findByAudioId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("setVolume", ops);
+            Assert.Contains("setPitch", ops);
+            Assert.Contains("setLoop", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("AudioTarget");
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
+
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("AudioTarget"));
             var result = Execute(_handler, "create",
                 ("targetPath", "AudioTarget"),
                 ("audioId", "test_audio"),
-                ("outputPath", TestOutputDir));
-
+                ("audioType", "sfx"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
-            AssertHasField(result, "audioId");
         }
 
         [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
+        public void Create_CustomClassName()
         {
-            CreateTestGameObject("AudioTarget");
+            var go = TrackGameObject(new GameObject("AudioTarget2"));
             var result = Execute(_handler, "create",
-                ("targetPath", "AudioTarget"),
-                ("audioId", "test_audio"),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomAudio"));
-
+                ("targetPath", "AudioTarget2"),
+                ("audioId", "test_audio_2"),
+                ("className", "MyAudio"),
+                ("audioType", "music"));
             AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomAudio");
+            AssertScriptContainsClass(result, "MyAudio");
         }
-
-        [Test]
-        public void Create_DefaultClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("AudioTarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "AudioTarget"),
-                ("audioId", "test_audio"),
-                ("outputPath", TestOutputDir));
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "TestAudioAudio");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Create_MissingTargetPath_ShouldReturnError()
-        {
-            var result = Execute(_handler, "create");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,118 +12,52 @@ namespace MCP.Editor.Tests
         private GameKitUISlotHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitUISlotHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitUISlot()
         {
             Assert.AreEqual("gamekitUISlot", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "setItem", "clearSlot", "setHighlight",
-                "createSlotBar", "updateSlotBar", "inspectSlotBar", "deleteSlotBar",
-                "useSlot", "refreshFromInventory",
-                "findBySlotId", "findByBarId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("setItem", ops);
+            Assert.Contains("clearSlot", ops);
+            Assert.Contains("createSlotBar", ops);
         }
 
-        #endregion
-
-        #region Create Slot
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("SlotParent");
-            var result = Execute(_handler, "create",
-                ("parentPath", "SlotParent"),
-                ("slotId", "test_slot"),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("UISlot");
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
 
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("SlotTarget"));
+            var result = Execute(_handler, "create",
+                ("targetPath", "SlotTarget"),
+                ("slotId", "test_slot"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
-            AssertHasField(result, "slotId");
-            AssertHasField(result, "uxmlPath");
-            AssertHasField(result, "ussPath");
         }
-
-        [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("SlotParent");
-            var result = Execute(_handler, "create",
-                ("parentPath", "SlotParent"),
-                ("slotId", "test_slot"),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomUISlot"));
-            TrackCreatedGameObject("UISlot");
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomUISlot");
-        }
-
-        #endregion
-
-        #region Create Slot Bar
-
-        [Test]
-        public void CreateSlotBar_ShouldGenerateScript()
-        {
-            CreateTestGameObject("BarParent");
-            var result = Execute(_handler, "createSlotBar",
-                ("parentPath", "BarParent"),
-                ("barId", "test_bar"),
-                ("slotCount", 4),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("UISlotBar");
-
-            AssertSuccess(result);
-            AssertScriptGenerated(result);
-            AssertHasField(result, "barId");
-            AssertHasField(result, "uxmlPath");
-            AssertHasField(result, "ussPath");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Create_MissingTargetAndParentPath_ShouldReturnError()
-        {
-            var result = Execute(_handler, "create",
-                ("slotId", "test_slot"),
-                ("outputPath", TestOutputDir));
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

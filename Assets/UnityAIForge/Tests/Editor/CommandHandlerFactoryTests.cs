@@ -1,288 +1,164 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
 using MCP.Editor.Base;
 using MCP.Editor.Interfaces;
+using NUnit.Framework;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// CommandHandlerFactory のユニットテスト。
-    /// </summary>
     [TestFixture]
     public class CommandHandlerFactoryTests
     {
         [SetUp]
         public void SetUp()
         {
-            // 各テスト前にファクトリーをクリア
             CommandHandlerFactory.Clear();
+            CommandHandlerInitializer.ResetInitializationState();
         }
 
         [TearDown]
         public void TearDown()
         {
-            // テスト後にファクトリーをクリア
+            // Re-initialize for other tests
             CommandHandlerFactory.Clear();
+            CommandHandlerInitializer.ResetInitializationState();
         }
 
-        #region Register Tests
+        private class StubHandler : BaseCommandHandler
+        {
+            private readonly string _category;
+            public override string Category => _category;
+            public override IEnumerable<string> SupportedOperations => new[] { "test" };
+
+            public StubHandler(string category = "stub")
+            {
+                _category = category;
+            }
+
+            protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
+            {
+                return CreateSuccessResponse();
+            }
+        }
 
         [Test]
-        public void Register_ValidHandler_ShouldSucceed()
+        public void Register_ValidHandler_CanBeRetrieved()
         {
-            // Arrange
-            var handler = new MockCommandHandler("test", new[] { "op1", "op2" });
-
-            // Act
+            CommandHandlerFactory.Initialize();
+            var handler = new StubHandler();
             CommandHandlerFactory.Register("testTool", handler);
-
-            // Assert
             Assert.IsTrue(CommandHandlerFactory.IsRegistered("testTool"));
         }
 
         [Test]
-        public void Register_NullToolName_ShouldThrowArgumentNullException()
+        public void Register_NullToolName_ThrowsArgumentNullException()
         {
-            // Arrange
-            var handler = new MockCommandHandler("test", new[] { "op1" });
-
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => 
-                CommandHandlerFactory.Register(null, handler));
+            Assert.Throws<ArgumentNullException>(() => CommandHandlerFactory.Register(null, new StubHandler()));
         }
 
         [Test]
-        public void Register_EmptyToolName_ShouldThrowArgumentNullException()
+        public void Register_EmptyToolName_ThrowsArgumentNullException()
         {
-            // Arrange
-            var handler = new MockCommandHandler("test", new[] { "op1" });
-
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => 
-                CommandHandlerFactory.Register("", handler));
+            Assert.Throws<ArgumentNullException>(() => CommandHandlerFactory.Register("", new StubHandler()));
         }
 
         [Test]
-        public void Register_NullHandler_ShouldThrowArgumentNullException()
+        public void Register_NullHandler_ThrowsArgumentNullException()
         {
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => 
-                CommandHandlerFactory.Register("testTool", null));
+            Assert.Throws<ArgumentNullException>(() => CommandHandlerFactory.Register("testTool", null));
         }
 
         [Test]
-        public void Register_DuplicateToolName_ShouldOverwrite()
+        public void GetHandler_RegisteredTool_ReturnsHandler()
         {
-            // Arrange
-            var handler1 = new MockCommandHandler("category1", new[] { "op1" });
-            var handler2 = new MockCommandHandler("category2", new[] { "op2" });
-
-            // Act
-            CommandHandlerFactory.Register("testTool", handler1);
-            CommandHandlerFactory.Register("testTool", handler2);
-
-            // Assert
-            var result = CommandHandlerFactory.GetHandler("testTool");
-            Assert.AreEqual("category2", result.Category);
-        }
-
-        #endregion
-
-        #region GetHandler Tests
-
-        [Test]
-        public void GetHandler_RegisteredHandler_ShouldReturnHandler()
-        {
-            // Arrange
-            var handler = new MockCommandHandler("test", new[] { "op1" });
+            // Initialize first so GetHandler won't trigger re-init (which calls Clear)
+            CommandHandlerFactory.Initialize();
+            var handler = new StubHandler();
             CommandHandlerFactory.Register("testTool", handler);
-
-            // Act
-            var result = CommandHandlerFactory.GetHandler("testTool");
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(handler, result);
+            var retrieved = CommandHandlerFactory.GetHandler("testTool");
+            Assert.AreSame(handler, retrieved);
         }
 
         [Test]
-        public void GetHandler_UnregisteredHandler_ShouldThrowInvalidOperationException()
+        public void GetHandler_UnregisteredTool_InitializesFirst()
         {
-            // Act & Assert
-            Assert.Throws<InvalidOperationException>(() => 
-                CommandHandlerFactory.GetHandler("nonExistentTool"));
-        }
-
-        #endregion
-
-        #region TryGetHandler Tests
-
-        [Test]
-        public void TryGetHandler_RegisteredHandler_ShouldReturnTrue()
-        {
-            // Arrange
-            var handler = new MockCommandHandler("test", new[] { "op1" });
-            CommandHandlerFactory.Register("testTool", handler);
-
-            // Act
-            var result = CommandHandlerFactory.TryGetHandler("testTool", out var retrievedHandler);
-
-            // Assert
-            Assert.IsTrue(result);
-            Assert.IsNotNull(retrievedHandler);
-            Assert.AreEqual(handler, retrievedHandler);
+            // GetHandler calls Initialize() which calls CommandHandlerInitializer
+            // After initialization, known handlers should be registered
+            var handler = CommandHandlerFactory.GetHandler("gameObjectManage");
+            Assert.IsNotNull(handler);
         }
 
         [Test]
-        public void TryGetHandler_UnregisteredHandler_ShouldReturnFalse()
+        public void TryGetHandler_RegisteredTool_ReturnsTrue()
         {
-            // Act
-            var result = CommandHandlerFactory.TryGetHandler("nonExistentTool", out var handler);
+            CommandHandlerFactory.Initialize();
+            CommandHandlerFactory.Register("testTool", new StubHandler());
+            Assert.IsTrue(CommandHandlerFactory.TryGetHandler("testTool", out var handler));
+            Assert.IsNotNull(handler);
+        }
 
-            // Assert
-            Assert.IsFalse(result);
+        [Test]
+        public void TryGetHandler_UnregisteredToolAfterInit_ReturnsFalse()
+        {
+            CommandHandlerFactory.Initialize();
+            Assert.IsFalse(CommandHandlerFactory.TryGetHandler("nonExistentTool12345", out var handler));
             Assert.IsNull(handler);
         }
 
-        #endregion
-
-        #region IsRegistered Tests
-
         [Test]
-        public void IsRegistered_RegisteredHandler_ShouldReturnTrue()
+        public void Clear_RemovesAllHandlers()
         {
-            // Arrange
-            var handler = new MockCommandHandler("test", new[] { "op1" });
-            CommandHandlerFactory.Register("testTool", handler);
-
-            // Act & Assert
-            Assert.IsTrue(CommandHandlerFactory.IsRegistered("testTool"));
-        }
-
-        [Test]
-        public void IsRegistered_UnregisteredHandler_ShouldReturnFalse()
-        {
-            // Act & Assert
-            Assert.IsFalse(CommandHandlerFactory.IsRegistered("nonExistentTool"));
-        }
-
-        #endregion
-
-        #region Clear Tests
-
-        [Test]
-        public void Clear_WithRegisteredHandlers_ShouldRemoveAll()
-        {
-            // Arrange
-            CommandHandlerFactory.Register("tool1", new MockCommandHandler("cat1", new[] { "op1" }));
-            CommandHandlerFactory.Register("tool2", new MockCommandHandler("cat2", new[] { "op2" }));
-
-            // Act
+            CommandHandlerFactory.Register("testTool", new StubHandler());
             CommandHandlerFactory.Clear();
-
-            // Assert
-            Assert.IsFalse(CommandHandlerFactory.IsRegistered("tool1"));
-            Assert.IsFalse(CommandHandlerFactory.IsRegistered("tool2"));
+            Assert.IsFalse(CommandHandlerFactory.IsRegistered("testTool"));
         }
 
-        #endregion
-
-        #region GetRegisteredToolNames Tests
-
         [Test]
-        public void GetRegisteredToolNames_WithHandlers_ShouldReturnAllNames()
+        public void GetRegisteredToolNames_ReturnsAllRegisteredNames()
         {
-            // Arrange
-            CommandHandlerFactory.Register("tool1", new MockCommandHandler("cat1", new[] { "op1" }));
-            CommandHandlerFactory.Register("tool2", new MockCommandHandler("cat2", new[] { "op2" }));
-            CommandHandlerFactory.Register("tool3", new MockCommandHandler("cat3", new[] { "op3" }));
-
-            // Act
+            CommandHandlerFactory.Initialize();
+            CommandHandlerFactory.Register("tool1", new StubHandler("cat1"));
+            CommandHandlerFactory.Register("tool2", new StubHandler("cat2"));
             var names = CommandHandlerFactory.GetRegisteredToolNames().ToList();
-
-            // Assert
-            Assert.AreEqual(3, names.Count);
             Assert.Contains("tool1", names);
             Assert.Contains("tool2", names);
-            Assert.Contains("tool3", names);
         }
 
         [Test]
-        public void GetRegisteredToolNames_NoHandlers_ShouldReturnEmpty()
+        public void GetStatistics_ReturnsValidStats()
         {
-            // Act
+            CommandHandlerFactory.Register("testTool", new StubHandler());
+            var stats = CommandHandlerFactory.GetStatistics();
+            Assert.IsNotNull(stats);
+            Assert.AreEqual(1, stats["totalHandlers"]);
+            Assert.IsInstanceOf<List<Dictionary<string, object>>>(stats["registeredHandlers"]);
+        }
+
+        [Test]
+        public void Initialize_RegistersAllExpectedHandlers()
+        {
+            CommandHandlerFactory.Initialize();
             var names = CommandHandlerFactory.GetRegisteredToolNames().ToList();
 
-            // Assert
-            Assert.IsEmpty(names);
+            // Verify key handlers from all phases are registered
+            Assert.Contains("pingUnityEditor", names, "Utility handler missing");
+            Assert.Contains("sceneManage", names, "LowLevel handler missing");
+            Assert.Contains("gameObjectManage", names, "LowLevel handler missing");
+            Assert.Contains("componentManage", names, "LowLevel handler missing");
+            Assert.Contains("transformBatch", names, "MidLevel handler missing");
+            Assert.Contains("gamekitUICommand", names, "GameKit handler missing");
+            Assert.Contains("classDependencyGraph", names, "HighLevel handler missing");
         }
-
-        #endregion
-
-        #region GetStatistics Tests
 
         [Test]
-        public void GetStatistics_WithHandlers_ShouldReturnCorrectStats()
+        public void Initialize_Registers47Handlers()
         {
-            // Arrange
-            CommandHandlerFactory.Register("tool1", new MockCommandHandler("cat1", new[] { "op1", "op2" }));
-            CommandHandlerFactory.Register("tool2", new MockCommandHandler("cat2", new[] { "op3" }));
-
-            // Act
+            CommandHandlerFactory.Initialize();
             var stats = CommandHandlerFactory.GetStatistics();
-
-            // Assert
-            Assert.AreEqual(2, stats["totalHandlers"]);
-            Assert.IsTrue((bool)stats["initialized"]);
-            
-            var handlers = (List<Dictionary<string, object>>)stats["registeredHandlers"];
-            Assert.AreEqual(2, handlers.Count);
-        }
-
-        #endregion
-    }
-
-    /// <summary>
-    /// テスト用のモックコマンドハンドラー。
-    /// </summary>
-    public class MockCommandHandler : ICommandHandler
-    {
-        private readonly string _category;
-        private readonly string[] _supportedOperations;
-        private readonly string _version;
-        private Func<Dictionary<string, object>, object> _executeFunc;
-
-        public MockCommandHandler(string category, string[] supportedOperations, string version = "1.0.0")
-        {
-            _category = category;
-            _supportedOperations = supportedOperations;
-            _version = version;
-        }
-
-        public string Category => _category;
-        public string Version => _version;
-        public IEnumerable<string> SupportedOperations => _supportedOperations;
-
-        public void SetExecuteFunc(Func<Dictionary<string, object>, object> func)
-        {
-            _executeFunc = func;
-        }
-
-        public object Execute(Dictionary<string, object> payload)
-        {
-            if (_executeFunc != null)
-            {
-                return _executeFunc(payload);
-            }
-
-            return new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["category"] = _category,
-                ["operation"] = payload.ContainsKey("operation") ? payload["operation"] : "unknown"
-            };
+            Assert.AreEqual(47, stats["totalHandlers"],
+                $"Expected 47 handlers but got {stats["totalHandlers"]}. " +
+                $"Registered: {string.Join(", ", CommandHandlerFactory.GetRegisteredToolNames())}");
         }
     }
 }

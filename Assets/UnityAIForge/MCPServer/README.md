@@ -26,13 +26,11 @@ For manual installation and detailed documentation, see:
 - Material and shader control
 - Project settings configuration
 
-### GameKit Framework (30 Tools Total)
-- **GameKitActor**: Player/NPC controllers with 8 behavior profiles and 4 control modes
-- **GameKitManager**: Resource/State/Turn/Event management with persistence
-- **GameKitUICommand**: UI button → Actor/Manager command bridge (11 command types)
-- **GameKitMachinations**: Economic system assets with flows/converters/triggers
-- **GameKitSceneFlow**: State machine-based scene transitions
-- **GameKitInteraction**: Trigger-based interactions with declarative actions
+### GameKit Framework (14 Tools)
+Code generation-based game systems with zero runtime dependency:
+- **UI Pillar** (5): UICommand, UIBinding, UIList, UISlot, UISelection
+- **Presentation Pillar** (5): AnimationSync, Effect, Feedback, VFX, Audio
+- **Logic Pillar** (4): Integrity validation, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
 
 ### Declarative UI System
 - **UIHierarchy**: Create complex UI structures from JSON definitions
@@ -40,19 +38,16 @@ For manual installation and detailed documentation, see:
 - **UINavigation**: Configure keyboard/gamepad navigation for UI elements
 
 ### Advanced Features
-- State persistence (save/load system)
-- Resource economics with Machinations-inspired flows
 - Batch operations with pattern matching
-- Design pattern generation (Singleton, ObjectPool, StateMachine, etc.)
 - Physics presets and camera rigs
 - Input system integration
-- Scene separation best practices
+- UI Toolkit (UXML/USS) support
 - Compilation await for C# script operations
 
 ## Requirements
 
 - Python 3.10 or higher
-- Unity 2021.3 or higher
+- Unity 2022.3 or higher
 - MCP SDK 0.9.0 or higher
 
 ## Documentation

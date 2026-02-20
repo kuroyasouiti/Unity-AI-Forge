@@ -1,158 +1,154 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Base;
-using MCP.Editor.CodeGen;
+using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
     /// <summary>
-    /// Base class for GameKit handler tests using the code-generation pattern.
-    /// Provides common setup/teardown, test object management, and shared assertions.
+    /// Base class for GameKit handler tests.
+    /// Provides shared setup/teardown, execution helpers, and assertion methods
+    /// for testing handlers that use code generation.
     /// </summary>
     public abstract class GameKitHandlerTestBase
     {
-        protected const string TestOutputDir = "Assets/TestTemp/Generated";
-        private List<GameObject> _createdObjects;
-        private List<string> _generatedFiles;
-        private List<string> _generatedAssets;
+        protected GameObjectTracker Tracker { get; private set; }
+        protected List<string> TrackedScriptPaths { get; private set; }
+        protected string TempAssetDir { get; private set; }
 
         [SetUp]
-        public void BaseSetUp()
+        public virtual void SetUp()
         {
-            _createdObjects = new List<GameObject>();
-            _generatedFiles = new List<string>();
-            _generatedAssets = new List<string>();
-            if (!Directory.Exists(TestOutputDir))
-                Directory.CreateDirectory(TestOutputDir);
+            Tracker = new GameObjectTracker();
+            TrackedScriptPaths = new List<string>();
         }
 
         [TearDown]
-        public void BaseTearDown()
+        public virtual void TearDown()
         {
-            foreach (var file in _generatedFiles)
+            Tracker?.Dispose();
+
+            // Batch all asset deletions to avoid repeated .csproj sync (IOException sharing violation)
+            bool needsBatch = (TrackedScriptPaths != null && TrackedScriptPaths.Count > 0)
+                              || !string.IsNullOrEmpty(TempAssetDir);
+
+            if (needsBatch)
+                AssetDatabase.StartAssetEditing();
+
+            try
             {
-                if (File.Exists(file))
-                    AssetDatabase.DeleteAsset(file);
-            }
+                // Clean up generated scripts
+                foreach (var path in TrackedScriptPaths)
+                {
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    {
+                        AssetDatabase.DeleteAsset(path);
+                    }
+                }
+                TrackedScriptPaths?.Clear();
 
-            foreach (var asset in _generatedAssets)
+                // Clean up temp asset dir
+                if (!string.IsNullOrEmpty(TempAssetDir))
+                {
+                    TestUtilities.CleanupTempAssetDirectory(TempAssetDir);
+                    TempAssetDir = null;
+                }
+            }
+            finally
             {
-                if (File.Exists(asset))
-                    AssetDatabase.DeleteAsset(asset);
+                if (needsBatch)
+                    AssetDatabase.StopAssetEditing();
             }
-
-            if (Directory.Exists(TestOutputDir))
-                AssetDatabase.DeleteAsset("Assets/TestTemp");
-
-            TestUtilities.CleanupGameObjects(_createdObjects);
-            GeneratedScriptTracker.ResetInstance();
-        }
-
-        protected GameObject CreateTestGameObject(string name)
-        {
-            var go = new GameObject(name);
-            _createdObjects.Add(go);
-            return go;
-        }
-
-        protected void TrackGameObject(GameObject go)
-        {
-            if (go != null && !_createdObjects.Contains(go))
-                _createdObjects.Add(go);
         }
 
         /// <summary>
-        /// Tracks a handler-created GameObject by name for cleanup.
-        /// Call after create operations that auto-create GameObjects.
+        /// Executes a handler with the given operation and additional payload entries.
         /// </summary>
-        protected void TrackCreatedGameObject(string name)
+        protected object Execute(BaseCommandHandler handler, string operation, params (string key, object value)[] extras)
         {
-            var go = GameObject.Find(name);
-            if (go != null) TrackGameObject(go);
+            var payload = TestUtilities.CreatePayload(operation, extras);
+            return handler.Execute(payload);
         }
 
-        protected void TrackScriptPath(Dictionary<string, object> result)
+        /// <summary>
+        /// Tracks a GameObject for cleanup.
+        /// </summary>
+        protected GameObject TrackGameObject(GameObject go)
         {
-            if (result?.TryGetValue("scriptPath", out var p) == true && p != null)
-                _generatedFiles.Add(p.ToString());
+            return Tracker.Track(go);
         }
 
-        protected void TrackAssetPath(string path)
+        /// <summary>
+        /// Tracks a script path for cleanup.
+        /// </summary>
+        protected void TrackScriptPath(string path)
         {
             if (!string.IsNullOrEmpty(path))
-                _generatedAssets.Add(path);
+                TrackedScriptPaths.Add(path);
         }
 
         /// <summary>
-        /// Executes a handler operation with the given arguments.
-        /// Automatically tracks generated script paths for cleanup.
+        /// Asserts that the result indicates success.
         /// </summary>
-        protected Dictionary<string, object> Execute(
-            BaseCommandHandler handler,
-            string operation,
-            params (string key, object value)[] args)
+        protected void AssertSuccess(object result)
         {
-            var payload = new Dictionary<string, object> { ["operation"] = operation };
-            foreach (var (k, v) in args)
-                payload[k] = v;
-            var result = handler.Execute(payload) as Dictionary<string, object>;
-            TrackScriptPath(result);
-            return result;
+            TestUtilities.AssertSuccess(result);
         }
 
-        #region Assertions
-
-        protected static void AssertSuccess(Dictionary<string, object> result)
+        /// <summary>
+        /// Asserts that the result indicates an error.
+        /// </summary>
+        protected void AssertError(object result, string expectedMessageContains = null)
         {
-            Assert.IsNotNull(result, "Result should not be null");
-            Assert.IsTrue(result.ContainsKey("success"), "Result should contain 'success' key");
-            Assert.IsTrue((bool)result["success"],
-                $"Expected success but got error: {(result.TryGetValue("error", out var e) ? e : "unknown")}");
+            TestUtilities.AssertError(result, expectedMessageContains);
         }
 
-        protected static void AssertError(Dictionary<string, object> result)
+        /// <summary>
+        /// Asserts that the result contains a scriptPath indicating code generation occurred.
+        /// </summary>
+        protected void AssertScriptGenerated(object result)
         {
-            Assert.IsNotNull(result, "Result should not be null");
-            Assert.IsTrue(result.ContainsKey("success"), "Result should contain 'success' key");
-            Assert.IsFalse((bool)result["success"], "Expected failure but got success");
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict, "Result should be a Dictionary<string, object>");
+            Assert.IsTrue(dict.ContainsKey("scriptPath"), "Result should contain 'scriptPath'");
+            var scriptPath = dict["scriptPath"].ToString();
+            Assert.IsFalse(string.IsNullOrEmpty(scriptPath), "scriptPath should not be empty");
+            TrackScriptPath(scriptPath);
         }
 
-        protected static void AssertHasField(Dictionary<string, object> result, string key)
+        /// <summary>
+        /// Asserts that the generated script contains the expected class name.
+        /// </summary>
+        protected void AssertScriptContainsClass(object result, string expectedClassName)
         {
-            Assert.IsTrue(result.ContainsKey(key), $"Result should contain '{key}'");
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.IsTrue(dict.ContainsKey("className"), "Result should contain 'className'");
+            Assert.AreEqual(expectedClassName, dict["className"].ToString());
         }
 
-        protected static void AssertOperationsContain(
-            IEnumerable<string> supportedOperations, params string[] expected)
+        /// <summary>
+        /// Asserts that the handler's SupportedOperations contains the expected operation.
+        /// </summary>
+        protected void AssertOperationsContain(BaseCommandHandler handler, string operation)
         {
-            var ops = new List<string>(supportedOperations);
-            foreach (var op in expected)
-                Assert.IsTrue(ops.Contains(op), $"SupportedOperations should contain '{op}'");
+            Assert.IsTrue(
+                handler.SupportedOperations.Contains(operation),
+                $"SupportedOperations should contain '{operation}'. " +
+                $"Available: {string.Join(", ", handler.SupportedOperations)}"
+            );
         }
 
-        protected void AssertScriptGenerated(Dictionary<string, object> result)
+        /// <summary>
+        /// Gets a value from a result dictionary.
+        /// </summary>
+        protected T GetResultValue<T>(object result, string key)
         {
-            AssertHasField(result, "scriptPath");
-            var path = result["scriptPath"].ToString();
-            Assert.IsTrue(File.Exists(path), $"Script should exist at: {path}");
-
-            var content = File.ReadAllText(path);
-            StringAssert.DoesNotContain("UnityAIForge", content,
-                "Generated script must not reference UnityAIForge");
-            StringAssert.DoesNotContain("MCP.Editor", content,
-                "Generated script must not reference MCP.Editor");
+            return TestUtilities.GetResultValue<T>(result, key);
         }
-
-        protected void AssertScriptContainsClass(Dictionary<string, object> result, string className)
-        {
-            var content = File.ReadAllText(result["scriptPath"].ToString());
-            StringAssert.Contains($"class {className}", content,
-                $"Generated script should contain class {className}");
-        }
-
-        #endregion
     }
 }

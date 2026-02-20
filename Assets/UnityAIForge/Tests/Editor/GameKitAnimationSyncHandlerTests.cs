@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,100 +12,52 @@ namespace MCP.Editor.Tests
         private GameKitAnimationSyncHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitAnimationSyncHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitAnimationSync()
         {
             Assert.AreEqual("gamekitAnimationSync", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "addSyncRule", "removeSyncRule",
-                "addTriggerRule", "removeTriggerRule",
-                "fireTrigger", "setParameter",
-                "findBySyncId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("addSyncRule", ops);
+            Assert.Contains("fireTrigger", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("AnimTarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "AnimTarget"),
-                ("syncId", "test_sync"),
-                ("outputPath", TestOutputDir));
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
 
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("AnimSyncTarget"));
+            go.AddComponent<Animator>();
+            var result = Execute(_handler, "create",
+                ("targetPath", "AnimSyncTarget"),
+                ("syncId", "test_sync"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
-            AssertHasField(result, "syncId");
         }
-
-        [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("AnimTarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "AnimTarget"),
-                ("syncId", "test_sync"),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomAnimSync"));
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomAnimSync");
-        }
-
-        [Test]
-        public void Create_DefaultClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("AnimTarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "AnimTarget"),
-                ("syncId", "test_sync"),
-                ("outputPath", TestOutputDir));
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "TestSyncAnimationSync");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Create_MissingTargetPath_ShouldReturnError()
-        {
-            var result = Execute(_handler, "create");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

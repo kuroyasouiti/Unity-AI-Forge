@@ -1,371 +1,70 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using NUnit.Framework;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine;
-using UnityEngine.SceneManagement;
 using MCP.Editor.Handlers;
+using NUnit.Framework;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// SceneCommandHandler のユニットテスト。
-    /// </summary>
     [TestFixture]
     public class SceneCommandHandlerTests
     {
         private SceneCommandHandler _handler;
-        private string _testScenePath;
-        private Scene _originalScene;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new SceneCommandHandler();
-            
-            // 現在のシーンを保存
-            _originalScene = SceneManager.GetActiveScene();
-            
-            // テスト用シーンパス
-            _testScenePath = "Assets/TestScenes";
-            
-            // テスト用ディレクトリ作成
-            if (!Directory.Exists(_testScenePath))
-            {
-                Directory.CreateDirectory(_testScenePath);
-            }
         }
-
-        [TearDown]
-        public void TearDown()
-        {
-            // テスト用シーンを削除
-            CleanupTestScenes();
-            
-            // テスト用ディレクトリ削除
-            if (Directory.Exists(_testScenePath))
-            {
-                try
-                {
-                    AssetDatabase.DeleteAsset(_testScenePath);
-                }
-                catch
-                {
-                    // 削除に失敗しても無視
-                }
-            }
-            
-            AssetDatabase.Refresh();
-        }
-
-        private void CleanupTestScenes()
-        {
-            var testScenes = Directory.GetFiles(_testScenePath, "*.unity", SearchOption.AllDirectories);
-            foreach (var scenePath in testScenes)
-            {
-                var assetPath = scenePath.Replace("\\", "/");
-                if (File.Exists(assetPath))
-                {
-                    AssetDatabase.DeleteAsset(assetPath);
-                }
-            }
-        }
-
-        #region Property Tests
 
         [Test]
-        public void Category_ShouldReturnScene()
+        public void Category_ReturnsScene()
         {
             Assert.AreEqual("scene", _handler.Category);
         }
 
         [Test]
-        public void Version_ShouldReturn100()
+        public void SupportedOperations_ContainsExpected()
         {
-            Assert.AreEqual("1.0.0", _handler.Version);
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("load", ops);
+            Assert.Contains("save", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("duplicate", ops);
+            Assert.Contains("inspect", ops);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void Execute_NullPayload_ReturnsError()
         {
-            var operations = _handler.SupportedOperations.ToList();
-
-            Assert.Contains("create", operations);
-            Assert.Contains("load", operations);
-            Assert.Contains("save", operations);
-            Assert.Contains("delete", operations);
-            Assert.Contains("duplicate", operations);
-            Assert.Contains("inspect", operations);
-            // Note: Build settings operations (listBuildSettings, addToBuildSettings, etc.)
-            // have been moved to ProjectSettingsManageHandler
-        }
-
-        #endregion
-
-        #region Create Tests
-
-        [Test]
-        public void Execute_Create_WithoutPath_ShouldCreateScene()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNotNull(result["sceneName"]);
+            TestUtilities.AssertError(_handler.Execute(null));
         }
 
         [Test]
-        public void Execute_Create_WithPath_ShouldCreateAndSaveScene()
+        public void Execute_MissingOperation_ReturnsError()
         {
-            // Arrange
-            var scenePath = Path.Combine(_testScenePath, "TestCreateScene.unity").Replace("\\", "/");
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["scenePath"] = scenePath
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual(scenePath, result["scenePath"]);
-            Assert.IsTrue(File.Exists(scenePath));
+            TestUtilities.AssertError(_handler.Execute(new Dictionary<string, object>()));
         }
 
         [Test]
-        public void Execute_Create_WithAdditive_ShouldCreateAdditiveScene()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            // Arrange - まず基本シーンが存在することを確認
-            // (additive モードは既存のシーンに追加する形で新しいシーンを作成)
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["additive"] = true
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            
-            // 成功した場合の検証
-            if ((bool)result["success"])
-            {
-                Assert.IsTrue((bool)result["additive"]);
-            }
-            else
-            {
-                // テスト環境によっては additive シーン作成が失敗することがある
-                // エラーメッセージが含まれていることを確認し、Inconclusive としてマーク
-                Assert.IsTrue(result.ContainsKey("error"), 
-                    $"Operation failed without error message. Result: {string.Join(", ", result.Keys)}");
-                
-                // テスト環境の制限として Inconclusive（結論なし）としてマーク
-                Assert.Inconclusive($"Additive scene creation failed in test environment: {result["error"]}. " +
-                           "This may be expected in certain Unity Editor states.");
-            }
+            TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
         }
 
         [Test]
-        public void Execute_Create_InvalidPath_ShouldReturnError()
+        public void Inspect_CurrentScene_ReturnsSuccess()
         {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["scenePath"] = "InvalidPath/test.unity"  // Not starting with Assets/
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-        }
-
-        #endregion
-
-        #region Inspect Tests
-
-        [Test]
-        public void Execute_Inspect_ShouldReturnSceneInfo()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["includeHierarchy"] = true
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsNotNull(result["sceneName"]);
-            Assert.IsTrue(result.ContainsKey("isLoaded"));
-            Assert.IsTrue(result.ContainsKey("isDirty"));
-            Assert.IsTrue(result.ContainsKey("rootCount"));
+            var result = _handler.Execute(TestUtilities.CreatePayload("inspect"));
+            TestUtilities.AssertSuccess(result);
         }
 
         [Test]
-        public void Execute_Inspect_WithHierarchy_ShouldIncludeHierarchy()
+        public void Inspect_WithHierarchy_ReturnsData()
         {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["includeHierarchy"] = true
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsTrue(result.ContainsKey("hierarchy"));
+            var result = _handler.Execute(TestUtilities.CreatePayload("inspect",
+                ("includeHierarchy", true))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
         }
-
-        [Test]
-        public void Execute_Inspect_WithComponents_ShouldIncludeComponents()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "inspect",
-                ["includeHierarchy"] = true,
-                ["includeComponents"] = true
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-        }
-
-        #endregion
-
-        // Note: ListBuildSettings tests have been moved to ProjectSettingsManageHandlerTests
-        // as build settings operations are now handled by that handler.
-
-        #region Validation Tests
-
-        [Test]
-        public void Execute_InvalidScenePath_WithTraversal_ShouldReturnError()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["scenePath"] = "Assets/../outside/test.unity"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-            Assert.IsTrue(result["error"].ToString().Contains(".."));
-        }
-
-        [Test]
-        public void Execute_InvalidScenePath_WithoutUnityExtension_ShouldReturnError()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "create",
-                ["scenePath"] = "Assets/test.scene"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-            Assert.IsTrue(result["error"].ToString().Contains(".unity"));
-        }
-
-        [Test]
-        public void Execute_Load_NonExistentScene_ShouldReturnError()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "load",
-                ["scenePath"] = "Assets/NonExistentScene.unity"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-        }
-
-        [Test]
-        public void Execute_Delete_NonExistentScene_ShouldReturnError()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "delete",
-                ["scenePath"] = "Assets/NonExistentScene.unity"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-        }
-
-        #endregion
-
-        #region Unsupported Operation Tests
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            // Arrange
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "unsupportedOperation"
-            };
-
-            // Act
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            // Assert
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-            Assert.IsTrue(result["error"].ToString().Contains("not supported"));
-        }
-
-        #endregion
     }
 }

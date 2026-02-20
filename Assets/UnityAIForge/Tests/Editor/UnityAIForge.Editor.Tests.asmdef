@@ -2,10 +2,7 @@
     "name": "UnityAIForge.Editor.Tests",
     "rootNamespace": "MCP.Editor.Tests",
     "references": [
-        "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner",
         "UnityAIForge.Editor",
-        "UnityAIForge.Tests.Runtime",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [

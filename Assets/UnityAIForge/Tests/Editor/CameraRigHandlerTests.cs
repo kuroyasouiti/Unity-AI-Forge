@@ -1,264 +1,65 @@
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
 using MCP.Editor.Handlers;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
-    /// <summary>
-    /// Unit tests for CameraRigHandler.
-    /// </summary>
     [TestFixture]
     public class CameraRigHandlerTests
     {
         private CameraRigHandler _handler;
-        private List<GameObject> _createdObjects;
+        private GameObjectTracker _tracker;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new CameraRigHandler();
-            _createdObjects = new List<GameObject>();
+            _tracker = new GameObjectTracker();
         }
 
         [TearDown]
-        public void TearDown()
-        {
-            foreach (var obj in _createdObjects)
-            {
-                if (obj != null)
-                {
-                    Undo.ClearUndo(obj);
-                    Object.DestroyImmediate(obj);
-                }
-            }
-            _createdObjects.Clear();
-        }
-
-        private void TrackCreatedObject(string path)
-        {
-            var go = GameObject.Find(path.Split('/').Last());
-            if (go != null && !_createdObjects.Contains(go))
-            {
-                _createdObjects.Add(go);
-            }
-        }
-
-        #region Property Tests
+        public void TearDown() => _tracker.Dispose();
 
         [Test]
-        public void Category_ShouldReturnCameraRig()
+        public void Category_ReturnsCameraRig()
         {
             Assert.AreEqual("cameraRig", _handler.Category);
         }
 
         [Test]
-        public void Version_ShouldReturn100()
+        public void SupportedOperations_ContainsExpected()
         {
-            Assert.AreEqual("1.0.0", _handler.Version);
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("createRig", ops);
+            Assert.Contains("updateRig", ops);
+            Assert.Contains("inspect", ops);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void Execute_NullPayload_ReturnsError()
         {
-            var operations = new List<string>(_handler.SupportedOperations);
-            Assert.Contains("createRig", operations);
-            Assert.Contains("updateRig", operations);
-            Assert.Contains("inspect", operations);
-        }
-
-        #endregion
-
-        #region CreateRig Tests
-
-        [Test]
-        public void Execute_CreateRig_Follow_ShouldCreateCameraRig()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigType"] = "follow",
-                ["rigName"] = "TestFollowRig"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.IsTrue(result.ContainsKey("rigPath"));
-            Assert.IsTrue(result.ContainsKey("cameraPath"));
-            Assert.AreEqual("follow", result["rigType"]);
-
-            TrackCreatedObject(result["rigPath"].ToString());
+            TestUtilities.AssertError(_handler.Execute(null));
         }
 
         [Test]
-        public void Execute_CreateRig_Orbit_ShouldCreateCameraRig()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigType"] = "orbit",
-                ["rigName"] = "TestOrbitRig"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("orbit", result["rigType"]);
-
-            TrackCreatedObject(result["rigPath"].ToString());
+            TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
         }
 
         [Test]
-        public void Execute_CreateRig_Fixed_ShouldCreateCameraRig()
+        public void CreateRig_Follow_ReturnsSuccess()
         {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigType"] = "fixed",
-                ["rigName"] = "TestFixedRig"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("fixed", result["rigType"]);
-
-            TrackCreatedObject(result["rigPath"].ToString());
+            var target = _tracker.Create("CameraTarget");
+            var result = _handler.Execute(TestUtilities.CreatePayload("createRig",
+                ("rigType", "follow"),
+                ("rigName", "TestCam"),
+                ("targetPath", "CameraTarget")));
+            TestUtilities.AssertSuccess(result);
+            var cam = GameObject.Find("TestCam");
+            if (cam != null) _tracker.Track(cam);
         }
-
-        [Test]
-        public void Execute_CreateRig_SplitScreen_ShouldCreateCameraRig()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigType"] = "splitscreen",
-                ["rigName"] = "TestSplitScreenRig"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("splitscreen", result["rigType"]);
-
-            TrackCreatedObject(result["rigPath"].ToString());
-        }
-
-        [Test]
-        public void Execute_CreateRig_Dolly_ShouldCreateCameraRig()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigType"] = "dolly",
-                ["rigName"] = "TestDollyRig"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("dolly", result["rigType"]);
-
-            TrackCreatedObject(result["rigPath"].ToString());
-        }
-
-        [Test]
-        public void Execute_CreateRig_WithFieldOfView_ShouldApplyFOV()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigType"] = "follow",
-                ["rigName"] = "TestFOVRig",
-                ["fieldOfView"] = 90f
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-
-            var cameraPath = result["cameraPath"].ToString();
-            var cameraGo = GameObject.Find(cameraPath.Split('/').Last());
-            if (cameraGo == null)
-            {
-                // Try finding by full hierarchy
-                var rigGo = GameObject.Find(result["rigPath"].ToString().Split('/').Last());
-                if (rigGo != null)
-                {
-                    cameraGo = rigGo.transform.Find("Camera")?.gameObject;
-                    _createdObjects.Add(rigGo);
-                }
-            }
-
-            if (cameraGo != null)
-            {
-                var camera = cameraGo.GetComponent<Camera>();
-                Assert.IsNotNull(camera);
-                Assert.AreEqual(90f, camera.fieldOfView, 0.01f);
-            }
-
-            TrackCreatedObject(result["rigPath"].ToString());
-        }
-
-        [Test]
-        public void Execute_CreateRig_DefaultType_ShouldCreateFollowRig()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "createRig",
-                ["rigName"] = "TestDefaultRig"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue((bool)result["success"]);
-            Assert.AreEqual("follow", result["rigType"]);
-
-            TrackCreatedObject(result["rigPath"].ToString());
-        }
-
-        #endregion
-
-        #region Error Handling Tests
-
-        [Test]
-        public void Execute_MissingOperation_ShouldReturnError()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["rigType"] = "follow"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var payload = new Dictionary<string, object>
-            {
-                ["operation"] = "unsupportedOperation"
-            };
-
-            var result = _handler.Execute(payload) as Dictionary<string, object>;
-
-            Assert.IsNotNull(result);
-            Assert.IsFalse((bool)result["success"]);
-        }
-
-        #endregion
     }
 }

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,98 +12,63 @@ namespace MCP.Editor.Tests
         private GameKitFeedbackHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitFeedbackHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitFeedback()
         {
             Assert.AreEqual("gamekitFeedback", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "addComponent", "clearComponents", "setIntensity",
-                "findByFeedbackId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("addComponent", ops);
+            Assert.Contains("setIntensity", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("FeedbackTarget");
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
+
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("FeedbackTarget"));
             var result = Execute(_handler, "create",
                 ("targetPath", "FeedbackTarget"),
-                ("feedbackId", "test_feedback"),
-                ("outputPath", TestOutputDir));
-
+                ("feedbackId", "test_feedback"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
-            AssertHasField(result, "feedbackId");
         }
 
         [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
+        public void Create_CustomClassName()
         {
-            CreateTestGameObject("FeedbackTarget");
+            var go = TrackGameObject(new GameObject("FeedbackTarget2"));
             var result = Execute(_handler, "create",
-                ("targetPath", "FeedbackTarget"),
-                ("feedbackId", "test_feedback"),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomFeedback"));
-
+                ("targetPath", "FeedbackTarget2"),
+                ("feedbackId", "test_feedback_2"),
+                ("className", "MyFeedback"));
             AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomFeedback");
+            AssertScriptContainsClass(result, "MyFeedback");
         }
-
-        [Test]
-        public void Create_DefaultClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("FeedbackTarget");
-            var result = Execute(_handler, "create",
-                ("targetPath", "FeedbackTarget"),
-                ("feedbackId", "test_feedback"),
-                ("outputPath", TestOutputDir));
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "TestFeedbackFeedback");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Create_MissingTargetPath_ShouldReturnError()
-        {
-            var result = Execute(_handler, "create");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

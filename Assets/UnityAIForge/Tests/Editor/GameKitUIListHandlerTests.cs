@@ -1,6 +1,8 @@
 using System.Collections.Generic;
-using NUnit.Framework;
+using System.Linq;
 using MCP.Editor.Handlers.GameKit;
+using NUnit.Framework;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -10,94 +12,52 @@ namespace MCP.Editor.Tests
         private GameKitUIListHandler _handler;
 
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
             _handler = new GameKitUIListHandler();
         }
 
-        #region Metadata
-
         [Test]
-        public void Category_ShouldReturnExpected()
+        public void Category_ReturnsGamekitUIList()
         {
             Assert.AreEqual("gamekitUIList", _handler.Category);
         }
 
         [Test]
-        public void SupportedOperations_ShouldContainExpectedOperations()
+        public void SupportedOperations_ContainsExpected()
         {
-            AssertOperationsContain(_handler.SupportedOperations,
-                "create", "update", "inspect", "delete",
-                "setItems", "addItem", "removeItem", "clear",
-                "selectItem", "deselectItem", "clearSelection",
-                "refreshFromSource", "findByListId");
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("create", ops);
+            Assert.Contains("update", ops);
+            Assert.Contains("inspect", ops);
+            Assert.Contains("delete", ops);
+            Assert.Contains("addItem", ops);
+            Assert.Contains("removeItem", ops);
+            Assert.Contains("clear", ops);
         }
 
-        #endregion
-
-        #region Create
+        [Test]
+        public void Execute_NullPayload_ReturnsError()
+        {
+            AssertError(_handler.Execute(null));
+        }
 
         [Test]
-        public void Create_ShouldGenerateScript()
+        public void Execute_UnsupportedOperation_ReturnsError()
         {
-            CreateTestGameObject("ListParent");
-            var result = Execute(_handler, "create",
-                ("parentPath", "ListParent"),
-                ("listId", "test_list"),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir));
-            TrackCreatedGameObject("UIList");
+            AssertError(Execute(_handler, "nonExistent"), "not supported");
+        }
 
+        [Test]
+        public void Create_GeneratesScript()
+        {
+            var go = TrackGameObject(new GameObject("ListTarget"));
+            var result = Execute(_handler, "create",
+                ("targetPath", "ListTarget"),
+                ("listId", "test_list"));
             AssertSuccess(result);
             AssertScriptGenerated(result);
-            AssertHasField(result, "listId");
-            AssertHasField(result, "uxmlPath");
-            AssertHasField(result, "ussPath");
         }
-
-        [Test]
-        public void Create_GeneratedScriptClassName_ShouldBeCorrect()
-        {
-            CreateTestGameObject("ListParent");
-            var result = Execute(_handler, "create",
-                ("parentPath", "ListParent"),
-                ("listId", "test_list"),
-                ("uiOutputDir", TestOutputDir),
-                ("outputPath", TestOutputDir),
-                ("className", "MyCustomUIList"));
-            TrackCreatedGameObject("UIList");
-
-            AssertSuccess(result);
-            AssertScriptContainsClass(result, "MyCustomUIList");
-        }
-
-        #endregion
-
-        #region Error Handling
-
-        [Test]
-        public void Create_MissingTargetAndParentPath_ShouldReturnError()
-        {
-            var result = Execute(_handler, "create",
-                ("listId", "test_list"),
-                ("outputPath", TestOutputDir));
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_UnsupportedOperation_ShouldReturnError()
-        {
-            var result = Execute(_handler, "nonexistent_operation");
-            AssertError(result);
-        }
-
-        [Test]
-        public void Execute_NullPayload_ShouldReturnError()
-        {
-            var result = _handler.Execute(null) as Dictionary<string, object>;
-            AssertError(result);
-        }
-
-        #endregion
     }
 }

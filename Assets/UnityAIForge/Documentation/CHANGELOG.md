@@ -5,9 +5,29 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
-## [未リリース]
+## [2.9.0] - 2026-02-21
+
+### 変更
+
+- **GameKit Logic PillarにAnalysisツールを統合**
+  - `unity_class_dependency_graph`, `unity_scene_reference_graph`, `unity_scene_relationship_graph` をGameKit Logic Pillarに移動
+  - `CommandHandlerInitializer.cs`: `RegisterGraphAnalysisHandlers()` を `RegisterGameKitHandlers()` に統合
+  - `tool_registry.py`, `tool_definitions.py`, `schemas/__init__.py` のセクション整理
+  - Logic Pillarツールの説明に「High-level GameKit」プレフィックスを追加
+
+- **コード生成アーキテクチャへの完全移行（ツール数 64 → 48）**
+  - GameKit Logic Pillar の19ハンドラー（Actor, Combat, Health, Manager, AI, Timer, Spawner 等）を削除
+  - ランタイムライブラリ（`UnityAIForge.GameKit.Runtime`）を削除
+  - 残存する14のGameKitハンドラーはすべてコード生成方式に統一
+  - ツール内訳: GameKit 14 (UI 5 + Presentation 5 + Logic 4) / Mid-Level 20 / Low-Level 8 / Utility 5 / Batch 1
+
+- **`unity_asset_crud` 説明文から削除済み `unity_script_template_generate` への参照を除去**
 
 ### 修正
+
+- **テストTearDownのIOException修正**
+  - `GameKitHandlerTestBase.TearDown()` で `AssetDatabase.StartAssetEditing()`/`StopAssetEditing()` によるバッチ化を追加
+  - 個別の `AssetDatabase.DeleteAsset()` が .csproj 再生成を繰り返しトリガーするファイルロック競合を解消
 
 - **GameKitManager Pythonスキーマ不一致を修正**
   - C#ハンドラーが実装していない3オペレーション（`exportState`, `importState`, `setFlowEnabled`）をPythonスキーマから削除
@@ -89,7 +109,7 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 
 - **Python テストの追加**
   - `test_tool_registry.py` (NEW) - マッピング整合性、resolve_tool_name、ツール数検証（13テスト）
-  - `test_tool_definitions.py` (NEW) - 64ツール定義、スキーマ呼び出し検証（8テスト）
+  - `test_tool_definitions.py` (NEW) - ツール定義、スキーマ呼び出し検証（8テスト）
   - C# テスト `McpCommandProcessorTests.cs` を更新（`"Legacy"` → `"Unknown"`）
 
 ## [2.5.4] - 2026-01-03
