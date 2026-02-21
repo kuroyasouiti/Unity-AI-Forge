@@ -6,7 +6,7 @@ license: MIT
 
 # Unity-AI-Forge - AI-Powered Unity Development
 
-**Forge Unity games through AI collaboration. Model Context Protocol integration with GameKit framework.**
+**Forge Unity games through AI collaboration. Model Context Protocol integration with 3-pillar GameKit framework.**
 
 You are now working with Unity-AI-Forge, a powerful system that lets you create, modify, and manage Unity projects directly from this conversation through intelligent AI collaboration.
 
@@ -17,185 +17,200 @@ Before using these tools, ensure:
 2. MCP Bridge is started (Tools > MCP Assistant > Start Bridge)
 3. Connection status shows "Connected"
 
-## Core Capabilities
+## 3-Layer Architecture
 
-### 🎮 Scene Management
-- **Quick setup**: Instantly create 3D, 2D, UI, or VR scenes with proper configuration
-- **Scene operations**: Create, load, save, delete, and list scenes
-- **Context inspection**: Get real-time scene hierarchy and GameObject information
+Unity-AI-Forge provides **49 tools** organized in 3 layers. Always prefer higher-level tools first:
 
-### 🎨 GameObject Operations
-- **Templates**: Create common GameObjects (Cube, Sphere, Player, Enemy, etc.) with one command
-- **CRUD operations**: Create, rename, move, duplicate, delete GameObjects
-- **Batch operations**: Find and modify multiple GameObjects using patterns
-- **Hierarchy builder**: Build complex nested structures declaratively
+```
+High-Level GameKit (15 tools)  ← Game systems & analysis (use first)
+Mid-Level Batch   (21 tools)  ← Batch operations & presets
+Low-Level CRUD     (8 tools)  ← Individual object operations
+Utility            (5 tools)  ← Helpers & diagnostics
+```
 
-### 🧩 Component Management
-- **Add/Remove/Update**: Manage components on any GameObject
-- **Property setting**: Set component properties including asset references
-- **UnityEvent listeners**: Configure UI event handlers (Button.onClick, etc.)
-- **Batch operations**: Add/remove/update components on multiple GameObjects
+| Purpose | Recommended Layer | Example |
+|---------|------------------|---------|
+| Game systems (UI, effects, audio) | High-Level GameKit | `unity_gamekit_ui_command`, `unity_gamekit_effect` |
+| Scene/code analysis | High-Level Analysis | `unity_scene_reference_graph`, `unity_class_catalog` |
+| Batch operations & presets | Mid-Level Batch | `unity_transform_batch`, `unity_physics_bundle` |
+| Individual object control | Low-Level CRUD | `unity_gameobject_crud`, `unity_component_crud` |
 
-### 🖼️ UI Creation (UGUI)
-- **Templates**: Create complete UI elements (Button, Panel, ScrollView, Dropdown, etc.)
-- **Layout management**: Add and configure layout groups (Vertical, Horizontal, Grid)
-- **Anchor presets**: Position UI elements correctly on Canvas
+---
 
-### 📦 Asset & Script Management
-- **Asset operations**: Rename, duplicate, delete, inspect assets and update importer settings
-- **Script template generation**: Generate MonoBehaviour and ScriptableObject templates with proper Unity structure
-- **Prefab workflow**: Create, instantiate, update, apply/revert prefab overrides
-- **Design patterns**: Generate production-ready implementations of common design patterns (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
+## GameKit Framework (3-Pillar Architecture)
 
-### 🎯 Advanced Features
-- **Project settings**: Read/write Unity project settings (player, quality, time, physics, audio, editor)
-- **Render pipeline**: Inspect and configure render pipeline settings (Built-in, URP, HDRP)
-- **Tags & Layers**: Manage project tags and layers, set on GameObjects
-- **Constants**: Convert between Unity constants and numeric values (enums, colors, layers)
+GameKit uses **code generation** to produce standalone C# scripts from templates. Generated scripts have zero runtime dependency on Unity-AI-Forge.
 
-## 🎮 GameKit Framework
+| Pillar | Tools | Purpose |
+|--------|-------|---------|
+| **UI** (5 tools) | Command, Binding, List, Slot, Selection | UI Toolkit-based components (UXML/USS + C#) |
+| **Presentation** (5 tools) | AnimationSync, Effect, Feedback, VFX, Audio | Visual effects, animation, and audio components |
+| **Logic** (5 tools) | Integrity, Catalog, Dependencies, References, Relationships | Scene/code analysis and validation |
 
-**Unity-AI-Forge includes the GameKit framework - a high-level game development system with MCP integration.**
+After `create` operations, call `unity_compilation_await` to wait for Unity to compile the generated scripts.
 
-GameKit provides:
-- **GameKitActor**: Player/NPC controllers with input abstraction
-- **GameKitManager**: Centralized game systems (resources, states, turns)
-- **GameKitUICommand**: Bridge UI buttons to game logic
-- **GameKitMachinations**: Economic systems with flows/converters/triggers
-- **GameKitSceneFlow**: State machine-based scene transitions
-- **GameKitInteraction**: Trigger-based game events
-
-**📚 See [SKILL_GAMEKIT.md](SKILL_GAMEKIT.md) for complete GameKit documentation with examples.**
+**See [SKILL_GAMEKIT.md](SKILL_GAMEKIT.md) for complete GameKit documentation with examples.**
 
 ### Quick GameKit Examples
 
 ```python
-# Create a player actor
-gamekitActor({
-    "operation": "create",
-    "actorId": "Player",
-    "controlMode": "directController",
-    "behaviorProfile": "3dCharacterController"
-})
-
-# Create a resource manager for RPG
-gamekitManager({
-    "operation": "create",
-    "managerId": "PlayerStats",
-    "managerType": "resourcepool",
-    "initialResources": {
-        "health": 100,
-        "mana": 50,
-        "gold": 0
-    }
-})
-
-# Create UI buttons that control resources
-gamekitUICommand({
+# Create a mobile control panel (UI Pillar)
+unity_gamekit_ui_command({
     "operation": "createCommandPanel",
-    "panelId": "ShopUI",
-    "canvasPath": "Canvas",
-    "targetType": "manager",
-    "targetManagerId": "PlayerStats",
+    "panelId": "mobileControls",
+    "layout": "grid",
     "commands": [
-        {
-            "name": "buyPotion",
-            "label": "HP Potion (50g)",
-            "commandType": "consumeResource",
-            "commandParameter": "gold",
-            "resourceAmount": 50
-        }
+        {"name": "moveUp", "label": "Up", "commandType": "move",
+         "moveDirection": {"x": 0, "y": 0, "z": 1}},
+        {"name": "attack", "label": "Attack", "commandType": "action",
+         "commandParameter": "melee"}
     ]
 })
+unity_compilation_await({"operation": "await"})
+
+# Create hit feedback (Presentation Pillar)
+unity_gamekit_feedback({
+    "operation": "create",
+    "feedbackId": "onHit",
+    "components": [
+        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
+        {"type": "screenShake", "duration": 0.2, "intensity": 0.3}
+    ]
+})
+unity_compilation_await({"operation": "await"})
+
+# Validate scene integrity (Logic Pillar)
+unity_validate_integrity({"operation": "all"})
 ```
 
 ---
 
-## Quick Start Commands
+## Quick Start
 
 ### Scene Setup
+
 ```python
-# Set up a 3D game scene (Camera + Light)
-unity_scene_quickSetup({"setupType": "3D"})
+# Create a new scene
+unity_scene_crud({"operation": "create", "scenePath": "Assets/Scenes/GameLevel.unity"})
 
-# Set up a UI scene (Canvas + EventSystem)
-unity_scene_quickSetup({"setupType": "UI"})
-
-# Set up a 2D scene
-unity_scene_quickSetup({"setupType": "2D"})
+# Inspect current scene hierarchy
+unity_scene_crud({
+    "operation": "inspect",
+    "includeHierarchy": true,
+    "includeComponents": false
+})
 ```
 
 ### GameObject Creation
+
 ```python
-# Create from template (fastest way)
-unity_gameobject_createFromTemplate({
-    "template": "Sphere",  # Cube, Sphere, Player, Enemy, etc.
-    "name": "Ball",
-    "position": {"x": 0, "y": 5, "z": 0},
-    "scale": {"x": 0.5, "y": 0.5, "z": 0.5}
+# Create a GameObject with template
+unity_gameobject_crud({
+    "operation": "create",
+    "name": "Player",
+    "template": "Sphere"
 })
 
-# Create hierarchical menu system
-unity_menu_hierarchyCreate({
-    "menuName": "MainMenu",
-    "menuStructure": {
-        "Play": "Start Game",
-        "Settings": {
-            "text": "Game Settings",
-            "submenus": {
-                "Graphics": "Graphics Options",
-                "Audio": "Audio Settings"
-            }
-        },
-        "Quit": "Exit Game"
-    },
-    "generateStateMachine": True,
-    "stateMachineScriptPath": "Assets/Scripts/MenuManager.cs"
+# Set position/scale via Transform component
+unity_component_crud({
+    "operation": "update",
+    "gameObjectPath": "Player",
+    "componentType": "UnityEngine.Transform",
+    "propertyChanges": {
+        "position": {"x": 0, "y": 1, "z": 0},
+        "localScale": {"x": 0.5, "y": 0.5, "z": 0.5}
+    }
+})
+
+# Create with auto-attached components
+unity_gameobject_crud({
+    "operation": "create",
+    "name": "Enemy",
+    "template": "Cube",
+    "components": [
+        {"type": "UnityEngine.Rigidbody", "properties": {"mass": 2.0}},
+        {"type": "UnityEngine.BoxCollider", "properties": {"isTrigger": true}}
+    ]
+})
+
+# Batch find objects by pattern
+unity_gameobject_crud({
+    "operation": "findMultiple",
+    "pattern": "Enemy*",
+    "maxResults": 100
 })
 ```
 
-### UI Creation
+### UI Creation (UGUI)
+
 ```python
-# Create button with one command
-unity_ugui_createFromTemplate({
-    "template": "Button",
-    "text": "Start Game",
-    "width": 200,
-    "height": 50,
-    "anchorPreset": "middle-center"
+# Create Canvas with EventSystem
+unity_ui_foundation({
+    "operation": "createCanvas",
+    "name": "GameUI",
+    "renderMode": "screenSpaceOverlay"
 })
 
-# Create complete menu with navigation
-unity_menu_hierarchyCreate({
-    "menuName": "GameMenu",
-    "menuStructure": {
-        "NewGame": "New Game",
-        "LoadGame": "Load Game",
-        "Options": {
-            "text": "Options",
-            "submenus": {
-                "Display": "Display Settings",
-                "Sound": "Sound Settings",
-                "Controls": "Control Settings"
-            }
-        },
-        "Exit": "Exit Game"
-    },
-    "generateStateMachine": True,
-    "stateMachineScriptPath": "Assets/Scripts/GameMenuManager.cs",
-    "buttonWidth": 250,
-    "buttonHeight": 60,
-    "navigationMode": "both"
+# Create Button
+unity_ui_foundation({
+    "operation": "createButton",
+    "name": "StartButton",
+    "parentPath": "GameUI",
+    "text": "Start Game",
+    "anchorPreset": "middleCenter"
+})
+
+# Create complete UI hierarchy declaratively
+unity_ui_hierarchy({
+    "operation": "create",
+    "parentPath": "GameUI",
+    "hierarchy": {
+        "type": "panel",
+        "name": "MainMenu",
+        "children": [
+            {"type": "text", "name": "Title", "text": "Game Title", "fontSize": 48},
+            {"type": "button", "name": "StartBtn", "text": "Start Game"},
+            {"type": "button", "name": "OptionsBtn", "text": "Options"},
+            {"type": "button", "name": "QuitBtn", "text": "Quit"}
+        ],
+        "layout": "Vertical",
+        "spacing": 20
+    }
+})
+```
+
+### UI Toolkit (Modern UI)
+
+```python
+# Create UXML + USS assets from template
+unity_uitk_asset({
+    "operation": "createFromTemplate",
+    "templateName": "menu",
+    "outputDir": "Assets/UI/MainMenu",
+    "title": "My Game",
+    "buttons": ["New Game", "Load Game", "Settings", "Quit"]
+})
+
+# Create UIDocument in scene to display the UXML
+unity_uitk_document({
+    "operation": "create",
+    "name": "MainMenuUI",
+    "sourceAsset": "Assets/UI/MainMenu/MainMenu.uxml"
 })
 ```
 
 ### Component Management
+
 ```python
-# Add component
+# Add component with properties
 unity_component_crud({
     "operation": "add",
     "gameObjectPath": "Player",
-    "componentType": "UnityEngine.Rigidbody"
+    "componentType": "UnityEngine.Rigidbody",
+    "propertyChanges": {
+        "mass": 2.0,
+        "useGravity": true
+    }
 })
 
 # Update component properties
@@ -209,368 +224,639 @@ unity_component_crud({
     }
 })
 
-# Fast inspection (existence check only)
+# Fast existence check (10x faster)
 unity_component_crud({
     "operation": "inspect",
     "gameObjectPath": "Player",
-    "componentType": "UnityEngine.CharacterController",
-    "includeProperties": False  # 10x faster!
+    "componentType": "UnityEngine.Rigidbody",
+    "includeProperties": false
+})
+
+# Batch operations with pattern matching
+unity_component_crud({
+    "operation": "addMultiple",
+    "pattern": "Enemy*",
+    "componentType": "UnityEngine.BoxCollider",
+    "maxResults": 1000
 })
 ```
 
-### Scene Inspection
+### Asset & Script Management
+
 ```python
-# Get scene overview (returns one level of hierarchy for performance)
-unity_scene_crud({
-    "operation": "inspect",
-    "includeHierarchy": True,
-    "includeComponents": False,  # Skip components for speed
-    "filter": "Player*"  # Optional: filter by pattern
-})
-
-# For deeper exploration, inspect specific GameObject
-unity_gameobject_crud({
-    "operation": "inspect",
-    "gameObjectPath": "Player/Weapon",
-    "includeComponents": True
-})
-```
-
-### Script Template Generation
-```python
-# Generate MonoBehaviour template
-unity_script_template_generate({
-    "templateType": "MonoBehaviour",
-    "className": "PlayerController",
-    "scriptPath": "Assets/Scripts/PlayerController.cs",
-    "namespace": "MyGame.Player"
-})
-
-# Generate ScriptableObject template
-unity_script_template_generate({
-    "templateType": "ScriptableObject",
-    "className": "GameConfig",
-    "scriptPath": "Assets/ScriptableObjects/GameConfig.cs"
-})
-
-# Modify generated template using asset_crud
+# Create a C# script
 unity_asset_crud({
-    "operation": "update",
+    "operation": "create",
     "assetPath": "Assets/Scripts/PlayerController.cs",
-    "content": "using UnityEngine;\n\nnamespace MyGame.Player\n{\n    public class PlayerController : MonoBehaviour\n    {\n        public float speed = 5f;\n        \n        void Update()\n        {\n            // Movement code\n        }\n    }\n}"
+    "content": "using UnityEngine;\n\npublic class PlayerController : MonoBehaviour\n{\n    public float speed = 5f;\n    void Update() { /* movement */ }\n}"
+})
+
+# Wait for compilation after script creation
+unity_compilation_await({"operation": "await"})
+
+# Inspect asset properties
+unity_asset_crud({
+    "operation": "inspect",
+    "assetPath": "Assets/Textures/player.png"
+})
+
+# Update importer settings
+unity_asset_crud({
+    "operation": "updateImporter",
+    "assetPath": "Assets/Textures/player.png",
+    "propertyChanges": {"textureType": "Sprite"}
 })
 ```
 
-### Design Pattern Generation
+### Prefab Workflow
+
 ```python
-# Generate Singleton pattern
-unity_designPattern_generate({
-    "patternType": "singleton",
-    "className": "GameManager",
-    "scriptPath": "Assets/Scripts/GameManager.cs",
-    "options": {
-        "persistent": True,
-        "threadSafe": True,
-        "monoBehaviour": True
-    }
+# Create prefab from scene object
+unity_prefab_crud({
+    "operation": "create",
+    "gameObjectPath": "Player",
+    "prefabPath": "Assets/Prefabs/Player.prefab"
 })
 
-# Generate ObjectPool pattern
-unity_designPattern_generate({
-    "patternType": "objectpool",
-    "className": "BulletPool",
-    "scriptPath": "Assets/Scripts/BulletPool.cs",
-    "options": {
-        "pooledType": "Bullet",
-        "defaultCapacity": "100",
-        "maxSize": "500"
-    }
+# Instantiate prefab
+unity_prefab_crud({
+    "operation": "instantiate",
+    "prefabPath": "Assets/Prefabs/Enemy.prefab",
+    "parentPath": "Enemies",
+    "position": {"x": 5, "y": 0, "z": 0}
 })
 
-# Generate StateMachine pattern
-unity_designPattern_generate({
-    "patternType": "statemachine",
-    "className": "PlayerStateMachine",
-    "scriptPath": "Assets/Scripts/PlayerStateMachine.cs",
-    "namespace": "MyGame.Player"
+# Apply instance overrides back to prefab
+unity_prefab_crud({
+    "operation": "applyOverrides",
+    "gameObjectPath": "Player"
 })
-
-# Available patterns: singleton, objectpool, statemachine, observer, command, factory, servicelocator
 ```
+
+### ScriptableObject Management
+
+```python
+# Create instance from existing type
+unity_scriptableObject_crud({
+    "operation": "create",
+    "typeName": "MyGame.GameConfig",
+    "assetPath": "Assets/Data/GameConfig.asset",
+    "properties": {"version": 1, "difficulty": "normal"}
+})
+
+# Find all instances of a type
+unity_scriptableObject_crud({
+    "operation": "findByType",
+    "typeName": "MyGame.GameConfig",
+    "searchPath": "Assets/Data"
+})
+```
+
+### Project Settings
+
+```python
+# Read a setting
+unity_projectSettings_crud({
+    "operation": "read",
+    "category": "physics2d",
+    "property": "gravity"
+})
+
+# Add tag
+unity_projectSettings_crud({
+    "operation": "write",
+    "category": "tagsLayers",
+    "property": "addTag",
+    "value": "Enemy"
+})
+
+# Add scene to build settings
+unity_projectSettings_crud({
+    "operation": "addSceneToBuild",
+    "scenePath": "Assets/Scenes/Level1.unity"
+})
+```
+
+---
+
+## Mid-Level Batch Tools
+
+### Transform Batch
+
+```python
+# Arrange objects in a circle
+unity_transform_batch({
+    "operation": "arrangeCircle",
+    "gameObjectPaths": ["Obj1", "Obj2", "Obj3"],
+    "radius": 5.0
+})
+
+# Arrange in a line
+unity_transform_batch({
+    "operation": "arrangeLine",
+    "gameObjectPaths": ["Obj1", "Obj2", "Obj3"],
+    "startPosition": {"x": 0, "y": 0, "z": 0},
+    "endPosition": {"x": 10, "y": 0, "z": 0}
+})
+
+# Rename sequentially
+unity_transform_batch({
+    "operation": "renameSequential",
+    "gameObjectPaths": ["Obj1", "Obj2", "Obj3"],
+    "baseName": "Enemy",
+    "startIndex": 1,
+    "padding": 3
+})
+```
+
+### Physics Bundle
+
+```python
+# Apply physics preset
+unity_physics_bundle({
+    "operation": "applyPreset2D",
+    "gameObjectPaths": ["Player"],
+    "preset": "character"
+})
+# Presets: dynamic, kinematic, static, character, platformer, topDown, vehicle, projectile
+```
+
+### Camera Rig
+
+```python
+# Create follow camera
+unity_camera_rig({
+    "operation": "createRig",
+    "rigType": "follow",
+    "rigName": "MainCamera",
+    "targetPath": "Player",
+    "offset": {"x": 0, "y": 5, "z": -10}
+})
+# rigType: follow, orbit, splitScreen, fixed, dolly
+```
+
+### Material, Light & Particle Bundles
+
+```python
+# Create material with preset
+unity_material_bundle({"operation": "create", "savePath": "Assets/Materials/Player.mat", "preset": "metallic"})
+
+# Create lighting setup
+unity_light_bundle({"operation": "createLightingSetup", "setupPreset": "daylight"})
+
+# Create particle system with preset
+unity_particle_bundle({"operation": "create", "gameObjectPath": "Effects/Fire", "preset": "fire"})
+```
+
+### Audio Source Bundle
+
+```python
+unity_audio_source_bundle({
+    "operation": "createAudioSource",
+    "gameObjectPath": "BGM",
+    "preset": "music"
+})
+# Presets: music, sfx, ambient, voice, ui
+```
+
+### 2D Tools
+
+```python
+# Sprite management
+unity_sprite2d_bundle({"operation": "createSprite", "name": "Player", "spritePath": "Assets/Sprites/player.png"})
+
+# Tilemap creation
+unity_tilemap_bundle({"operation": "createTilemap", "name": "Ground", "cellLayout": "Rectangle"})
+
+# 2D animation setup
+unity_animation2d_bundle({"operation": "createController", "controllerPath": "Assets/Animations/Player.controller"})
+```
+
+### 3D Animation
+
+```python
+# Create AnimatorController with BlendTree
+unity_animation3d_bundle({
+    "operation": "createController",
+    "controllerPath": "Assets/Animations/Character.controller"
+})
+unity_animation3d_bundle({
+    "operation": "addBlendTree",
+    "controllerPath": "Assets/Animations/Character.controller",
+    "blendTreeName": "Locomotion",
+    "blendParameter": "Speed"
+})
+```
+
+### Event Wiring
+
+```python
+# Wire Button.onClick to a method
+unity_event_wiring({
+    "operation": "wire",
+    "source": {
+        "gameObject": "Canvas/StartButton",
+        "component": "UnityEngine.UI.Button",
+        "event": "onClick"
+    },
+    "target": {
+        "gameObject": "GameManager",
+        "method": "StartGame"
+    }
+})
+```
+
+### Input Profile
+
+```python
+# Setup player input with preset
+unity_input_profile({
+    "operation": "createPlayerInput",
+    "gameObjectPath": "Player",
+    "preset": "player"
+})
+# Presets: player (move/jump/fire), ui (navigate/submit/cancel), vehicle (accelerate/brake/steer)
+```
+
+### Character Controller Bundle
+
+```python
+unity_character_controller_bundle({
+    "operation": "applyPreset",
+    "gameObjectPath": "Player",
+    "preset": "fps"
+})
+# Presets: fps, tps, platformer, child, large, narrow, custom
+```
+
+### UI State & Navigation
+
+```python
+# Define UI states
+unity_ui_state({
+    "operation": "defineState",
+    "rootPath": "Canvas/HUD",
+    "stateName": "combat",
+    "elements": [
+        {"path": "HPBar", "visible": true},
+        {"path": "ManaBar", "visible": true},
+        {"path": "MinimapPanel", "visible": false}
+    ]
+})
+
+# Configure navigation for gamepad support
+unity_ui_navigation({
+    "operation": "autoSetup",
+    "rootPath": "Canvas/MainMenu",
+    "direction": "vertical"
+})
+```
+
+### RectTransform Batch
+
+```python
+# Distribute buttons evenly
+unity_rectTransform_batch({
+    "operation": "distributeHorizontal",
+    "gameObjectPaths": ["Btn1", "Btn2", "Btn3"],
+    "spacing": 10
+})
+
+# Align to parent with anchor preset
+unity_rectTransform_batch({
+    "operation": "alignToParent",
+    "gameObjectPaths": ["Panel"],
+    "preset": "stretchAll"
+})
+```
+
+### Vector Sprite Convert
+
+```python
+# Generate sprite from primitive
+unity_vector_sprite_convert({
+    "operation": "primitiveToSprite",
+    "primitiveType": "circle",
+    "width": 128,
+    "height": 128,
+    "color": {"r": 1, "g": 0, "b": 0, "a": 1},
+    "outputPath": "Assets/Sprites/circle.png"
+})
+```
+
+---
+
+## Utility Tools
+
+```python
+# Check bridge connection
+unity_ping()
+
+# Wait for script compilation
+unity_compilation_await({"operation": "await", "timeoutSeconds": 60})
+
+# Control play mode
+unity_playmode_control({"operation": "play"})
+unity_playmode_control({"operation": "stop"})
+unity_playmode_control({"operation": "getState"})
+
+# Get console logs
+unity_console_log({"operation": "getRecent", "count": 50})
+unity_console_log({"operation": "getErrors"})
+unity_console_log({"operation": "getCompilationErrors"})
+
+# Sequential batch execution with resume
+unity_batch_sequential_execute({
+    "operations": [
+        {"tool": "unity_gameobject_crud", "arguments": {"operation": "create", "name": "Enemy1"}},
+        {"tool": "unity_component_crud", "arguments": {"operation": "add", "gameObjectPath": "Enemy1", "componentType": "UnityEngine.Rigidbody"}}
+    ],
+    "stop_on_error": true
+})
+```
+
+---
+
+## PDCA Development Workflow
+
+All development follows the **Plan - Do - Check - Act** cycle:
+
+### P (Plan) - Investigate before changes
+
+```python
+# Inspect scene hierarchy
+unity_scene_crud({"operation": "inspect", "includeHierarchy": true})
+
+# Check what references an object (before deleting/renaming)
+unity_scene_reference_graph({"operation": "analyzeObject", "objectPath": "TargetObject"})
+
+# Discover available types
+unity_class_catalog({"operation": "listTypes", "typeKind": "MonoBehaviour"})
+```
+
+### D (Do) - Execute with appropriate tools
+
+```python
+# High-Level: Game systems
+unity_gamekit_ui_command({"operation": "createCommandPanel", ...})
+
+# Mid-Level: Batch operations
+unity_physics_bundle({"operation": "applyPreset2D", "gameObjectPaths": ["Player"], "preset": "character"})
+
+# Low-Level: Individual control
+unity_component_crud({"operation": "add", "gameObjectPath": "Player", "componentType": "..."})
+
+# Wait for compilation after script changes
+unity_compilation_await({"operation": "await"})
+```
+
+### C (Check) - Verify after changes
+
+```python
+# Scene integrity validation
+unity_validate_integrity({"operation": "all"})
+
+# Check references and events
+unity_scene_relationship_graph({"operation": "analyzeAll"})
+
+# Check console for errors
+unity_console_log({"operation": "getErrors"})
+```
+
+### A (Act) - Fix issues and test
+
+```python
+# Fix broken event wiring
+unity_event_wiring({"operation": "wire", ...})
+
+# Test in play mode
+unity_playmode_control({"operation": "play"})
+unity_console_log({"operation": "getErrors"})
+unity_playmode_control({"operation": "stop"})
+```
+
+---
 
 ## Best Practices
 
-### DO ✅
-1. **Use templates** - 10x faster than manual creation
+### DO
+
+1. **Inspect before modifying** - Understand current state first
    ```python
-   unity_ugui_createFromTemplate({"template": "Button"})  # Not manual GameObject + components
+   unity_scene_crud({"operation": "inspect", "includeHierarchy": true, "includeComponents": false})
    ```
 
-2. **Check context first** - Understand current state before changes
+2. **Use higher-level tools first** - GameKit > Batch > CRUD
    ```python
-   unity_context_inspect({"includeHierarchy": True, "includeComponents": False})
+   # Use ui_hierarchy instead of manual GameObject + component creation
+   unity_ui_hierarchy({"operation": "create", "parentPath": "Canvas", "hierarchy": {...}})
    ```
 
-3. **Use menu creation** - Create complete menu systems with navigation
+3. **Use `includeProperties=false` for fast inspection**
    ```python
-   unity_menu_hierarchyCreate({"menuName": "MainMenu", "menuStructure": {...}})  # Not manual UI creation
+   unity_component_crud({"operation": "inspect", "gameObjectPath": "Player",
+       "componentType": "UnityEngine.Rigidbody", "includeProperties": false})
    ```
 
-4. **Use script templates** - Generate standard Unity script structures quickly
+4. **Set `maxResults` for batch operations** - Prevent timeouts
    ```python
-   unity_script_template_generate({"templateType": "MonoBehaviour", "className": "Player", "scriptPath": "Assets/Scripts/Player.cs"})
+   unity_component_crud({"operation": "addMultiple", "pattern": "Enemy*",
+       "componentType": "UnityEngine.Rigidbody", "maxResults": 1000})
    ```
 
-5. **Optimize inspections** - Use `includeProperties=false` and `propertyFilter`
+5. **Wait for compilation after script changes**
    ```python
-   unity_component_crud({
-       "operation": "inspect",
-       "gameObjectPath": "Player",
-       "componentType": "UnityEngine.Transform",
-       "propertyFilter": ["position", "rotation"]  # Only specific properties
-   })
+   unity_asset_crud({"operation": "create", "assetPath": "Assets/Scripts/Foo.cs", "content": "..."})
+   unity_compilation_await({"operation": "await"})
    ```
 
-6. **Limit batch operations** - Use `maxResults` to prevent timeouts
+6. **Validate integrity after significant changes**
    ```python
-   unity_component_crud({
-       "operation": "addMultiple",
-       "pattern": "Enemy*",
-       "componentType": "UnityEngine.Rigidbody",
-       "maxResults": 1000  # Safe limit
-   })
+   unity_validate_integrity({"operation": "all"})
    ```
 
-### DON'T ❌
-1. **Don't create UI manually** - Use templates instead
-2. **Don't edit .meta files** - Unity manages these automatically
-3. **Don't use asset tool for scripts** - Use script batch manager
-4. **Don't skip context inspection** - Know what exists before modifying
-5. **Don't use unlimited batch operations** - Always set `maxResults`
+### DON'T
+
+1. **Don't edit .meta files** - Unity manages these automatically
+2. **Don't skip inspection** - Know what exists before modifying
+3. **Don't use unlimited batch operations** - Always set `maxResults`
+4. **Don't forget compilation waits** - After C# script creation/modification
+5. **Don't use low-level tools for complex setups** - Use Mid/High-Level tools instead
+
+---
+
+## Performance Tips
+
+```python
+# Ultra-fast existence check (0.1s)
+unity_component_crud({
+    "operation": "inspect",
+    "gameObjectPath": "Player",
+    "componentType": "UnityEngine.Rigidbody",
+    "includeProperties": false
+})
+
+# Fast: Get specific properties only (0.3s)
+unity_component_crud({
+    "operation": "inspect",
+    "gameObjectPath": "Player",
+    "componentType": "UnityEngine.Transform",
+    "propertyFilter": ["position", "rotation"]
+})
+
+# Use Mid-Level Batch instead of loops
+unity_transform_batch({"operation": "arrangeCircle", "gameObjectPaths": [...]})
+
+# Use *Multiple operations for batch processing
+unity_component_crud({"operation": "addMultiple", "pattern": "Enemy*", "componentType": "..."})
+
+# Use batch_sequential_execute for multi-step operations
+unity_batch_sequential_execute({"operations": [...]})
+```
+
+---
 
 ## Component Type Reference
 
 ### Common Unity Components
 - Transform: `UnityEngine.Transform`
-- Rigidbody: `UnityEngine.Rigidbody`
+- Rigidbody: `UnityEngine.Rigidbody` / `UnityEngine.Rigidbody2D`
 - Colliders: `UnityEngine.BoxCollider`, `UnityEngine.SphereCollider`, `UnityEngine.CapsuleCollider`
+- 2D Colliders: `UnityEngine.BoxCollider2D`, `UnityEngine.CircleCollider2D`, `UnityEngine.CapsuleCollider2D`
 - Renderer: `UnityEngine.MeshRenderer`, `UnityEngine.SpriteRenderer`
 - Camera: `UnityEngine.Camera`
 - Light: `UnityEngine.Light`
 - Audio: `UnityEngine.AudioSource`, `UnityEngine.AudioListener`
+- Animation: `UnityEngine.Animator`
+- CharacterController: `UnityEngine.CharacterController`
 
 ### UI Components (UGUI)
 - Canvas: `UnityEngine.Canvas`, `UnityEngine.UI.CanvasScaler`, `UnityEngine.UI.GraphicRaycaster`
 - Controls: `UnityEngine.UI.Button`, `UnityEngine.UI.Toggle`, `UnityEngine.UI.Slider`, `UnityEngine.UI.InputField`
-- Display: `UnityEngine.UI.Text`, `UnityEngine.UI.Image`, `UnityEngine.UI.RawImage`
+- Display: `UnityEngine.UI.Image`, `UnityEngine.UI.RawImage`, `TMPro.TextMeshProUGUI`
 - Layout: `UnityEngine.UI.VerticalLayoutGroup`, `UnityEngine.UI.HorizontalLayoutGroup`, `UnityEngine.UI.GridLayoutGroup`
 
-## Performance Tips
-
-### Fast Operations
+### Unity Object References (in propertyChanges)
 ```python
-# ⚡ Ultra-fast: Check existence only (0.1s)
-unity_component_crud({
-    "operation": "inspect",
-    "gameObjectPath": "Player",
-    "componentType": "UnityEngine.Rigidbody",
-    "includeProperties": False
-})
-
-# ⚡ Fast: Get specific properties (0.3s)
-unity_component_crud({
-    "operation": "inspect",
-    "gameObjectPath": "Player",
-    "componentType": "UnityEngine.Transform",
-    "propertyFilter": ["position"]
-})
+{"$ref": "Assets/Materials/Player.mat"}     # Asset reference
+{"$ref": "Canvas/Panel/Button"}             # Scene object reference
 ```
 
-### Batch Operations with Safety
-```python
-# Test small first
-test = unity_component_crud({
-    "operation": "addMultiple",
-    "pattern": "Enemy*",
-    "componentType": "UnityEngine.Rigidbody",
-    "maxResults": 10,  # Test with 10 first
-    "stopOnError": False
-})
-
-# If successful, scale up
-if test["errorCount"] == 0:
-    unity_component_crud({...,"maxResults": 1000})
-```
-
-## Common Workflows
-
-### Create a Main Menu
-```python
-# 1. Setup UI scene
-unity_scene_quickSetup({"setupType": "UI"})
-
-# 2. Create complete menu system with navigation
-unity_menu_hierarchyCreate({
-    "menuName": "MainMenu",
-    "menuStructure": {
-        "Play": "Start Game",
-        "Settings": {
-            "text": "Settings",
-            "submenus": {
-                "Graphics": "Graphics Settings",
-                "Audio": "Audio Settings",
-                "Controls": "Control Settings"
-            }
-        },
-        "Credits": "View Credits",
-        "Quit": "Exit Game"
-    },
-    "generateStateMachine": True,
-    "stateMachineScriptPath": "Assets/Scripts/MainMenuManager.cs",
-    "buttonWidth": 300,
-    "buttonHeight": 60,
-    "spacing": 15
-})
-```
-
-### Create a Game Level
-```python
-# 1. Setup 3D scene
-unity_scene_quickSetup({"setupType": "3D"})
-
-# 2. Create player
-unity_gameobject_createFromTemplate({
-    "template": "Player",
-    "position": {"x": 0, "y": 1, "z": 0}
-})
-
-# 3. Create ground
-unity_gameobject_createFromTemplate({
-    "template": "Plane",
-    "name": "Ground",
-    "scale": {"x": 10, "y": 1, "z": 10}
-})
-
-# 4. Create obstacles
-for i in range(5):
-    unity_gameobject_createFromTemplate({
-        "template": "Cube",
-        "name": f"Obstacle{i}",
-        "position": {"x": i*2, "y": 0.5, "z": 0}
-    })
-```
+---
 
 ## Troubleshooting
 
 ### Unity Bridge Not Connected
-**Solution**: Open Unity → Tools → MCP Assistant → Start Bridge
+**Solution**: Open Unity > Tools > MCP Assistant > Start Bridge. Verify with `unity_ping()`.
 
 ### GameObject Not Found
-**Solution**: Use `unity_context_inspect()` to see what exists
+**Solution**: Use `unity_scene_crud({"operation": "inspect", "includeHierarchy": true})` to see what exists.
 
 ### Component Type Not Found
-**Solution**: Use fully qualified names (e.g., `UnityEngine.UI.Button`, not just `Button`)
+**Solution**: Use fully qualified names (e.g., `UnityEngine.UI.Button`, not `Button`). Use `unity_class_catalog` to discover available types.
 
 ### Operation Timeout
 **Solution**:
-- Use `includeProperties=false` for faster operations
-- Set `maxResults` limit for batch operations
-- Check Unity isn't compiling scripts
-
-## Complete Tool Reference
-
-**📚 For detailed documentation of all 28 tools, see [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)**
-
-The tools are organized into 10 categories:
-
-| Category | Tools | Description |
-|----------|-------|-------------|
-| **Core Tools** | 4 | Connection, context, menu creation, compilation |
-| **Scene Management** | 2 | Scene CRUD, quick setup templates |
-| **GameObject Operations** | 3 | GameObject CRUD, templates, tag/layer management |
-| **Component Management** | 1 | Component CRUD with batch operations |
-| **Asset Management** | 2 | Asset operations, C# script batch management |
-| **Design Patterns** | 1 | Generate production-ready design pattern implementations |
-| **UI (UGUI) Tools** | 6 | UI templates, layouts, RectTransform, overlap detection |
-| **Prefab Management** | 1 | Prefab workflow (create, instantiate, apply/revert) |
-| **Advanced Features** | 7 | Settings, pipeline, input system, tilemap, navmesh, constants |
-| **Utility Tools** | 1 | Compilation waiting |
-
-**Total: 28 Tools**
+- Use `includeProperties=false` for faster inspections
+- Set `maxResults` for batch operations
+- Check compilation status with `unity_compilation_await`
+- Use Mid-Level Batch tools instead of loops
 
 ---
 
-## Quick Tool Reference
+## Complete Tool Reference (49 Tools)
 
-### Scene Management
-- `unity_scene_quickSetup` - Quick scene setup (3D/2D/UI/VR)
-- `unity_scene_crud` - Create, load, save, delete scenes, manage build settings
-- `unity_context_inspect` - Get scene hierarchy and state
+### High-Level GameKit - UI Pillar (5 tools)
 
-### GameObject Operations
-- `unity_gameobject_createFromTemplate` - Create from templates
-- `unity_gameobject_crud` - Full GameObject CRUD operations
-- `unity_menu_hierarchyCreate` - Create hierarchical menu systems with navigation
+| Tool | Description |
+|------|-------------|
+| `unity_gamekit_ui_command` | Button command panels (UXML/USS + C#) |
+| `unity_gamekit_ui_binding` | Declarative UI data binding |
+| `unity_gamekit_ui_list` | Dynamic ScrollView list/grid |
+| `unity_gamekit_ui_slot` | Equipment/quickslot UI |
+| `unity_gamekit_ui_selection` | Radio/toggle/checkbox/tab groups |
 
-### Component Management
-- `unity_component_crud` - Add, update, remove, inspect components
+### High-Level GameKit - Presentation Pillar (5 tools)
 
-### UI Creation
-- `unity_ugui_createFromTemplate` - Create UI elements from templates
-- `unity_ugui_layoutManage` - Manage layout components
+| Tool | Description |
+|------|-------------|
+| `unity_gamekit_animation_sync` | Animator parameter sync with game state |
+| `unity_gamekit_effect` | Composite effects (particle + sound + shake) |
+| `unity_gamekit_feedback` | Game feel (hitstop, screen shake, flash) |
+| `unity_gamekit_vfx` | ParticleSystem wrapper with pooling |
+| `unity_gamekit_audio` | Sound management (SFX, music, ambient) |
 
-### Asset & Script Management
-- `unity_asset_crud` - Asset file operations (including C# scripts)
-- `unity_script_template_generate` - Generate MonoBehaviour/ScriptableObject templates
+### High-Level GameKit - Logic Pillar (5 tools)
 
-### Design Patterns
-- `unity_designPattern_generate` - Generate design pattern implementations (Singleton, ObjectPool, StateMachine, Observer, Command, Factory, ServiceLocator)
+| Tool | Description |
+|------|-------------|
+| `unity_validate_integrity` | Scene integrity validation (missing scripts, null refs) |
+| `unity_class_catalog` | Type enumeration and inspection |
+| `unity_class_dependency_graph` | C# class dependency analysis |
+| `unity_scene_reference_graph` | Scene object reference analysis |
+| `unity_scene_relationship_graph` | Scene transition and relationship analysis |
 
-### Advanced Features
-- `unity_prefab_crud` - Prefab workflow operations
-- `unity_projectSettings_crud` - Project settings management (player, quality, time, physics, audio, editor)
-- `unity_renderPipeline_manage` - Render pipeline configuration (Built-in, URP, HDRP)
-- `unity_tagLayer_manage` - Tag and layer management
-- `unity_constant_convert` - Convert between Unity constants and values (enums, colors, layers)
-- `unity_template_manage` - Customize GameObjects and convert to prefabs
+### Mid-Level Batch (21 tools)
 
-### UGUI Tools
-- `unity_ugui_manage` - Unified UGUI management (RectTransform operations)
-- `unity_ugui_rectAdjust` - Adjust RectTransform size
-- `unity_ugui_anchorManage` - Manage RectTransform anchors
-- `unity_ugui_detectOverlaps` - Detect overlapping UI elements
+| Tool | Description |
+|------|-------------|
+| `unity_transform_batch` | Batch arrange, rename patterns |
+| `unity_rectTransform_batch` | UI anchors, alignment, distribution |
+| `unity_physics_bundle` | Physics presets (2D/3D) |
+| `unity_camera_rig` | Camera rig presets (follow, orbit, etc.) |
+| `unity_ui_foundation` | UGUI element creation (Canvas, Button, Text, etc.) |
+| `unity_ui_hierarchy` | Declarative UI hierarchy from JSON |
+| `unity_ui_state` | UI state management |
+| `unity_ui_navigation` | Keyboard/gamepad navigation setup |
+| `unity_audio_source_bundle` | AudioSource presets |
+| `unity_input_profile` | New Input System setup |
+| `unity_character_controller_bundle` | CharacterController presets |
+| `unity_tilemap_bundle` | Tilemap creation and tile management |
+| `unity_sprite2d_bundle` | 2D sprite management |
+| `unity_animation2d_bundle` | 2D animation setup |
+| `unity_animation3d_bundle` | 3D animation (BlendTree, AvatarMask) |
+| `unity_material_bundle` | Material creation and presets |
+| `unity_light_bundle` | Light setup and presets |
+| `unity_particle_bundle` | Particle system presets |
+| `unity_event_wiring` | UnityEvent wiring (onClick, onValueChanged, etc.) |
+| `unity_uitk_document` | UI Toolkit UIDocument management |
+| `unity_uitk_asset` | UI Toolkit asset creation (UXML, USS) |
 
-### Utility
-- `unity_ping` - Test connection and get Unity version
-- `unity_await_compilation` - Wait for Unity compilation to complete (includes console logs in results)
+### Low-Level CRUD (8 tools)
 
-## Tips for Success
+| Tool | Description |
+|------|-------------|
+| `unity_scene_crud` | Scene create/load/save/delete/inspect |
+| `unity_gameobject_crud` | GameObject lifecycle (create/delete/move/rename/batch) |
+| `unity_component_crud` | Component add/remove/update/inspect/batch |
+| `unity_asset_crud` | Asset file management (create/update/delete/inspect) |
+| `unity_scriptableObject_crud` | ScriptableObject management |
+| `unity_prefab_crud` | Prefab workflow (create/instantiate/apply/revert) |
+| `unity_vector_sprite_convert` | Vector/primitive to sprite conversion |
+| `unity_projectSettings_crud` | Project settings (player, quality, physics, tags/layers, build) |
 
-1. **Always check context before major operations** - Know what you're working with
-2. **Use templates whenever possible** - They're optimized and reliable
-3. **Batch similar operations** - More efficient than individual commands
-4. **Set appropriate timeouts** - Some operations need more time (script compilation)
-5. **Use property filters** - Get only the data you need
-6. **Test with small limits first** - Before scaling up batch operations
-7. **Follow Unity naming conventions** - Use full component type names
+### Utility (5 tools)
+
+| Tool | Description |
+|------|-------------|
+| `unity_ping` | Bridge connectivity check |
+| `unity_compilation_await` | Wait for script compilation |
+| `unity_playmode_control` | Play mode control (play/pause/stop/step) |
+| `unity_console_log` | Console log retrieval and filtering |
+| `unity_batch_sequential_execute` | Sequential batch execution with resume |
 
 ---
 
 ## Additional Documentation
 
 ### GameKit Framework
-**📚 [SKILL_GAMEKIT.md](SKILL_GAMEKIT.md)** - Complete guide to GameKit framework:
-- GameKitActor (player/NPC controllers)
-- GameKitManager (resource/state/turn management)  
-- GameKitUICommand (UI → game logic bridge)
-- GameKitMachinations (economic systems)
-- GameKitSceneFlow (scene transitions)
-- GameKitInteraction (trigger systems)
-- **Includes complete game examples** (RPG, Tower Defense, Turn-Based Strategy)
-
-### MCP Tools Reference
-**📚 [TOOLS_REFERENCE.md](docs/TOOLS_REFERENCE.md)** - Detailed documentation of all 28+ MCP tools
+**[SKILL_GAMEKIT.md](SKILL_GAMEKIT.md)** - Complete guide to GameKit's 3-pillar architecture:
+- **UI Pillar**: UICommand, UIBinding, UIList, UISlot, UISelection
+- **Presentation Pillar**: AnimationSync, Effect, Feedback, VFX, Audio
+- **Logic Pillar**: Integrity validation, class catalog, dependency/reference/relationship graphs
+- Code generation workflow
+- Complete game examples and best practices
 
 ---
 
-**You now have complete control over Unity Editor. Build amazing projects!** 🚀
+**You now have complete control over Unity Editor with 49 tools across 3 layers. Build amazing projects!**

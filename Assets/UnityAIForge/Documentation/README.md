@@ -19,40 +19,12 @@
   - クラス依存関係・シーン参照・シーン関係性グラフツールをLogic Pillarに移動
   - 3本柱アーキテクチャの一貫性を向上
 
-- **ツール構成の最適化（48ツール）**
-  - GameKit 14 (UI 5 + Presentation 5 + Logic 4)
-  - Mid-Level 20 (バッチ操作 + UI Toolkit)
-  - Low-Level 8 / Utility 5 / Batch 1
+- **ツール構成の最適化（49ツール）**
+  - GameKit 15 (UI 5 + Presentation 5 + Logic 5)
+  - Mid-Level 21 (バッチ操作 + ビジュアル制御 + UI Toolkit)
+  - Low-Level 8 / Utility 5
   - **11種類のコマンド**: Move/Jump/Action/Look/Custom + AddResource/SetResource/ConsumeResource/ChangeState/NextTurn/TriggerScene
   - UIボタンでゲーム経済、状態、ターンを制御可能
-  - ストラテジーゲーム、ショップUI、リソース管理に最適
-
-- **📊 GameKit Machinations強化**: ダイアグラム実行
-  - ProcessDiagramFlows() - 自動リソースフローの実行
-  - CheckDiagramTriggers() - しきい値イベントの監視
-  - ExecuteConverter() - 特定のリソース変換の実行
-  - SetFlowEnabled() - ランタイムでの動的フロー制御
-  - フローとトリガーの自動実行モード
-
-- **🎯 ResourceManager簡素化**: コア機能に集中
-  - 純粋なリソースストレージとイベント管理
-  - 複雑なロジックは外部コントローラーまたはMachinationsに移動
-  - パフォーマンスの向上（デフォルトでUpdate()オーバーヘッドなし）
-  - 関心事のより明確な分離
-
-### 前回のリリース（v2.0.0）のハイライト
-
-- **🎯 ハブベースアーキテクチャ**: すべてのGameKitコンポーネントをインテリジェントハブとして再設計
-- **🎮 GameKit Actor**: 8つの動作プロファイル、4つの制御モード、UnityEvents
-- **⚙️ GameKit Manager Hub**: 動的なモード固有コンポーネント（TurnBased、ResourcePool、EventHub、StateManager、Realtime）
-- **🎭 GameKit Interaction Hub**: マルチトリガー宣言型システム、特殊トリガー搭載
-- **🎬 GameKit SceneFlow**: シーン中心の遷移システム、加算読み込み対応
-- **🛤️ Spline Movement**: 2.5Dスプライン移動、Catmull-Rom補間対応
-
-- **🛤️ Spline Movement**: 2.5Dスプライン移動
-  - Catmull-Rom補間
-  - クローズドループ、横方向オフセット、自動回転
-  - 手動/自動速度制御
 
 - **中レベルツール**: バッチ操作とプリセット
   - Transform/RectTransformバッチ操作（配置、整列、分散）

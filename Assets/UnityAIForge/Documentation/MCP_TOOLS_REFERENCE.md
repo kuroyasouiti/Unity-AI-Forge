@@ -6,16 +6,12 @@
 
 | カテゴリ | ツール数 | 説明 |
 |----------|----------|------|
-| Core | 4 | 基本的なUnity操作 |
-| Asset Management | 4 | アセット・プレハブ・ScriptableObject管理 |
-| Transform & Physics | 4 | 変形・物理設定 |
-| UI Foundation | 5 | UI要素の作成・管理 |
-| 2D Graphics & Animation | 3 | スプライト・アニメーション |
-| GameKit Core | 6 | 高レベルゲーム開発フレームワーク |
-| GameKit Gameplay | 7 | ゲームプレイ機能 |
-| GameKit Advanced | 4 | エフェクト・セーブ・インベントリ |
+| Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
+| Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
+| Mid-Level Batch | 21 | バッチ操作・プリセット・UI・ビジュアル制御 |
+| High-Level GameKit | 15 | 3本柱ゲーム開発フレームワーク |
 
-**合計: 37 ツール**
+**合計: 49 ツール**
 
 ---
 
@@ -219,10 +215,10 @@ UGUI基盤要素作成。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `clone`, `inspect`, `delete`, `show`, `hide`, `toggle`, `setNavigation` |
+| operation | string | `create`, `clone`, `inspect`, `delete`, `show`, `hide`, `toggle` |
 | parentPath | string | 親パス |
 | hierarchy | object | 宣言的UIヒエラルキー定義 |
-| navigationMode | string | `none`, `auto-vertical`, `auto-horizontal`, `explicit` |
+| hierarchyId | string | ヒエラルキー識別子 |
 
 **ヒエラルキー要素タイプ:** `panel`, `button`, `text`, `image`, `inputfield`, `scrollview`, `toggle`, `slider`, `dropdown`
 
@@ -309,226 +305,184 @@ UIナビゲーション管理（キーボード/ゲームパッド対応）。
 
 ---
 
-## 6. GameKit Core (ゲームキット基盤)
+## 6. Visual & 3D (ビジュアル・3D)
 
-### `unity_gamekit_actor`
-高レベルゲームアクター作成。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete` |
-| actorId | string | アクター識別子 |
-| behaviorProfile | string | 移動プロファイル |
-| controlMode | string | 制御モード |
-| spritePath/modelPath | string | ビジュアルアセット |
-
-**behaviorProfile:** `2dLinear`, `2dPhysics`, `2dTileGrid`, `graphNode`, `splineMovement`, `3dCharacterController`, `3dPhysics`, `3dNavMesh`
-
-**controlMode:** `directController`, `aiAutonomous`, `uiCommand`, `scriptTriggerOnly`
-
----
-
-### `unity_gamekit_manager`
-ゲームシステムマネージャー作成。
+### `unity_material_bundle`
+マテリアル管理。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `exportState`, `importState`, `setFlowEnabled` |
-| managerId | string | マネージャー識別子 |
-| managerType | string | マネージャー種類 |
-| persistent | boolean | シーン跨ぎ保持 |
-| turnPhases | array | ターンフェーズ名 |
-| initialResources | object | 初期リソース量 |
+| operation | string | `create`, `update`, `inspect`, `delete`, `setTexture`, `setColor`, `applyPreset`, `duplicate`, `findByShader`, `findByName` |
+| savePath | string | 新規マテリアルの保存パス |
+| materialPath | string | 既存マテリアルのパス |
+| preset | string | プリセット |
+| shader | string | シェーダー名 |
+| color | object | 色 {r, g, b, a} |
+| metallic | number | メタリック度 |
+| smoothness | number | スムーズネス |
 
-**managerType:** `turnBased`, `realtime`, `resourcePool`, `eventHub`, `stateManager`
+**プリセット:** `standard`, `metallic`, `glass`, `emissive`, `unlit`, `transparent`, `cutout`, `urpLit`, `urpUnlit`, `hdrpLit`
 
 ---
 
-### `unity_gamekit_interaction`
-トリガーベースインタラクション作成。
+### `unity_light_bundle`
+ライトセットアップ。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete` |
-| interactionId | string | インタラクション識別子 |
-| triggerType | string | `collision`, `trigger`, `raycast`, `proximity`, `input` |
-| triggerShape | string | コライダー形状 |
-| is2D | boolean | 2Dコライダー使用 |
-| actions | array | アクション配列 |
-| conditions | array | 条件配列 |
+| operation | string | `create`, `update`, `inspect`, `delete`, `applyPreset`, `createLightingSetup`, `bakeReflectionProbe` |
+| lightType | string | `Directional`, `Point`, `Spot`, `Area` |
+| preset | string | ライトプリセット |
+| setupPreset | string | ライティングセットアッププリセット |
+| color | object | 色 {r, g, b, a} |
+| intensity | number | 強度 |
+| range | number | 範囲 |
 
-**アクションタイプ:** `spawnPrefab`, `destroyObject`, `playSound`, `sendMessage`, `changeScene`
+**セットアッププリセット:** `daylight`, `sunset`, `night`, `indoor`, `studio`, `dramatic`
 
 ---
+
+### `unity_particle_bundle`
+パーティクルシステム管理。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `create`, `update`, `inspect`, `delete`, `play`, `stop`, `applyPreset`, `setEmission`, `setShape`, `setColor` |
+| gameObjectPath | string | ターゲットパス |
+| preset | string | パーティクルプリセット |
+| startSize/startLifetime/startSpeed | number | 初期パラメータ |
+| emissionRate | number | 放出レート |
+| maxParticles | integer | 最大粒子数 |
+
+**プリセット:** `fire`, `smoke`, `sparks`, `rain`, `snow`, `dust`, `explosion`, `magic`, `heal`, `trail`, `waterfall`, `confetti`
+
+---
+
+### `unity_animation3d_bundle`
+3Dアニメーション管理（BlendTree、AvatarMask対応）。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `setupAnimator`, `updateAnimator`, `inspectAnimator`, `createController`, `addState`, `addTransition`, `addParameter`, `inspectController`, `addBlendTree`, `addAvatarMask`, `updateAvatarMask` |
+| controllerPath | string | AnimatorControllerアセットパス |
+| blendTreeName | string | BlendTree名 |
+| blendType | string | `Simple1D`, `SimpleDirectional2D`, `FreeformDirectional2D`, `FreeformCartesian2D` |
+| blendParameter | string | ブレンドパラメータ名 |
+
+---
+
+### `unity_event_wiring`
+UnityEventワイヤリング（Button.onClick等）。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `wire`, `unwire`, `inspect`, `listEvents`, `clearEvent`, `wireMultiple` |
+| source | object | ソース {gameObject, component, event} |
+| target | object | ターゲット {gameObject, component, method, mode, argument} |
+| wirings | array | 複数ワイヤリング定義（wireMultiple用） |
+
+---
+
+## 7. UI Toolkit (モダンUI)
+
+### `unity_uitk_document`
+UI Toolkit UIDocument管理。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `create`, `inspect`, `update`, `delete`, `query` |
+| name | string | GameObject名 |
+| sourceAsset | string | UXMLアセットパス |
+| panelSettings | string | PanelSettingsパス |
+| sortingOrder | number | ソート順 |
+| queryName/queryClass/queryType | string | VisualElement検索 |
+
+---
+
+### `unity_uitk_asset`
+UI Toolkitアセット作成（UXML、USS、PanelSettings）。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `createUXML`, `createUSS`, `inspectUXML`, `inspectUSS`, `updateUXML`, `updateUSS`, `createPanelSettings`, `createFromTemplate`, `validateDependencies` |
+| assetPath | string | アセットパス |
+| elements | array | UXML要素定義（再帰構造） |
+| rules | array | USSルール定義 |
+| templateName | string | `menu`, `dialog`, `hud`, `settings`, `inventory` |
+| outputDir | string | テンプレート出力ディレクトリ |
+
+---
+
+## 8. GameKit - UIピラー (5ツール)
+
+コード生成によりスタンドアロンC#スクリプトを生成。`create`後は`unity_compilation_await`が必要。
 
 ### `unity_gamekit_ui_command`
-UIコマンドパネル作成。
+UIコマンドパネル作成（UXML/USS + C#）。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
 | operation | string | `createCommandPanel`, `addCommand`, `inspect`, `delete` |
 | panelId | string | パネル識別子 |
-| targetType | string | `actor`, `manager` |
-| targetActorId/targetManagerId | string | ターゲットID |
-| commands | array | コマンド定義配列 |
 | layout | string | `horizontal`, `vertical`, `grid` |
+| commands | array | コマンド定義配列 |
+| uiOutputDir | string | UI出力ディレクトリ |
 
 **コマンドタイプ:** `move`, `jump`, `action`, `look`, `custom`, `addResource`, `setResource`, `consumeResource`, `changeState`, `nextTurn`, `triggerScene`
 
 ---
 
-### `unity_gamekit_machinations`
-Machinations経済システムダイアグラム管理。
+### `unity_gamekit_ui_binding`
+宣言的UIデータバインディング。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `apply`, `export` |
-| diagramId | string | ダイアグラム識別子 |
-| assetPath | string | アセットパス |
-| initialResources | array | リソースプール定義 |
-| flows | array | リソースフロー定義 |
-| converters | array | リソース変換器定義 |
-| triggers | array | 閾値トリガー定義 |
+| operation | string | `create`, `update`, `inspect`, `delete`, `setRange`, `refresh`, `findByBindingId` |
+| bindingId | string | バインディング識別子 |
+| sourceType | string | `health`, `economy`, `timer`, `custom` |
+| sourceId | string | データソースID |
+| format | string | `raw`, `percent`, `formatted`, `ratio` |
 
 ---
 
-### `unity_gamekit_sceneflow`
-シーン遷移管理。
+### `unity_gamekit_ui_list`
+動的ScrollViewリスト/グリッド。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `inspect`, `delete`, `transition`, `addScene`, `removeScene`, `updateScene`, `addTransition`, `removeTransition`, `addSharedScene`, `removeSharedScene` |
-| flowId | string | フロー識別子 |
-| sceneName | string | シーン名 |
-| scenePath | string | シーンアセットパス |
-| loadMode | string | `single`, `additive` |
-| fromScene/toScene | string | 遷移元/先シーン |
-| trigger | string | トリガー名 |
+| operation | string | `create`, `inspect`, `delete`, `addItem`, `removeItem`, `updateItem`, `clearItems`, `getItem`, `getItems`, `setItems`, `selectItem`, `findByListId` |
+| listId | string | リスト識別子 |
+| layout | string | `vertical`, `horizontal`, `grid` |
+| dataSource | string | `custom`, `inventory`, `equipment` |
+| selectable | boolean | 選択可能 |
 
 ---
 
-## 7. GameKit Gameplay (ゲームプレイ機能)
-
-### `unity_gamekit_health`
-ヘルス/ダメージシステム。
+### `unity_gamekit_ui_slot`
+装備/クイックスロットUI。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `applyDamage`, `heal`, `kill`, `respawn`, `setInvincible`, `findByHealthId` |
-| healthId | string | ヘルス識別子 |
-| maxHealth | number | 最大HP（デフォルト: 100） |
-| invincibilityDuration | number | ダメージ後無敵時間 |
-| onDeath | string | `destroy`, `disable`, `respawn`, `event` |
-| respawnDelay | number | リスポーン遅延 |
+| operation | string | `create`, `inspect`, `delete`, `setItem`, `clearItem`, `getItem`, `highlight`, `createBar`, `inspectBar`, `deleteBar`, `setBarItem`, `clearBarItem`, `getBarItem`, `findBySlotId` |
+| slotId/barId | string | スロット/バー識別子 |
+| slotType | string | `storage`, `equipment`, `quickslot`, `trash` |
+| layout | string | `horizontal`, `vertical`, `grid` |
 
 ---
 
-### `unity_gamekit_spawner`
-スポナーシステム。
+### `unity_gamekit_ui_selection`
+ラジオ/トグル/チェックボックス/タブグループ。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `start`, `stop`, `reset`, `spawnOne`, `spawnBurst`, `despawnAll`, `addSpawnPoint`, `addWave`, `findBySpawnerId` |
-| spawnerId | string | スポナー識別子 |
-| prefabPath | string | スポーンするプレハブ |
-| spawnMode | string | `interval`, `wave`, `burst`, `manual` |
-| spawnInterval | number | スポーン間隔 |
-| maxActive | integer | 最大同時存在数 |
-| waves | array | ウェーブ設定 |
+| operation | string | `create`, `inspect`, `delete`, `addItem`, `removeItem`, `selectItem`, `deselectItem`, `getSelected`, `setEnabled`, `clearSelection`, `setActions`, `getItems`, `updateItem`, `findBySelectionId` |
+| selectionId | string | 選択グループ識別子 |
+| selectionType | string | `radio`, `toggle`, `checkbox`, `tab` |
+| items | array | 選択アイテム定義 |
 
 ---
 
-### `unity_gamekit_timer`
-タイマー/クールダウンシステム。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `createTimer`, `updateTimer`, `inspectTimer`, `deleteTimer`, `createCooldown`, `updateCooldown`, `inspectCooldown`, `deleteCooldown`, `createCooldownManager`, `addCooldownToManager`, `inspectCooldownManager`, `findByTimerId`, `findByCooldownId` |
-| timerId/cooldownId | string | 識別子 |
-| duration | number | 継続時間 |
-| loop | boolean | ループ |
-| unscaledTime | boolean | TimeScale無視 |
-
----
-
-### `unity_gamekit_ai`
-AIビヘイビアシステム。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `setTarget`, `clearTarget`, `setState`, `addPatrolPoint`, `clearPatrolPoints`, `findByAIId` |
-| aiId | string | AI識別子 |
-| behaviorType | string | `patrol`, `chase`, `flee`, `patrolAndChase` |
-| moveSpeed | number | 移動速度 |
-| detectionRadius | number | 検知範囲 |
-| fieldOfView | number | 視野角（度） |
-| patrolMode | string | `loop`, `pingPong`, `random` |
-
----
-
-### `unity_gamekit_collectible`
-収集アイテムシステム。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `collect`, `respawn`, `reset`, `findByCollectibleId` |
-| collectibleId | string | 収集アイテム識別子 |
-| collectibleType | string | `coin`, `health`, `mana`, `powerup`, `key`, `ammo`, `experience`, `custom` |
-| value | number | 値 |
-| collectionBehavior | string | `destroy`, `disable`, `respawn` |
-| enableFloatAnimation | boolean | 浮遊アニメーション |
-| enableRotation | boolean | 回転アニメーション |
-
----
-
-### `unity_gamekit_projectile`
-発射物システム。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `launch`, `setHomingTarget`, `destroy`, `findByProjectileId` |
-| projectileId | string | 発射物識別子 |
-| movementType | string | `transform`, `rigidbody`, `rigidbody2d` |
-| speed | number | 速度 |
-| damage | number | ダメージ |
-| lifetime | number | 寿命 |
-| isHoming | boolean | ホーミング |
-| canBounce | boolean | バウンス |
-| canPierce | boolean | 貫通 |
-
----
-
-### `unity_gamekit_waypoint`
-ウェイポイント/パスフォロワー。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `addWaypoint`, `removeWaypoint`, `clearWaypoints`, `startPath`, `stopPath`, `pausePath`, `resumePath`, `resetPath`, `goToWaypoint`, `findByWaypointId` |
-| waypointId | string | ウェイポイント識別子 |
-| pathMode | string | `once`, `loop`, `pingpong` |
-| moveSpeed | number | 移動速度 |
-| waitTimeAtPoint | number | 各ポイントでの待機時間 |
-| waypointPositions | array | ウェイポイント位置配列 |
-
----
-
-### `unity_gamekit_trigger_zone`
-トリガーゾーンシステム。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `activate`, `deactivate`, `reset`, `setTeleportDestination`, `findByZoneId` |
-| zoneId | string | ゾーン識別子 |
-| zoneType | string | ゾーンタイプ |
-| triggerMode | string | `once`, `onceperentity`, `repeat`, `whileinside` |
-| effectAmount | number | エフェクト量 |
-| effectInterval | number | エフェクト間隔 |
-
-**zoneType:** `generic`, `checkpoint`, `damagezone`, `healzone`, `teleport`, `speedboost`, `slowdown`, `killzone`, `safezone`, `trigger`
-
----
-
-## 8. GameKit Advanced (高度な機能)
+## 9. GameKit - Presentationピラー (5ツール)
 
 ### `unity_gamekit_animation_sync`
 宣言的アニメーション同期。
@@ -549,45 +503,134 @@ AIビヘイビアシステム。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `addComponent`, `removeComponent`, `clearComponents`, `play`, `playAtPosition`, `playAtTransform`, `shakeCamera`, `flashScreen`, `setTimeScale`, `createManager`, `registerEffect`, `unregisterEffect`, `findByEffectId`, `listEffects` |
+| operation | string | `create`, `update`, `inspect`, `delete`, `addComponent`, `removeComponent`, `clearComponents`, `play`, `playAtPosition`, `playAtTransform`, `shakeCamera`, `flashScreen`, `setTimeScale`, `createManager`, `registerEffect`, `unregisterEffect` |
 | effectId | string | エフェクト識別子 |
-| assetPath | string | エフェクトアセットパス |
 | components | array | エフェクトコンポーネント配列 |
 
 **コンポーネントタイプ:** `particle`, `sound`, `cameraShake`, `screenFlash`, `timeScale`
 
 ---
 
-### `unity_gamekit_save`
-セーブ/ロードシステム。
+### `unity_gamekit_feedback`
+ゲームフィール（ヒットストップ、画面振動等）。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `createProfile`, `updateProfile`, `inspectProfile`, `deleteProfile`, `addTarget`, `removeTarget`, `clearTargets`, `save`, `load`, `listSlots`, `deleteSlot`, `createManager`, `inspectManager`, `deleteManager`, `findByProfileId` |
-| profileId | string | プロファイル識別子 |
-| slotId | string | セーブスロット識別子 |
-| saveTargets | array | セーブ対象配列 |
-| autoSave | object | オートセーブ設定 |
+| operation | string | `create`, `update`, `inspect`, `delete`, `addComponent`, `clearComponents`, `setIntensity`, `findByFeedbackId` |
+| feedbackId | string | フィードバック識別子 |
+| components | array | フィードバックコンポーネント配列 |
+| globalIntensityMultiplier | number | グローバル強度倍率 |
 
-**セーブターゲットタイプ:** `transform`, `component`, `resourceManager`, `health`, `sceneFlow`, `inventory`, `playerPrefs`
+**コンポーネントタイプ:** `hitstop`, `screenShake`, `colorFlash`, `scaleEffect`, `knockback`, `particleEffect`, `soundEffect`, `slowMotion`, `chromaticAberration`, `vignette`
 
 ---
 
-### `unity_gamekit_inventory`
-インベントリシステム。
+### `unity_gamekit_vfx`
+ParticleSystemラッパー（プーリング対応）。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `defineItem`, `updateItem`, `inspectItem`, `deleteItem`, `addItem`, `removeItem`, `useItem`, `equip`, `unequip`, `getEquipped`, `clear`, `sort`, `findByInventoryId`, `findByItemId` |
-| inventoryId | string | インベントリ識別子 |
-| maxSlots | integer | 最大スロット数（デフォルト: 20） |
-| itemId | string | アイテム識別子 |
-| itemData | object | アイテムデータ定義 |
-| equipSlot | string | 装備スロット |
+| operation | string | `create`, `update`, `inspect`, `delete`, `setMultipliers`, `setColor`, `setLoop`, `findByVFXId` |
+| vfxId | string | VFX識別子 |
+| particlePrefabPath | string | パーティクルプレハブパス |
+| usePooling | boolean | オブジェクトプーリング使用 |
+| poolSize | integer | プールサイズ |
 
-**カテゴリ:** `weapon`, `armor`, `consumable`, `material`, `key`, `quest`, `misc`
+---
 
-**装備スロット:** `mainHand`, `offHand`, `head`, `body`, `hands`, `feet`, `accessory1`, `accessory2`
+### `unity_gamekit_audio`
+サウンド管理（SFX、BGM、環境音）。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `create`, `update`, `inspect`, `delete`, `setVolume`, `setPitch`, `setLoop`, `setClip`, `findByAudioId` |
+| audioId | string | オーディオ識別子 |
+| audioType | string | `sfx`, `music`, `ambient`, `voice`, `ui` |
+| audioClipPath | string | AudioClipパス |
+| volume | number | 音量 |
+| fadeInDuration/fadeOutDuration | number | フェード時間 |
+
+---
+
+## 10. GameKit - Logicピラー (5ツール)
+
+### `unity_validate_integrity`
+シーン整合性検証。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `missingScripts`, `nullReferences`, `brokenEvents`, `brokenPrefabs`, `all` |
+| rootPath | string | 検査対象のルートパス（省略時はシーン全体） |
+
+---
+
+### `unity_class_catalog`
+型列挙・検査。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `listTypes`, `inspectType` |
+| typeKind | string | `class`, `struct`, `interface`, `enum`, `MonoBehaviour`, `ScriptableObject` |
+| className | string | 検査対象の型名（inspectType用） |
+| namePattern | string | ワイルドカードパターン |
+| maxResults | integer | 最大結果数（デフォルト: 100） |
+
+---
+
+### `unity_class_dependency_graph`
+C#クラス依存関係分析。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `analyzeClass`, `analyzeAssembly`, `analyzeNamespace`, `findDependents`, `findDependencies` |
+| target | string | 分析対象（クラス名/アセンブリ名/名前空間） |
+| depth | integer | 分析深度（デフォルト: 1） |
+| format | string | `json`, `dot`, `mermaid`, `summary` |
+
+---
+
+### `unity_scene_reference_graph`
+シーンオブジェクト参照分析。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `analyzeScene`, `analyzeObject`, `findReferencesTo`, `findReferencesFrom`, `findOrphans` |
+| objectPath | string | 対象GameObjectパス |
+| includeHierarchy | boolean | 親子関係を含める |
+| includeEvents | boolean | UnityEventを含める |
+| format | string | `json`, `dot`, `mermaid`, `summary` |
+
+---
+
+### `unity_scene_relationship_graph`
+シーン遷移・関係性分析。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `analyzeAll`, `analyzeScene`, `findTransitionsTo`, `findTransitionsFrom`, `validateBuildSettings` |
+| scenePath | string | シーンパス |
+| format | string | `json`, `dot`, `mermaid`, `summary` |
+
+---
+
+## 11. Utilityツール（追加）
+
+### `unity_playmode_control`
+プレイモード制御。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `play`, `pause`, `unpause`, `stop`, `step`, `getState` |
+
+---
+
+### `unity_console_log`
+コンソールログ取得。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `getRecent`, `getErrors`, `getWarnings`, `getLogs`, `clear`, `getCompilationErrors`, `getSummary` |
+| count | integer | 取得件数 |
 
 ---
 
@@ -648,13 +691,13 @@ Input Systemセットアップ。
 
 ## バッチ実行ツール
 
-### `batch_sequential`
+### `unity_batch_sequential_execute`
 複数コマンドの順次実行（レジューム機能付き）。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| commands | array | 実行するコマンド配列 |
-| resumeFromIndex | integer | 再開インデックス |
+| operations | array | 実行するコマンド配列 [{tool, arguments}] |
+| stop_on_error | boolean | エラー時に停止 |
 
 ---
 
@@ -663,30 +706,34 @@ Input Systemセットアップ。
 ### 2Dプラットフォーマーキャラクター作成
 
 ```python
-# プレイヤーアクター作成
-unity_gamekit_actor({
+# プレイヤーGameObject作成
+unity_gameobject_crud({
     "operation": "create",
-    "actorId": "player",
-    "behaviorProfile": "2dPhysics",
-    "controlMode": "directController",
-    "spritePath": "Assets/Sprites/Player.png"
-})
-
-# ヘルスコンポーネント追加
-unity_gamekit_health({
-    "operation": "create",
-    "targetPath": "player",
-    "healthId": "player_health",
-    "maxHealth": 100,
-    "invincibilityDuration": 1.0
+    "name": "Player",
+    "template": "Sphere"
 })
 
 # 物理設定適用
 unity_physics_bundle({
     "operation": "applyPreset2D",
-    "gameObjectPaths": ["player"],
+    "gameObjectPaths": ["Player"],
     "preset": "platformer"
 })
+
+# UIコマンドパネルで操作ボタン作成
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "playerControls",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "moveLeft", "label": "Left", "commandType": "move",
+         "moveDirection": {"x": -1, "y": 0, "z": 0}},
+        {"name": "jump", "label": "Jump", "commandType": "jump"},
+        {"name": "moveRight", "label": "Right", "commandType": "move",
+         "moveDirection": {"x": 1, "y": 0, "z": 0}}
+    ]
+})
+unity_compilation_await({"operation": "await"})
 ```
 
 ### UIメニュー作成
@@ -721,35 +768,37 @@ unity_ui_navigation({
     "operation": "autoSetup",
     "rootPath": "MainCanvas/MainMenu",
     "direction": "vertical",
-    "wrapAround": True
+    "wrapAround": true
 })
 ```
 
-### 敵AIとスポナー
+### エフェクトとフィードバック
 
 ```python
-# 敵プレハブにAI追加
-unity_gamekit_ai({
+# 爆発エフェクト作成
+unity_gamekit_effect({
     "operation": "create",
-    "targetPath": "EnemyPrefab",
-    "aiId": "enemy_ai",
-    "behaviorType": "patrolAndChase",
-    "moveSpeed": 3.0,
-    "detectionRadius": 8.0,
-    "patrolMode": "pingPong"
-})
-
-# スポナー作成
-unity_gamekit_spawner({
-    "operation": "create",
-    "targetPath": "EnemySpawner",
-    "spawnerId": "enemy_spawner",
-    "prefabPath": "Assets/Prefabs/Enemy.prefab",
-    "spawnMode": "wave",
-    "waves": [
-        {"count": 3, "spawnInterval": 1.0},
-        {"count": 5, "spawnInterval": 0.8},
-        {"count": 8, "spawnInterval": 0.5}
+    "effectId": "explosion",
+    "components": [
+        {"type": "particle", "prefabPath": "Assets/Prefabs/ExplosionVFX.prefab", "duration": 1.0},
+        {"type": "sound", "clipPath": "Assets/Audio/explosion.wav", "volume": 0.8},
+        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3}
     ]
 })
+unity_compilation_await({"operation": "await"})
+
+# ヒットフィードバック作成
+unity_gamekit_feedback({
+    "operation": "create",
+    "feedbackId": "onHit",
+    "components": [
+        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
+        {"type": "screenShake", "duration": 0.2, "intensity": 0.3},
+        {"type": "colorFlash", "color": {"r": 1, "g": 0, "b": 0, "a": 0.5}, "flashDuration": 0.1}
+    ]
+})
+unity_compilation_await({"operation": "await"})
+
+# シーン整合性検証
+unity_validate_integrity({"operation": "all"})
 ```
