@@ -8,150 +8,154 @@ This guide helps you choose the right tool for your Unity development tasks.
 
 | Use Case | Recommended Tool |
 |----------|-----------------|
+| Game action buttons (move/jump/attack) | `unity_gamekit_ui_command` |
+| Auto-sync UI with game data | `unity_gamekit_ui_binding` |
+| Scrollable lists / inventory grids | `unity_gamekit_ui_list` |
+| Equipment / quickbar slots | `unity_gamekit_ui_slot` |
+| Radio / toggle / tab groups | `unity_gamekit_ui_selection` |
+| Composite effects (particle + sound + shake) | `unity_gamekit_effect` |
+| Game feel (hitstop, screen shake) | `unity_gamekit_feedback` |
+| Animation parameter sync | `unity_gamekit_animation_sync` |
+| VFX with object pooling | `unity_gamekit_vfx` |
+| Sound management (SFX, BGM) | `unity_gamekit_audio` |
 | Build UI menu from JSON | `unity_ui_hierarchy` |
 | Configure keyboard/gamepad navigation | `unity_ui_navigation` |
 | Manage UI visibility states | `unity_ui_state` |
 | Create single UI element | `unity_ui_foundation` |
+| Scene integrity validation | `unity_validate_integrity` |
+| Type discovery / inspection | `unity_class_catalog` |
 
 ---
 
-## 1. Trigger & Interaction Tools
+## 1. GameKit Effect & Feedback Tools
 
-### When to use `unity_gamekit_interaction`
+### When to use `unity_gamekit_effect`
 
-**Best for:** Custom triggers with scripted actions
+**Best for:** Composite effects (particle + sound + camera shake)
 
-- Door/switch/treasure chest interactions
-- Custom script message sending (SendMessage, BroadcastMessage)
-- Complex multi-action sequences
-- Spawn prefab on trigger
-- Scene changes triggered by player input
+- Explosion effects (VFX + sound + camera shake)
+- Pickup effects (particles + sound)
+- Impact effects with multiple components
+- Reusable effect presets with EffectManager
 
 **Example use cases:**
-- Player presses button → spawn enemy + play sound + send message
-- Proximity trigger → open dialog + disable collider
-- Raycast hit → spawn particles + destroy object
+- Explosion → particles + boom sound + camera shake + time slow
+- Coin pickup → sparkle particles + bling sound
+- Level up → flash + sound + screen effect
 
 ```python
-unity_gamekit_interaction(
-    operation='create',
-    interactionId='door_trigger',
-    triggerType='trigger',
-    actions=[
-        {'type': 'sendMessage', 'target': 'DoorController', 'parameter': 'Open'},
-        {'type': 'playSound', 'target': 'self', 'parameter': 'door_open'}
-    ],
-    conditions=[{'type': 'tag', 'value': 'Player'}]
-)
+unity_gamekit_effect({
+    "operation": "create",
+    "effectId": "explosion",
+    "components": [
+        {"type": "particle", "prefabPath": "Assets/Prefabs/Explosion.prefab"},
+        {"type": "sound", "clipPath": "Assets/Audio/boom.wav"},
+        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3}
+    ]
+})
 ```
 
-### When to use `unity_gamekit_trigger_zone`
+### When to use `unity_gamekit_feedback`
 
-**Best for:** Built-in zone effects (no scripting required)
+**Best for:** Game feel (hitstop, screen shake, flash)
 
-- Checkpoint zones (save progress)
-- Damage zones (lava, poison, etc.)
-- Heal zones (regeneration areas)
-- Teleport zones (portals)
-- Speed boost/slow down zones
-- Kill zones (instant death)
-- Safe zones (prevent damage)
+- Hit reactions (hitstop + flash + knockback)
+- Screen effects (shake, flash, vignette)
+- Juice effects for game feel
+- Intensity-adjustable feedback chains
 
 **Example use cases:**
-- Walk into lava → take 10 damage per second
-- Touch checkpoint → save position
-- Enter portal → teleport to destination
-- Enter water → slow down movement
+- Melee hit → hitstop + screen shake + color flash
+- Critical hit → slow motion + chromatic aberration
+- Damage taken → red flash + knockback
 
 ```python
-unity_gamekit_trigger_zone(
-    operation='create',
-    zoneId='lava_zone',
-    zoneType='DamageZone',
-    effectAmount=10.0,
-    effectInterval=0.5,
-    is2D=True
-)
+unity_gamekit_feedback({
+    "operation": "create",
+    "feedbackId": "onHit",
+    "components": [
+        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
+        {"type": "screenShake", "duration": 0.2, "intensity": 0.3},
+        {"type": "colorFlash", "color": {"r": 1, "g": 0, "b": 0, "a": 0.5}}
+    ]
+})
 ```
 
 ### Decision Matrix
 
-| Requirement | Use `interaction` | Use `trigger_zone` |
-|-------------|-------------------|-------------------|
-| Custom script calls | Yes | No |
-| Built-in damage/heal | No | Yes |
-| Checkpoint system | No | Yes |
-| Teleportation | Possible | Built-in |
-| Spawn prefab | Yes | No |
-| Complex conditions | Yes | Basic |
+| Requirement | Use `effect` | Use `feedback` |
+|-------------|-------------|---------------|
+| Particle + Sound combo | Yes | No |
+| Hitstop / slow motion | No | Yes |
+| Camera shake | Yes | Yes |
+| Screen flash | Yes | Yes |
+| Knockback | No | Yes |
+| Reusable with Manager | Yes | No |
+| Intensity control | No | Yes |
 
 ---
 
-## 2. AI & Path Following Tools
+## 2. GameKit UI Tools (Code Generation)
 
-### When to use `unity_gamekit_ai`
+All GameKit UI tools generate standalone C# scripts via code generation. After `create` operations, call `unity_compilation_await({"operation": "await"})`.
 
-**Best for:** Intelligent behaviors with state machines
+### When to use `unity_gamekit_ui_command`
 
-- Patrol + chase player when detected
-- Flee when health is low
-- Line-of-sight detection
-- Field of view constraints
-- State transitions (Idle → Patrol → Chase → Attack)
-- Attack range detection
+**Best for:** Button-based game actions
 
-**Example use cases:**
-- Enemy patrols between points, chases player when detected
-- NPC follows player, returns to patrol when player leaves area
-- Guard with field of view detection
+- Mobile game controls (move/jump/attack buttons)
+- Strategy game actions (resource/state management)
+- Turn-based game controls
+- Shop/menu action panels
 
 ```python
-unity_gamekit_ai(
-    operation='create',
-    aiId='enemy_ai',
-    behaviorType='PatrolAndChase',
-    moveSpeed=3.0,
-    detectionRadius=8.0,
-    fieldOfView=120
-)
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "controls",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "attack", "label": "Attack", "commandType": "action"}
+    ]
+})
 ```
 
-### When to use `unity_gamekit_waypoint`
+### When to use `unity_gamekit_ui_binding`
 
-**Best for:** Simple path following (no AI decision-making)
+**Best for:** Auto-sync UI with game data
 
-- Moving platforms
-- Elevator systems
-- NPCs on fixed routes (no player interaction)
-- Camera rails
-- Animated props
-
-**Example use cases:**
-- Platform moves between two points
-- Train follows track
-- Flying bird follows path
-- Camera dolly movement
+- HP bars, mana bars (percent format)
+- Score displays (formatted)
+- Timer displays
+- Resource counters with smooth transitions
 
 ```python
-unity_gamekit_waypoint(
-    operation='create',
-    waypointId='platform_path',
-    pathMode='PingPong',
-    moveSpeed=2.0,
-    autoStart=True
-)
+unity_gamekit_ui_binding({
+    "operation": "create",
+    "bindingId": "hpBar",
+    "sourceType": "health",
+    "sourceId": "playerHP",
+    "format": "percent",
+    "smoothTransition": true
+})
 ```
+
+### When to use `unity_gamekit_ui_list` / `ui_slot` / `ui_selection`
+
+| Tool | Best For | Example |
+|------|----------|---------|
+| `ui_list` | Scrollable item lists, inventory grids | Shop item list, leaderboard |
+| `ui_slot` | Equipment slots, quickbar slots | Weapon slots, skill bar |
+| `ui_selection` | Radio buttons, tabs, toggle groups | Difficulty selector, tab menu |
 
 ### Decision Matrix
 
-| Requirement | Use `gamekit_ai` | Use `gamekit_waypoint` |
-|-------------|-----------------|----------------------|
-| Player detection | Yes | No |
-| State machine | Yes | No |
-| Simple path follow | Possible | Yes |
-| Moving platforms | No | Yes |
-| Chase behavior | Yes | No |
-| Attack behavior | Yes | No |
+| Requirement | command | binding | list | slot | selection |
+|-------------|---------|---------|------|------|-----------|
+| Action buttons | Yes | No | No | No | No |
+| Data display | No | Yes | No | No | No |
+| Scrollable list | No | No | Yes | No | No |
+| Equipment slots | No | No | No | Yes | No |
+| Tab/radio groups | No | No | No | No | Yes |
 
 ---
 
@@ -179,11 +183,11 @@ unity_gamekit_waypoint(
 - `projectile` - Bullets/arrows
 
 ```python
-unity_physics_bundle(
-    operation='applyPreset2D',
-    gameObjectPath='Player',
-    preset='platformer'
-)
+unity_physics_bundle({
+    "operation": "applyPreset2D",
+    "gameObjectPaths": ["Player"],
+    "preset": "platformer"
+})
 ```
 
 ### When to use `unity_character_controller_bundle`
@@ -205,11 +209,11 @@ unity_physics_bundle(
 - `narrow` - Thin capsule for tight spaces
 
 ```python
-unity_character_controller_bundle(
-    operation='applyPreset',
-    gameObjectPath='Player',
-    preset='fps'
-)
+unity_character_controller_bundle({
+    "operation": "applyPreset",
+    "gameObjectPath": "Player",
+    "preset": "fps"
+})
 ```
 
 ### Decision Matrix
@@ -225,7 +229,7 @@ unity_character_controller_bundle(
 
 ---
 
-## 4. UI Tools
+## 4. UGUI Tools (Mid-Level)
 
 ### When to use `unity_ui_hierarchy`
 
@@ -237,19 +241,19 @@ unity_character_controller_bundle(
 - Show/hide UI panels
 
 ```python
-unity_ui_hierarchy(
-    operation='create',
-    parentPath='Canvas',
-    hierarchy={
-        'type': 'panel',
-        'name': 'MainMenu',
-        'children': [
-            {'type': 'button', 'name': 'StartBtn', 'text': 'Start'},
-            {'type': 'button', 'name': 'QuitBtn', 'text': 'Quit'}
+unity_ui_hierarchy({
+    "operation": "create",
+    "parentPath": "Canvas",
+    "hierarchy": {
+        "type": "panel",
+        "name": "MainMenu",
+        "children": [
+            {"type": "button", "name": "StartBtn", "text": "Start"},
+            {"type": "button", "name": "QuitBtn", "text": "Quit"}
         ],
-        'layout': 'Vertical'
+        "layout": "Vertical"
     }
-)
+})
 ```
 
 ### When to use `unity_ui_navigation`
@@ -263,12 +267,12 @@ unity_ui_hierarchy(
 - First selected element setting
 
 ```python
-unity_ui_navigation(
-    operation='autoSetup',
-    rootPath='Canvas/MainMenu',
-    direction='vertical',
-    wrapAround=True
-)
+unity_ui_navigation({
+    "operation": "autoSetup",
+    "rootPath": "Canvas/MainMenu",
+    "direction": "vertical",
+    "wrapAround": true
+})
 ```
 
 ### When to use `unity_ui_state`
@@ -281,12 +285,12 @@ unity_ui_navigation(
 - Save/restore UI state
 
 ```python
-unity_ui_state(
-    operation='defineState',
-    stateName='hidden',
-    rootPath='Canvas/Dialog',
-    elements=[{'path': '', 'active': False, 'alpha': 0}]
-)
+unity_ui_state({
+    "operation": "defineState",
+    "stateName": "hidden",
+    "rootPath": "Canvas/Dialog",
+    "elements": [{"path": "", "active": false, "alpha": 0}]
+})
 ```
 
 ### When to use `unity_ui_foundation`
@@ -298,14 +302,14 @@ unity_ui_state(
 - Simple one-off UI elements
 
 ```python
-unity_ui_foundation(
-    operation='createButton',
-    name='MyButton',
-    parentPath='Canvas',
-    text='Click Me',
-    width=200,
-    height=50
-)
+unity_ui_foundation({
+    "operation": "createButton",
+    "name": "MyButton",
+    "parentPath": "Canvas",
+    "text": "Click Me",
+    "width": 200,
+    "height": 50
+})
 ```
 
 ### Decision Matrix
@@ -321,54 +325,62 @@ unity_ui_foundation(
 
 ---
 
-## 5. Actor & Manager Tools
+## 5. Scene Analysis & Validation (Logic Pillar)
 
-### When to use `unity_gamekit_actor`
+### When to use `unity_validate_integrity`
 
-**Best for:** Creating game characters
+**Best for:** Finding broken references
 
-- Player characters with movement profiles
-- Enemies with AI control
-- NPCs with script triggers
-
-**Control modes:**
-- `directController` - Player input
-- `aiAutonomous` - Basic AI (wander)
-- `uiCommand` - Controlled by UI buttons
-- `scriptTriggerOnly` - Event-driven only
+- Missing script components
+- Null object references
+- Broken UnityEvent listeners
+- Disconnected prefab instances
 
 ```python
-unity_gamekit_actor(
-    operation='create',
-    actorId='player',
-    behaviorProfile='2dPhysics',
-    controlMode='directController'
-)
+unity_validate_integrity({"operation": "all"})
 ```
 
-### When to use `unity_gamekit_ai` with Actor
+### When to use `unity_scene_reference_graph`
 
-**Important:** `Actor.aiAutonomous` provides only basic autonomous behavior.
-For advanced AI (patrol, chase, flee), combine Actor with `unity_gamekit_ai`:
+**Best for:** Understanding object dependencies
+
+- Find what references a specific object (before deleting/renaming)
+- Find orphan objects with no references
+- Analyze reference chains
 
 ```python
-# Step 1: Create actor
-unity_gamekit_actor(
-    operation='create',
-    actorId='enemy',
-    behaviorProfile='2dPhysics',
-    controlMode='aiAutonomous'
-)
-
-# Step 2: Add advanced AI behavior
-unity_gamekit_ai(
-    operation='create',
-    gameObjectPath='enemy',
-    aiId='enemy_ai',
-    behaviorType='PatrolAndChase',
-    detectionRadius=8.0
-)
+unity_scene_reference_graph({
+    "operation": "analyzeObject",
+    "objectPath": "Player",
+    "format": "summary"
+})
 ```
+
+### When to use `unity_class_catalog`
+
+**Best for:** Type discovery and inspection
+
+- List all MonoBehaviours in a project
+- Find ScriptableObject types
+- Inspect class fields and methods
+
+```python
+unity_class_catalog({
+    "operation": "listTypes",
+    "typeKind": "MonoBehaviour",
+    "namePattern": "*Controller"
+})
+```
+
+### Decision Matrix
+
+| Requirement | integrity | reference_graph | class_catalog | dependency_graph | relationship_graph |
+|-------------|-----------|----------------|---------------|-----------------|-------------------|
+| Find broken refs | Yes | No | No | No | No |
+| Object dependencies | No | Yes | No | No | No |
+| Type discovery | No | No | Yes | No | No |
+| Code dependencies | No | No | No | Yes | No |
+| Scene transitions | No | No | No | No | Yes |
 
 ---
 
@@ -384,12 +396,12 @@ unity_gamekit_ai(
 - Prototyping without art assets
 
 ```python
-unity_vector_sprite_convert(
-    operation='primitiveToSprite',
-    primitiveType='circle',
-    color={'r': 1, 'g': 0, 'b': 0, 'a': 1},
-    outputPath='Assets/Sprites/Circle.png'
-)
+unity_vector_sprite_convert({
+    "operation": "primitiveToSprite",
+    "primitiveType": "circle",
+    "color": {"r": 1, "g": 0, "b": 0, "a": 1},
+    "outputPath": "Assets/Sprites/Circle.png"
+})
 ```
 
 ### When to use `unity_sprite2d_bundle`
@@ -402,13 +414,13 @@ unity_vector_sprite_convert(
 - Create sprite atlases
 
 ```python
-unity_sprite2d_bundle(
-    operation='createSprite',
-    name='Player',
-    spritePath='Assets/Sprites/Player.png',
-    sortingLayerName='Characters',
-    sortingOrder=1
-)
+unity_sprite2d_bundle({
+    "operation": "createSprite",
+    "name": "Player",
+    "spritePath": "Assets/Sprites/Player.png",
+    "sortingLayerName": "Characters",
+    "sortingOrder": 1
+})
 ```
 
 ---
@@ -417,8 +429,9 @@ unity_sprite2d_bundle(
 
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
-| **High-Level GameKit** | actor, manager, interaction, trigger_zone, etc. | Game mechanics, systems |
-| **Mid-Level Batch** | transform_batch, physics_bundle, ui_hierarchy, etc. | Batch operations, presets |
-| **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. | Fine-grained control |
+| **High-Level GameKit** | UI Pillar (5), Presentation Pillar (5), Logic Pillar (5) | Game systems, analysis, validation |
+| **Mid-Level Batch** | transform_batch, physics_bundle, ui_hierarchy, etc. (21) | Batch operations, presets |
+| **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
+| **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |
 
-**General Principle:** Start with High-Level, drop to Mid-Level for batch operations, use Low-Level only for precise control.
+**General Principle:** Start with High-Level GameKit, drop to Mid-Level for batch operations, use Low-Level only for precise control. Always validate with Logic Pillar tools after significant changes.

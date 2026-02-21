@@ -61,78 +61,44 @@ File > New Scene > Basic (Built-in)
 Ctrl+N (Windows) / Cmd+N (Mac)
 ```
 
-### Step 2: GameKitManager を追加
+### Step 2: MCP Bridge を起動
 
-1. **空の GameObject を作成**
-   - `Hierarchy` で右クリック > `Create Empty`
-   - 名前を `GameManager` に変更
+1. **Tools > MCP Assistant** メニューを開く
+2. **Start Bridge** ボタンをクリック
+3. 接続ステータスが "Connected" になることを確認
 
-2. **GameKitManager コンポーネントを追加**
-   - `Inspector` で `Add Component`
-   - "GameKitManager" を検索して追加
+### Step 3: AI で GameKit コンポーネントを作成
 
-3. **Manager を初期化**
-   - `Manager Id`: `"MainManager"` を入力
-   - `Is Persistent`: チェック（シーン遷移で保持）
+MCP ツールを使って、AIがコード生成でゲームシステムを構築します。
 
-### Step 3: リソースを追加
+```python
+# UIコマンドパネルを作成（コード生成）
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "gameControls",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "addScore", "label": "+10 Score", "commandType": "addResource",
+         "resourceAmount": 10, "commandParameter": "score"},
+        {"name": "useCoins", "label": "-5 Coins", "commandType": "consumeResource",
+         "resourceAmount": 5, "commandParameter": "coins"}
+    ]
+})
 
-`GameKitManager` の `Mode Components` セクション：
-
-1. **Resource Manager を追加**
-   - `+` ボタン > `ResourcePool` を選択
-
-2. **初期リソースを設定**
-   - `Initial Resources` を展開
-   - `+` で追加:
-     - `health`: 100
-     - `score`: 0
-     - `coins`: 50
-
-### Step 4: テスト用スクリプト作成
-
-```csharp
-using UnityEngine;
-using UnityAIForge.GameKit;
-
-public class HelloGameKit : MonoBehaviour
-{
-    void Start()
-    {
-        // GameKitManager を取得
-        var manager = GameKitManager.FindManagerById("MainManager");
-        
-        // ResourceManager を取得
-        var resourceManager = manager.GetComponent<GameKitResourceManager>();
-        
-        // リソースを表示
-        Debug.Log($"Health: {resourceManager.GetResourceValue("health")}");
-        Debug.Log($"Score: {resourceManager.GetResourceValue("score")}");
-        Debug.Log($"Coins: {resourceManager.GetResourceValue("coins")}");
-        
-        // リソースを変更
-        resourceManager.AddResource("score", 10);
-        resourceManager.ConsumeResource("coins", 5);
-        
-        Debug.Log($"Score after +10: {resourceManager.GetResourceValue("score")}");
-        Debug.Log($"Coins after -5: {resourceManager.GetResourceValue("coins")}");
-    }
-}
+# コンパイル完了を待機
+unity_compilation_await({"operation": "await"})
 ```
 
-### Step 5: 実行
+GameKit は **コード生成** アーキテクチャを採用しています。上記のツール呼び出しにより：
+- `Assets/` フォルダにスタンドアロン C# スクリプトが自動生成
+- 生成されたスクリプトは Unity-AI-Forge への **依存なし**
+- パッケージをアンインストールしても生成コードはそのまま動作
 
-1. 新しい GameObject に `HelloGameKit` スクリプトをアタッチ
-2. Play ボタンを押す
-3. Console にリソース値が表示される！
+### Step 4: 実行
 
-```
-Health: 100
-Score: 0
-Coins: 50
-Score after +10: 10
-Coins after -5: 45
-```
+1. Play ボタンを押す
+2. 生成された UI ボタンをクリック
+3. Console にリソース変更ログが表示される！
 
 🎉 **おめでとうございます！** 最初の GameKit シーンが動きました！
 
@@ -140,120 +106,81 @@ Coins after -5: 45
 
 ## 🎮 Try GameKit
 
-### Example 1: プレイヤーキャラクターを作成
+### Example 1: プレイヤーキャラクターを作成（MCP ツール使用）
 
-#### GameKitActor でキャラクターを作成
+```python
+# プレイヤー GameObject を作成
+unity_gameobject_crud({
+    "operation": "create",
+    "name": "Player",
+    "template": "Sphere"
+})
 
-```csharp
-using UnityEngine;
-using UnityAIForge.GameKit;
+# 2D 物理プリセットを適用
+unity_physics_bundle({
+    "operation": "applyPreset2D",
+    "gameObjectPaths": ["Player"],
+    "preset": "platformer"
+})
 
-public class CreatePlayer : MonoBehaviour
-{
-    void Start()
-    {
-        // プレイヤーActorを作成
-        var playerGO = new GameObject("Player");
-        var actor = playerGO.AddComponent<GameKitActor>();
-        
-        // Actor を設定
-        actor.actorId = "Player1";
-        actor.behaviorProfile = GameKitActor.BehaviorProfile.Actor2DLinear;
-        actor.controlMode = GameKitActor.ControlMode.DirectController;
-        
-        // 2D Sprite を追加（オプション）
-        var sprite = playerGO.AddComponent<SpriteRenderer>();
-        sprite.color = Color.green;
-        
-        Debug.Log("Player created!");
-    }
-}
+# スプライトを設定
+unity_sprite2d_bundle({
+    "operation": "createSprite",
+    "name": "Player",
+    "spritePath": "Assets/Sprites/Player.png",
+    "sortingLayerName": "Characters"
+})
+
+# 操作ボタンをコード生成
+unity_gamekit_ui_command({
+    "operation": "createCommandPanel",
+    "panelId": "moveControls",
+    "layout": "horizontal",
+    "commands": [
+        {"name": "moveLeft", "label": "Left", "commandType": "move",
+         "moveDirection": {"x": -1, "y": 0, "z": 0}},
+        {"name": "jump", "label": "Jump", "commandType": "jump"},
+        {"name": "moveRight", "label": "Right", "commandType": "move",
+         "moveDirection": {"x": 1, "y": 0, "z": 0}}
+    ]
+})
+unity_compilation_await({"operation": "await"})
 ```
 
-#### 移動を実装
+### Example 2: UI でデータバインディング
 
-`GameKitActor` は `OnMoveInput` イベントを提供：
-
-```csharp
-using UnityEngine;
-using UnityAIForge.GameKit;
-
-public class PlayerMovement : MonoBehaviour
-{
-    void Update()
-    {
-        // キー入力を取得
-        float horizontal = Input.GetAxis("Horizontal");
-        float vertical = Input.GetAxis("Vertical");
-        
-        if (horizontal != 0 || vertical != 0)
-        {
-            // Actor の移動イベントを発火
-            var actor = GetComponent<GameKitActor>();
-            actor.OnMoveInput?.Invoke(new Vector3(horizontal, vertical, 0));
-        }
-    }
-}
+```python
+# HPバーを UI Binding で自動同期
+unity_gamekit_ui_binding({
+    "operation": "create",
+    "bindingId": "hpBar",
+    "sourceType": "health",
+    "sourceId": "playerHealth",
+    "format": "percent",
+    "smoothTransition": true,
+    "smoothSpeed": 5.0
+})
+unity_compilation_await({"operation": "await"})
 ```
 
-### Example 2: UI でリソースを表示
+### Example 3: エフェクトとフィードバック
 
-```csharp
-using UnityEngine;
-using UnityEngine.UI;
-using UnityAIForge.GameKit;
+```python
+# 爆発エフェクト（パーティクル + サウンド + カメラシェイク）
+unity_gamekit_effect({
+    "operation": "create",
+    "effectId": "explosion",
+    "components": [
+        {"type": "particle", "prefabPath": "Assets/Prefabs/ExplosionVFX.prefab"},
+        {"type": "sound", "clipPath": "Assets/Audio/explosion.wav", "volume": 0.8},
+        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3}
+    ]
+})
+unity_compilation_await({"operation": "await"})
 
-public class ResourceUI : MonoBehaviour
-{
-    public Text healthText;
-    public Text scoreText;
-    
-    private GameKitResourceManager resourceManager;
-    
-    void Start()
-    {
-        var manager = GameKitManager.FindManagerById("MainManager");
-        resourceManager = manager.GetComponent<GameKitResourceManager>();
-        
-        // リソース変更イベントを登録
-        resourceManager.OnResourceChanged.AddListener(OnResourceChanged);
-        
-        // 初期表示
-        UpdateUI();
-    }
-    
-    void OnResourceChanged(string resourceName, float oldValue, float newValue)
-    {
-        UpdateUI();
-    }
-    
-    void UpdateUI()
-    {
-        healthText.text = $"HP: {resourceManager.GetResourceValue("health")}";
-        scoreText.text = $"Score: {resourceManager.GetResourceValue("score")}";
-    }
-}
+# シーン整合性の検証
+unity_validate_integrity({"operation": "all"})
 ```
-
-### Example 3: Machinations で経済を設計
-
-1. **Machinations Asset を作成**
-   ```
-   Assets > Create > UnityAIForge > GameKit > Machinations Diagram
-   ```
-
-2. **リソースフローを定義**
-   - `Initial Resources`: health, mana, gold
-   - `Flows`: manaRegen (1.0/sec), goldIncome (5.0/sec)
-   - `Converters`: castSpell (mana → damage)
-   - `Triggers`: playerDied (health < 1)
-
-3. **Manager に適用**
-   ```csharp
-   var resourceManager = manager.GetComponent<GameKitResourceManager>();
-   resourceManager.machinationsAsset = myMachinationsAsset;
-   resourceManager.autoProcessFlows = true;
-   ```
 
 ---
 
@@ -351,7 +278,7 @@ AI が自動的に:
 | リソース | 内容 |
 |:---|:---|
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
-| [**MCP Tools**](MCPServer/SKILL.md) | 全24ツールのリファレンス |
+| [**MCP Tools**](MCPServer/SKILL.md) | 全49ツールのリファレンス |
 | [**Examples**](Examples/README.md) | 実践的なサンプル集 |
 | [**API Docs**](GameKit/README.md) | GameKit API ドキュメント |
 
@@ -361,12 +288,12 @@ AI が自動的に:
 
 - [ ] **Clicker Game** - リソース管理を学ぶ
 - [ ] **Quiz Game** - UI Command を学ぶ
-- [ ] **Visual Novel** - SceneFlow を学ぶ
+- [ ] **Visual Novel** - UI Selection + Effect を学ぶ
 
 #### 中級
 
-- [ ] **Tower Defense** - Machinations で経済設計
-- [ ] **RPG** - Actor + Manager 統合
+- [ ] **Tower Defense** - UI Slot + Effect で構築
+- [ ] **RPG** - GameKit 3ピラー統合
 - [ ] **Roguelike** - プロシージャル生成 + GameKit
 
 #### 上級
@@ -387,32 +314,30 @@ AI が自動的に:
 
 ### よくある問題
 
-#### "GameKitManager が見つからない"
+#### "コンパイルが終わらない"
 
 **解決策:**
-```csharp
-// 名前で検索
-var manager = GameKitManager.FindManagerById("MainManager");
+```python
+# タイムアウトを延長
+unity_compilation_await({"operation": "await", "timeoutSeconds": 120})
 
-// またはシーン内の全Managerを取得
-var allManagers = FindObjectsOfType<GameKitManager>();
+# コンパイルエラーを確認
+unity_console_log({"operation": "getCompilationErrors"})
 ```
 
 #### "MCP Server が起動しない"
 
 **チェックリスト:**
-1. Python 3.11+ がインストールされている
+1. Python 3.10+ がインストールされている
 2. `uv` がインストールされている (`pip install uv`)
 3. ポート 6007 が使用されていない
 4. Unity Editor の Console にエラーがない
 
-#### "Assembly が見つからない"
+#### "生成されたスクリプトがアタッチされない"
 
 **解決策:**
-```csharp
-// 正しい using を追加
-using UnityAIForge.GameKit;
-```
+GameKit はコード生成後にコンパイルが必要です。`unity_compilation_await` を忘れずに呼んでください。
+生成されたスクリプトは `Assets/` フォルダに配置されます。
 
 ---
 
