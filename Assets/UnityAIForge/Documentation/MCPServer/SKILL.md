@@ -66,7 +66,7 @@ unity_gamekit_ui_command({
          "commandParameter": "melee"}
     ]
 })
-unity_compilation_await()
+unity_compilation_await({"operation": "await"})
 
 # Create hit feedback (Presentation Pillar)
 unity_gamekit_feedback({
@@ -77,7 +77,7 @@ unity_gamekit_feedback({
         {"type": "screenShake", "duration": 0.2, "intensity": 0.3}
     ]
 })
-unity_compilation_await()
+unity_compilation_await({"operation": "await"})
 
 # Validate scene integrity (Logic Pillar)
 unity_validate_integrity({"operation": "all"})
@@ -91,7 +91,7 @@ unity_validate_integrity({"operation": "all"})
 
 ```python
 # Create a new scene
-unity_scene_crud({"operation": "create", "sceneName": "GameLevel"})
+unity_scene_crud({"operation": "create", "scenePath": "Assets/Scenes/GameLevel.unity"})
 
 # Inspect current scene hierarchy
 unity_scene_crud({
@@ -108,9 +108,18 @@ unity_scene_crud({
 unity_gameobject_crud({
     "operation": "create",
     "name": "Player",
-    "template": "Sphere",
-    "position": {"x": 0, "y": 1, "z": 0},
-    "scale": {"x": 0.5, "y": 0.5, "z": 0.5}
+    "template": "Sphere"
+})
+
+# Set position/scale via Transform component
+unity_component_crud({
+    "operation": "update",
+    "gameObjectPath": "Player",
+    "componentType": "UnityEngine.Transform",
+    "propertyChanges": {
+        "position": {"x": 0, "y": 1, "z": 0},
+        "localScale": {"x": 0.5, "y": 0.5, "z": 0.5}
+    }
 })
 
 # Create with auto-attached components
@@ -177,7 +186,7 @@ unity_ui_hierarchy({
 unity_uitk_asset({
     "operation": "createFromTemplate",
     "templateName": "menu",
-    "outputPath": "Assets/UI/MainMenu",
+    "outputDir": "Assets/UI/MainMenu",
     "title": "My Game",
     "buttons": ["New Game", "Load Game", "Settings", "Quit"]
 })
@@ -243,7 +252,7 @@ unity_asset_crud({
 })
 
 # Wait for compilation after script creation
-unity_compilation_await()
+unity_compilation_await({"operation": "await"})
 
 # Inspect asset properties
 unity_asset_crud({
@@ -390,7 +399,7 @@ unity_camera_rig({
 
 ```python
 # Create material with preset
-unity_material_bundle({"operation": "create", "materialPath": "Assets/Materials/Player.mat", "preset": "metallic"})
+unity_material_bundle({"operation": "create", "savePath": "Assets/Materials/Player.mat", "preset": "metallic"})
 
 # Create lighting setup
 unity_light_bundle({"operation": "createLightingSetup", "setupPreset": "daylight"})
@@ -403,7 +412,7 @@ unity_particle_bundle({"operation": "create", "gameObjectPath": "Effects/Fire", 
 
 ```python
 unity_audio_source_bundle({
-    "operation": "applyPreset",
+    "operation": "createAudioSource",
     "gameObjectPath": "BGM",
     "preset": "music"
 })
@@ -417,7 +426,7 @@ unity_audio_source_bundle({
 unity_sprite2d_bundle({"operation": "createSprite", "name": "Player", "spritePath": "Assets/Sprites/player.png"})
 
 # Tilemap creation
-unity_tilemap_bundle({"operation": "createTilemap", "name": "Ground", "layout": "Rectangle"})
+unity_tilemap_bundle({"operation": "createTilemap", "name": "Ground", "cellLayout": "Rectangle"})
 
 # 2D animation setup
 unity_animation2d_bundle({"operation": "createController", "controllerPath": "Assets/Animations/Player.controller"})
@@ -445,10 +454,15 @@ unity_animation3d_bundle({
 # Wire Button.onClick to a method
 unity_event_wiring({
     "operation": "wire",
-    "sourceObjectPath": "Canvas/StartButton",
-    "sourceEventName": "onClick",
-    "targetObjectPath": "GameManager",
-    "targetMethodName": "StartGame"
+    "source": {
+        "gameObject": "Canvas/StartButton",
+        "component": "UnityEngine.UI.Button",
+        "event": "onClick"
+    },
+    "target": {
+        "gameObject": "GameManager",
+        "method": "StartGame"
+    }
 })
 ```
 
@@ -457,7 +471,7 @@ unity_event_wiring({
 ```python
 # Setup player input with preset
 unity_input_profile({
-    "operation": "applyPreset",
+    "operation": "createPlayerInput",
     "gameObjectPath": "Player",
     "preset": "player"
 })
@@ -508,9 +522,9 @@ unity_rectTransform_batch({
     "spacing": 10
 })
 
-# Set anchors for responsive layout
+# Align to parent with anchor preset
 unity_rectTransform_batch({
-    "operation": "setAnchors",
+    "operation": "alignToParent",
     "gameObjectPaths": ["Panel"],
     "preset": "stretchAll"
 })
@@ -521,7 +535,7 @@ unity_rectTransform_batch({
 ```python
 # Generate sprite from primitive
 unity_vector_sprite_convert({
-    "operation": "createFromPrimitive",
+    "operation": "primitiveToSprite",
     "primitiveType": "circle",
     "width": 128,
     "height": 128,
@@ -539,7 +553,7 @@ unity_vector_sprite_convert({
 unity_ping()
 
 # Wait for script compilation
-unity_compilation_await({"timeoutSeconds": 60})
+unity_compilation_await({"operation": "await", "timeoutSeconds": 60})
 
 # Control play mode
 unity_playmode_control({"operation": "play"})
@@ -574,10 +588,10 @@ All development follows the **Plan - Do - Check - Act** cycle:
 unity_scene_crud({"operation": "inspect", "includeHierarchy": true})
 
 # Check what references an object (before deleting/renaming)
-unity_scene_reference_graph({"operation": "analyzeObject", "rootPath": "TargetObject"})
+unity_scene_reference_graph({"operation": "analyzeObject", "objectPath": "TargetObject"})
 
 # Discover available types
-unity_class_catalog({"operation": "listTypes", "typeKind": "monoBehaviour"})
+unity_class_catalog({"operation": "listTypes", "typeKind": "MonoBehaviour"})
 ```
 
 ### D (Do) - Execute with appropriate tools
@@ -593,7 +607,7 @@ unity_physics_bundle({"operation": "applyPreset2D", "gameObjectPaths": ["Player"
 unity_component_crud({"operation": "add", "gameObjectPath": "Player", "componentType": "..."})
 
 # Wait for compilation after script changes
-unity_compilation_await()
+unity_compilation_await({"operation": "await"})
 ```
 
 ### C (Check) - Verify after changes
@@ -653,7 +667,7 @@ unity_playmode_control({"operation": "stop"})
 5. **Wait for compilation after script changes**
    ```python
    unity_asset_crud({"operation": "create", "assetPath": "Assets/Scripts/Foo.cs", "content": "..."})
-   unity_compilation_await()
+   unity_compilation_await({"operation": "await"})
    ```
 
 6. **Validate integrity after significant changes**
