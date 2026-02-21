@@ -11,7 +11,7 @@ AI駆動型Unity開発ツールキット。MCPサーバー + GameKitフレーム
 5. **コンパイルが必要な操作は自動待機**（ブリッジ再接続で解除）
 6. **UI優先設計**: 人間が操作・確認できるUIから優先的に実装する
 7. **シーン分割**: 機能ごとにシーンを分ける
-8. **変更後は関係性グラフで破損確認**: 重要な変更後は `unity_scene_relationship_graph` で参照破損がないか確認する
+8. **PDCAサイクルを遵守**: Plan→Do→Check→Actの順で開発を進める（詳細は「PDCAワークフロー」セクション参照）
 
 ---
 
@@ -153,45 +153,134 @@ Assets/Scenes/
 | 詳細な個別制御 | Low-Level CRUD | GameObject/Component操作 |
 | コード解析・依存関係調査 | High-Level Analysis | 参照グラフ, クラス依存関係 |
 
-### 基本ワークフロー
+### 🔄 PDCAワークフロー (開発サイクル)
+
+すべての開発作業は **Plan → Do → Check → Act** のサイクルで進める。
+
+#### P (Plan) - 計画・調査
+
+変更前に現状を把握し、影響範囲を特定する。
 
 ```python
-# 1. 確認
+# 1. シーン全体の構造を確認
 unity_scene_crud(operation='inspect', includeHierarchy=True)
 
-# 2. 操作（適切なレイヤーのツールで）
-unity_gamekit_actor(operation='create', actorId='player', ...)
-
-# 3. 検証
+# 2. 変更対象を事前調査（inspect操作）
 unity_gamekit_actor(operation='inspect', actorId='player')
-```
+unity_component_crud(operation='inspect', gameObjectPath='Player', includeProperties=True)
 
-### 🔍 変更後の破損確認ワークフロー
-
-**重要な変更（削除、移動、リネーム、参照変更）を行った後は、関係性グラフツールで参照破損を確認する。**
-
-```python
-# 変更後に参照破損がないか確認
-unity_scene_relationship_graph(
-    operation='analyze',
-    includeReferences=True,
-    includeEvents=True
-)
-
-# 特定オブジェクトの参照を確認（削除前の影響調査にも使用）
+# 3. 影響範囲の事前調査（削除・移動・リネーム前に必須）
 unity_scene_reference_graph(
     operation='analyze',
     rootPath='TargetObject',
-    direction='incoming'  # このオブジェクトを参照しているものを検出
+    direction='incoming'  # このオブジェクトを参照しているものを把握
 )
+
+# 4. クラス依存関係の事前把握（スクリプト変更前）
+unity_class_dependency_graph(
+    operation='analyze',
+    className='TargetClass',
+    direction='both'
+)
+
+# 5. 利用可能な型の調査
+unity_class_catalog(operation='list', category='monoBehaviour', searchPath='Assets/Scripts')
 ```
 
-**確認すべきケース:**
-- GameObject/Componentの削除後
-- オブジェクトのリネーム後
-- Prefab参照の変更後
-- UnityEventの接続先変更後
-- ScriptableObjectの参照変更後
+#### D (Do) - 実行
+
+計画に基づき、適切なレイヤーのツールで変更を実行する。
+
+```python
+# High-Level GameKit: ゲームシステム構築
+unity_gamekit_actor(operation='create', actorId='player', behaviorProfile='2dPhysics', controlMode='directController')
+unity_gamekit_health(operation='create', targetPath='Player', healthId='player_hp', maxHealth=100)
+
+# Mid-Level Batch: バッチ操作・プリセット適用
+unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'], preset='character')
+unity_transform_batch(operation='arrangeLine', gameObjectPaths=[...], startPosition=..., endPosition=...)
+
+# Low-Level CRUD: 詳細な個別制御
+unity_component_crud(operation='add', gameObjectPath='Player', componentType='...', propertyChanges={...})
+
+# コード生成後はコンパイル待機
+unity_compilation_await(operation='await', timeoutSeconds=60)
+```
+
+#### C (Check) - 確認・検証
+
+変更後は必ず以下のツールで品質を検証する。**特に削除・移動・リネーム・参照変更後は必須。**
+
+```python
+# 1. シーン整合性チェック（Missing Script、null参照、壊れたイベント/Prefab検出）
+unity_validate_integrity(
+    operation='validate',
+    checks=['missingScripts', 'nullReferences', 'brokenEvents', 'brokenPrefabs']
+)
+
+# 2. 参照・イベント・階層の統合検証
+unity_scene_relationship_graph(
+    operation='analyze',
+    includeReferences=True,
+    includeEvents=True,
+    includeHierarchy=True
+)
+
+# 3. クラス依存関係の健全性確認（スクリプト変更後）
+unity_class_dependency_graph(
+    operation='analyze',
+    searchPath='Assets/Scripts',
+    includeUnityTypes=False
+)
+
+# 4. 特定オブジェクトの参照追跡
+unity_scene_reference_graph(
+    operation='analyze',
+    rootPath='ChangedObject',
+    direction='both'
+)
+
+# 5. コンソールログでエラー・警告を確認
+unity_console_log(operation='get', logType='error', maxCount=50)
+```
+
+#### A (Act) - 改善・対処
+
+Checkで発見した問題を修正し、動作を確認する。
+
+```python
+# 1. 壊れた参照の修復（適切なツールで再接続）
+unity_event_wiring(
+    operation='connect',
+    sourceObjectPath='Button',
+    sourceEventName='onClick',
+    targetObjectPath='NewTarget',
+    targetMethodName='HandleClick'
+)
+
+# 2. 不要な参照・コンポーネントの除去
+unity_component_crud(operation='remove', gameObjectPath='Object', componentType='BrokenScript')
+
+# 3. プレイモードで実際の動作を確認
+unity_playmode_control(operation='play')
+
+# 4. ランタイムエラーの確認
+unity_console_log(operation='get', logType='error', maxCount=50)
+
+# 5. プレイモード停止
+unity_playmode_control(operation='stop')
+
+# 問題が残っている場合 → Plan に戻って再調査
+```
+
+#### PDCAチェックリスト
+
+| フェーズ | 必須アクション | 使用ツール |
+|---------|--------------|-----------|
+| **Plan** | 現状把握、影響調査 | inspect操作, reference_graph, dependency_graph, class_catalog |
+| **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD, compilation_await |
+| **Check** | 整合性・依存関係検証 | validate_integrity, relationship_graph, dependency_graph, console_log |
+| **Act** | 問題修正・動作確認 | event_wiring, CRUD, playmode_control, console_log |
 
 ---
 
