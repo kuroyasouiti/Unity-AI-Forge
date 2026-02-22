@@ -184,7 +184,7 @@ def component_manage_schema() -> dict[str, Any]:
                 },
                 "componentType": {
                     "type": "string",
-                    "description": "Full component type name (e.g., 'UnityEngine.Rigidbody2D', 'UnityEngine.UI.Button').",
+                    "description": "Full component type name (e.g., 'UnityEngine.Rigidbody2D'). Use '*' to target all components (inspect: returns all, remove: removes all except Transform).",
                 },
                 "propertyChanges": {
                     "type": "object",
