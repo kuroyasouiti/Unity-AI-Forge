@@ -30,6 +30,7 @@ namespace MCP.Editor.Tests
             Assert.Contains("nullReferences", ops);
             Assert.Contains("brokenEvents", ops);
             Assert.Contains("brokenPrefabs", ops);
+            Assert.Contains("removeMissingScripts", ops);
             Assert.Contains("all", ops);
         }
 
@@ -56,6 +57,13 @@ namespace MCP.Editor.Tests
         public void MissingScripts_ReturnsSuccess()
         {
             var result = _handler.Execute(TestUtilities.CreatePayload("missingScripts"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void RemoveMissingScripts_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("removeMissingScripts"));
             TestUtilities.AssertSuccess(result);
         }
     }

@@ -227,6 +227,7 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "nullReferences",
                         "brokenEvents",
                         "brokenPrefabs",
+                        "removeMissingScripts",
                         "all",
                     ],
                     "description": (
@@ -235,6 +236,7 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'nullReferences': detect dangling object references. "
                         "'brokenEvents': detect UnityEvent listeners with null targets or missing methods. "
                         "'brokenPrefabs': detect prefab instances with missing or disconnected assets. "
+                        "'removeMissingScripts': detect and remove all missing MonoBehaviour scripts (undoable). "
                         "'all': run all checks and return categorized summary."
                     ),
                 },

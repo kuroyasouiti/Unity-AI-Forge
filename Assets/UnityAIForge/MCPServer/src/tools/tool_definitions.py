@@ -564,6 +564,7 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- nullReferences: Detect SerializedProperty object references pointing to destroyed objects\n"
                 "- brokenEvents: Detect UnityEvent listeners with null targets or missing methods\n"
                 "- brokenPrefabs: Detect prefab instances with missing or disconnected assets\n"
+                "- removeMissingScripts: Detect and remove all missing MonoBehaviour scripts (undoable)\n"
                 "- all: Run all checks and return categorized summary\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"

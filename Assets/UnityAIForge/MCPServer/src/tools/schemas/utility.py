@@ -19,8 +19,8 @@ def compilation_await_schema() -> dict[str, Any]:
         "properties": {
             "operation": {
                 "type": "string",
-                "enum": ["await"],
-                "description": "Operation to perform. Currently only 'await' is supported.",
+                "enum": ["await", "status"],
+                "description": "Operation to perform. 'await' waits for compilation; 'status' checks current state.",
             },
             "timeoutSeconds": {
                 "type": "integer",
