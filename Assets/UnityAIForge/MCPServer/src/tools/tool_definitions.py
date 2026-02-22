@@ -100,6 +100,7 @@ def get_tool_definitions() -> list[types.Tool]:
             name="unity_component_crud",
             description=(
                 "Complete component management with batch operations: add/remove/update/inspect components on GameObjects.\n\n"
+                "**Wildcard:** Use componentType='*' to inspect all components or remove all (except Transform).\n\n"
                 "**Property Changes:** Supports complex property changes including nested objects and asset references.\n\n"
                 '**Unity Object References:** For properties that expect Unity Object references, use:\n'
                 '- `{ "$ref": "path" }` - Object reference format (recommended)\n'

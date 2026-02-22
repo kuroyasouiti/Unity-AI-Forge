@@ -98,5 +98,80 @@ namespace MCP.Editor.Tests
                 ("propertyChanges", new Dictionary<string, object> { ["gravityScale"] = 0 })));
             TestUtilities.AssertSuccess(result);
         }
+
+        #region Wildcard Tests
+
+        [Test]
+        public void Inspect_Wildcard_ReturnsAllComponents()
+        {
+            var go = _tracker.Create("WildcardInspect");
+            go.AddComponent<Rigidbody2D>();
+            go.AddComponent<BoxCollider2D>();
+
+            var result = _handler.Execute(TestUtilities.CreatePayload("inspect",
+                ("gameObjectPath", "WildcardInspect"),
+                ("componentType", "*")));
+
+            TestUtilities.AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var components = dict["components"] as List<Dictionary<string, object>>;
+            Assert.IsNotNull(components);
+            // Transform + Rigidbody2D + BoxCollider2D = 3
+            Assert.AreEqual(3, components.Count);
+            var typeNames = components.Select(c => c["componentType"] as string).ToList();
+            Assert.IsTrue(typeNames.Contains("UnityEngine.Transform"));
+            Assert.IsTrue(typeNames.Contains("UnityEngine.Rigidbody2D"));
+            Assert.IsTrue(typeNames.Contains("UnityEngine.BoxCollider2D"));
+        }
+
+        [Test]
+        public void Remove_Wildcard_RemovesAllExceptTransform()
+        {
+            var go = _tracker.Create("WildcardRemove");
+            go.AddComponent<Rigidbody2D>();
+            go.AddComponent<BoxCollider2D>();
+
+            var result = _handler.Execute(TestUtilities.CreatePayload("remove",
+                ("gameObjectPath", "WildcardRemove"),
+                ("componentType", "*")));
+
+            TestUtilities.AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var removed = dict["removed"] as List<string>;
+            Assert.IsNotNull(removed);
+            Assert.AreEqual(2, removed.Count);
+            Assert.IsTrue(removed.Contains("UnityEngine.Rigidbody2D"));
+            Assert.IsTrue(removed.Contains("UnityEngine.BoxCollider2D"));
+            // Transform should still exist
+            Assert.IsNotNull(go.GetComponent<Transform>());
+            // Other components should be gone
+            Assert.IsNull(go.GetComponent<Rigidbody2D>());
+            Assert.IsNull(go.GetComponent<BoxCollider2D>());
+        }
+
+        [Test]
+        public void Add_Wildcard_ReturnsError()
+        {
+            _tracker.Create("WildcardAdd");
+            var result = _handler.Execute(TestUtilities.CreatePayload("add",
+                ("gameObjectPath", "WildcardAdd"),
+                ("componentType", "*")));
+
+            TestUtilities.AssertError(result, "Wildcard '*' is not supported for add operations");
+        }
+
+        [Test]
+        public void Update_Wildcard_ReturnsError()
+        {
+            _tracker.Create("WildcardUpdate");
+            var result = _handler.Execute(TestUtilities.CreatePayload("update",
+                ("gameObjectPath", "WildcardUpdate"),
+                ("componentType", "*"),
+                ("propertyChanges", new Dictionary<string, object> { ["test"] = 1 })));
+
+            TestUtilities.AssertError(result, "Wildcard '*' is not supported for update operations");
+        }
+
+        #endregion
     }
 }

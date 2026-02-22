@@ -86,12 +86,17 @@ namespace MCP.Editor.Handlers
         {
             var gameObject = ResolveGameObjectFromPayload(payload);
             var componentType = GetString(payload, "componentType");
-            
+
             if (string.IsNullOrEmpty(componentType))
             {
                 throw new InvalidOperationException("componentType parameter is required");
             }
-            
+
+            if (componentType == "*")
+            {
+                throw new InvalidOperationException("Wildcard '*' is not supported for add operations");
+            }
+
             var type = ResolveType(componentType);
             
             if (!typeof(Component).IsAssignableFrom(type))
@@ -134,24 +139,29 @@ namespace MCP.Editor.Handlers
         {
             var gameObject = ResolveGameObjectFromPayload(payload);
             var componentType = GetString(payload, "componentType");
-            
+
             if (string.IsNullOrEmpty(componentType))
             {
                 throw new InvalidOperationException("componentType parameter is required");
             }
-            
+
+            if (componentType == "*")
+            {
+                return RemoveAllComponents(gameObject);
+            }
+
             var type = ResolveType(componentType);
             var component = gameObject.GetComponent(type);
-            
+
             if (component == null)
             {
                 throw new InvalidOperationException(
                     $"Component {componentType} not found on GameObject {BuildGameObjectPath(gameObject)}"
                 );
             }
-            
+
             Undo.DestroyObjectImmediate(component);
-            
+
             return CreateSuccessResponse(
                 ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
@@ -166,12 +176,17 @@ namespace MCP.Editor.Handlers
         {
             var gameObject = ResolveGameObjectFromPayload(payload);
             var componentType = GetString(payload, "componentType");
-            
+
             if (string.IsNullOrEmpty(componentType))
             {
                 throw new InvalidOperationException("componentType parameter is required");
             }
-            
+
+            if (componentType == "*")
+            {
+                throw new InvalidOperationException("Wildcard '*' is not supported for update operations");
+            }
+
             var type = ResolveType(componentType);
             var component = gameObject.GetComponent(type);
             
@@ -205,25 +220,30 @@ namespace MCP.Editor.Handlers
         {
             var gameObject = ResolveGameObjectFromPayload(payload);
             var componentType = GetString(payload, "componentType");
-            
+
             if (string.IsNullOrEmpty(componentType))
             {
                 throw new InvalidOperationException("componentType parameter is required");
             }
-            
+
+            if (componentType == "*")
+            {
+                return InspectAllComponents(gameObject, payload);
+            }
+
             var type = ResolveType(componentType);
             var component = gameObject.GetComponent(type);
-            
+
             if (component == null)
             {
                 throw new InvalidOperationException(
                     $"Component {componentType} not found on GameObject {BuildGameObjectPath(gameObject)}"
                 );
             }
-            
+
             var includeProperties = GetBool(payload, "includeProperties", true);
             var propertyFilter = ParsePropertyFilter(payload);
-            
+
             var info = new Dictionary<string, object>
             {
                 ["success"] = true,
@@ -231,12 +251,12 @@ namespace MCP.Editor.Handlers
                 ["componentType"] = type.FullName,
                 ["instanceID"] = component.GetInstanceID()
             };
-            
+
             if (includeProperties)
             {
                 info["properties"] = SerializeComponentProperties(component, propertyFilter);
             }
-            
+
             return info;
         }
         
@@ -254,22 +274,27 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var stopOnError = GetBool(payload, "stopOnError", false);
-            
+
             // Get optional propertyChanges to apply after adding
-            var propertyChanges = payload.ContainsKey("propertyChanges") 
-                ? payload["propertyChanges"] as Dictionary<string, object> 
+            var propertyChanges = payload.ContainsKey("propertyChanges")
+                ? payload["propertyChanges"] as Dictionary<string, object>
                 : null;
-            
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
+
             if (string.IsNullOrEmpty(componentType))
             {
                 throw new InvalidOperationException("componentType parameter is required");
             }
-            
+
+            if (componentType == "*")
+            {
+                throw new InvalidOperationException("Wildcard '*' is not supported for add operations");
+            }
+
             var type = ResolveType(componentType);
             var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
             
@@ -343,24 +368,90 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var stopOnError = GetBool(payload, "stopOnError", false);
-            
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
+
             if (string.IsNullOrEmpty(componentType))
             {
                 throw new InvalidOperationException("componentType parameter is required");
             }
-            
-            var type = ResolveType(componentType);
+
+            var isWildcard = componentType == "*";
+            if (!isWildcard)
+            {
+                var type = ResolveType(componentType);
+                return RemoveMultipleComponentsByType(type, pattern, useRegex, maxResults, stopOnError);
+            }
+
+            // Wildcard: remove all components except Transform from each matched GO
             var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
-            
             var results = new List<Dictionary<string, object>>();
             int successCount = 0;
             int failureCount = 0;
-            
+
+            foreach (var go in gameObjects)
+            {
+                try
+                {
+                    var components = go.GetComponents<Component>()
+                        .Where(c => c != null && !(c is Transform))
+                        .ToList();
+                    var removed = new List<string>();
+                    foreach (var comp in components)
+                    {
+                        var typeName = comp.GetType().FullName;
+                        Undo.DestroyObjectImmediate(comp);
+                        removed.Add(typeName);
+                    }
+
+                    successCount++;
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = true,
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
+                        ["removed"] = removed,
+                        ["count"] = removed.Count
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failureCount++;
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
+                        ["error"] = ex.Message
+                    });
+
+                    if (stopOnError)
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            return CreateSuccessResponse(
+                ("results", results),
+                ("processed", gameObjects.Count),
+                ("succeeded", successCount),
+                ("failed", failureCount)
+            );
+        }
+
+        /// <summary>
+        /// Removes a specific component type from multiple GameObjects.
+        /// </summary>
+        private object RemoveMultipleComponentsByType(
+            System.Type type, string pattern, bool useRegex, int maxResults, bool stopOnError)
+        {
+            var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
+            var results = new List<Dictionary<string, object>>();
+            int successCount = 0;
+            int failureCount = 0;
+
             foreach (var go in gameObjects)
             {
                 try
@@ -370,10 +461,10 @@ namespace MCP.Editor.Handlers
                     {
                         throw new InvalidOperationException($"Component not found");
                     }
-                    
+
                     Undo.DestroyObjectImmediate(component);
                     successCount++;
-                    
+
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = true,
@@ -383,21 +474,21 @@ namespace MCP.Editor.Handlers
                 catch (Exception ex)
                 {
                     failureCount++;
-                    
+
                     results.Add(new Dictionary<string, object>
                     {
                         ["success"] = false,
                         ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["error"] = ex.Message
                     });
-                    
+
                     if (stopOnError)
                     {
                         throw;
                     }
                 }
             }
-            
+
             return CreateSuccessResponse(
                 ("results", results),
                 ("processed", gameObjects.Count),
@@ -417,17 +508,22 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var stopOnError = GetBool(payload, "stopOnError", false);
-            
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
+
             if (propertyChanges == null)
             {
                 throw new InvalidOperationException("propertyChanges parameter is required");
             }
-            
+
+            if (componentType == "*")
+            {
+                throw new InvalidOperationException("Wildcard '*' is not supported for update operations");
+            }
+
             var type = ResolveType(componentType);
             var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
             
@@ -493,17 +589,56 @@ namespace MCP.Editor.Handlers
             var maxResults = GetInt(payload, "maxResults", 1000);
             var includeProperties = GetBool(payload, "includeProperties", true);
             var propertyFilter = ParsePropertyFilter(payload);
-            
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
-            var type = ResolveType(componentType);
+
+            var isWildcard = componentType == "*";
             var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
-            
-            var results = new List<Dictionary<string, object>>();
-            
+
+            if (isWildcard)
+            {
+                // Wildcard: return all components for each matched GO
+                var results = new List<Dictionary<string, object>>();
+                foreach (var go in gameObjects)
+                {
+                    var components = go.GetComponents<Component>()
+                        .Where(c => c != null)
+                        .ToList();
+                    var compList = new List<Dictionary<string, object>>();
+                    foreach (var comp in components)
+                    {
+                        var compInfo = new Dictionary<string, object>
+                        {
+                            ["componentType"] = comp.GetType().FullName,
+                            ["instanceID"] = comp.GetInstanceID()
+                        };
+                        if (includeProperties)
+                        {
+                            compInfo["properties"] = SerializeComponentProperties(comp, propertyFilter);
+                        }
+                        compList.Add(compInfo);
+                    }
+
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["gameObjectPath"] = BuildGameObjectPath(go),
+                        ["components"] = compList,
+                        ["count"] = compList.Count
+                    });
+                }
+
+                return CreateSuccessResponse(
+                    ("results", results),
+                    ("count", results.Count)
+                );
+            }
+
+            var type = ResolveType(componentType);
+            var singleResults = new List<Dictionary<string, object>>();
+
             foreach (var go in gameObjects)
             {
                 var component = go.GetComponent(type);
@@ -514,24 +649,86 @@ namespace MCP.Editor.Handlers
                         ["gameObjectPath"] = BuildGameObjectPath(go),
                         ["instanceID"] = component.GetInstanceID()
                     };
-                    
+
                     if (includeProperties)
                     {
                         info["properties"] = SerializeComponentProperties(component, propertyFilter);
                     }
-                    
-                    results.Add(info);
+
+                    singleResults.Add(info);
                 }
             }
-            
+
             return CreateSuccessResponse(
-                ("results", results),
-                ("count", results.Count)
+                ("results", singleResults),
+                ("count", singleResults.Count)
             );
         }
         
         #endregion
         
+        #region Wildcard Operations
+
+        /// <summary>
+        /// Inspects all components on a GameObject.
+        /// </summary>
+        private object InspectAllComponents(GameObject gameObject, Dictionary<string, object> payload)
+        {
+            var includeProperties = GetBool(payload, "includeProperties", true);
+            var propertyFilter = ParsePropertyFilter(payload);
+
+            var components = gameObject.GetComponents<Component>()
+                .Where(c => c != null)
+                .ToList();
+
+            var compList = new List<Dictionary<string, object>>();
+            foreach (var comp in components)
+            {
+                var compInfo = new Dictionary<string, object>
+                {
+                    ["componentType"] = comp.GetType().FullName,
+                    ["instanceID"] = comp.GetInstanceID()
+                };
+                if (includeProperties)
+                {
+                    compInfo["properties"] = SerializeComponentProperties(comp, propertyFilter);
+                }
+                compList.Add(compInfo);
+            }
+
+            return CreateSuccessResponse(
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
+                ("components", compList),
+                ("count", compList.Count)
+            );
+        }
+
+        /// <summary>
+        /// Removes all components except Transform from a GameObject.
+        /// </summary>
+        private object RemoveAllComponents(GameObject gameObject)
+        {
+            var components = gameObject.GetComponents<Component>()
+                .Where(c => c != null && !(c is Transform))
+                .ToList();
+
+            var removed = new List<string>();
+            foreach (var comp in components)
+            {
+                var typeName = comp.GetType().FullName;
+                Undo.DestroyObjectImmediate(comp);
+                removed.Add(typeName);
+            }
+
+            return CreateSuccessResponse(
+                ("gameObjectPath", BuildGameObjectPath(gameObject)),
+                ("removed", removed),
+                ("count", removed.Count)
+            );
+        }
+
+        #endregion
+
         #region Helper Methods
 
         /// <summary>
