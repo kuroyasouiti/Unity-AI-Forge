@@ -48,6 +48,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
 
         /// <summary>
         /// Find GameObjects with missing (null) MonoBehaviour scripts.
+        /// Uses GameObjectUtility API for reliable detection (runtime GetComponents skips missing scripts).
         /// </summary>
         public List<IntegrityIssue> FindMissingScripts(string rootPath = null)
         {
@@ -56,24 +57,53 @@ namespace MCP.Editor.Utilities.GraphAnalysis
 
             foreach (var go in gameObjects)
             {
-                var components = go.GetComponents<Component>();
-                for (int i = 0; i < components.Length; i++)
+                int missingCount = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(go);
+                if (missingCount > 0)
                 {
-                    if (components[i] == null)
+                    issues.Add(new IntegrityIssue
                     {
-                        issues.Add(new IntegrityIssue
-                        {
-                            Type = "missingScript",
-                            Severity = "error",
-                            GameObjectPath = GetGameObjectPath(go),
-                            ComponentIndex = i,
-                            Message = $"Missing MonoBehaviour script at index {i}"
-                        });
-                    }
+                        Type = "missingScript",
+                        Severity = "error",
+                        GameObjectPath = GetGameObjectPath(go),
+                        Message = $"{missingCount} missing MonoBehaviour script(s)"
+                    });
                 }
             }
 
             return issues;
+        }
+
+        /// <summary>
+        /// Remove all missing MonoBehaviour scripts from GameObjects in the scene or subtree.
+        /// Uses GameObjectUtility.RemoveMonoBehavioursWithMissingScript for reliable removal.
+        /// Returns the list of GameObjects that were cleaned.
+        /// </summary>
+        public (List<IntegrityIssue> removed, int totalRemoved) RemoveMissingScripts(string rootPath = null)
+        {
+            var removed = new List<IntegrityIssue>();
+            int totalRemoved = 0;
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            foreach (var go in gameObjects)
+            {
+                int missingCount = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(go);
+                if (missingCount > 0)
+                {
+                    Undo.RegisterCompleteObjectUndo(go, "Remove Missing Scripts");
+                    GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
+                    totalRemoved += missingCount;
+
+                    removed.Add(new IntegrityIssue
+                    {
+                        Type = "missingScript",
+                        Severity = "info",
+                        GameObjectPath = GetGameObjectPath(go),
+                        Message = $"Removed {missingCount} missing MonoBehaviour script(s)"
+                    });
+                }
+            }
+
+            return (removed, totalRemoved);
         }
 
         /// <summary>

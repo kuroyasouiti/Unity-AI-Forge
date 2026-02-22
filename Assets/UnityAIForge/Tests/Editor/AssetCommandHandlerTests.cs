@@ -3,6 +3,7 @@ using System.Linq;
 using MCP.Editor.Handlers;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine.TestTools;
 
 namespace MCP.Editor.Tests
 {
@@ -15,6 +16,9 @@ namespace MCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            // Asset operations trigger VS/Rider project sync which can cause
+            // IOException sharing violations on .csproj files (Windows).
+            LogAssert.ignoreFailingMessages = true;
             _handler = new AssetCommandHandler();
             _tempDir = TestUtilities.CreateTempAssetDirectory();
         }
@@ -23,6 +27,7 @@ namespace MCP.Editor.Tests
         public void TearDown()
         {
             TestUtilities.CleanupTempAssetDirectory(_tempDir);
+            LogAssert.ignoreFailingMessages = false;
         }
 
         [Test]

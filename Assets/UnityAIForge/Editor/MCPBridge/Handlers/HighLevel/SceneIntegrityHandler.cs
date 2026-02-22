@@ -18,6 +18,7 @@ namespace MCP.Editor.Handlers.HighLevel
             "nullReferences",
             "brokenEvents",
             "brokenPrefabs",
+            "removeMissingScripts",
             "all"
         };
 
@@ -38,6 +39,7 @@ namespace MCP.Editor.Handlers.HighLevel
                 "nullReferences" => BuildResponse(operation, analyzer.FindNullReferences(rootPath)),
                 "brokenEvents" => BuildResponse(operation, analyzer.FindBrokenEvents(rootPath)),
                 "brokenPrefabs" => BuildResponse(operation, analyzer.FindBrokenPrefabs(rootPath)),
+                "removeMissingScripts" => BuildRemoveResponse(analyzer, rootPath),
                 "all" => BuildAllResponse(analyzer, rootPath),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
             };
@@ -54,6 +56,21 @@ namespace MCP.Editor.Handlers.HighLevel
                 ["issues"] = issues.Select(i => i.ToDictionary()).ToList(),
                 ["issueCount"] = issues.Count,
                 ["isClean"] = issues.Count == 0
+            };
+        }
+
+        private Dictionary<string, object> BuildRemoveResponse(SceneIntegrityAnalyzer analyzer, string rootPath)
+        {
+            var (removed, totalRemoved) = analyzer.RemoveMissingScripts(rootPath);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["category"] = "sceneIntegrity",
+                ["operation"] = "removeMissingScripts",
+                ["removed"] = removed.Select(i => i.ToDictionary()).ToList(),
+                ["totalRemoved"] = totalRemoved,
+                ["affectedGameObjects"] = removed.Count
             };
         }
 
