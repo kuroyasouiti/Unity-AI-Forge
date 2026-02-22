@@ -1,12 +1,12 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。MCPサーバー + GameKitフレームワーク。3層構造（Low/Mid/High-Level）で効率的な開発を実現。
+AI駆動型Unity開発ツールキット。MCPサーバー + GameKitフレームワーク。3層構造（Low/Mid/High-Level）+ 3-Pillar GameKit（UI, Presentation, Logic）で効率的な開発を実現。
 
 ## 🔴 Critical Rules (必ず守る)
 
 1. **.metaファイルは絶対に編集しない**（Unity自動管理、手動編集は参照破壊）
 2. **全Unity操作にMCPツール（unity_*）を使用**
-3. **変更前に operation='inspect' で対象を確認**
+3. **変更前に inspect 操作で対象を確認**
 4. **ツール優先順位: High-Level → Mid-Level → Low-Level** の順で選択
 5. **コンパイルが必要な操作は自動待機**（ブリッジ再接続で解除）
 6. **UI優先設計**: 人間が操作・確認できるUIから優先的に実装する
@@ -15,42 +15,41 @@ AI駆動型Unity開発ツールキット。MCPサーバー + GameKitフレーム
 
 ---
 
-## 📋 ツール一覧 (64ツール)
+## 📋 ツール一覧 (49ツール)
 
-### High-Level GameKit (29ツール) - ゲームシステム構築
+### High-Level GameKit (15ツール) - 3-Pillar Architecture
 
-**Logic Pillar (19):**
-unity_gamekit_actor, unity_gamekit_manager, unity_gamekit_health, unity_gamekit_combat, unity_gamekit_spawner, unity_gamekit_ai, unity_gamekit_trigger_zone, unity_gamekit_timer, unity_gamekit_machinations, unity_gamekit_sceneflow, unity_gamekit_save, unity_gamekit_status_effect, unity_gamekit_interaction, unity_gamekit_collectible, unity_gamekit_projectile, unity_gamekit_waypoint, unity_gamekit_inventory, unity_gamekit_dialogue, unity_gamekit_quest
+**Logic Pillar - 解析・整合性検証 (5):**
+unity_validate_integrity, unity_class_dependency_graph, unity_class_catalog, unity_scene_reference_graph, unity_scene_relationship_graph
 
-**UI Pillar (5):**
+**UI Pillar - UIシステム構築 (5):**
 unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection
 
-**Presentation Pillar (5):**
-unity_gamekit_effect, unity_gamekit_animation_sync, unity_gamekit_vfx, unity_gamekit_audio, unity_gamekit_feedback
+**Presentation Pillar - 演出・エフェクト (5):**
+unity_gamekit_animation_sync, unity_gamekit_effect, unity_gamekit_feedback, unity_gamekit_vfx, unity_gamekit_audio
 
-### High-Level Analysis (3ツール) - コード/シーン解析
-
-unity_scene_reference_graph, unity_class_dependency_graph, unity_scene_relationship_graph
-
-### Mid-Level Batch (18ツール) - バッチ操作とプリセット
+### Mid-Level Batch (23ツール) - バッチ操作・プリセット・開発支援
 
 **Transform/Layout:** unity_transform_batch, unity_rectTransform_batch
 **Physics:** unity_physics_bundle
 **Camera:** unity_camera_rig
-**UI:** unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation
+**UI (UGUI):** unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation
+**UI Toolkit:** unity_uitk_document, unity_uitk_asset
 **Audio:** unity_audio_source_bundle
 **Input:** unity_input_profile
 **Character:** unity_character_controller_bundle
 **2D:** unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle
-**3D:** unity_material_bundle, unity_light_bundle, unity_particle_bundle, unity_animation3d_bundle
+**3D/Visual:** unity_material_bundle, unity_light_bundle, unity_particle_bundle, unity_animation3d_bundle
+**Events:** unity_event_wiring
+**Dev-Cycle:** unity_playmode_control, unity_console_log
 
 ### Low-Level CRUD (8ツール) - 基本操作
 
 unity_scene_crud, unity_gameobject_crud, unity_component_crud, unity_asset_crud, unity_scriptableObject_crud, unity_prefab_crud, unity_vector_sprite_convert, unity_projectSettings_crud
 
-### Utility (5ツール) - ヘルパー
+### Utility (2ツール) - 接続・コンパイル
 
-unity_ping, unity_compilation_await, unity_playmode_control, unity_console_log, unity_event_wiring
+unity_ping, unity_compilation_await
 
 ### Batch Operations (1ツール)
 
@@ -72,18 +71,19 @@ unity_batch_sequential_execute
 ### 推奨実装順序
 
 ```
-1. Canvas/UI構造 → unity_ui_foundation
-2. デバッグUI（ステータス表示、ログ表示）
+1. Canvas/UI構造 → unity_ui_foundation / unity_uitk_asset + unity_uitk_document
+2. デバッグUI（ステータス表示、ログ表示）→ unity_ui_hierarchy
 3. 操作UI（ボタン、スライダー）→ unity_gamekit_ui_command
-4. ゲームロジック → unity_gamekit_actor, unity_gamekit_manager
-5. インタラクション → unity_gamekit_interaction
+4. データバインディング → unity_gamekit_ui_binding
+5. ゲームロジック → C#スクリプト (unity_asset_crud)
+6. イベント接続 → unity_event_wiring
 ```
 
 ### UI優先の実装例
 
 ```python
 # ❌ 悪い例: ロジックを先に作り、UIは後回し
-# 1. プレイヤーアクター作成 → 2. 敵AI作成 → 3. 戦闘ロジック → 4. UI作成（最後）
+# 1. スクリプト作成 → 2. ゲームロジック → 3. UI作成（最後）
 
 # ✅ 良い例: UIを先に作り、ロジックは後
 # 1. Canvas作成
@@ -92,7 +92,7 @@ unity_ui_foundation(operation='createCanvas', name='GameUI')
 # 2. ステータス表示UI
 unity_ui_foundation(operation='createText', parentPath='GameUI', name='HPText', text='HP: 100/100')
 
-# 3. 操作ボタンUI（GameKitUICommand）
+# 3. 操作ボタンUI（GameKitUICommand で UXML/USS を自動生成）
 unity_gamekit_ui_command(
     operation='createCommandPanel',
     panelId='ActionPanel',
@@ -105,8 +105,13 @@ unity_gamekit_ui_command(
     targetActorId='player'
 )
 
-# 4. その後でゲームロジック実装
-unity_gamekit_actor(operation='create', actorId='player', behaviorProfile='2dPhysics', controlMode='directController')
+# 4. その後でゲームロジック実装（C#スクリプト作成）
+unity_asset_crud(
+    operation='create',
+    assetPath='Assets/Scripts/PlayerController.cs',
+    content='...'
+)
+unity_compilation_await(operation='await', timeoutSeconds=60)
 ```
 
 ---
@@ -148,10 +153,13 @@ Assets/Scenes/
 
 | 目的 | 推奨レイヤー | 例 |
 |------|------------|-----|
-| ゲームシステム構築 | High-Level GameKit | Actor, Health, Combat, Manager |
+| UIシステム構築 | High-Level GameKit UI | UICommand, UIBinding, UIList |
+| 演出・エフェクト | High-Level GameKit Presentation | Effect, Feedback, VFX, Audio |
+| コード解析・整合性検証 | High-Level GameKit Logic | validate_integrity, class_catalog, dependency_graph |
 | 複数オブジェクト一括処理 | Mid-Level Batch | Transform配置, Physics設定 |
+| UI構築（UGUI） | Mid-Level UI | ui_foundation, ui_hierarchy, ui_state |
+| UI構築（UI Toolkit） | Mid-Level UITK | uitk_document, uitk_asset |
 | 詳細な個別制御 | Low-Level CRUD | GameObject/Component操作 |
-| コード解析・依存関係調査 | High-Level Analysis | 参照グラフ, クラス依存関係 |
 
 ### 🔄 PDCAワークフロー (開発サイクル)
 
@@ -166,25 +174,22 @@ Assets/Scenes/
 unity_scene_crud(operation='inspect', includeHierarchy=True)
 
 # 2. 変更対象を事前調査（inspect操作）
-unity_gamekit_actor(operation='inspect', actorId='player')
 unity_component_crud(operation='inspect', gameObjectPath='Player', includeProperties=True)
 
 # 3. 影響範囲の事前調査（削除・移動・リネーム前に必須）
 unity_scene_reference_graph(
-    operation='analyze',
-    rootPath='TargetObject',
-    direction='incoming'  # このオブジェクトを参照しているものを把握
+    operation='findReferencesTo',
+    objectPath='TargetObject'
 )
 
 # 4. クラス依存関係の事前把握（スクリプト変更前）
 unity_class_dependency_graph(
-    operation='analyze',
-    className='TargetClass',
-    direction='both'
+    operation='analyzeClass',
+    target='TargetClass'
 )
 
 # 5. 利用可能な型の調査
-unity_class_catalog(operation='list', category='monoBehaviour', searchPath='Assets/Scripts')
+unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
 ```
 
 #### D (Do) - 実行
@@ -192,9 +197,15 @@ unity_class_catalog(operation='list', category='monoBehaviour', searchPath='Asse
 計画に基づき、適切なレイヤーのツールで変更を実行する。
 
 ```python
-# High-Level GameKit: ゲームシステム構築
-unity_gamekit_actor(operation='create', actorId='player', behaviorProfile='2dPhysics', controlMode='directController')
-unity_gamekit_health(operation='create', targetPath='Player', healthId='player_hp', maxHealth=100)
+# High-Level GameKit: UIシステム構築
+unity_gamekit_ui_command(
+    operation='createCommandPanel',
+    panelId='CommandPanel',
+    canvasPath='Canvas',
+    commands=[{'name': 'Attack', 'commandType': 'action', 'label': '攻撃'}],
+    targetType='actor',
+    targetActorId='player'
+)
 
 # Mid-Level Batch: バッチ操作・プリセット適用
 unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'], preset='character')
@@ -213,35 +224,26 @@ unity_compilation_await(operation='await', timeoutSeconds=60)
 
 ```python
 # 1. シーン整合性チェック（Missing Script、null参照、壊れたイベント/Prefab検出）
-unity_validate_integrity(
-    operation='validate',
-    checks=['missingScripts', 'nullReferences', 'brokenEvents', 'brokenPrefabs']
-)
+unity_validate_integrity(operation='all')
 
 # 2. 参照・イベント・階層の統合検証
-unity_scene_relationship_graph(
-    operation='analyze',
-    includeReferences=True,
-    includeEvents=True,
-    includeHierarchy=True
-)
+unity_scene_relationship_graph(operation='analyzeAll')
 
 # 3. クラス依存関係の健全性確認（スクリプト変更後）
 unity_class_dependency_graph(
-    operation='analyze',
-    searchPath='Assets/Scripts',
+    operation='analyzeAssembly',
+    target='Assembly-CSharp',
     includeUnityTypes=False
 )
 
 # 4. 特定オブジェクトの参照追跡
 unity_scene_reference_graph(
-    operation='analyze',
-    rootPath='ChangedObject',
-    direction='both'
+    operation='analyzeObject',
+    objectPath='ChangedObject'
 )
 
 # 5. コンソールログでエラー・警告を確認
-unity_console_log(operation='get', logType='error', maxCount=50)
+unity_console_log(operation='getErrors')
 ```
 
 #### A (Act) - 改善・対処
@@ -249,25 +251,26 @@ unity_console_log(operation='get', logType='error', maxCount=50)
 Checkで発見した問題を修正し、動作を確認する。
 
 ```python
-# 1. 壊れた参照の修復（適切なツールで再接続）
+# 1. 壊れた参照の修復（イベント再接続）
 unity_event_wiring(
-    operation='connect',
-    sourceObjectPath='Button',
-    sourceEventName='onClick',
-    targetObjectPath='NewTarget',
-    targetMethodName='HandleClick'
+    operation='wire',
+    source={'gameObject': 'Button', 'component': 'Button', 'event': 'onClick'},
+    target={'gameObject': 'GameManager', 'method': 'StartGame'}
 )
 
 # 2. 不要な参照・コンポーネントの除去
 unity_component_crud(operation='remove', gameObjectPath='Object', componentType='BrokenScript')
 
-# 3. プレイモードで実際の動作を確認
+# 3. Missing Scriptの自動除去
+unity_validate_integrity(operation='removeMissingScripts')
+
+# 4. プレイモードで実際の動作を確認
 unity_playmode_control(operation='play')
 
-# 4. ランタイムエラーの確認
-unity_console_log(operation='get', logType='error', maxCount=50)
+# 5. ランタイムエラーの確認
+unity_console_log(operation='getErrors')
 
-# 5. プレイモード停止
+# 6. プレイモード停止
 unity_playmode_control(operation='stop')
 
 # 問題が残っている場合 → Plan に戻って再調査
@@ -277,14 +280,50 @@ unity_playmode_control(operation='stop')
 
 | フェーズ | 必須アクション | 使用ツール |
 |---------|--------------|-----------|
-| **Plan** | 現状把握、影響調査 | inspect操作, reference_graph, dependency_graph, class_catalog |
+| **Plan** | 現状把握、影響調査 | inspect操作, scene_reference_graph, class_dependency_graph, class_catalog |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD, compilation_await |
-| **Check** | 整合性・依存関係検証 | validate_integrity, relationship_graph, dependency_graph, console_log |
-| **Act** | 問題修正・動作確認 | event_wiring, CRUD, playmode_control, console_log |
+| **Check** | 整合性・依存関係検証 | validate_integrity, scene_relationship_graph, class_dependency_graph, console_log |
+| **Act** | 問題修正・動作確認 | event_wiring, CRUD, validate_integrity, playmode_control, console_log |
 
 ---
 
-## 🔍 High-Level Analysis Tools
+## 🔍 High-Level GameKit - Logic Pillar (解析・整合性)
+
+### unity_validate_integrity - シーン整合性検証
+
+シーン内の壊れた参照、Missing Script、不正なイベント/Prefabを検出。
+
+```python
+# 全チェック実行
+unity_validate_integrity(operation='all')
+
+# 個別チェック
+unity_validate_integrity(operation='missingScripts')
+unity_validate_integrity(operation='nullReferences')
+unity_validate_integrity(operation='brokenEvents')
+unity_validate_integrity(operation='brokenPrefabs')
+
+# Missing Script自動除去（Undo可能）
+unity_validate_integrity(operation='removeMissingScripts')
+
+# サブツリー限定
+unity_validate_integrity(operation='all', rootPath='Canvas/Panel')
+```
+
+### unity_class_catalog - クラスカタログ
+
+プロジェクト内の型（MonoBehaviour, ScriptableObject, enum等）を列挙・詳細表示。
+
+```python
+# MonoBehaviour一覧
+unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
+
+# 特定の型を詳細表示
+unity_class_catalog(operation='inspectType', className='PlayerController', includeFields=True, includeMethods=True)
+
+# 名前パターンで検索
+unity_class_catalog(operation='listTypes', namePattern='*Controller', maxResults=50)
+```
 
 ### unity_scene_reference_graph - シーン参照グラフ
 
@@ -292,18 +331,22 @@ unity_playmode_control(operation='stop')
 
 ```python
 # シーン全体の参照グラフを取得
-unity_scene_reference_graph(
-    operation='analyze',
-    includeInactive=True,
-    maxDepth=5
-)
+unity_scene_reference_graph(operation='analyzeScene')
 
 # 特定オブジェクトからの参照を追跡
-unity_scene_reference_graph(
-    operation='analyze',
-    rootPath='Player',
-    direction='outgoing'  # 'incoming'|'both'
-)
+unity_scene_reference_graph(operation='analyzeObject', objectPath='Player')
+
+# このオブジェクトを参照しているものを検索
+unity_scene_reference_graph(operation='findReferencesTo', objectPath='Player')
+
+# このオブジェクトが参照しているものを検索
+unity_scene_reference_graph(operation='findReferencesFrom', objectPath='Player')
+
+# 参照されていないオブジェクトを検出
+unity_scene_reference_graph(operation='findOrphans')
+
+# 出力形式: json, dot, mermaid, summary
+unity_scene_reference_graph(operation='analyzeScene', format='mermaid')
 ```
 
 ### unity_class_dependency_graph - クラス依存関係グラフ
@@ -311,94 +354,46 @@ unity_scene_reference_graph(
 C#スクリプト間の依存関係を解析。
 
 ```python
-# プロジェクト全体のクラス依存関係
-unity_class_dependency_graph(
-    operation='analyze',
-    searchPath='Assets/Scripts',
-    includeUnityTypes=False
-)
-
 # 特定クラスの依存関係
-unity_class_dependency_graph(
-    operation='analyze',
-    className='PlayerController',
-    direction='both'
-)
+unity_class_dependency_graph(operation='analyzeClass', target='PlayerController')
+
+# アセンブリ全体の解析
+unity_class_dependency_graph(operation='analyzeAssembly', target='Assembly-CSharp')
+
+# 名前空間単位の解析
+unity_class_dependency_graph(operation='analyzeNamespace', target='MyGame.Combat')
+
+# 依存先・被依存の検索
+unity_class_dependency_graph(operation='findDependents', target='HealthSystem')
+unity_class_dependency_graph(operation='findDependencies', target='PlayerController')
+
+# 出力形式: json, dot, mermaid, summary
+unity_class_dependency_graph(operation='analyzeClass', target='PlayerController', format='mermaid')
 ```
 
-### unity_scene_relationship_graph - 統合関係グラフ
+### unity_scene_relationship_graph - シーン遷移グラフ
 
-親子関係、コンポーネント参照、イベント接続を統合解析。
+シーン間の遷移関係（SceneManager.LoadScene呼び出し、SceneFlow等）を解析。
 
 ```python
-unity_scene_relationship_graph(
-    operation='analyze',
-    includeHierarchy=True,
-    includeReferences=True,
-    includeEvents=True
-)
+# プロジェクト全体のシーン遷移
+unity_scene_relationship_graph(operation='analyzeAll')
+
+# 特定シーンの遷移先
+unity_scene_relationship_graph(operation='analyzeScene', scenePath='Assets/Scenes/Title.unity')
+
+# 特定シーンへの遷移元
+unity_scene_relationship_graph(operation='findTransitionsTo', scenePath='Assets/Scenes/Level1.unity')
+
+# Build Settings検証
+unity_scene_relationship_graph(operation='validateBuildSettings')
 ```
 
 ---
 
-## 🎮 High-Level GameKit Tools
+## 🎮 High-Level GameKit - UI Pillar (UIシステム)
 
-### GameKit Actor - ゲームアクター
-
-```python
-unity_gamekit_actor(
-    operation='create',
-    actorId='player_001',
-    behaviorProfile='2dPhysics',  # '2dLinear'|'2dTileGrid'|'3dCharacterController'|'3dPhysics'|'3dNavMesh'
-    controlMode='directController',  # 'aiAutonomous'|'uiCommand'|'scriptTriggerOnly'
-    position={'x': 0, 'y': 0, 'z': 0}
-)
-```
-
-### GameKit Manager - ゲームマネージャー
-
-```python
-unity_gamekit_manager(
-    operation='create',
-    managerId='game_manager',
-    managerType='turnBased',  # 'realtime'|'resourcePool'|'eventHub'|'stateManager'
-    turnPhases=['PlayerTurn', 'EnemyTurn'],
-    persistent=True  # DontDestroyOnLoad
-)
-```
-
-### GameKit Health - HP/ダメージシステム
-
-```python
-unity_gamekit_health(
-    operation='create',
-    targetPath='Player',
-    healthId='player_hp',
-    maxHealth=100,
-    invincibilityDuration=1.0,
-    onDeath='respawn'  # 'destroy'|'disable'|'event'
-)
-
-# 操作
-unity_gamekit_health(operation='applyDamage', healthId='player_hp', amount=25)
-unity_gamekit_health(operation='heal', healthId='player_hp', amount=50)
-```
-
-### GameKit Combat - 統合ダメージ計算システム
-
-```python
-unity_gamekit_combat(
-    operation='create',
-    targetPath='Player',
-    combatId='player_melee',
-    attackType='melee',  # 'ranged'|'aoe'|'projectile'
-    baseDamage=25,
-    critChance=0.1,
-    critMultiplier=2.0,
-    hitbox={'type': 'sphere', 'radius': 1.5},
-    targetTags=['Enemy']
-)
-```
+GameKit UIツールはUI Toolkit（UXML/USS）ベースのコード生成でUIシステムを構築する。生成されたスクリプトはUnity-AI-Forgeに依存しないスタンドアロンコード。
 
 ### GameKit UI Command - UIコマンドパネル
 
@@ -412,9 +407,12 @@ unity_gamekit_ui_command(
         {'name': 'Attack', 'commandType': 'action', 'label': '攻撃'},
     ],
     layout='horizontal',  # 'vertical'|'grid'
-    targetType='actor',
+    targetType='actor',   # 'manager'
     targetActorId='player_001'
 )
+
+# コマンド追加
+unity_gamekit_ui_command(operation='addCommand', panelId='CommandPanel', command={'name': 'Heal', 'commandType': 'action', 'label': '回復'})
 ```
 
 ### GameKit UI Binding - 宣言的UIデータバインディング
@@ -428,6 +426,9 @@ unity_gamekit_ui_binding(
     sourceId='player_health',
     format='percent'  # 'raw'|'ratio'|'formatted'
 )
+
+# 値範囲設定
+unity_gamekit_ui_binding(operation='setRange', bindingId='player_hp_bar', min=0, max=100)
 ```
 
 ### GameKit UI List - 動的リスト/グリッド
@@ -437,24 +438,35 @@ unity_gamekit_ui_list(
     operation='create',
     targetPath='Canvas/InventoryPanel',
     listId='inventory_list',
-    itemPrefabPath='Assets/Prefabs/UI/ItemSlot.prefab',
     layout='grid',  # 'vertical'|'horizontal'
     gridColumns=4
 )
 
-# アイテム追加
+# アイテム操作
 unity_gamekit_ui_list(operation='addItem', listId='inventory_list', itemData={'id': 'sword', 'name': '剣'})
+unity_gamekit_ui_list(operation='selectItem', listId='inventory_list', index=0)
+unity_gamekit_ui_list(operation='removeItem', listId='inventory_list', index=0)
 ```
 
 ### GameKit UI Slot - アイテムスロット
 
 ```python
+# 単体スロット
 unity_gamekit_ui_slot(
     operation='create',
     targetPath='Canvas/Equipment/WeaponSlot',
     slotId='weapon_slot',
-    slotType='equipment',  # 'inventory'|'quickslot'
+    slotType='equipment',  # 'storage'|'quickslot'|'trash'
     acceptTags=['weapon']
+)
+
+# スロットバー（複数スロット一括作成）
+unity_gamekit_ui_slot(
+    operation='createSlotBar',
+    barId='quickbar',
+    targetPath='Canvas/QuickBar',
+    slotCount=8,
+    slotType='quickslot'
 )
 ```
 
@@ -465,69 +477,35 @@ unity_gamekit_ui_selection(
     operation='create',
     targetPath='Canvas/TabPanel',
     selectionId='tab_selection',
-    selectionMode='single',  # 'multiple'|'toggle'
+    selectionMode='radio',  # 'toggle'|'checkbox'|'tab'
     defaultSelected=0
 )
 ```
 
-### GameKit Machinations - リソース経済システム
+---
+
+## 🎨 High-Level GameKit - Presentation Pillar (演出)
+
+演出・エフェクト系のコード生成でスタンドアロンなスクリプトを自動生成。
+
+### GameKit Effect - 複合エフェクト
 
 ```python
-unity_gamekit_machinations(
+unity_gamekit_effect(
     operation='create',
-    diagramId='player_economy',
-    assetPath='Assets/Economy/PlayerEconomy.asset',
-    initialResources=[
-        {'name': 'health', 'initialAmount': 100, 'minValue': 0, 'maxValue': 100},
-        {'name': 'mana', 'initialAmount': 50, 'minValue': 0, 'maxValue': 100}
-    ],
-    flows=[
-        {'flowId': 'manaRegen', 'resourceName': 'mana', 'ratePerSecond': 1.0, 'isSource': True}
+    targetPath='Effects/Explosion',
+    effectId='explosion',
+    components=[
+        {'type': 'particle', 'prefabPath': 'Assets/Prefabs/Explosion.prefab'},
+        {'type': 'sound', 'clipPath': 'Assets/Audio/SFX/Explosion.wav'},
+        {'type': 'cameraShake', 'intensity': 0.5, 'duration': 0.3},
+        {'type': 'screenFlash', 'color': {'r': 1, 'g': 0.8, 'b': 0.3, 'a': 0.5}, 'duration': 0.1}
     ]
 )
-```
 
-### GameKit SceneFlow - シーン遷移管理
-
-```python
-unity_gamekit_sceneflow(operation='create', flowId='main_flow')
-unity_gamekit_sceneflow(operation='addScene', flowId='main_flow', sceneName='Title', scenePath='Assets/Scenes/Title.unity', loadMode='single')
-unity_gamekit_sceneflow(operation='addTransition', flowId='main_flow', fromScene='Title', toScene='Level1', trigger='StartGame')
-unity_gamekit_sceneflow(operation='transition', flowId='main_flow', triggerName='StartGame')
-```
-
-### GameKit Spawner - スポーンシステム
-
-```python
-unity_gamekit_spawner(
-    operation='create',
-    targetPath='Spawner',
-    spawnerId='enemy_spawner',
-    prefabPath='Assets/Prefabs/Enemy.prefab',
-    spawnMode='interval',  # 'wave'|'burst'|'manual'
-    spawnInterval=3.0,
-    maxActive=10
-)
-```
-
-### GameKit Timer - タイマー/クールダウン
-
-```python
-unity_gamekit_timer(operation='createTimer', targetPath='GameManager', timerId='round_timer', duration=60.0, autoStart=True)
-unity_gamekit_timer(operation='createCooldown', targetPath='Player', cooldownId='attack_cd', cooldownDuration=0.5)
-```
-
-### GameKit AI - AI行動
-
-```python
-unity_gamekit_ai(
-    operation='create',
-    targetPath='Enemy',
-    aiId='enemy_ai',
-    behaviorType='patrolAndChase',  # 'patrol'|'chase'|'flee'
-    moveSpeed=3.0,
-    detectionRadius=8.0
-)
+# マネージャー作成（エフェクトの一元管理）
+unity_gamekit_effect(operation='createManager', targetPath='EffectManager')
+unity_gamekit_effect(operation='registerEffect', effectId='explosion')
 ```
 
 ### GameKit Feedback - ゲームフィール演出
@@ -543,6 +521,9 @@ unity_gamekit_feedback(
         {'type': 'flash', 'color': {'r': 1, 'g': 1, 'b': 1, 'a': 0.5}, 'duration': 0.05}
     ]
 )
+
+# 強度設定
+unity_gamekit_feedback(operation='setIntensity', feedbackId='hit_feedback', intensity=1.5)
 ```
 
 ### GameKit VFX - ビジュアルエフェクト
@@ -556,6 +537,9 @@ unity_gamekit_vfx(
     usePooling=True,
     poolSize=10
 )
+
+# マルチプライヤー設定
+unity_gamekit_vfx(operation='setMultipliers', vfxId='explosion_vfx', duration=1.5, size=2.0, emission=3.0)
 ```
 
 ### GameKit Audio - オーディオ再生
@@ -570,6 +554,39 @@ unity_gamekit_audio(
     loop=True,
     fadeInDuration=2.0
 )
+
+# 設定変更
+unity_gamekit_audio(operation='setVolume', audioId='bgm_main', volume=0.8)
+unity_gamekit_audio(operation='setPitch', audioId='bgm_main', pitch=1.2)
+```
+
+### GameKit Animation Sync - アニメーション同期
+
+```python
+unity_gamekit_animation_sync(
+    operation='create',
+    targetPath='Player',
+    syncId='player_anim_sync',
+    syncSource='rigidbody2d',  # 'rigidbody3d'|'transform'|'health'|'custom'
+    animatorPath='Player'
+)
+
+# 同期ルール追加
+unity_gamekit_animation_sync(
+    operation='addSyncRule',
+    syncId='player_anim_sync',
+    parameterName='Speed',
+    sourceField='velocity.magnitude'
+)
+
+# トリガールール追加
+unity_gamekit_animation_sync(
+    operation='addTriggerRule',
+    syncId='player_anim_sync',
+    triggerName='Hit',
+    eventSource='health',
+    eventType='damage'
+)
 ```
 
 ---
@@ -582,21 +599,23 @@ unity_gamekit_audio(
 unity_transform_batch(operation='arrangeCircle', gameObjectPaths=['Obj1', 'Obj2'], radius=5.0)
 unity_transform_batch(operation='arrangeLine', gameObjectPaths=[...], startPosition={'x': 0, 'y': 0, 'z': 0}, endPosition={'x': 10, 'y': 0, 'z': 0})
 unity_transform_batch(operation='renameSequential', gameObjectPaths=[...], baseName='Enemy', startIndex=1, padding=3)
+unity_transform_batch(operation='createMenuList', parentPath='Canvas/Menu', prefabPath='Assets/Prefabs/UI/MenuItem.prefab', names=['Start', 'Options', 'Quit'])
 ```
 
 ### RectTransform Batch - UIレイアウト
 
 ```python
-unity_rectTransform_batch(operation='setAnchors', gameObjectPaths=[...], anchorMin={'x': 0, 'y': 0}, anchorMax={'x': 1, 'y': 1})
+unity_rectTransform_batch(operation='setAnchors', gameObjectPaths=[...], anchorPreset='topLeft')
 unity_rectTransform_batch(operation='alignToParent', gameObjectPaths=[...], preset='topLeft')
 unity_rectTransform_batch(operation='distributeHorizontal', gameObjectPaths=[...], spacing=10)
+unity_rectTransform_batch(operation='matchSize', gameObjectPaths=[...], sourceObjectPath='Reference', matchMode='both')
 ```
 
 ### Physics Bundle - 物理プリセット
 
 ```python
 unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'], preset='character')
-# プリセット: 'dynamic'|'kinematic'|'static'|'character'|'platformer'|'topDown'|'vehicle'|'projectile'
+# 2Dプリセット: 'dynamic'|'kinematic'|'static'|'character'|'platformer'|'topDown'|'vehicle'|'projectile'
 ```
 
 ### Camera Rig - カメラ設定
@@ -606,12 +625,13 @@ unity_camera_rig(operation='createRig', rigType='follow', rigName='MainCamera', 
 # rigType: 'follow'|'orbit'|'splitScreen'|'fixed'|'dolly'
 ```
 
-### UI Foundation - UI基礎要素
+### UI Foundation - UI基礎要素 (UGUI)
 
 ```python
 unity_ui_foundation(operation='createCanvas', name='GameUI', renderMode='screenSpaceOverlay')
 unity_ui_foundation(operation='createPanel', name='Panel', parentPath='GameUI', anchorPreset='middleCenter')
 unity_ui_foundation(operation='createButton', name='Button', parentPath='GameUI', text='Click')
+unity_ui_foundation(operation='createText', name='Label', parentPath='GameUI', text='Score: 0')
 unity_ui_foundation(operation='addLayoutGroup', targetPath='GameUI/Panel', layoutType='Vertical', spacing=10)
 ```
 
@@ -632,6 +652,72 @@ unity_ui_hierarchy(
         'spacing': 20
     }
 )
+
+# 表示切替（CanvasGroup利用）
+unity_ui_hierarchy(operation='show', targetPath='Canvas/Menu')
+unity_ui_hierarchy(operation='hide', targetPath='Canvas/Menu')
+```
+
+### UI State - UI状態管理
+
+```python
+# 状態定義
+unity_ui_state(operation='defineState', rootPath='Canvas/Menu', stateName='mainMenu', elements=[
+    {'path': 'Canvas/Menu/MainPanel', 'active': True, 'visible': True},
+    {'path': 'Canvas/Menu/SettingsPanel', 'active': False}
+])
+
+# 状態適用
+unity_ui_state(operation='applyState', rootPath='Canvas/Menu', stateName='mainMenu')
+
+# 状態グループ（排他的）
+unity_ui_state(operation='createStateGroup', rootPath='Canvas/Menu', groupName='menuScreens', states=['mainMenu', 'settings', 'credits'])
+```
+
+### UI Navigation - キーボード/ゲームパッドナビゲーション
+
+```python
+# 自動セットアップ
+unity_ui_navigation(operation='autoSetup', rootPath='Canvas/Menu', direction='vertical')
+
+# 明示的ナビゲーション設定
+unity_ui_navigation(operation='setExplicit', gameObjectPath='Canvas/Menu/StartBtn',
+    up='Canvas/Menu/QuitBtn', down='Canvas/Menu/OptionsBtn')
+
+# 最初の選択要素設定
+unity_ui_navigation(operation='setFirstSelected', gameObjectPath='Canvas/Menu/StartBtn')
+```
+
+### UI Toolkit - UXML/USS/PanelSettings
+
+```python
+# UXMLファイル作成
+unity_uitk_asset(
+    operation='createUXML',
+    assetPath='Assets/UI/MainMenu.uxml',
+    elements=[
+        {'type': 'VisualElement', 'name': 'root', 'classes': ['container'], 'children': [
+            {'type': 'Label', 'name': 'title', 'text': 'Main Menu'},
+            {'type': 'Button', 'name': 'startBtn', 'text': 'Start Game'}
+        ]}
+    ]
+)
+
+# USSスタイルシート作成
+unity_uitk_asset(
+    operation='createUSS',
+    assetPath='Assets/UI/MainMenu.uss',
+    rules=[
+        {'selector': '.container', 'properties': {'flex-direction': 'column', 'align-items': 'center'}},
+        {'selector': '#title', 'properties': {'font-size': '48px', 'color': 'white'}}
+    ]
+)
+
+# テンプレートから作成
+unity_uitk_asset(operation='createFromTemplate', template='menu', assetPath='Assets/UI/Menu')
+
+# UIDocumentをシーンに配置
+unity_uitk_document(operation='create', gameObjectPath='UI/MainMenu', uxmlPath='Assets/UI/MainMenu.uxml')
 ```
 
 ### Material Bundle - マテリアル設定
@@ -639,6 +725,8 @@ unity_ui_hierarchy(
 ```python
 unity_material_bundle(operation='create', materialPath='Assets/Materials/Player.mat', shader='Standard')
 unity_material_bundle(operation='setColor', materialPath='Assets/Materials/Player.mat', propertyName='_Color', color={'r': 1, 'g': 0, 'b': 0, 'a': 1})
+unity_material_bundle(operation='applyPreset', materialPath='Assets/Materials/Glass.mat', preset='glass')
+# プリセット: 'unlit'|'lit'|'transparent'|'cutout'|'fade'|'sprite'|'ui'|'emissive'|'metallic'|'glass'
 ```
 
 ### Light Bundle - ライト設定
@@ -646,6 +734,9 @@ unity_material_bundle(operation='setColor', materialPath='Assets/Materials/Playe
 ```python
 unity_light_bundle(operation='create', gameObjectPath='Lights/MainLight', lightType='directional', color={'r': 1, 'g': 0.95, 'b': 0.8}, intensity=1.0)
 unity_light_bundle(operation='applyPreset', gameObjectPath='Lights/MainLight', preset='sunset')
+# ライトプリセット: 'daylight'|'moonlight'|'warm'|'cool'|'spotlight'|'candle'|'neon'
+# セットアッププリセット: 'daylight'|'nighttime'|'indoor'|'dramatic'|'studio'|'sunset'
+unity_light_bundle(operation='createLightingSetup', setupPreset='daylight')
 ```
 
 ### Particle Bundle - パーティクル設定
@@ -653,6 +744,44 @@ unity_light_bundle(operation='applyPreset', gameObjectPath='Lights/MainLight', p
 ```python
 unity_particle_bundle(operation='create', gameObjectPath='Effects/Fire', preset='fire')
 unity_particle_bundle(operation='update', gameObjectPath='Effects/Fire', startSize=2.0, startLifetime=3.0)
+# プリセット: 'explosion'|'fire'|'smoke'|'sparkle'|'rain'|'snow'|'dust'|'trail'|'hit'|'heal'|'magic'|'leaves'
+```
+
+### Audio Source Bundle - オーディオソース
+
+```python
+unity_audio_source_bundle(operation='create', gameObjectPath='Audio/BGM', preset='music', clipPath='Assets/Audio/BGM.mp3')
+# プリセット: 'music'|'sfx'|'ambient'|'voice'|'ui'
+```
+
+### Event Wiring - UnityEventの接続
+
+```python
+# イベント接続
+unity_event_wiring(
+    operation='wire',
+    source={'gameObject': 'Canvas/StartButton', 'component': 'Button', 'event': 'onClick'},
+    target={'gameObject': 'GameManager', 'method': 'StartGame'}
+)
+
+# 引数付きイベント
+unity_event_wiring(
+    operation='wire',
+    source={'gameObject': 'Canvas/Slider', 'component': 'Slider', 'event': 'onValueChanged'},
+    target={'gameObject': 'AudioManager', 'method': 'SetVolume', 'mode': 'Float'}
+)
+
+# イベント解除
+unity_event_wiring(operation='unwire', source={'gameObject': 'Canvas/StartButton', 'component': 'Button', 'event': 'onClick'})
+
+# 一括接続
+unity_event_wiring(operation='wireMultiple', wirings=[
+    {'source': {'gameObject': 'Btn1', 'component': 'Button', 'event': 'onClick'}, 'target': {'gameObject': 'Mgr', 'method': 'Action1'}},
+    {'source': {'gameObject': 'Btn2', 'component': 'Button', 'event': 'onClick'}, 'target': {'gameObject': 'Mgr', 'method': 'Action2'}}
+])
+
+# イベント一覧確認
+unity_event_wiring(operation='listEvents', gameObjectPath='Canvas/StartButton')
 ```
 
 ---
@@ -662,7 +791,13 @@ unity_particle_bundle(operation='update', gameObjectPath='Effects/Fire', startSi
 ### Scene & GameObject
 
 ```python
+unity_scene_crud(operation='inspect', includeHierarchy=True)
+unity_scene_crud(operation='create', scenePath='Assets/Scenes/Level1.unity')
+unity_scene_crud(operation='load', scenePath='Assets/Scenes/Level1.unity', loadMode='single')
+
 unity_gameobject_crud(operation='create', name='Player', parentPath='Characters')
+unity_gameobject_crud(operation='create', name='Enemy', parentPath='Enemies',
+    components=[{'type': 'UnityEngine.Rigidbody2D', 'properties': {'gravityScale': 0}}])
 unity_gameobject_crud(operation='update', gameObjectPath='Player', tag='Player', layer='Player', active=True)
 unity_gameobject_crud(operation='findMultiple', pattern='Enemy*', maxResults=100)
 ```
@@ -672,6 +807,7 @@ unity_gameobject_crud(operation='findMultiple', pattern='Enemy*', maxResults=100
 ```python
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='UnityEngine.Rigidbody2D', propertyChanges={'gravityScale': 0})
 unity_component_crud(operation='update', gameObjectPath='Player', componentType='UnityEngine.Rigidbody2D', propertyChanges={'mass': 2.0})
+unity_component_crud(operation='inspect', gameObjectPath='Player', componentType='*', includeProperties=True)
 unity_component_crud(operation='addMultiple', pattern='Enemy*', componentType='UnityEngine.BoxCollider2D')
 ```
 
@@ -686,6 +822,7 @@ unity_component_crud(operation='addMultiple', pattern='Enemy*', componentType='U
 
 ```python
 unity_asset_crud(operation='create', assetPath='Assets/Data/config.json', content='{"version": 1}')
+unity_asset_crud(operation='create', assetPath='Assets/Scripts/Player.cs', content='using UnityEngine;\n...')
 unity_asset_crud(operation='updateImporter', assetPath='Assets/Textures/sprite.png', propertyChanges={'textureType': 'Sprite'})
 ```
 
@@ -701,6 +838,13 @@ unity_scriptableObject_crud(operation='findByType', typeName='MyGame.GameConfig'
 ```python
 unity_prefab_crud(operation='create', gameObjectPath='Player', prefabPath='Assets/Prefabs/Player.prefab')
 unity_prefab_crud(operation='instantiate', prefabPath='Assets/Prefabs/Enemy.prefab', parentPath='Enemies', position={'x': 0, 'y': 0, 'z': 5})
+unity_prefab_crud(operation='applyOverrides', gameObjectPath='Player')
+```
+
+### Vector Sprite Convert
+
+```python
+unity_vector_sprite_convert(operation='createPrimitive', primitiveType='circle', width=64, height=64, color={'r': 1, 'g': 0, 'b': 0, 'a': 1})
 ```
 
 ### Project Settings
@@ -709,6 +853,7 @@ unity_prefab_crud(operation='instantiate', prefabPath='Assets/Prefabs/Enemy.pref
 unity_projectSettings_crud(operation='read', category='physics2d', property='gravity')
 unity_projectSettings_crud(operation='write', category='tagsLayers', property='addTag', value='Enemy')
 unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes/Level1.unity')
+unity_projectSettings_crud(operation='listBuildScenes')
 ```
 
 ---
@@ -721,38 +866,33 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 unity_ping()  # ブリッジ接続状態を確認
 ```
 
+### unity_compilation_await - コンパイル待機
+
+```python
+unity_compilation_await(operation='await', timeoutSeconds=60)
+unity_compilation_await(operation='status')  # 現在のコンパイル状態確認
+```
+
 ### unity_playmode_control - プレイモード制御
 
 ```python
-unity_playmode_control(operation='play')    # プレイモード開始
-unity_playmode_control(operation='stop')    # プレイモード停止
-unity_playmode_control(operation='pause')   # 一時停止
-unity_playmode_control(operation='inspect') # 現在の状態確認
+unity_playmode_control(operation='play')     # プレイモード開始
+unity_playmode_control(operation='stop')     # プレイモード停止
+unity_playmode_control(operation='pause')    # 一時停止
+unity_playmode_control(operation='unpause')  # 再開
+unity_playmode_control(operation='step')     # 1フレーム進める
+unity_playmode_control(operation='getState') # 現在の状態確認
 ```
 
 ### unity_console_log - コンソールログ取得
 
 ```python
-unity_console_log(operation='get', logType='all', maxCount=100)  # 'error'|'warning'|'log'
-unity_console_log(operation='clear')
-```
-
-### unity_event_wiring - UnityEventの接続
-
-```python
-unity_event_wiring(
-    operation='connect',
-    sourceObjectPath='Button',
-    sourceEventName='onClick',
-    targetObjectPath='GameManager',
-    targetMethodName='StartGame'
-)
-```
-
-### unity_compilation_await - コンパイル待機
-
-```python
-unity_compilation_await(operation='await', timeoutSeconds=60)
+unity_console_log(operation='getRecent', count=50)       # 最新ログ取得
+unity_console_log(operation='getErrors')                  # エラーのみ
+unity_console_log(operation='getWarnings')                # 警告のみ
+unity_console_log(operation='getCompilationErrors')       # コンパイルエラー詳細
+unity_console_log(operation='getSummary')                 # ログ件数サマリー
+unity_console_log(operation='clear')                      # コンソールクリア
 ```
 
 ---
@@ -813,14 +953,20 @@ unity_batch_sequential_execute(operations=[...])
 
 ### コンパイルエラー
 
-- C#スクリプト作成/更新後は自動コンパイル待機
-- `unity_console_log` でエラー詳細を確認
+- C#スクリプト作成/更新後は `unity_compilation_await(operation='await')` で待機
+- `unity_console_log(operation='getCompilationErrors')` でエラー詳細を確認
 
 ### タイムアウト
 
 1. `maxResults` を減らす（デフォルト1000 → 100以下）
 2. `includeProperties=False` で高速化
 3. Mid-Level Batchツールを使用
+
+### 整合性エラー
+
+1. `unity_validate_integrity(operation='all')` で全チェック
+2. `unity_validate_integrity(operation='removeMissingScripts')` でMissing Script自動除去
+3. `unity_scene_reference_graph(operation='findOrphans')` で孤立オブジェクト検出
 
 ---
 
@@ -972,4 +1118,4 @@ unity_batch_sequential_execute(operations=[...])
 
 ---
 
-Unity-AI-Forge v{VERSION} - 64 Tools, 150+ Operations, 3-Pillar Architecture
+Unity-AI-Forge v{VERSION} - 49 Tools, 3-Layer Architecture, 3-Pillar GameKit
