@@ -18,6 +18,7 @@ namespace MCP.Editor
         [SerializeField] private bool autoConnectOnLoad = true;
         [SerializeField] private float contextPushIntervalSeconds = 5f;
         [SerializeField] private string serverInstallPath = string.Empty;
+        [SerializeField] private string lastKnownSourcePath = string.Empty;
 
         // Cached token loaded from file (thread-safe access via lock)
         private string _cachedToken;
@@ -295,6 +296,26 @@ namespace MCP.Editor
         public string BridgeWebSocketUrl => $"ws://{NormalizeHostForUri(serverHost)}:{serverPort}/bridge";
 
         public string McpServerUrl => $"http://{NormalizeHostForUri(serverHost)}:{serverPort}/mcp";
+
+        /// <summary>
+        /// MCPサーバーのソースパスの前回記録値。
+        /// パッケージ更新によるパス変更を検出するために使用。
+        /// </summary>
+        public string LastKnownSourcePath
+        {
+            get => lastKnownSourcePath;
+            set
+            {
+                var normalized = value ?? string.Empty;
+                if (lastKnownSourcePath == normalized)
+                {
+                    return;
+                }
+
+                lastKnownSourcePath = normalized;
+                SaveSettings();
+            }
+        }
 
         public void UseDefaultServerInstallPath()
         {
