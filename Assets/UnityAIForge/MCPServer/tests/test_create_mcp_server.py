@@ -30,6 +30,11 @@ class TestCreateMcpServer:
             server = _mod.create_mcp_server()
             mock_register.assert_called_once_with(server)
 
+    def test_calls_register_prompts(self) -> None:
+        with patch.object(_mod, "register_prompts") as mock_register:
+            server = _mod.create_mcp_server()
+            mock_register.assert_called_once_with(server)
+
     def test_loads_system_prompt(self) -> None:
         with patch.object(_mod, "load_system_prompt", return_value="test instructions") as mock_load:
             server = _mod.create_mcp_server()
