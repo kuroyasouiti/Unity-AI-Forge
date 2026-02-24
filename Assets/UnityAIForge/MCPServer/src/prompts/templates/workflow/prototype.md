@@ -162,12 +162,13 @@ unity_camera_rig(operation='createRig', rigType='orbit',
     orbitSpeed=90.0)
 ```
 
-### Step 5: 入力プロファイルを素早く定義
+### Step 5: 入力プロファイルの接続
+
+プロジェクト初期設定（`game_workflow_guide(phase='project_setup')`）で作成済みの InputActions アセットを使用します。
 
 ```python
-# InputActions アセットを作成
-unity_input_profile(operation='createInputActions',
-    inputActionsAssetPath='Assets/Settings/PlayerInput.inputactions')
+# project_setup で作成済みの InputActions を使用
+# ※ InputActions アセットの新規作成は不要（project_setup Step 6 で作成済み）
 
 # GameObjectにPlayerInputコンポーネントを添付
 unity_input_profile(operation='createPlayerInput',
@@ -279,6 +280,8 @@ unity_component_crud(operation='update', gameObjectPath='Enemies/EnemyProto',
 
 ### Step 10: プロトタイプ検証
 
+詳細なテスト・検証手法は `game_workflow_guide(phase='testing')` の PDCA サイクルを参照してください。
+
 ```python
 # 整合性チェック（プロトタイプが一段落したら）
 unity_validate_integrity(operation='all')
@@ -306,7 +309,8 @@ unity_scene_reference_graph(operation='findOrphans')
 - [ ] カメラをfollowリグで追従設定した
 
 ### 入力・スクリプト
-- [ ] input_profile(createInputActions) で最小限のアクションマップを定義した
+- [ ] project_setup で作成した InputActions アセットが存在することを確認した
+- [ ] input_profile(createPlayerInput) で PlayerInput コンポーネントをアタッチした
 - [ ] プレイヤー移動スクリプトを生成してアタッチした
 - [ ] compilation_awaitで確実にコンパイル完了を待った
 

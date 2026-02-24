@@ -350,6 +350,8 @@ unity_scriptableObject_crud(operation='create',
 
 ### Step 9: 品質ゲート
 
+詳細なテスト・検証手法は `game_workflow_guide(phase='testing')` の PDCA サイクルを参照してください。
+
 ```python
 # 整合性チェック（全項目）
 unity_validate_integrity(operation='all')

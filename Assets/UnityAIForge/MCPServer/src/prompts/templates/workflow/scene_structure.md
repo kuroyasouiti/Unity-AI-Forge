@@ -4,6 +4,18 @@
 
 ---
 
+## パイプライン位置
+
+```
+企画 → 設計 → [プロジェクト初期設定 + マルチシーン設計] → プロトタイプ → アルファ → ベータ → リリース
+```
+
+本ガイドはプロジェクト初期設定（`game_workflow_guide(phase='project_setup')`）の**補助ガイド**です。複数シーンを使う中〜大規模プロジェクトで、project_setup と並行して参照してください。シンプルなプロジェクトでは project_setup のシーン作成のみで十分です。
+
+**前提**: 企画フェーズでシーン一覧が定義済み（`game_workflow_guide(phase='planning')`）。設計フェーズでシーン間の遷移関係とManagerの配置方針が決定済み（`game_workflow_guide(phase='design')`）。
+
+---
+
 ## 概要
 
 小規模ゲームは1シーンで完結しますが、機能が増えると「UIオーバーレイの共有」「オーディオマネージャーの永続化」「レベル単位での独立ロード」が必要になります。Unityのマルチシーン（Additive Loading）とDontDestroyOnLoadを組み合わせることで、メモリ効率と開発効率を両立できます。
@@ -111,7 +123,8 @@ unity_gameobject_crud(operation='create', name='BootManager')
 # Boot シーン用スクリプト生成
 unity_asset_crud(operation='create',
     assetPath='Assets/Scripts/Boot/BootManager.cs',
-    content='''using UnityEngine;
+    content='''using System.Collections;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class BootManager : MonoBehaviour
@@ -119,11 +132,15 @@ public class BootManager : MonoBehaviour
     [SerializeField] private string managersScene = "Managers";
     [SerializeField] private string firstScene    = "MainMenu";
 
-    void Start()
+    IEnumerator Start()
     {
         // Managers シーンを Additive でロード
-        SceneManager.LoadScene(managersScene, LoadSceneMode.Additive);
-        // メインメニューへ遷移
+        var op = SceneManager.LoadSceneAsync(managersScene, LoadSceneMode.Additive);
+        // Additive ロード完了を待つ（完了前に Single ロードすると Managers が破棄される）
+        yield return op;
+
+        // メインメニューへ遷移（Single ロードで Boot は破棄される）
+        // Managers 内の DontDestroyOnLoad オブジェクトは残る
         SceneManager.LoadScene(firstScene, LoadSceneMode.Single);
     }
 }''')
@@ -143,33 +160,16 @@ unity_scene_crud(operation='load',
     scenePath='Assets/Scenes/Managers.unity', additive=False)
 
 # GameManager (DontDestroyOnLoad)
+# ※ GameManager の完全な実装（状態管理・スコア・イベント等）は
+#   アルファフェーズで作成します: game_workflow_guide(phase='alpha')
+#   ここではシーン構造を確認するための空 GameObject のみ配置します。
 unity_gameobject_crud(operation='create', name='GameManager')
-
-unity_asset_crud(operation='create',
-    assetPath='Assets/Scripts/Managers/GameManager.cs',
-    content='''using UnityEngine;
-
-public class GameManager : MonoBehaviour
-{
-    public static GameManager Instance { get; private set; }
-
-    void Awake()
-    {
-        if (Instance != null) { Destroy(gameObject); return; }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
-}''')
 
 # AudioManager (DontDestroyOnLoad)
 unity_gameobject_crud(operation='create', name='AudioManager')
 
 # InputManager
 unity_gameobject_crud(operation='create', name='InputManager')
-
-unity_compilation_await(operation='await', timeoutSeconds=30)
-unity_component_crud(operation='add',
-    gameObjectPath='GameManager', componentType='GameManager')
 
 # オーディオを Managers シーンで管理 (GameKit Audio)
 unity_gamekit_audio(operation='create',
@@ -389,7 +389,7 @@ Singleton パターンで既存インスタンスがある場合は即座に Des
 Boot から MainMenu 時点では HUD は不要です。LevelManager のStart() でロードするのが適切です。HUD は Level シーンと一緒にアンロードしないよう注意。
 
 **Single ロードは現在のシーンを全てアンロードする**
-Level01 から Level02 へ Single でロードすると、Level01 が消えます。Managers シーン等の永続シーンは DontDestroyOnLoad で保護してください。
+Level01 から Level02 へ Single でロードすると、Level01 が消えます。Additive でロードしたシーンも一緒にアンロードされます。Managers シーン内の **全ての永続オブジェクト** に `DontDestroyOnLoad` を設定してください（GameManager, AudioManager, EventSystem 等）。`DontDestroyOnLoad` を設定していないオブジェクトは Single ロード時に破棄されます。
 
 **Build Settings の Index 0 は必ず Boot にする**
 ビルドは Index 0 のシーンから起動します。reorderBuildScenes で Boot を先頭に配置してください。
