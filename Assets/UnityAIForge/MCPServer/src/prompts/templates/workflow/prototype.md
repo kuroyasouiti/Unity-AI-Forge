@@ -1,20 +1,30 @@
-# プロトタイピング ワークフローガイド (Unity-AI-Forge v{VERSION})
+# プロトタイプ ワークフローガイド (Unity-AI-Forge v{VERSION})
 
-プリミティブとプリセットを活用した高速プロトタイプ構築。アイデアを最短時間で動く形にし、検証サイクルを回すための実践ガイドです。
+プリミティブとプリセットを活用した高速プロトタイプ構築。シーン・スクリプト・UIという後続フェーズでも流用する土台を最短時間で構築し、コアループを検証するための実践ガイドです。
 
 ---
 
 ## 概要
 
-プロトタイピングフェーズの目的は「動くかどうか」を素早く確認することです。アセットの品質や最終的なコード構造は後回しにし、まずゲームループが成立するか検証します。Unity-AI-Forgeのプリセット機能と即時プレイモード制御を活用して、アイデアから検証のサイクルを高速化します。
+プロトタイピングフェーズの目的は「動くかどうか」を素早く確認することです。このフェーズで作るシーン構造・スクリプト・UIは、アルファ以降でもそのまま流用・拡張する土台になります。アセットの品質は後回しにし、まずゲームループが成立するか検証します。Unity-AI-Forgeのプリセット機能と即時プレイモード制御を活用して、アイデアから検証のサイクルを高速化します。
 
 **プロトタイピングの原則:**
 - 完璧を求めない。まず動かす
 - プリミティブ（Cube/Sphere/Capsule）をキャラクター・障害物・ゴールとして使う
 - プリセットで物理・カメラを一瞬でセットアップ
-- UIは最小限（デバッグ表示程度）で十分
+- UIは構造を意識して作る（アルファ以降でバインディング・演出を乗せるため）
 - Prefab化は「同じものを複数配置するとき」だけ
 - playmode_control + console_log で素早くフィードバックを得る
+
+---
+
+## パイプライン位置
+
+```
+企画 → 設計 → プロジェクト初期設定 → [プロトタイプ] → アルファ → ベータ → リリース
+```
+
+**前提**: 企画書でコアループ・メカニクス・シーン構成が定義済み（`game_workflow_guide(phase='planning')`）。設計でデザインパターン・クラス構造が決定済み（`game_workflow_guide(phase='design')`）。プロジェクト初期設定でタグ・レイヤー・フォルダ構造が整備済み（`game_workflow_guide(phase='project_setup')`）。
 
 ---
 
@@ -22,7 +32,7 @@
 
 ```
 シーン作成 → プリミティブ配置 → 物理設定 → カメラセットアップ
-→ 最小スクリプト添付 → プレイテスト → ログ確認 → 繰り返し
+→ 最小スクリプト添付 → UI構築 → プレイテスト → ログ確認 → 繰り返し
 ```
 
 ---
@@ -35,7 +45,7 @@
 4. **物理プリセット適用** - characterプリセットで即座に動ける状態に
 5. **カメラセットアップ** - followリグで自動追従
 6. **入力設定** - New Input Systemのアクションマップを定義
-7. **最小UIの追加** - スコア・HP表示程度
+7. **UI構築** - HUD・メニューを構造的に構築（後で拡張しやすく）
 8. **プレイテスト** - play → 確認 → stop → 修正を繰り返す
 9. **整合性チェック** - プロトタイプが固まったら validate_integrity で確認
 10. **Prefab化** - 繰り返し使うものだけPrefabに昇格
@@ -155,20 +165,9 @@ unity_camera_rig(operation='createRig', rigType='orbit',
 ### Step 5: 入力プロファイルを素早く定義
 
 ```python
-# Move + Jump + Attack の最小アクションマップ
+# InputActions アセットを作成
 unity_input_profile(operation='createInputActions',
-    profileName='PlayerInput',
-    actionMaps=[{
-        'name': 'Player',
-        'actions': [
-            {'name': 'Move',   'type': 'Value',  'control': 'Vector2',
-             'bindings': [{'path': '<Gamepad>/leftStick'}, {'path': '<Keyboard>/wasd'}]},
-            {'name': 'Jump',   'type': 'Button',
-             'bindings': [{'path': '<Keyboard>/space'}, {'path': '<Gamepad>/buttonSouth'}]},
-            {'name': 'Attack', 'type': 'Button',
-             'bindings': [{'path': '<Keyboard>/j'}, {'path': '<Gamepad>/buttonWest'}]}
-        ]
-    }])
+    inputActionsAssetPath='Assets/Settings/PlayerInput.inputactions')
 
 # GameObjectにPlayerInputコンポーネントを添付
 unity_input_profile(operation='createPlayerInput',
@@ -206,26 +205,40 @@ unity_component_crud(operation='add', gameObjectPath='Player',
     componentType='PlayerProto')
 ```
 
-### Step 7: 最小限のデバッグUI
+### Step 7: UIを構造的に構築
+
+プロトタイプ段階でもUIの構造（階層・命名）を意識して作ります。この構造はアルファでバインディング、ベータで演出を乗せる土台になります。
 
 ```python
-# プロトタイプ用Canvas（デバッグ表示）
-unity_ui_foundation(operation='createCanvas', name='DebugUI')
-unity_ui_foundation(operation='createText', name='DebugText',
-    parentPath='DebugUI',
-    text='Debug: Running',
-    fontSize=18)
+# Canvas作成（本番でも流用する構造）
+unity_ui_foundation(operation='createCanvas', name='GameUI')
 
-# 宣言的UIで素早くHUDを構築
-unity_ui_hierarchy(operation='create', parentPath='DebugUI',
+# 宣言的UIでHUDを構築（後でバインディングを追加しやすい構造）
+unity_ui_hierarchy(operation='create', parentPath='GameUI',
     hierarchy={
         'type': 'panel', 'name': 'HUD',
         'children': [
             {'type': 'text', 'name': 'ScoreText', 'text': 'Score: 0', 'fontSize': 24},
-            {'type': 'text', 'name': 'HPText',    'text': 'HP: 100',  'fontSize': 24}
+            {'type': 'text', 'name': 'HPText',    'text': 'HP: 100',  'fontSize': 24},
+            {'type': 'text', 'name': 'TimerText', 'text': 'Time: 0',  'fontSize': 20}
         ],
         'layout': 'Vertical', 'spacing': 8
     })
+
+# メニュー構造（ボタン配置 → アルファでイベント接続）
+unity_ui_hierarchy(operation='create', parentPath='GameUI',
+    hierarchy={
+        'type': 'panel', 'name': 'PauseMenu',
+        'children': [
+            {'type': 'text',   'name': 'Title',     'text': 'PAUSED', 'fontSize': 36},
+            {'type': 'button', 'name': 'ResumeBtn', 'text': 'Resume'},
+            {'type': 'button', 'name': 'QuitBtn',   'text': 'Quit'}
+        ],
+        'layout': 'Vertical', 'spacing': 16
+    })
+
+# ポーズメニューは初期非表示
+unity_ui_hierarchy(operation='hide', targetPath='GameUI/PauseMenu')
 ```
 
 ### Step 8: プレイモードで素早くテスト
@@ -297,10 +310,15 @@ unity_scene_reference_graph(operation='findOrphans')
 - [ ] プレイヤー移動スクリプトを生成してアタッチした
 - [ ] compilation_awaitで確実にコンパイル完了を待った
 
+### UI（後続フェーズの土台）
+- [ ] Canvas を作成し、HUDパネルを構築した
+- [ ] テキスト要素に明確な命名をつけた（ScoreText, HPText 等）
+- [ ] メニュー構造を作成した（PauseMenu 等）
+
 ### プレイテスト
 - [ ] playmode_controlでプレイ・停止を繰り返した
 - [ ] console_log(getErrors) でエラーがないことを確認した
-- [ ] ゲームループが成立することを確認した
+- [ ] コアループが成立することを確認した（企画書の検証基準）
 
 ### 整理
 - [ ] 繰り返す要素をPrefabにした
@@ -331,6 +349,22 @@ staticプリセットはColliderのみ追加し、Rigidbodyを追加しません
 **Prefab化は最小限に**
 プロトタイプフェーズでは「3つ以上複製するもの」を目安にします。
 
+**UIの命名を一貫させる**
+プロトタイプで付けた名前（ScoreText, HPText）はアルファ以降のバインディングで参照されます。後から変更すると影響範囲が広いので、最初から命名規則を守ってください。
+
+---
+
+## 次のフェーズへ
+
+プロトタイプでコアループの動作が確認できたら、次はアルファフェーズです:
+
+1. **アルファ** (`game_workflow_guide(phase='alpha')`) - ゲームロジック・データ設計の本格実装
+   - ScriptableObject でデータ駆動化
+   - イベント接続でコンポーネント間通信
+   - UI バインディングでデータ連動
+
+プロトタイプで作ったシーン構造・UI構造・スクリプトはアルファ以降でそのまま拡張します。
+
 ---
 
 ## 関連ツール一覧
@@ -346,8 +380,8 @@ staticプリセットはColliderのみ追加し、Rigidbodyを追加しません
 | `unity_input_profile` | createInputActions / createPlayerInput |
 | `unity_asset_crud` | プロトタイプスクリプト生成 |
 | `unity_prefab_crud` | 繰り返し要素のPrefab化・複製 |
-| `unity_ui_foundation` | 最小デバッグUI作成 |
-| `unity_ui_hierarchy` | 宣言的UIの素早い構築 |
+| `unity_ui_foundation` | Canvas作成 |
+| `unity_ui_hierarchy` | 宣言的UIの構造的構築 |
 | `unity_playmode_control` | play/stop/stepでのテストサイクル |
 | `unity_console_log` | エラー・警告の即時確認 |
 | `unity_validate_integrity` | プロトタイプ完了時の整合性チェック |

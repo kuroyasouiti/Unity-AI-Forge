@@ -5,54 +5,27 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.9.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.10.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## v2.9.0 のハイライト
+## v2.10.0 のハイライト
 
-- **コード生成アーキテクチャへの完全移行**
-  - GameKitハンドラーがスタンドアロンC#スクリプトをテンプレートから生成
-  - ランタイムライブラリ（`UnityAIForge.GameKit.Runtime`）を削除し、ゼロ依存を実現
-  - ユーザープロジェクトはUnity-AI-Forgeパッケージをアンインストールしても動作可能
+- **UIFoundationHandler 大幅強化**
+  - Canvas: parentPath事前解決による孤児オブジェクト防止、screenSpaceCameraのcameraPath指定、New Input System自動検出
+  - stretchAllアンカープリセット時のsizeDelta自動スキップ
+  - ScrollView: movementType/elasticity/inertia/decelerationRate/scrollSensitivity パラメータ追加
+  - inspect強化: components配列、RectTransform詳細、InputField/ScrollRect/LayoutGroup/Mask情報、childCount
+  - スキーマ改善: showScrollbar統合、contentLayout追加、paddingAll/spacingAll、テンプレートオプション明示化
 
-- **GameKit Logic PillarにAnalysisツールを統合**
-  - クラス依存関係・シーン参照・シーン関係性グラフツールをLogic Pillarに移動
-  - 3本柱アーキテクチャの一貫性を向上
+- **ワークフロープロンプト完全刷新（5 → 9フェーズ）**
+  - 新規: planning, design, prototype, alpha, beta, release
+  - 削除: prototyping, production
+  - ゲーム開発ライフサイクル全体をカバーする体系的なガイド
 
-- **ツール構成の最適化（49ツール）**
-  - GameKit 15 (UI 5 + Presentation 5 + Logic 5)
-  - Mid-Level 21 (バッチ操作 + ビジュアル制御 + UI Toolkit)
-  - Low-Level 8 / Utility 5
-  - **11種類のコマンド**: Move/Jump/Action/Look/Custom + AddResource/SetResource/ConsumeResource/ChangeState/NextTurn/TriggerScene
-  - UIボタンでゲーム経済、状態、ターンを制御可能
-
-- **中レベルツール**: バッチ操作とプリセット
-  - Transform/RectTransformバッチ操作（配置、整列、分散）
-  - 物理バンドル（2D/3Dプリセット: dynamic、kinematic、character、platformer、vehicle）
-  - CharacterControllerバンドル（fps、tps、platformer、child、large、narrowプリセット）
-  - カメラリグ（follow、orbit、split-screen、fixed、dolly）
-  - UI基盤（Canvas、Panel、Button、Text、Image、InputField）
-  - オーディオソースバンドル（music、sfx、ambient、voice、uiプリセット）
-  - 入力プロファイル（新Input System統合）
-
-- **コンパイル待機機能**: 自動コンパイル処理
-  - 操作を実行してから、トリガーされた場合はコンパイルを待機
-  - 早期待機解除のためのブリッジ再接続検出
-  - レスポンスでの透明な待機情報
-
-- **包括的なテストスイート**: 100以上のユニットテスト
-  - Unity Test Framework統合
-  - 全ツールカテゴリで97.7%の合格率
-  - GitHub ActionsによるCI/CD
-  - エディタメニュー統合（`Tools > Unity-AI-Forge > Run All Tests`）
-
-- **ドキュメント**: 完全な見直し
-  - テストスイートのドキュメントと結果
-  - ツールロードマップ（日本語）
-  - コンパイル待機機能ガイド
-  - レガシークリーンアップサマリー
-  - [完全なリリースノート](docs/Release_Notes_v1.8.0.md)
-  - [変更履歴](CHANGELOG.md)
+- **プロンプトテンプレート修正**
+  - reorderBuildScenesのAPIを実装に合わせて修正（fromIndex/toIndex）
+  - scene_relationship_graphのパラメータ名修正（sceneName → scenePath）
+  - input_profileの使用例を簡素化
 
 ## 📦 パッケージ構造
 

@@ -157,18 +157,18 @@ unity_scene_relationship_graph(operation='analyzeAll')
 
 # 特定シーンの詳細解析
 unity_scene_relationship_graph(operation='analyzeScene',
-    sceneName='Level01')
+    scenePath='Assets/Scenes/Levels/Level01.unity')
 
 # Build Settings に未登録のシーンを検出
 unity_scene_relationship_graph(operation='validateBuildSettings')
 
 # 特定シーンへの遷移元を確認
 unity_scene_relationship_graph(operation='findTransitionsTo',
-    sceneName='Level01')
+    scenePath='Assets/Scenes/Levels/Level01.unity')
 
 # 特定シーンからの遷移先を確認
 unity_scene_relationship_graph(operation='findTransitionsFrom',
-    sceneName='Boot')
+    scenePath='Assets/Scenes/Boot.unity')
 ```
 
 ### Step 6: クラス依存関係の解析

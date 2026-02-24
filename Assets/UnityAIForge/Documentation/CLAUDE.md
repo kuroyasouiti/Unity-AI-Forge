@@ -6,7 +6,7 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。49のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
 
-**バージョン:** 2.9.0
+**バージョン:** 2.10.0
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
 
 ### 通信フロー
@@ -39,7 +39,7 @@ GameKitツールはMonoBehaviourを直接追加するのではなく、テンプ
 
 ## ツール一覧
 
-### High-Level GameKit（14ツール）
+### High-Level GameKit（15ツール）
 
 GameKitは3本柱（UI・Logic・Presentation）で構成されています。ハンドラーはコード生成でスタンドアロンC#スクリプトを生成し、Unity-AI-Forgeパッケージへのランタイム依存はありません。
 
@@ -63,7 +63,7 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_gamekit_vfx` | VFXラッパー（プーリング対応） |
 | `unity_gamekit_audio` | オーディオラッパー（フェード対応） |
 
-**Logicピラー（4ツール）:**
+**Logicピラー（5ツール）:**
 
 | ツール名 | 用途 |
 |----------|------|

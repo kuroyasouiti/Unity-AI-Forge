@@ -29,11 +29,15 @@ MECHANIC_OPTIONS: list[str] = [
 ]
 
 WORKFLOW_OPTIONS: list[str] = [
-    "prototyping",
-    "production",
-    "scene_structure",
+    "planning",
+    "design",
     "project_setup",
+    "prototype",
+    "alpha",
+    "beta",
+    "release",
     "testing",
+    "scene_structure",
 ]
 
 # --- Prompt definitions ---
@@ -63,7 +67,7 @@ PROMPT_DEFINITIONS: list[types.Prompt] = [
     ),
     types.Prompt(
         name="game_workflow_guide",
-        description="ゲーム制作ワークフローガイド。プロトタイピングから本番制作、テストまでの各フェーズにおける推奨手順を提供します。",
+        description="ゲーム制作ワークフローガイド。企画・設計からプロトタイプ、アルファ、ベータ、リリースまでの各フェーズにおける推奨手順を提供します。",
         arguments=[
             types.PromptArgument(
                 name="phase",

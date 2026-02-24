@@ -50,7 +50,7 @@ class TestPromptDefinitions:
         assert len(MECHANIC_OPTIONS) == 6
 
     def test_workflow_options_count(self) -> None:
-        assert len(WORKFLOW_OPTIONS) == 5
+        assert len(WORKFLOW_OPTIONS) == 9
 
     def test_template_map_covers_all_options(self) -> None:
         """Every (prompt_name, option) pair must have a template path."""
@@ -95,10 +95,10 @@ class TestTemplateLoader:
 
     def test_list_available_templates(self) -> None:
         templates = list_available_templates()
-        assert len(templates) == 17
+        assert len(templates) == 21
         assert "genre/platformer_2d.md" in templates
         assert "mechanics/state_machine.md" in templates
-        assert "workflow/prototyping.md" in templates
+        assert "workflow/planning.md" in templates
 
     def test_list_templates_uses_forward_slashes(self) -> None:
         templates = list_available_templates()
@@ -177,8 +177,8 @@ class TestRegisterPrompts:
     @pytest.mark.asyncio
     async def test_get_prompt_valid_workflow(self) -> None:
         _, handlers = self._capture_handlers()
-        result = await handlers["get_prompt"]("game_workflow_guide", {"phase": "prototyping"})
-        assert result.description == "game_workflow_guide - prototyping"
+        result = await handlers["get_prompt"]("game_workflow_guide", {"phase": "planning"})
+        assert result.description == "game_workflow_guide - planning"
 
     @pytest.mark.asyncio
     async def test_get_prompt_unknown_name_raises(self) -> None:

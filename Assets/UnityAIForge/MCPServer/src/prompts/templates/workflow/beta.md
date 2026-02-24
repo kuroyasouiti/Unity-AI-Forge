@@ -1,20 +1,29 @@
-# 本番制作 ワークフローガイド (Unity-AI-Forge v{VERSION})
+# ベータ ワークフローガイド (Unity-AI-Forge v{VERSION})
 
-プロトタイプ検証済みのゲームを、品質・安定性・パフォーマンスを備えた製品レベルに引き上げるためのワークフローガイドです。
+演出・ビジュアル・サウンドの本格統合。アルファで完成したゲームロジックに、実アセット・VFX・Audio・Feedback・アニメーションを組み込み、製品レベルの品質に引き上げるためのガイドです。
 
 ---
 
 ## 概要
 
-本番制作フェーズでは、プロトタイプで動作確認したゲームループに対して、アセットパイプライン・演出・品質ゲートを順序立てて適用します。Unity-AI-ForgeのPresentation Pillarツール（effect, feedback, audio, vfx, animation_sync）とLogic Pillarの検証ツール（validate_integrity, scene_relationship_graph）を活用して、品質を段階的に高めていきます。
+ベータフェーズの目的は「見た目と感触を製品レベルにする」ことです。アルファで確立したゲームロジック・データ構造・イベント接続はそのまま維持しつつ、プリミティブを実アセットに置き換え、Presentation Pillarツール（effect, feedback, vfx, audio, animation_sync）で演出を追加します。ロジック層は安定しているため、演出の追加がゲームプレイに影響しない安全な状態で作業できます。
 
-**本番制作の原則:**
-- プロトタイプのゲームループは変えない。演出・品質を上乗せする
+**ベータフェーズの原則:**
+- アルファのゲームロジック・イベント接続は変えない。演出・品質を上乗せする
 - アセットパイプライン（インポート設定）を最初に固める
 - 演出は Presentation Pillar ツールで生成コードとして追加
 - 各マイルストーンで必ず validate_integrity を実行する
-- Prefabワークフローで変更を一元管理する
 - scene_relationship_graph で参照の健全性を定期確認する
+
+---
+
+## パイプライン位置
+
+```
+企画 → 設計 → プロジェクト初期設定 → プロトタイプ → アルファ → [ベータ] → リリース
+```
+
+**前提**: アルファでゲームロジック完成済み（`game_workflow_guide(phase='alpha')`）。ScriptableObject・状態管理・イベント接続・UIバインディングが動作している状態。
 
 ---
 
@@ -24,7 +33,6 @@
 アセットインポート設定 → マテリアル・シェーダー整備
 → アニメーション組み込み → 演出追加 (Effect/VFX/Feedback)
 → オーディオ追加 → UI本番化 → 品質ゲート確認
-→ Prefab化・最適化 → リリースビルド準備
 ```
 
 ---
@@ -34,13 +42,13 @@
 1. **アセットパイプライン整備** - スプライト・テクスチャのインポート設定を固める
 2. **マテリアルセットアップ** - シェーダー選択・プロパティ設定
 3. **アニメーション組み込み** - AnimatorController・クリップ・遷移設定
-4. **Presentation Pillar適用** - Effect/VFX/Feedback/Audioを生成コードで追加
-5. **UI本番化** - プロトタイプのデバッグUIを製品UIに置き換え
-6. **UIバインディング設定** - データバインディングで動的表示
-7. **イベント接続** - UnityEventのwiring
-8. **品質ゲート** - validate_integrity + scene_relationship_graph
-9. **Prefab化・整理** - 本番Prefab階層を整備
-10. **パフォーマンス確認** - console_log + playmode でプロファイリング
+4. **アニメーション同期** - Rigidbody速度等とAnimatorの自動同期
+5. **VFX・エフェクト追加** - パーティクル・複合エフェクト
+6. **フィードバック追加** - ヒットストップ・画面揺れ・フラッシュ
+7. **オーディオ追加** - BGM・SE・環境音
+8. **UI本番化** - プロトタイプUIを製品品質に引き上げ
+9. **品質ゲート** - validate_integrity + scene_relationship_graph
+10. **Prefab更新** - 演出付きPrefabの更新
 
 ---
 
@@ -153,8 +161,12 @@ unity_animation2d_bundle(operation='addTransition',
 unity_animation2d_bundle(operation='setupAnimator',
     gameObjectPath='Player',
     controllerPath='Assets/Animations/Player.controller')
+```
 
-# アニメーション同期 (Presentation Pillar)
+### Step 4: アニメーション同期 (Presentation Pillar)
+
+```python
+# Rigidbody速度とAnimatorパラメータを自動同期
 unity_gamekit_animation_sync(operation='create',
     targetPath='Player',
     syncId='player_anim',
@@ -176,7 +188,7 @@ unity_gamekit_animation_sync(operation='addTriggerRule',
 unity_compilation_await(operation='await', timeoutSeconds=30)
 ```
 
-### Step 4: 演出追加 - VFX・エフェクト
+### Step 5: VFX・エフェクト追加
 
 ```python
 # パーティクルエフェクト
@@ -214,7 +226,7 @@ unity_gamekit_effect(operation='createManager', targetPath='EffectManager')
 unity_compilation_await(operation='await', timeoutSeconds=30)
 ```
 
-### Step 5: フィードバック追加
+### Step 6: フィードバック追加
 
 ```python
 # ヒット時フィードバック
@@ -241,7 +253,7 @@ unity_gamekit_feedback(operation='create',
 unity_compilation_await(operation='await', timeoutSeconds=30)
 ```
 
-### Step 6: オーディオ追加
+### Step 7: オーディオ追加
 
 ```python
 # BGM (GameKit Audio - コード生成で管理機能付き)
@@ -270,68 +282,33 @@ unity_audio_source_bundle(operation='createAudioSource',
 unity_compilation_await(operation='await', timeoutSeconds=30)
 ```
 
-### Step 7: UI本番化
+### Step 8: UI本番化
+
+プロトタイプ・アルファで構築したUI構造をベースに、ビジュアルを製品品質に引き上げます。バインディング・イベント接続はアルファで済んでいるため、見た目の改善に集中できます。
 
 ```python
-# デバッグUIを削除して本番UIを構築
-unity_gameobject_crud(operation='delete', gameObjectPath='DebugUI')
+# Canvas の referenceResolution を本番設定に更新
+unity_component_crud(operation='update',
+    gameObjectPath='GameUI',
+    componentType='UnityEngine.UI.CanvasScaler',
+    propertyChanges={
+        'uiScaleMode': 1,
+        'referenceResolution': {'x': 1920, 'y': 1080}
+    })
 
-# 本番Canvas
-unity_ui_foundation(operation='createCanvas', name='GameUI',
-    renderMode='ScreenSpaceOverlay',
-    referenceResolution={'x': 1920, 'y': 1080})
-
-# HUD構造を宣言的に構築
-unity_ui_hierarchy(operation='create', parentPath='GameUI',
+# HUDのビジュアル改善（テキストをイメージ付きに差し替え等）
+# 既存構造を活用しつつ子要素を追加
+unity_ui_hierarchy(operation='create', parentPath='GameUI/HUD',
     hierarchy={
-        'type': 'panel', 'name': 'HUD',
+        'type': 'image', 'name': 'HPBarBG',
         'children': [
-            {'type': 'image', 'name': 'HPBar',     'sprite': {'$ref': 'Assets/UI/HPBar.png'}},
-            {'type': 'text',  'name': 'ScoreText',  'text': '0', 'fontSize': 28},
-            {'type': 'image', 'name': 'MiniMap',    'anchors': 'topRight'}
+            {'type': 'image', 'name': 'HPBarFill',
+             'sprite': {'$ref': 'Assets/UI/HPBarFill.png'}}
         ]
     })
 
-# HPバーにデータバインディング
-unity_gamekit_ui_binding(operation='create',
-    targetPath='GameUI/HUD/HPBar',
-    bindingId='hp_bar',
-    sourceType='health',
-    sourceId='player_hp',
-    format='ratio')
-
-# スコアにバインディング
-unity_gamekit_ui_binding(operation='create',
-    targetPath='GameUI/HUD/ScoreText',
-    bindingId='score_text',
-    sourceType='custom',
-    sourceId='score',
-    format='formatted',
-    formatString='{0:D6}')
-
-unity_compilation_await(operation='await', timeoutSeconds=30)
-```
-
-### Step 8: イベント接続
-
-```python
-# ボタンのイベントを接続
-unity_event_wiring(operation='wireMultiple',
-    wirings=[
-        {
-            'source': {'gameObject': 'GameUI/Menu/StartButton', 'component': 'Button', 'event': 'onClick'},
-            'target': {'gameObject': 'GameManager', 'method': 'StartGame'}
-        },
-        {
-            'source': {'gameObject': 'GameUI/Menu/QuitButton', 'component': 'Button', 'event': 'onClick'},
-            'target': {'gameObject': 'GameManager', 'method': 'QuitGame'}
-        }
-    ])
-
-# ボタンにナビゲーション設定
-unity_ui_navigation(operation='autoSetup',
-    rootPath='GameUI/Menu',
-    direction='vertical')
+# ライティング設定
+unity_light_bundle(operation='createLightingSetup', setupPreset='daylight')
 ```
 
 ### Step 9: 品質ゲート
@@ -360,20 +337,17 @@ unity_console_log(operation='getErrors')
 unity_playmode_control(operation='stop')
 ```
 
-### Step 10: Prefab整理
+### Step 10: Prefab更新
 
 ```python
-# 本番Prefab作成
-unity_prefab_crud(operation='create',
-    gameObjectPath='Player',
-    prefabPath='Assets/Prefabs/Characters/Player.prefab')
-
-unity_prefab_crud(operation='create',
-    gameObjectPath='Enemy',
-    prefabPath='Assets/Prefabs/Characters/Enemy.prefab')
-
-# Prefab変更をシーンに適用
+# 演出付きPrefabの更新
 unity_prefab_crud(operation='applyOverrides', gameObjectPath='Player')
+unity_prefab_crud(operation='applyOverrides', gameObjectPath='Enemy')
+
+# FX系のPrefab化
+unity_prefab_crud(operation='create',
+    gameObjectPath='FX/HitEffect',
+    prefabPath='Assets/Prefabs/FX/HitEffect.prefab')
 ```
 
 ---
@@ -398,10 +372,9 @@ unity_prefab_crud(operation='applyOverrides', gameObjectPath='Player')
 - [ ] gamekit_audio でBGM・SE・環境音を設定した
 
 ### UI
-- [ ] デバッグUIを本番UIに置き換えた
-- [ ] gamekit_ui_binding でHP・スコアを動的表示にした
-- [ ] event_wiring でボタンにイベントを接続した
-- [ ] ui_navigation でキーボード/ゲームパッド操作を設定した
+- [ ] Canvas の referenceResolution を本番設定にした
+- [ ] ビジュアル素材（スプライト・フォント）を適用した
+- [ ] アルファで設定したバインディング・イベント接続が正常動作することを確認した
 
 ### 品質ゲート
 - [ ] validate_integrity(all) でエラーなし確認
@@ -410,7 +383,7 @@ unity_prefab_crud(operation='applyOverrides', gameObjectPath='Player')
 - [ ] playmode_control で動作最終確認
 
 ### Prefab
-- [ ] 全キャラクター・アイテムをPrefab化した
+- [ ] 全キャラクター・アイテムのPrefabを演出付きで更新した
 - [ ] prefab_crud(applyOverrides) で変更を適用した
 
 ---
@@ -435,18 +408,29 @@ create ではなく createAudioSource です。setMixerGroup 操作は存在し�
 **Presentation Pillarツールは重複作成しない**
 同じ effectId/feedbackId/vfxId/audioId で再実行するとエラーになります。
 
-**prefab_crud の適用操作は applyOverrides**
-apply ではなく applyOverrides を使用してください。同様に revert ではなく revertOverrides です。
+**演出追加でロジックを壊さない**
+ベータフェーズでは演出レイヤーのみ追加します。アルファで確立したイベント接続・バインディング・状態管理を変更しないでください。
 
 **validate_integrityはプレイモード中には実行しない**
 プレイモード停止後に実行してください。
 
 ---
 
+## 次のフェーズへ
+
+ベータで演出・品質が整ったら、リリースフェーズで最終検証を行います:
+
+1. **リリース** (`game_workflow_guide(phase='release')`) - 最終検証・ビルド準備
+   - シーン遷移グラフの最終確認
+   - Build Settings の最終化
+   - 包括的リリースチェックリスト
+
+---
+
 ## 関連ツール一覧
 
-| ツール | 本番制作での用途 |
-|--------|----------------|
+| ツール | ベータでの用途 |
+|--------|--------------|
 | `unity_asset_crud` | updateImporter でインポート設定 |
 | `unity_sprite2d_bundle` | sliceSpriteSheet でスプライトシートスライス |
 | `unity_tilemap_bundle` | createTilemap でタイルマップ構築 |
@@ -458,16 +442,12 @@ apply ではなく applyOverrides を使用してください。同様に revert
 | `unity_gamekit_vfx` | VFXプーリング管理 |
 | `unity_gamekit_audio` | オーディオ管理 |
 | `unity_audio_source_bundle` | createAudioSource でシンプルなAudioSource設定 |
-| `unity_gamekit_ui_binding` | データバインディング |
-| `unity_ui_foundation` | 本番Canvas・UI要素作成 |
-| `unity_ui_hierarchy` | 宣言的UI構築 |
-| `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
-| `unity_event_wiring` | wire / wireMultiple でUnityEvent接続 |
+| `unity_light_bundle` | ライティング設定 |
 | `unity_particle_bundle` | パーティクルプリセット作成 |
 | `unity_validate_integrity` | all / removeMissingScripts で品質ゲート |
 | `unity_scene_relationship_graph` | analyzeAll / validateBuildSettings |
 | `unity_scene_reference_graph` | findOrphans で孤立オブジェクト確認 |
-| `unity_prefab_crud` | create / applyOverrides で本番Prefab管理 |
+| `unity_prefab_crud` | applyOverrides でPrefab更新 |
 | `unity_playmode_control` | 最終動作確認 |
 | `unity_console_log` | getCompilationErrors / getErrors でモニタリング |
 | `unity_compilation_await` | コード生成後のコンパイル待機 |

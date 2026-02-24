@@ -5,6 +5,53 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.10.0] - 2026-02-24
+
+### 追加
+
+- **UIFoundationHandler 大幅強化**
+  - Canvas `createCanvas`: parentPath事前解決による孤児オブジェクト防止、`cameraPath` パラメータ（screenSpaceCamera用）、不明なrenderModeのバリデーション
+  - EventSystem: New Input System (`InputSystemUIInputModule`) の自動検出、フォールバックで `StandaloneInputModule` を使用
+  - ScrollView `createScrollView`: `movementType`, `elasticity`, `inertia`, `decelerationRate`, `scrollSensitivity` パラメータ追加
+  - inspect `inspect`: components配列、RectTransform詳細（anchor/pivot/sizeDelta/anchoredPosition）、InputField, ScrollRect, LayoutGroup, ContentSizeFitter, Mask, childCount を返却
+  - TMP InputField: try/catch による子オブジェクトクリーンアップ
+  - Button/Image: スプライト未検出時に警告メッセージを返却
+
+- **ワークフロープロンプト完全刷新（5 → 9フェーズ）**
+  - 新規追加: `planning`（企画）, `design`（設計）, `prototype`（プロトタイプ）, `alpha`（アルファ）, `beta`（ベータ）, `release`（リリース）
+  - 削除: `prototyping`, `production`
+  - ゲーム開発ライフサイクル全体をカバーする体系的ガイド（企画→設計→セットアップ→プロトタイプ→アルファ→ベータ→リリース→テスト→シーン構造）
+
+### 変更
+
+- **UIFoundation スキーマ改善** (`mid_level.py`)
+  - `showScrollbar` パラメータ追加（`horizontalScrollbar`/`verticalScrollbar` を統合）
+  - `contentLayout` パラメータ追加（ScrollViewコンテンツにLayoutGroup自動追加）
+  - `paddingAll`, `spacingAll` パラメータ追加（均一パディング/スペーシングの簡易指定）
+  - `templateOptions` を個別パラメータに展開: `title`, `position`, `columns`, `cellSize`, `slotCount`
+  - `viewportSize` パラメータ削除
+  - `cameraPath` パラメータ追加
+  - GridLayoutGroup の spacing: 数値型でX/Y両軸に均一適用をサポート
+
+- **stretchAll アンカープリセット対応**
+  - `ApplyAnchorPreset()` がboolを返却（stretchAll時にtrue）
+  - Panel, Button, Text, Image, InputField, ScrollView: stretchAll時にsizeDelta設定をスキップ
+
+- **createFromTemplate**: `templateType` パラメータ名を優先（`template` もフォールバックで互換）
+
+- **anchorPreset バリデーション**: 不明なプリセット名でエラーを返却
+
+### 修正
+
+- **プロンプトテンプレートのAPI不一致を修正**
+  - `reorderBuildScenes`: `sceneOrder` 配列 → `fromIndex`/`toIndex` に修正（実装に合わせて）
+  - `scene_relationship_graph`: `sceneName` → `scenePath` に修正
+  - `input_profile(createInputActions)`: アクションマップ詳細指定 → `inputActionsAssetPath` のみに簡素化
+
+### テスト
+
+- `test_prompts.py`: ワークフロー9フェーズ、テンプレート21件に更新
+
 ## [2.9.0] - 2026-02-21
 
 ### 変更

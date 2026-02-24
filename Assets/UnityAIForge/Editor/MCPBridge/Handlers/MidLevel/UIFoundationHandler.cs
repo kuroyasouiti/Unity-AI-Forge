@@ -67,8 +67,21 @@ namespace MCP.Editor.Handlers
             var renderMode = GetString(payload, "renderMode")?.ToLowerInvariant() ?? "screenspaceoverlay";
             var sortingOrder = GetInt(payload, "sortingOrder", 0);
 
+            // Resolve parent before creating Canvas to avoid orphan on failure
+            var parentPath = GetString(payload, "parentPath");
+            Transform parentTransform = null;
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                parentTransform = ResolveGameObject(parentPath).transform;
+            }
+
             var canvasGo = new GameObject(name);
             Undo.RegisterCreatedObjectUndo(canvasGo, "Create Canvas");
+
+            if (parentTransform != null)
+            {
+                canvasGo.transform.SetParent(parentTransform, false);
+            }
 
             var canvas = Undo.AddComponent<Canvas>(canvasGo);
             var scaler = Undo.AddComponent<CanvasScaler>(canvasGo);
@@ -82,10 +95,25 @@ namespace MCP.Editor.Handlers
                     break;
                 case "screenspacecamera":
                     canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    // Assign camera: use explicit cameraPath or fallback to Camera.main
+                    var cameraPath = GetString(payload, "cameraPath");
+                    if (!string.IsNullOrEmpty(cameraPath))
+                    {
+                        var cameraGo = ResolveGameObject(cameraPath);
+                        var cam = cameraGo.GetComponent<Camera>();
+                        if (cam != null) canvas.worldCamera = cam;
+                    }
+                    else if (Camera.main != null)
+                    {
+                        canvas.worldCamera = Camera.main;
+                    }
                     break;
                 case "worldspace":
                     canvas.renderMode = RenderMode.WorldSpace;
                     break;
+                default:
+                    throw new InvalidOperationException(
+                        $"Unknown renderMode: '{renderMode}'. Use 'screenSpaceOverlay', 'screenSpaceCamera', or 'worldSpace'.");
             }
 
             canvas.sortingOrder = sortingOrder;
@@ -94,14 +122,6 @@ namespace MCP.Editor.Handlers
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
-
-            // Set parent if specified
-            var parentPath = GetString(payload, "parentPath");
-            if (!string.IsNullOrEmpty(parentPath))
-            {
-                var parent = ResolveGameObject(parentPath);
-                canvasGo.transform.SetParent(parent.transform, false);
-            }
 
             // Create EventSystem if it doesn't exist in the scene
             var eventSystemPath = EnsureEventSystem();
@@ -135,7 +155,13 @@ namespace MCP.Editor.Handlers
             Undo.RegisterCreatedObjectUndo(eventSystemGo, "Create EventSystem");
 
             Undo.AddComponent<EventSystem>(eventSystemGo);
-            Undo.AddComponent<StandaloneInputModule>(eventSystemGo);
+
+            // Use InputSystemUIInputModule if New Input System is available, otherwise StandaloneInputModule
+            var inputSystemModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+            if (inputSystemModuleType != null)
+                Undo.AddComponent(eventSystemGo, inputSystemModuleType);
+            else
+                Undo.AddComponent<StandaloneInputModule>(eventSystemGo);
 
             return BuildGameObjectPath(eventSystemGo);
         }
@@ -163,12 +189,15 @@ namespace MCP.Editor.Handlers
             var image = Undo.AddComponent<Image>(panelGo);
 
             // Apply anchor preset
-            ApplyAnchorPreset(rectTransform, payload);
+            var isStretch = ApplyAnchorPreset(rectTransform, payload);
 
-            // Set size
-            var width = GetFloat(payload, "width", 400f);
-            var height = GetFloat(payload, "height", 300f);
-            rectTransform.sizeDelta = new Vector2(width, height);
+            // Set size (skip if stretchAll — sizeDelta is already zero)
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 400f);
+                var height = GetFloat(payload, "height", 300f);
+                rectTransform.sizeDelta = new Vector2(width, height);
+            }
 
             // Set color
             if (payload.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
@@ -208,12 +237,15 @@ namespace MCP.Editor.Handlers
             var button = Undo.AddComponent<Button>(buttonGo);
 
             // Apply anchor preset
-            ApplyAnchorPreset(rectTransform, payload);
+            var isStretch = ApplyAnchorPreset(rectTransform, payload);
 
-            // Set size
-            var width = GetFloat(payload, "width", 160f);
-            var height = GetFloat(payload, "height", 30f);
-            rectTransform.sizeDelta = new Vector2(width, height);
+            // Set size (skip if stretchAll — sizeDelta is already zero)
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 160f);
+                var height = GetFloat(payload, "height", 30f);
+                rectTransform.sizeDelta = new Vector2(width, height);
+            }
 
             // Set color
             if (payload.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
@@ -222,14 +254,15 @@ namespace MCP.Editor.Handlers
             }
 
             // Load sprite if specified
+            string spriteWarning = null;
             var spritePath = GetString(payload, "spritePath");
             if (!string.IsNullOrEmpty(spritePath))
             {
                 var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
                 if (sprite != null)
-                {
                     image.sprite = sprite;
-                }
+                else
+                    spriteWarning = $"Sprite not found at '{spritePath}'. Ensure the asset exists and is imported as Sprite.";
             }
 
             // Create text child
@@ -257,7 +290,9 @@ namespace MCP.Editor.Handlers
             }
 
             EditorSceneManager.MarkSceneDirty(buttonGo.scene);
-            return CreateSuccessResponse(("path", BuildGameObjectPath(buttonGo)));
+            var response = CreateSuccessResponse(("path", BuildGameObjectPath(buttonGo)));
+            if (spriteWarning != null) response["warning"] = spriteWarning;
+            return response;
         }
 
         #endregion
@@ -282,12 +317,15 @@ namespace MCP.Editor.Handlers
             var rectTransform = textGo.GetComponent<RectTransform>();
 
             // Apply anchor preset
-            ApplyAnchorPreset(rectTransform, payload);
+            var isStretch = ApplyAnchorPreset(rectTransform, payload);
 
-            // Set size
-            var width = GetFloat(payload, "width", 160f);
-            var height = GetFloat(payload, "height", 30f);
-            rectTransform.sizeDelta = new Vector2(width, height);
+            // Set size (skip if stretchAll — sizeDelta is already zero)
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 160f);
+                var height = GetFloat(payload, "height", 30f);
+                rectTransform.sizeDelta = new Vector2(width, height);
+            }
 
             // Try TextMeshPro first, fallback to legacy Text
             if (TryAddTextMeshPro(textGo, payload))
@@ -338,12 +376,15 @@ namespace MCP.Editor.Handlers
             var image = Undo.AddComponent<Image>(imageGo);
 
             // Apply anchor preset
-            ApplyAnchorPreset(rectTransform, payload);
+            var isStretch = ApplyAnchorPreset(rectTransform, payload);
 
-            // Set size
-            var width = GetFloat(payload, "width", 100f);
-            var height = GetFloat(payload, "height", 100f);
-            rectTransform.sizeDelta = new Vector2(width, height);
+            // Set size (skip if stretchAll — sizeDelta is already zero)
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 100f);
+                var height = GetFloat(payload, "height", 100f);
+                rectTransform.sizeDelta = new Vector2(width, height);
+            }
 
             // Set color
             if (payload.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
@@ -352,18 +393,21 @@ namespace MCP.Editor.Handlers
             }
 
             // Load sprite if specified
+            string spriteWarning = null;
             var spritePath = GetString(payload, "spritePath");
             if (!string.IsNullOrEmpty(spritePath))
             {
                 var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(spritePath);
                 if (sprite != null)
-                {
                     image.sprite = sprite;
-                }
+                else
+                    spriteWarning = $"Sprite not found at '{spritePath}'. Ensure the asset exists and is imported as Sprite.";
             }
 
             EditorSceneManager.MarkSceneDirty(imageGo.scene);
-            return CreateSuccessResponse(("path", BuildGameObjectPath(imageGo)));
+            var response = CreateSuccessResponse(("path", BuildGameObjectPath(imageGo)));
+            if (spriteWarning != null) response["warning"] = spriteWarning;
+            return response;
         }
 
         #endregion
@@ -389,12 +433,15 @@ namespace MCP.Editor.Handlers
             var image = Undo.AddComponent<Image>(inputGo);
 
             // Apply anchor preset
-            ApplyAnchorPreset(rectTransform, payload);
+            var isStretch = ApplyAnchorPreset(rectTransform, payload);
 
-            // Set size
-            var width = GetFloat(payload, "width", 160f);
-            var height = GetFloat(payload, "height", 30f);
-            rectTransform.sizeDelta = new Vector2(width, height);
+            // Set size (skip if stretchAll — sizeDelta is already zero)
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 160f);
+                var height = GetFloat(payload, "height", 30f);
+                rectTransform.sizeDelta = new Vector2(width, height);
+            }
 
             image.color = Color.white;
 
@@ -476,11 +523,14 @@ namespace MCP.Editor.Handlers
             scrollImage.color = new Color(1, 1, 1, 0.1f);
 
             var rectTransform = scrollViewGo.GetComponent<RectTransform>();
-            ApplyAnchorPreset(rectTransform, payload);
+            var isStretch = ApplyAnchorPreset(rectTransform, payload);
 
             var width = GetFloat(payload, "width", 400f);
             var height = GetFloat(payload, "height", 300f);
-            rectTransform.sizeDelta = new Vector2(width, height);
+            if (!isStretch)
+            {
+                rectTransform.sizeDelta = new Vector2(width, height);
+            }
 
             // Create Viewport
             var viewportGo = new GameObject("Viewport", typeof(RectTransform));
@@ -517,6 +567,35 @@ namespace MCP.Editor.Handlers
             var vertical = GetBool(payload, "vertical", true);
             scrollRect.horizontal = horizontal;
             scrollRect.vertical = vertical;
+
+            // Movement type
+            var movementType = GetString(payload, "movementType")?.ToLowerInvariant();
+            if (!string.IsNullOrEmpty(movementType))
+            {
+                scrollRect.movementType = movementType switch
+                {
+                    "unrestricted" => ScrollRect.MovementType.Unrestricted,
+                    "elastic" => ScrollRect.MovementType.Elastic,
+                    "clamped" => ScrollRect.MovementType.Clamped,
+                    _ => scrollRect.movementType
+                };
+            }
+
+            // Elasticity
+            if (payload.ContainsKey("elasticity"))
+                scrollRect.elasticity = GetFloat(payload, "elasticity", scrollRect.elasticity);
+
+            // Inertia
+            if (payload.ContainsKey("inertia"))
+                scrollRect.inertia = GetBool(payload, "inertia", scrollRect.inertia);
+
+            // Deceleration rate
+            if (payload.ContainsKey("decelerationRate"))
+                scrollRect.decelerationRate = GetFloat(payload, "decelerationRate", scrollRect.decelerationRate);
+
+            // Scroll sensitivity
+            if (payload.ContainsKey("scrollSensitivity"))
+                scrollRect.scrollSensitivity = GetFloat(payload, "scrollSensitivity", scrollRect.scrollSensitivity);
 
             // Add layout group to content if specified
             var contentLayout = GetString(payload, "contentLayout")?.ToLowerInvariant();
@@ -892,13 +971,22 @@ namespace MCP.Editor.Handlers
                 );
             }
 
-            // Spacing
-            if (payload.TryGetValue("spacing", out var spacingObj) && spacingObj is Dictionary<string, object> spacingDict)
+            // Spacing (supports both numeric and {x, y} object)
+            if (payload.TryGetValue("spacing", out var spacingObj))
             {
-                glg.spacing = new Vector2(
-                    spacingDict.TryGetValue("x", out var sx) ? Convert.ToSingle(sx) : glg.spacing.x,
-                    spacingDict.TryGetValue("y", out var sy) ? Convert.ToSingle(sy) : glg.spacing.y
-                );
+                if (spacingObj is Dictionary<string, object> spacingDict)
+                {
+                    glg.spacing = new Vector2(
+                        spacingDict.TryGetValue("x", out var sx) ? Convert.ToSingle(sx) : glg.spacing.x,
+                        spacingDict.TryGetValue("y", out var sy) ? Convert.ToSingle(sy) : glg.spacing.y
+                    );
+                }
+                else
+                {
+                    // Numeric value: apply uniformly to both axes
+                    var s = Convert.ToSingle(spacingObj);
+                    glg.spacing = new Vector2(s, s);
+                }
             }
             else if (payload.ContainsKey("spacingAll"))
             {
@@ -993,10 +1081,11 @@ namespace MCP.Editor.Handlers
 
         private object CreateFromTemplate(Dictionary<string, object> payload)
         {
-            var template = GetString(payload, "template")?.ToLowerInvariant();
+            var template = GetString(payload, "templateType")?.ToLowerInvariant()
+                           ?? GetString(payload, "template")?.ToLowerInvariant();
             if (string.IsNullOrEmpty(template))
             {
-                throw new InvalidOperationException("template is required for createFromTemplate. Available: dialog, hud, menu, statusBar, inventoryGrid");
+                throw new InvalidOperationException("templateType is required for createFromTemplate. Available: dialog, hud, menu, statusBar, inventoryGrid");
             }
 
             var parentPath = GetString(payload, "parentPath");
@@ -1599,24 +1688,42 @@ namespace MCP.Editor.Handlers
             }
 
             var go = ResolveGameObject(parentPath);
+            var components = new List<string>();
             var info = new Dictionary<string, object>
             {
                 { "path", BuildGameObjectPath(go) },
-                { "name", go.name }
+                { "name", go.name },
+                { "components", components }
             };
 
+            // RectTransform
+            var rectTransform = go.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                info["rectTransform"] = new Dictionary<string, object>
+                {
+                    { "anchorMin", new Dictionary<string, object> { { "x", rectTransform.anchorMin.x }, { "y", rectTransform.anchorMin.y } } },
+                    { "anchorMax", new Dictionary<string, object> { { "x", rectTransform.anchorMax.x }, { "y", rectTransform.anchorMax.y } } },
+                    { "pivot", new Dictionary<string, object> { { "x", rectTransform.pivot.x }, { "y", rectTransform.pivot.y } } },
+                    { "sizeDelta", new Dictionary<string, object> { { "x", rectTransform.sizeDelta.x }, { "y", rectTransform.sizeDelta.y } } },
+                    { "anchoredPosition", new Dictionary<string, object> { { "x", rectTransform.anchoredPosition.x }, { "y", rectTransform.anchoredPosition.y } } }
+                };
+            }
+
+            // Canvas
             var canvas = go.GetComponent<Canvas>();
             if (canvas != null)
             {
-                info["type"] = "Canvas";
+                components.Add("Canvas");
                 info["renderMode"] = canvas.renderMode.ToString();
                 info["sortingOrder"] = canvas.sortingOrder;
             }
 
+            // Image
             var image = go.GetComponent<Image>();
             if (image != null)
             {
-                info["hasImage"] = true;
+                components.Add("Image");
                 info["color"] = new Dictionary<string, object>
                 {
                     { "r", image.color.r },
@@ -1624,40 +1731,126 @@ namespace MCP.Editor.Handlers
                     { "b", image.color.b },
                     { "a", image.color.a }
                 };
+                if (image.sprite != null)
+                    info["sprite"] = AssetDatabase.GetAssetPath(image.sprite);
             }
 
+            // Button
             var button = go.GetComponent<Button>();
             if (button != null)
             {
-                info["type"] = "Button";
+                components.Add("Button");
+                info["interactable"] = button.interactable;
             }
 
+            // Legacy Text
             var text = go.GetComponent<Text>();
             if (text != null)
             {
-                info["type"] = "Text";
+                components.Add("Text");
                 info["text"] = text.text;
                 info["fontSize"] = text.fontSize;
             }
 
-            // Check for TextMeshProUGUI via reflection
+            // TextMeshProUGUI via reflection
             var tmpTextType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
             if (tmpTextType != null)
             {
                 var tmpText = go.GetComponent(tmpTextType);
                 if (tmpText != null)
                 {
-                    info["type"] = "TextMeshPro";
-                    
+                    components.Add("TextMeshProUGUI");
+
                     var textProp = tmpTextType.GetProperty("text");
                     if (textProp != null)
                         info["text"] = textProp.GetValue(tmpText);
-                    
+
                     var fontSizeProp = tmpTextType.GetProperty("fontSize");
                     if (fontSizeProp != null)
                         info["fontSize"] = fontSizeProp.GetValue(tmpText);
                 }
             }
+
+            // InputField (legacy)
+            var inputField = go.GetComponent<InputField>();
+            if (inputField != null)
+            {
+                components.Add("InputField");
+                info["inputText"] = inputField.text;
+                info["characterLimit"] = inputField.characterLimit;
+            }
+
+            // TMP_InputField via reflection
+            var tmpInputType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
+            if (tmpInputType != null)
+            {
+                var tmpInput = go.GetComponent(tmpInputType);
+                if (tmpInput != null)
+                {
+                    components.Add("TMP_InputField");
+                    var tmpInputTextProp = tmpInputType.GetProperty("text");
+                    if (tmpInputTextProp != null)
+                        info["inputText"] = tmpInputTextProp.GetValue(tmpInput);
+                    var charLimitProp = tmpInputType.GetProperty("characterLimit");
+                    if (charLimitProp != null)
+                        info["characterLimit"] = charLimitProp.GetValue(tmpInput);
+                }
+            }
+
+            // ScrollRect
+            var scrollRect = go.GetComponent<ScrollRect>();
+            if (scrollRect != null)
+            {
+                components.Add("ScrollRect");
+                info["horizontal"] = scrollRect.horizontal;
+                info["vertical"] = scrollRect.vertical;
+                info["movementType"] = scrollRect.movementType.ToString();
+            }
+
+            // LayoutGroup
+            var hlg = go.GetComponent<HorizontalLayoutGroup>();
+            if (hlg != null)
+            {
+                components.Add("HorizontalLayoutGroup");
+                info["layoutSpacing"] = hlg.spacing;
+            }
+
+            var vlg = go.GetComponent<VerticalLayoutGroup>();
+            if (vlg != null)
+            {
+                components.Add("VerticalLayoutGroup");
+                info["layoutSpacing"] = vlg.spacing;
+            }
+
+            var glg = go.GetComponent<GridLayoutGroup>();
+            if (glg != null)
+            {
+                components.Add("GridLayoutGroup");
+                info["cellSize"] = new Dictionary<string, object> { { "x", glg.cellSize.x }, { "y", glg.cellSize.y } };
+                info["layoutSpacing"] = new Dictionary<string, object> { { "x", glg.spacing.x }, { "y", glg.spacing.y } };
+                info["constraintCount"] = glg.constraintCount;
+            }
+
+            // ContentSizeFitter
+            var csf = go.GetComponent<ContentSizeFitter>();
+            if (csf != null)
+            {
+                components.Add("ContentSizeFitter");
+                info["horizontalFit"] = csf.horizontalFit.ToString();
+                info["verticalFit"] = csf.verticalFit.ToString();
+            }
+
+            // Mask
+            var mask = go.GetComponent<Mask>();
+            if (mask != null)
+                components.Add("Mask");
+
+            var rectMask = go.GetComponent<RectMask2D>();
+            if (rectMask != null)
+                components.Add("RectMask2D");
+
+            // Child count
+            info["childCount"] = go.transform.childCount;
 
             return CreateSuccessResponse(("ui", info));
         }
@@ -1666,7 +1859,11 @@ namespace MCP.Editor.Handlers
 
         #region Helpers
 
-        private void ApplyAnchorPreset(RectTransform rectTransform, Dictionary<string, object> payload)
+        /// <summary>
+        /// Applies an anchor preset to the RectTransform.
+        /// Returns true if the preset is "stretchAll" (callers should skip sizeDelta assignment).
+        /// </summary>
+        private bool ApplyAnchorPreset(RectTransform rectTransform, Dictionary<string, object> payload)
         {
             var preset = GetString(payload, "anchorPreset")?.ToLowerInvariant() ?? "middlecenter";
 
@@ -1676,53 +1873,56 @@ namespace MCP.Editor.Handlers
                     rectTransform.anchorMin = new Vector2(0, 1);
                     rectTransform.anchorMax = new Vector2(0, 1);
                     rectTransform.pivot = new Vector2(0, 1);
-                    break;
+                    return false;
                 case "topcenter":
                     rectTransform.anchorMin = new Vector2(0.5f, 1);
                     rectTransform.anchorMax = new Vector2(0.5f, 1);
                     rectTransform.pivot = new Vector2(0.5f, 1);
-                    break;
+                    return false;
                 case "topright":
                     rectTransform.anchorMin = new Vector2(1, 1);
                     rectTransform.anchorMax = new Vector2(1, 1);
                     rectTransform.pivot = new Vector2(1, 1);
-                    break;
+                    return false;
                 case "middleleft":
                     rectTransform.anchorMin = new Vector2(0, 0.5f);
                     rectTransform.anchorMax = new Vector2(0, 0.5f);
                     rectTransform.pivot = new Vector2(0, 0.5f);
-                    break;
+                    return false;
                 case "middlecenter":
                     rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
                     rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
                     rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                    break;
+                    return false;
                 case "middleright":
                     rectTransform.anchorMin = new Vector2(1, 0.5f);
                     rectTransform.anchorMax = new Vector2(1, 0.5f);
                     rectTransform.pivot = new Vector2(1, 0.5f);
-                    break;
+                    return false;
                 case "bottomleft":
                     rectTransform.anchorMin = new Vector2(0, 0);
                     rectTransform.anchorMax = new Vector2(0, 0);
                     rectTransform.pivot = new Vector2(0, 0);
-                    break;
+                    return false;
                 case "bottomcenter":
                     rectTransform.anchorMin = new Vector2(0.5f, 0);
                     rectTransform.anchorMax = new Vector2(0.5f, 0);
                     rectTransform.pivot = new Vector2(0.5f, 0);
-                    break;
+                    return false;
                 case "bottomright":
                     rectTransform.anchorMin = new Vector2(1, 0);
                     rectTransform.anchorMax = new Vector2(1, 0);
                     rectTransform.pivot = new Vector2(1, 0);
-                    break;
+                    return false;
                 case "stretchall":
                     rectTransform.anchorMin = Vector2.zero;
                     rectTransform.anchorMax = Vector2.one;
                     rectTransform.pivot = new Vector2(0.5f, 0.5f);
                     rectTransform.sizeDelta = Vector2.zero;
-                    break;
+                    return true;
+                default:
+                    throw new InvalidOperationException(
+                        $"Unknown anchorPreset: '{preset}'. Use 'topLeft', 'topCenter', 'topRight', 'middleLeft', 'middleCenter', 'middleRight', 'bottomLeft', 'bottomCenter', 'bottomRight', or 'stretchAll'.");
             }
         }
 
@@ -1776,100 +1976,129 @@ namespace MCP.Editor.Handlers
             var tmpInputType = Type.GetType("TMPro.TMP_InputField, Unity.TextMeshPro");
             if (tmpInputType == null) return false;
 
-            var tmpInput = Undo.AddComponent(go, tmpInputType);
-            if (tmpInput == null) return false;
-
-            // Create text area
-            var textAreaGo = new GameObject("Text Area", typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(textAreaGo, "Create Text Area");
-            textAreaGo.transform.SetParent(go.transform, false);
-
-            var textAreaRect = textAreaGo.GetComponent<RectTransform>();
-            textAreaRect.anchorMin = Vector2.zero;
-            textAreaRect.anchorMax = Vector2.one;
-            textAreaRect.sizeDelta = new Vector2(-10, 0);
-
-            var textAreaMask = Undo.AddComponent<RectMask2D>(textAreaGo);
-
-            // Create text child
-            var textGo = new GameObject("Text", typeof(RectTransform));
-            Undo.RegisterCreatedObjectUndo(textGo, "Create TMP Text");
-            textGo.transform.SetParent(textAreaGo.transform, false);
-
-            var textRect = textGo.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.sizeDelta = Vector2.zero;
-
-            // Add TextMeshProUGUI via reflection
             var tmpTextType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
             if (tmpTextType == null) return false;
 
-            var tmpText = Undo.AddComponent(textGo, tmpTextType);
-            if (tmpText == null) return false;
+            var tmpInput = Undo.AddComponent(go, tmpInputType);
+            if (tmpInput == null) return false;
 
-            // Set text properties via reflection
-            var fontSizeProp = tmpTextType.GetProperty("fontSize");
-            if (fontSizeProp != null)
-                fontSizeProp.SetValue(tmpText, (float)GetInt(payload, "fontSize", 14));
+            // Track created child objects for cleanup on failure
+            var createdChildren = new List<GameObject>();
 
-            var colorProp = tmpTextType.GetProperty("color");
-            if (colorProp != null)
-                colorProp.SetValue(tmpText, Color.black);
-
-            // Set input field properties via reflection
-            var textViewportProp = tmpInputType.GetProperty("textViewport");
-            if (textViewportProp != null)
-                textViewportProp.SetValue(tmpInput, textAreaRect);
-
-            var textComponentProp = tmpInputType.GetProperty("textComponent");
-            if (textComponentProp != null)
-                textComponentProp.SetValue(tmpInput, tmpText);
-
-            var placeholder = GetString(payload, "placeholder");
-            if (!string.IsNullOrEmpty(placeholder))
+            try
             {
-                var placeholderGo = new GameObject("Placeholder", typeof(RectTransform));
-                Undo.RegisterCreatedObjectUndo(placeholderGo, "Create TMP Placeholder");
-                placeholderGo.transform.SetParent(textAreaGo.transform, false);
+                // Create text area
+                var textAreaGo = new GameObject("Text Area", typeof(RectTransform));
+                Undo.RegisterCreatedObjectUndo(textAreaGo, "Create Text Area");
+                createdChildren.Add(textAreaGo);
+                textAreaGo.transform.SetParent(go.transform, false);
 
-                var placeholderRect = placeholderGo.GetComponent<RectTransform>();
-                placeholderRect.anchorMin = Vector2.zero;
-                placeholderRect.anchorMax = Vector2.one;
-                placeholderRect.sizeDelta = Vector2.zero;
+                var textAreaRect = textAreaGo.GetComponent<RectTransform>();
+                textAreaRect.anchorMin = Vector2.zero;
+                textAreaRect.anchorMax = Vector2.one;
+                textAreaRect.sizeDelta = new Vector2(-10, 0);
 
-                var placeholderText = Undo.AddComponent(placeholderGo, tmpTextType);
-                if (placeholderText != null)
+                var textAreaMask = Undo.AddComponent<RectMask2D>(textAreaGo);
+
+                // Create text child
+                var textGo = new GameObject("Text", typeof(RectTransform));
+                Undo.RegisterCreatedObjectUndo(textGo, "Create TMP Text");
+                createdChildren.Add(textGo);
+                textGo.transform.SetParent(textAreaGo.transform, false);
+
+                var textRect = textGo.GetComponent<RectTransform>();
+                textRect.anchorMin = Vector2.zero;
+                textRect.anchorMax = Vector2.one;
+                textRect.sizeDelta = Vector2.zero;
+
+                var tmpText = Undo.AddComponent(textGo, tmpTextType);
+                if (tmpText == null)
                 {
-                    var textProp = tmpTextType.GetProperty("text");
-                    if (textProp != null)
-                        textProp.SetValue(placeholderText, placeholder);
-
-                    if (fontSizeProp != null)
-                        fontSizeProp.SetValue(placeholderText, (float)GetInt(payload, "fontSize", 14));
-
-                    // Set font style via reflection
-                    var fontStyleProp = tmpTextType.GetProperty("fontStyle");
-                    if (fontStyleProp != null)
-                    {
-                        var fontStylesType = Type.GetType("TMPro.FontStyles, Unity.TextMeshPro");
-                        if (fontStylesType != null)
-                        {
-                            var italicValue = Enum.Parse(fontStylesType, "Italic");
-                            fontStyleProp.SetValue(placeholderText, italicValue);
-                        }
-                    }
-
-                    if (colorProp != null)
-                        colorProp.SetValue(placeholderText, new Color(0, 0, 0, 0.5f));
-
-                    var placeholderProp = tmpInputType.GetProperty("placeholder");
-                    if (placeholderProp != null)
-                        placeholderProp.SetValue(tmpInput, placeholderText);
+                    CleanupChildren(createdChildren);
+                    Undo.DestroyObjectImmediate(tmpInput);
+                    return false;
                 }
-            }
 
-            return true;
+                // Set text properties via reflection
+                var fontSizeProp = tmpTextType.GetProperty("fontSize");
+                if (fontSizeProp != null)
+                    fontSizeProp.SetValue(tmpText, (float)GetInt(payload, "fontSize", 14));
+
+                var colorProp = tmpTextType.GetProperty("color");
+                if (colorProp != null)
+                    colorProp.SetValue(tmpText, Color.black);
+
+                // Set input field properties via reflection
+                var textViewportProp = tmpInputType.GetProperty("textViewport");
+                if (textViewportProp != null)
+                    textViewportProp.SetValue(tmpInput, textAreaRect);
+
+                var textComponentProp = tmpInputType.GetProperty("textComponent");
+                if (textComponentProp != null)
+                    textComponentProp.SetValue(tmpInput, tmpText);
+
+                var placeholder = GetString(payload, "placeholder");
+                if (!string.IsNullOrEmpty(placeholder))
+                {
+                    var placeholderGo = new GameObject("Placeholder", typeof(RectTransform));
+                    Undo.RegisterCreatedObjectUndo(placeholderGo, "Create TMP Placeholder");
+                    createdChildren.Add(placeholderGo);
+                    placeholderGo.transform.SetParent(textAreaGo.transform, false);
+
+                    var placeholderRect = placeholderGo.GetComponent<RectTransform>();
+                    placeholderRect.anchorMin = Vector2.zero;
+                    placeholderRect.anchorMax = Vector2.one;
+                    placeholderRect.sizeDelta = Vector2.zero;
+
+                    var placeholderText = Undo.AddComponent(placeholderGo, tmpTextType);
+                    if (placeholderText != null)
+                    {
+                        var textProp = tmpTextType.GetProperty("text");
+                        if (textProp != null)
+                            textProp.SetValue(placeholderText, placeholder);
+
+                        if (fontSizeProp != null)
+                            fontSizeProp.SetValue(placeholderText, (float)GetInt(payload, "fontSize", 14));
+
+                        // Set font style via reflection
+                        var fontStyleProp = tmpTextType.GetProperty("fontStyle");
+                        if (fontStyleProp != null)
+                        {
+                            var fontStylesType = Type.GetType("TMPro.FontStyles, Unity.TextMeshPro");
+                            if (fontStylesType != null)
+                            {
+                                var italicValue = Enum.Parse(fontStylesType, "Italic");
+                                fontStyleProp.SetValue(placeholderText, italicValue);
+                            }
+                        }
+
+                        if (colorProp != null)
+                            colorProp.SetValue(placeholderText, new Color(0, 0, 0, 0.5f));
+
+                        var placeholderProp = tmpInputType.GetProperty("placeholder");
+                        if (placeholderProp != null)
+                            placeholderProp.SetValue(tmpInput, placeholderText);
+                    }
+                }
+
+                return true;
+            }
+            catch
+            {
+                CleanupChildren(createdChildren);
+                Undo.DestroyObjectImmediate(tmpInput);
+                return false;
+            }
+        }
+
+        private static void CleanupChildren(List<GameObject> children)
+        {
+            // Destroy in reverse order to avoid parent-child issues
+            for (int i = children.Count - 1; i >= 0; i--)
+            {
+                if (children[i] != null)
+                    Undo.DestroyObjectImmediate(children[i]);
+            }
         }
 
         #endregion

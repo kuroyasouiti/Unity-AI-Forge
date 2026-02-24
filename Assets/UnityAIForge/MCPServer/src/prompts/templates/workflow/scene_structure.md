@@ -92,18 +92,10 @@ unity_projectSettings_crud(operation='addSceneToBuild',
 unity_projectSettings_crud(operation='addSceneToBuild',
     scenePath='Assets/Scenes/Levels/Level02.unity')
 
-# Boot を index 0 に配置するために並び替え
+# Boot を index 0 に配置するために並び替え（fromIndex → toIndex で移動）
+# addSceneToBuild の登録順で Boot が先頭でない場合に使用
 unity_projectSettings_crud(operation='reorderBuildScenes',
-    sceneOrder=[
-        'Assets/Scenes/Boot.unity',
-        'Assets/Scenes/Managers.unity',
-        'Assets/Scenes/UI/MainMenu.unity',
-        'Assets/Scenes/UI/GameHUD.unity',
-        'Assets/Scenes/UI/PauseMenu.unity',
-        'Assets/Scenes/UI/GameOver.unity',
-        'Assets/Scenes/Levels/Level01.unity',
-        'Assets/Scenes/Levels/Level02.unity'
-    ])
+    fromIndex=3, toIndex=0)  # Boot のインデックスを 0 に移動
 ```
 
 ### Step 2: Boot シーンの構築
@@ -324,18 +316,9 @@ unity_scene_crud(operation='save', scenePath='Assets/Scenes/Levels/Level01.unity
 # 現在のBuild Settingsに登録されたシーン一覧を確認
 unity_projectSettings_crud(operation='listBuildScenes')
 
-# Boot を index 0 に配置するよう順序を設定
+# Boot を index 0 に配置（fromIndex → toIndex で移動）
 unity_projectSettings_crud(operation='reorderBuildScenes',
-    sceneOrder=[
-        'Assets/Scenes/Boot.unity',
-        'Assets/Scenes/Managers.unity',
-        'Assets/Scenes/UI/MainMenu.unity',
-        'Assets/Scenes/UI/GameHUD.unity',
-        'Assets/Scenes/UI/PauseMenu.unity',
-        'Assets/Scenes/UI/GameOver.unity',
-        'Assets/Scenes/Levels/Level01.unity',
-        'Assets/Scenes/Levels/Level02.unity'
-    ])
+    fromIndex=3, toIndex=0)  # Boot のインデックスを 0 に移動
 
 # Build Settings のバリデーション
 unity_scene_relationship_graph(operation='validateBuildSettings')

@@ -239,60 +239,12 @@ for path in folder_paths:
 ### Step 6: 入力プロファイルの設定
 
 ```python
-# New Input System のアクションマップを設定
+# New Input System の InputActions アセットを作成
 unity_input_profile(operation='createInputActions',
-    profileName='GameInputActions',
-    saveAssetPath='Assets/Scripts/GameInputActions.inputactions',
-    actionMaps=[
-        {
-            'name': 'Player',
-            'actions': [
-                {
-                    'name': 'Move',
-                    'type': 'Value',
-                    'control': 'Vector2',
-                    'bindings': [
-                        {'path': '<Gamepad>/leftStick'},
-                        {'path': '<Keyboard>/wasd'},
-                        {'path': '<Keyboard>/arrowKeys'}
-                    ]
-                },
-                {
-                    'name': 'Jump',
-                    'type': 'Button',
-                    'bindings': [
-                        {'path': '<Keyboard>/space'},
-                        {'path': '<Gamepad>/buttonSouth'}
-                    ]
-                },
-                {
-                    'name': 'Attack',
-                    'type': 'Button',
-                    'bindings': [
-                        {'path': '<Keyboard>/j'},
-                        {'path': '<Mouse>/leftButton'},
-                        {'path': '<Gamepad>/buttonWest'}
-                    ]
-                },
-                {
-                    'name': 'Pause',
-                    'type': 'Button',
-                    'bindings': [
-                        {'path': '<Keyboard>/escape'},
-                        {'path': '<Gamepad>/start'}
-                    ]
-                }
-            ]
-        },
-        {
-            'name': 'UI',
-            'actions': [
-                {'name': 'Navigate',  'type': 'Value',  'control': 'Vector2'},
-                {'name': 'Submit',    'type': 'Button'},
-                {'name': 'Cancel',    'type': 'Button'}
-            ]
-        }
-    ])
+    inputActionsAssetPath='Assets/Settings/GameInputActions.inputactions')
+
+# ※アクションマップの詳細設定（Move, Jump, Attack, Pause等）は
+#   Unity Editor の InputActions インスペクタで行ってください。
 ```
 
 ### Step 7: 命名規則ドキュメントとユーティリティ
@@ -359,14 +311,10 @@ unity_projectSettings_crud(operation='addSceneToBuild',
 unity_projectSettings_crud(operation='addSceneToBuild',
     scenePath='Assets/Scenes/Levels/Level01.unity')
 
-# Boot を index 0 に配置
+# Boot を index 0 に配置（fromIndex → toIndex で移動）
+# addSceneToBuild の登録順で Boot が先頭でない場合に使用
 unity_projectSettings_crud(operation='reorderBuildScenes',
-    sceneOrder=[
-        'Assets/Scenes/Boot.unity',
-        'Assets/Scenes/UI/MainMenu.unity',
-        'Assets/Scenes/UI/GameHUD.unity',
-        'Assets/Scenes/Levels/Level01.unity'
-    ])
+    fromIndex=3, toIndex=0)  # Boot のインデックスを 0 に移動
 
 # Build Settings のバリデーション
 unity_scene_relationship_graph(operation='validateBuildSettings')
@@ -454,8 +402,8 @@ unity_scene_relationship_graph(operation='validateBuildSettings')
 - [ ] Data/ScriptableObjects を作成した
 
 ### 入力設定
-- [ ] input_profile(createInputActions) でアクションマップを定義した
-- [ ] Move, Jump, Attack, Pause を設定した
+- [ ] input_profile(createInputActions) で InputActions アセットを作成した
+- [ ] Unity Editor の InputActions インスペクタで Move, Jump, Attack, Pause を設定した
 - [ ] ゲームパッドとキーボード両方のバインディングを設定した
 
 ### 定数・設定

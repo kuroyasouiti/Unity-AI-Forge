@@ -441,6 +441,10 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "description": "Canvas render mode.",
                 },
                 "sortingOrder": {"type": "integer", "description": "Canvas sorting order."},
+                "cameraPath": {
+                    "type": "string",
+                    "description": "Camera GameObject path for screenSpaceCamera render mode. Falls back to Camera.main if not specified.",
+                },
                 "text": {"type": "string", "description": "Text content."},
                 "fontSize": {"type": "integer", "description": "Font size."},
                 "color": {
@@ -488,13 +492,14 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Enable vertical scrolling (default: true).",
                 },
-                "horizontalScrollbar": {
+                "showScrollbar": {
                     "type": "boolean",
-                    "description": "Show horizontal scrollbar (default: false).",
+                    "description": "Show scrollbars for enabled scroll directions (default: true).",
                 },
-                "verticalScrollbar": {
-                    "type": "boolean",
-                    "description": "Show vertical scrollbar (default: true).",
+                "contentLayout": {
+                    "type": "string",
+                    "enum": ["vertical", "horizontal", "grid"],
+                    "description": "Add LayoutGroup to ScrollView content with ContentSizeFitter.",
                 },
                 "movementType": {
                     "type": "string",
@@ -514,11 +519,6 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "type": "number",
                     "description": "Scroll sensitivity (default: 1).",
                 },
-                "viewportSize": {
-                    "type": "object",
-                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
-                    "description": "Viewport size (width, height).",
-                },
                 # LayoutGroup parameters
                 "layoutType": {
                     "type": "string",
@@ -535,6 +535,10 @@ def ui_foundation_schema() -> dict[str, Any]:
                     },
                     "description": "LayoutGroup padding (default: 0 for all).",
                 },
+                "paddingAll": {
+                    "type": "integer",
+                    "description": "Uniform padding for all sides. Alternative to padding object.",
+                },
                 "spacing": {
                     "oneOf": [
                         {"type": "number"},
@@ -544,6 +548,10 @@ def ui_foundation_schema() -> dict[str, Any]:
                         },
                     ],
                     "description": "Spacing: number for Horizontal/Vertical layouts, {x, y} object for Grid layout.",
+                },
+                "spacingAll": {
+                    "type": "number",
+                    "description": "Uniform spacing for Grid layout (both X and Y). Alternative to spacing object.",
                 },
                 "childAlignment": {
                     "type": "string",
@@ -634,10 +642,26 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "enum": ["dialog", "hud", "menu", "statusBar", "inventoryGrid"],
                     "description": "UI template type for createFromTemplate operation.",
                 },
-                "templateOptions": {
-                    "type": "object",
-                    "additionalProperties": True,
-                    "description": "Template-specific options (varies by template type).",
+                "title": {
+                    "type": "string",
+                    "description": "Title text for dialog/menu/inventoryGrid templates.",
+                },
+                "position": {
+                    "type": "string",
+                    "enum": ["top", "bottom"],
+                    "description": "Position for statusBar template (default: top).",
+                },
+                "columns": {
+                    "type": "integer",
+                    "description": "Number of columns for inventoryGrid template (default: 5).",
+                },
+                "cellSize": {
+                    "type": "number",
+                    "description": "Cell size for inventoryGrid template (default: 60).",
+                },
+                "slotCount": {
+                    "type": "integer",
+                    "description": "Number of slots for inventoryGrid template (default: 20).",
                 },
             },
         },
