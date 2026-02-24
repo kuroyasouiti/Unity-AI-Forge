@@ -23,6 +23,8 @@
 企画 → [設計] → プロジェクト初期設定 → プロトタイプ → アルファ → ベータ → リリース
 ```
 
+**前提**: 企画書でコアループ・メカニクス・シーン構成・マイルストーンが定義済み（`game_workflow_guide(phase='planning')`）。企画書のメカニクス一覧と優先度をもとに、技術設計を行います。
+
 ---
 
 ## Unity 向け推奨デザインパターン
@@ -246,6 +248,101 @@ graph TB
 
 ---
 
+## フェーズ別実装マッピング
+
+UML設計は最終形を描くだけでなく、**どのフェーズで何を実装するか**を事前に決めることが重要です。企画書のマイルストーン定義（`game_workflow_guide(phase='planning')`）と対応させて、クラスや状態に実装フェーズを割り当てます。
+
+### マッピングの原則
+
+| フェーズ | 実装する範囲 | UML上のマーク |
+|---------|------------|-------------|
+| **プロトタイプ** | コアループに必要な最小クラス・状態のみ | `<<proto>>` |
+| **アルファ** | ゲームロジック完成に必要なクラス・SO・イベント | `<<alpha>>` |
+| **ベータ** | 演出・Presentation層のクラス | `<<beta>>` |
+
+### フェーズ注釈付きクラス図の例
+
+```mermaid
+classDiagram
+    class GameManager {
+        <<alpha>>
+        +static Instance
+        +GameState currentState
+        +StartGame()
+        +PauseGame()
+        +GameOver()
+    }
+    class PlayerController {
+        <<proto>>
+        -float moveSpeed
+        -int currentHP
+        +Move(Vector2)
+        +Jump()
+        +TakeDamage(int)
+    }
+    class EnemyController {
+        <<proto>>
+        -EnemyState state
+        +Chase(Transform)
+        +Attack()
+    }
+    class EnemyData {
+        <<alpha>>
+        <<ScriptableObject>>
+        +string enemyName
+        +int maxHP
+        +float moveSpeed
+    }
+    class PlayerAnimSync {
+        <<beta>>
+        +SyncSpeed()
+        +TriggerAttack()
+    }
+    class HitFeedback {
+        <<beta>>
+        +PlayHitStop()
+        +ShakeScreen()
+    }
+
+    GameManager --> PlayerController : manages
+    GameManager --> EnemyController : manages
+    EnemyController --> EnemyData : references
+    PlayerController --> PlayerAnimSync : presentation
+    EnemyController --> HitFeedback : presentation
+```
+
+### フェーズ注釈付きステート図の例
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle : <<proto>>
+    Idle --> Running : Move Input <<proto>>
+    Running --> Idle : Stop Input <<proto>>
+    Idle --> Jumping : Jump Input <<proto>>
+    Jumping --> Idle : Land <<proto>>
+    Idle --> Attacking : Attack Input <<alpha>>
+    Attacking --> Idle : Animation End <<alpha>>
+    Idle --> Hurt : Take Damage <<alpha>>
+    Hurt --> Idle : Recovery <<alpha>>
+    Hurt --> Dead : HP <= 0 <<alpha>>
+    Dead --> [*]
+```
+
+### マッピング手順
+
+1. **クラス図の全クラスに `<<proto>>` / `<<alpha>>` / `<<beta>>` を付与**する
+2. **ステート図の遷移にフェーズを注釈**する（プロトタイプでは最小限の遷移のみ実装）
+3. **シーケンス図でプロトタイプ範囲を明示**する（ハードコード値で動かす部分 vs SO化する部分）
+4. **企画書のマイルストーン検証基準と照合**する
+
+### 注意点
+
+- プロトタイプで `<<proto>>` 以外のクラスを実装しない。過剰設計を防ぐ
+- `<<alpha>>` のクラスで `<<proto>>` のクラスを置き換える場合がある（例: ハードコード PlayerProto → SO参照の PlayerController）
+- `<<beta>>` のクラスは Presentation Pillar ツールで生成されるため、設計時は接続先のみ定義すれば十分
+
+---
+
 ## 設計ドキュメントの保存
 
 ```python
@@ -301,6 +398,11 @@ stateDiagram-v2
 - [ ] シーケンス図を作成した（主要なインタラクション）
 - [ ] コンポーネント図を作成した（シーン間関係）
 
+### フェーズ別実装マッピング
+- [ ] 全クラスに `<<proto>>` / `<<alpha>>` / `<<beta>>` のフェーズ注釈を付与した
+- [ ] ステート図の遷移にプロトタイプ範囲を明示した
+- [ ] 企画書のマイルストーン検証基準と照合した
+
 ### パッケージ
 - [ ] 使用するUnityパッケージを決定した
 - [ ] パッケージの依存関係を確認した
@@ -318,7 +420,7 @@ stateDiagram-v2
 1. **プロジェクト初期設定** (`game_workflow_guide(phase='project_setup')`) - タグ・レイヤー・フォルダ構造の実装
 2. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
 
-設計で定義したクラス構造は、プロトタイプでは簡易版として実装し、アルファで正式なアーキテクチャに昇格させます。
+フェーズ別実装マッピングで `<<proto>>` を付与したクラス・状態のみをプロトタイプで実装し、`<<alpha>>` のクラスはアルファフェーズで正式なアーキテクチャとして実装します。`<<beta>>` の演出クラスはベータフェーズで Presentation Pillar ツールを使って追加します。
 
 ---
 

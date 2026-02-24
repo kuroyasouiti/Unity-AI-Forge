@@ -4,6 +4,16 @@
 
 ---
 
+## パイプライン位置
+
+```
+企画 → 設計 → [プロジェクト初期設定] → プロトタイプ → アルファ → ベータ → リリース
+```
+
+**前提**: 設計フェーズでデザインパターン・クラス構造・UML図が決定済み（`game_workflow_guide(phase='design')`）。設計で定義したタグ・レイヤー・シーン構成をもとにプロジェクトの骨格を構築します。
+
+---
+
 ## 概要
 
 プロジェクトの初期設定は後から変更が難しい項目を含みます。タグ・レイヤーの設計ミスは後続の物理処理や描画に影響し、フォルダ構造の乱れはチーム開発・大規模化時に問題を起こします。最初に正しく設定することで、以降の開発をスムーズに進められます。
@@ -83,7 +93,7 @@ Assets/
 6. **品質設定** - Quality Settings, Physics Settings
 7. **初期シーン群の作成** - Boot/MainMenu/GameHUD 等
 8. **Build Settings への登録** - 全シーンを正しい順序で登録
-9. **ScriptableObject でゲーム設定を管理** - GameConfig 等
+9. **Data フォルダの準備** - SO 型定義はアルファフェーズで実施
 10. **整合性確認** - validate_integrity + class_catalog で設定を確認
 
 ---
@@ -320,47 +330,13 @@ unity_projectSettings_crud(operation='reorderBuildScenes',
 unity_scene_relationship_graph(operation='validateBuildSettings')
 ```
 
-### Step 9: ScriptableObject でゲーム設定を管理
+### Step 9: Data フォルダの準備
+
+ScriptableObject によるゲーム設定（GameConfig, EnemyData 等）の型定義とインスタンス作成は、アルファフェーズ（`game_workflow_guide(phase='alpha')`）で行います。ここでは Data フォルダが作成済みであることを確認します。
 
 ```python
-# ゲーム設定の型定義
-unity_asset_crud(operation='create',
-    assetPath='Assets/Scripts/Data/GameConfig.cs',
-    content='''using UnityEngine;
-
-[CreateAssetMenu(fileName = "GameConfig", menuName = "MyGame/GameConfig")]
-public class GameConfig : ScriptableObject
-{
-    [Header("Player")]
-    public float playerSpeed   = 5f;
-    public float jumpForce     = 7f;
-    public int   maxHP         = 100;
-
-    [Header("Game")]
-    public int   startingLives = 3;
-    public float invincibleTime = 1.5f;
-
-    [Header("Audio")]
-    [Range(0f, 1f)] public float masterVolume = 1.0f;
-    [Range(0f, 1f)] public float bgmVolume    = 0.7f;
-    [Range(0f, 1f)] public float sfxVolume    = 1.0f;
-}''')
-
-unity_compilation_await(operation='await', timeoutSeconds=30)
-
-# ScriptableObject インスタンスを作成
-unity_scriptableObject_crud(operation='create',
-    typeName='GameConfig',
-    assetPath='Assets/Data/ScriptableObjects/GameConfig.asset',
-    properties={
-        'playerSpeed':    5.0,
-        'jumpForce':      7.0,
-        'maxHP':          100,
-        'startingLives':  3,
-        'masterVolume':   1.0,
-        'bgmVolume':      0.7,
-        'sfxVolume':      1.0
-    })
+# Data/ScriptableObjects フォルダが Step 5 で作成済みであることを確認
+# アルファフェーズで GameConfig, EnemyData 等の SO を作成します
 ```
 
 ### Step 10: 最終確認
@@ -408,7 +384,7 @@ unity_scene_relationship_graph(operation='validateBuildSettings')
 
 ### 定数・設定
 - [ ] GameConstants.cs でタグ・レイヤー・シーン名を定数化した
-- [ ] GameConfig ScriptableObject を作成した
+- [ ] Data/ScriptableObjects フォルダが存在する（SO作成はアルファで実施）
 
 ### シーン
 - [ ] Boot, MainMenu, GameHUD, Level01 シーンを作成した
