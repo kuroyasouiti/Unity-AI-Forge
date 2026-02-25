@@ -44,8 +44,10 @@ from tools.schemas.gamekit_systems import (
 from tools.schemas.graph import (
     class_catalog_schema,
     class_dependency_graph_schema,
+    scene_dependency_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
+    script_syntax_schema,
     validate_integrity_schema,
 )
 from tools.schemas.low_level import (
@@ -59,11 +61,8 @@ from tools.schemas.low_level import (
     vector_sprite_convert_schema,
 )
 from tools.schemas.mid_level import (
-    audio_source_bundle_schema,
     camera_rig_schema,
-    character_controller_bundle_schema,
     input_profile_schema,
-    physics_bundle_schema,
     rect_transform_batch_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
@@ -120,15 +119,12 @@ __all__ = [
     # mid_level
     "transform_batch_schema",
     "rect_transform_batch_schema",
-    "physics_bundle_schema",
     "camera_rig_schema",
     "ui_foundation_schema",
     "ui_hierarchy_schema",
     "ui_state_schema",
     "ui_navigation_schema",
-    "audio_source_bundle_schema",
     "input_profile_schema",
-    "character_controller_bundle_schema",
     "tilemap_bundle_schema",
     "uitk_document_schema",
     "uitk_asset_schema",
@@ -157,6 +153,8 @@ __all__ = [
     "validate_integrity_schema",
     "class_catalog_schema",
     "class_dependency_graph_schema",
+    "scene_dependency_schema",
     "scene_reference_graph_schema",
     "scene_relationship_graph_schema",
+    "script_syntax_schema",
 ]

@@ -214,6 +214,153 @@ def class_catalog_schema() -> dict[str, Any]:
     )
 
 
+def scene_dependency_schema() -> dict[str, Any]:
+    """Schema for the unity_scene_dependency MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyzeScene",
+                        "findAssetUsage",
+                        "findSharedAssets",
+                        "findUnusedAssets",
+                    ],
+                    "description": (
+                        "Scene dependency operation. "
+                        "'analyzeScene': list all asset dependencies of a scene, categorized by type. "
+                        "'findAssetUsage': find all scenes that reference a specific asset. "
+                        "'findSharedAssets': find assets shared across multiple scenes. "
+                        "'findUnusedAssets': find assets not referenced by any scene."
+                    ),
+                },
+                "scenePath": {
+                    "type": "string",
+                    "description": (
+                        "Scene path for analyzeScene (e.g., 'Assets/Scenes/Main.unity'). Required for analyzeScene."
+                    ),
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for findAssetUsage (e.g., 'Assets/Materials/Player.mat').",
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": (
+                        "Folder path to limit search scope. "
+                        "For findAssetUsage: limit scene search. "
+                        "For findUnusedAssets: folder to scan for unused assets (default: 'Assets')."
+                    ),
+                },
+                "scenePaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Array of scene paths for findSharedAssets. "
+                        "If omitted, all project scenes are analyzed."
+                    ),
+                },
+                "includeIndirect": {
+                    "type": "boolean",
+                    "description": (
+                        "Include transitive (indirect) dependencies in analyzeScene (default: true). "
+                        "When false, only direct dependencies are returned."
+                    ),
+                    "default": True,
+                },
+                "typeFilter": {
+                    "type": "string",
+                    "description": (
+                        "Filter results by asset category. "
+                        "Categories: Material, Texture, Shader, Model, Audio, AnimationClip, "
+                        "AnimatorController, Prefab, Script, Font, Asset, UXML, USS, Video, Data, Other."
+                    ),
+                },
+                "minSharedCount": {
+                    "type": "integer",
+                    "description": (
+                        "Minimum number of scenes an asset must be shared across "
+                        "for findSharedAssets (default: 2)."
+                    ),
+                    "default": 2,
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def script_syntax_schema() -> dict[str, Any]:
+    """Schema for the unity_script_syntax MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyzeScript",
+                        "findReferences",
+                        "findUnusedCode",
+                        "analyzeMetrics",
+                    ],
+                    "description": (
+                        "Script syntax analysis operation. "
+                        "'analyzeScript': parse a C# file and return its structure "
+                        "(namespaces, types, methods, fields, properties) with line numbers. "
+                        "'findReferences': find all references to a symbol across project scripts. "
+                        "'findUnusedCode': find methods/fields that are declared but never referenced. "
+                        "'analyzeMetrics': compute code metrics (lines, complexity, nesting depth)."
+                    ),
+                },
+                "scriptPath": {
+                    "type": "string",
+                    "description": (
+                        "Path to a C# script file (e.g., 'Assets/Scripts/PlayerController.cs'). "
+                        "Required for analyzeScript. Optional for findUnusedCode and analyzeMetrics "
+                        "(analyzes single file instead of project-wide)."
+                    ),
+                },
+                "symbolName": {
+                    "type": "string",
+                    "description": (
+                        "Symbol name to search for in findReferences "
+                        "(e.g., 'Initialize', 'health', 'PlayerController')."
+                    ),
+                },
+                "symbolType": {
+                    "type": "string",
+                    "enum": ["class", "method", "field", "property"],
+                    "description": (
+                        "Type of symbol for findReferences. "
+                        "Helps classify reference types more accurately. "
+                        "If omitted, all reference types are detected."
+                    ),
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": (
+                        "Folder path to limit search scope "
+                        "(e.g., 'Assets/Scripts'). "
+                        "Used by findReferences, findUnusedCode, and analyzeMetrics."
+                    ),
+                },
+                "targetType": {
+                    "type": "string",
+                    "enum": ["method", "field"],
+                    "description": (
+                        "Filter findUnusedCode to only methods or only fields. "
+                        "If omitted, both are checked."
+                    ),
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
 def validate_integrity_schema() -> dict[str, Any]:
     """Schema for the unity_validate_integrity MCP tool."""
     return schema_with_required(

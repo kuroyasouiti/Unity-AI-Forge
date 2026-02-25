@@ -143,15 +143,12 @@ namespace MCP.Editor.Base
         {
             CommandHandlerFactory.Register("transformBatch", new TransformBatchHandler());
             CommandHandlerFactory.Register("rectTransformBatch", new RectTransformBatchHandler());
-            CommandHandlerFactory.Register("physicsBundle", new PhysicsBundleHandler());
             CommandHandlerFactory.Register("cameraRig", new CameraRigHandler());
             CommandHandlerFactory.Register("uiFoundation", new UIFoundationHandler());
             CommandHandlerFactory.Register("uiHierarchy", new UIHierarchyHandler());
             CommandHandlerFactory.Register("uiState", new UIStateHandler());
             CommandHandlerFactory.Register("uiNavigation", new UINavigationHandler());
-            CommandHandlerFactory.Register("audioSourceBundle", new AudioSourceBundleHandler());
             CommandHandlerFactory.Register("inputProfile", new InputProfileHandler());
-            CommandHandlerFactory.Register("characterControllerBundle", new CharacterControllerBundleHandler());
             CommandHandlerFactory.Register("tilemapBundle", new TilemapBundleHandler());
             CommandHandlerFactory.Register("sprite2DBundle", new Sprite2DBundleHandler());
             CommandHandlerFactory.Register("animation2DBundle", new Animation2DBundleHandler());
@@ -206,7 +203,8 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("classCatalog", new Handlers.HighLevel.ClassCatalogHandler());
             CommandHandlerFactory.Register("sceneReferenceGraph", new Handlers.HighLevel.SceneReferenceGraphHandler());
             CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
-        }
+            CommandHandlerFactory.Register("sceneDependency", new Handlers.HighLevel.SceneDependencyHandler());
+            CommandHandlerFactory.Register("scriptSyntax", new Handlers.HighLevel.ScriptSyntaxHandler());
     }
 }
 

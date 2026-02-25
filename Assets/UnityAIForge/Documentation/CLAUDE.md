@@ -4,7 +4,7 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 ## プロジェクト概要
 
-Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。49のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
+Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。48のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
 
 **バージョン:** 2.10.0
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
@@ -20,9 +20,9 @@ AIクライアント (Claude Code / Cursor) <--MCP--> Python Server <--WebSocket
 ツールは上位レベルから順に使用してください。上位ツールほど少ないコマンドで多くの処理を実行できます。
 
 ```
-High-Level GameKit (15ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
-  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (5)
-Mid-Level Batch    (20ツール)  ← 複数設定をまとめて適用（UI Toolkit含む）
+High-Level GameKit (17ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
+  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (7)
+Mid-Level Batch    (17ツール)  ← 複数設定をまとめて適用（UI Toolkit含む）
 Low-Level CRUD      (8ツール)  ← 個別のUnity操作
 Utility             (5ツール)  ← 接続確認・コンパイル待機など
 Batch Operations    (1ツール)  ← 複数コマンドの順次実行
@@ -39,7 +39,8 @@ GameKitツールはMonoBehaviourを直接追加するのではなく、テンプ
 
 ## ツール一覧
 
-### High-Level GameKit（15ツール）
+### High-Level GameKit（17ツール）
+
 
 GameKitは3本柱（UI・Logic・Presentation）で構成されています。ハンドラーはコード生成でスタンドアロンC#スクリプトを生成し、Unity-AI-Forgeパッケージへのランタイム依存はありません。
 
@@ -63,7 +64,7 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_gamekit_vfx` | VFXラッパー（プーリング対応） |
 | `unity_gamekit_audio` | オーディオラッパー（フェード対応） |
 
-**Logicピラー（5ツール）:**
+**Logicピラー（7ツール）:**
 
 | ツール名 | 用途 |
 |----------|------|
@@ -72,22 +73,21 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_class_dependency_graph` | C#スクリプトのクラス依存関係を解析 |
 | `unity_scene_reference_graph` | シーン内のオブジェクト間参照を解析 |
 | `unity_scene_relationship_graph` | シーン全体の関係性を包括的に解析 |
+| `unity_scene_dependency` | シーンのアセット依存関係を解析（AssetDatabase経由） |
+| `unity_script_syntax` | C#ソースコード構文解析（行番号付き、参照検索、メトリクス） |
 
-### Mid-Level Batch（20ツール）
+### Mid-Level Batch（17ツール）
 
 | ツール名 | 用途 |
 |----------|------|
 | `unity_transform_batch` | Transform一括操作 |
 | `unity_rectTransform_batch` | RectTransform一括操作 |
-| `unity_physics_bundle` | 物理設定（2D/3D） |
 | `unity_camera_rig` | カメラプリセット |
 | `unity_ui_foundation` | UI要素作成 |
 | `unity_ui_hierarchy` | UIメニュー/階層構築 |
 | `unity_ui_state` | UI表示状態管理 |
 | `unity_ui_navigation` | UIナビゲーション設定 |
-| `unity_audio_source_bundle` | オーディオソース設定 |
 | `unity_input_profile` | 入力プロファイル |
-| `unity_character_controller_bundle` | キャラクターコントローラープリセット |
 | `unity_tilemap_bundle` | タイルマップ設定 |
 | `unity_sprite2d_bundle` | 2Dスプライト設定 |
 | `unity_animation2d_bundle` | 2Dアニメーション設定 |

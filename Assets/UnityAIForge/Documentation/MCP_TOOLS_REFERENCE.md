@@ -8,10 +8,10 @@
 |----------|----------|------|
 | Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
 | Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
-| Mid-Level Batch | 21 | バッチ操作・プリセット・UI・ビジュアル制御 |
-| High-Level GameKit | 15 | 3本柱ゲーム開発フレームワーク |
+| Mid-Level Batch | 18 | バッチ操作・プリセット・UI・ビジュアル制御 |
+| High-Level GameKit | 17 | 3本柱ゲーム開発フレームワーク |
 
-**合計: 49 ツール**
+**合計: 48 ツール**
 
 ---
 
@@ -158,22 +158,6 @@ UI RectTransformバッチ操作。
 | spacing | number | 間隔 |
 
 **プリセット:** `topLeft`, `topCenter`, `topRight`, `middleLeft`, `middleCenter`, `middleRight`, `bottomLeft`, `bottomCenter`, `bottomRight`, `stretchLeft`, `stretchCenter`, `stretchRight`, `stretchTop`, `stretchMiddle`, `stretchBottom`, `stretchAll`
-
----
-
-### `unity_physics_bundle`
-物理セットアップ。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `applyPreset2D`, `applyPreset3D`, `updateRigidbody2D`, `updateRigidbody3D`, `updateCollider2D`, `updateCollider3D`, `inspect` |
-| gameObjectPaths | array | ターゲットパス配列 |
-| preset | string | プリセット |
-| colliderType | string | コライダー種類 |
-| mass/drag/angularDrag | number | 物理パラメータ |
-| constraints | object | 制約設定 |
-
-**プリセット:** `dynamic`, `kinematic`, `static`, `character`, `platformer`, `topDown`, `vehicle`, `projectile`
 
 ---
 
@@ -552,7 +536,7 @@ ParticleSystemラッパー（プーリング対応）。
 
 ---
 
-## 10. GameKit - Logicピラー (5ツール)
+## 10. GameKit - Logicピラー (7ツール)
 
 ### `unity_validate_integrity`
 シーン整合性検証。
@@ -613,6 +597,45 @@ C#クラス依存関係分析。
 
 ---
 
+### `unity_scene_dependency`
+シーンアセット依存関係分析（AssetDatabase経由）。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `analyzeScene`, `findAssetUsage`, `findSharedAssets`, `findUnusedAssets` |
+| scenePath | string | 分析対象シーンパス（analyzeScene用） |
+| assetPath | string | 検索対象アセットパス（findAssetUsage用） |
+| includeIndirect | boolean | 間接依存を含めるか（デフォルト: true） |
+| typeFilter | string | アセットカテゴリでフィルタ（Material, Texture, Script等） |
+| searchPath | string | 検索範囲をフォルダに限定 |
+| scenePaths | array | findSharedAssets用のシーンパス配列（デフォルト: 全シーン） |
+| minSharedCount | integer | findSharedAssets用の最小共有数（デフォルト: 2） |
+
+**アセットカテゴリ:** Material, Texture, Shader, Model, Audio, AnimationClip, AnimatorController, Prefab, Script, Font, Asset, UXML, USS, Video, Data, Other
+
+---
+
+### `unity_script_syntax`
+C#ソースコード構文解析（行番号付き）。リフレクションではなくソースコードを直接解析。
+
+| パラメータ | 型 | 説明 |
+|------------|-----|------|
+| operation | string | `analyzeScript`, `findReferences`, `findUnusedCode`, `analyzeMetrics` |
+| scriptPath | string | 解析対象の.csファイルパス（analyzeScript用） |
+| symbolName | string | 検索対象のシンボル名（findReferences用） |
+| symbolType | string | シンボル種別: `class`, `method`, `field`, `property` |
+| searchPath | string | 検索範囲をフォルダに限定 |
+| targetType | string | findUnusedCode用: `method`, `field` |
+
+**参照種別:** method_call, instantiation, type_usage, inheritance, typeof, generic_argument, static_access, member_access
+
+**既存ツールとの違い:**
+- `unity_class_dependency_graph`: コンパイル済み型をリフレクションで解析（行番号なし）
+- `unity_class_catalog`: コンパイル済み型メタデータをリフレクションで検査
+- `unity_script_syntax`: ソースコードを直接解析（行番号あり、参照検索、メトリクス計算）
+
+---
+
 ## 11. Utilityツール（追加）
 
 ### `unity_playmode_control`
@@ -648,32 +671,6 @@ C#クラス依存関係分析。
 | scenePath | string | ビルドシーンパス |
 
 **カテゴリ:** `player`, `quality`, `time`, `physics`, `physics2d`, `audio`, `editor`, `tagsLayers`
-
----
-
-### `unity_character_controller_bundle`
-CharacterControllerセットアップ。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `applyPreset`, `update`, `inspect` |
-| preset | string | `fps`, `tps`, `platformer`, `child`, `large`, `narrow`, `custom` |
-| radius/height | number | カプセルサイズ |
-| slopeLimit | number | 最大傾斜角度 |
-| stepOffset | number | 最大段差高さ |
-
----
-
-### `unity_audio_source_bundle`
-AudioSourceセットアップ。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `createAudioSource`, `updateAudioSource`, `inspect` |
-| preset | string | `music`, `sfx`, `ambient`, `voice`, `ui`, `custom` |
-| audioClipPath | string | オーディオクリップパス |
-| volume | number | 音量 (0-1) |
-| spatialBlend | number | 2D/3Dブレンド |
 
 ---
 
@@ -713,11 +710,18 @@ unity_gameobject_crud({
     "template": "Sphere"
 })
 
-# 物理設定適用
-unity_physics_bundle({
-    "operation": "applyPreset2D",
-    "gameObjectPaths": ["Player"],
-    "preset": "platformer"
+# 物理設定適用（component_crudで直接設定）
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Player",
+    "componentType": "Rigidbody2D",
+    "propertyChanges": {"gravityScale": 3, "mass": 1, "constraints": {"freezeRotationZ": True}}
+})
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Player",
+    "componentType": "BoxCollider2D",
+    "propertyChanges": {"size": {"x": 1, "y": 1}}
 })
 
 # UIコマンドパネルで操作ボタン作成
