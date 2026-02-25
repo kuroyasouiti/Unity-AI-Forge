@@ -1,4 +1,4 @@
-"""Tool definitions for all 50 MCP tools.
+"""Tool definitions for all 51 MCP tools.
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -48,6 +48,7 @@ from tools.schemas import (
     scene_manage_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
+    script_syntax_schema,
     scriptable_object_manage_schema,
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
@@ -64,7 +65,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 50 MCP tool definitions."""
+    """Return the list of all 51 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -660,6 +661,28 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- Clean up unused assets to reduce project size"
             ),
             inputSchema=scene_dependency_schema(),
+        ),
+        types.Tool(
+            name="unity_script_syntax",
+            description=(
+                "High-level GameKit Script Syntax: analyze C# source code structure with line numbers.\n\n"
+                "**Operations:**\n"
+                "- analyzeScript: Parse a C# file and return its full structure "
+                "(using directives, namespaces, types, methods, fields, properties) with line numbers\n"
+                "- findReferences: Find all references to a symbol (method, class, field, property) "
+                "across project scripts, with reference type classification\n"
+                "- findUnusedCode: Detect methods and fields declared but never referenced "
+                "in other files (dead code detection)\n"
+                "- analyzeMetrics: Compute code metrics — lines of code, comment ratio, "
+                "method count/length, nesting depth, complexity\n\n"
+                "**Complements existing tools:**\n"
+                "- unity_class_dependency_graph: uses reflection on compiled types (no line numbers)\n"
+                "- unity_class_catalog: inspects compiled type metadata via reflection\n"
+                "- unity_script_syntax: parses source code directly (line numbers, reference search, metrics)\n\n"
+                "**Reference Types Detected:** method_call, instantiation, type_usage, inheritance, "
+                "typeof, generic_argument, static_access, member_access"
+            ),
+            inputSchema=script_syntax_schema(),
         ),
         # ── Development Cycle & Visual Tools ───────────────────────
         types.Tool(

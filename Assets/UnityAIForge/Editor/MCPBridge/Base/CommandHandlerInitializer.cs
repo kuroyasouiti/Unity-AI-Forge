@@ -207,7 +207,7 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("sceneReferenceGraph", new Handlers.HighLevel.SceneReferenceGraphHandler());
             CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
             CommandHandlerFactory.Register("sceneDependency", new Handlers.HighLevel.SceneDependencyHandler());
-        }
+            CommandHandlerFactory.Register("scriptSyntax", new Handlers.HighLevel.ScriptSyntaxHandler());
     }
 }
 

@@ -47,6 +47,7 @@ from tools.schemas.graph import (
     scene_dependency_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
+    script_syntax_schema,
     validate_integrity_schema,
 )
 from tools.schemas.low_level import (
@@ -161,4 +162,5 @@ __all__ = [
     "scene_dependency_schema",
     "scene_reference_graph_schema",
     "scene_relationship_graph_schema",
+    "script_syntax_schema",
 ]
