@@ -1,4 +1,4 @@
-"""Tool definitions for all 49 MCP tools.
+"""Tool definitions for all 50 MCP tools.
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -44,6 +44,7 @@ from tools.schemas import (
     prefab_manage_schema,
     project_settings_manage_schema,
     rect_transform_batch_schema,
+    scene_dependency_schema,
     scene_manage_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
@@ -63,7 +64,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 49 MCP tool definitions."""
+    """Return the list of all 50 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -102,7 +103,7 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Complete component management with batch operations: add/remove/update/inspect components on GameObjects.\n\n"
                 "**Wildcard:** Use componentType='*' to inspect all components or remove all (except Transform).\n\n"
                 "**Property Changes:** Supports complex property changes including nested objects and asset references.\n\n"
-                '**Unity Object References:** For properties that expect Unity Object references, use:\n'
+                "**Unity Object References:** For properties that expect Unity Object references, use:\n"
                 '- `{ "$ref": "path" }` - Object reference format (recommended)\n'
                 '- `"path"` - Simple string (for UnityEngine.Object types)\n\n'
                 "Path auto-detection:\n"
@@ -201,19 +202,19 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- show/hide/toggle: Control visibility using CanvasGroup (alpha, interactable, blocksRaycasts)\n\n"
                 "For navigation, use unity_ui_navigation tool.\n\n"
                 "**Hierarchy Structure Example:**\n"
-                '```json\n'
-                '{\n'
+                "```json\n"
+                "{\n"
                 '  "type": "panel",\n'
                 '  "name": "MainMenu",\n'
                 '  "children": [\n'
                 '    {"type": "text", "name": "Title", "text": "Game Title", "fontSize": 48},\n'
                 '    {"type": "button", "name": "StartBtn", "text": "Start Game"},\n'
                 '    {"type": "button", "name": "OptionsBtn", "text": "Options"}\n'
-                '  ],\n'
+                "  ],\n"
                 '  "layout": "Vertical",\n'
                 '  "spacing": 20\n'
-                '}\n'
-                '```\n\n'
+                "}\n"
+                "```\n\n"
                 "**Supported Element Types:** panel, button, text, image, inputfield, scrollview, toggle, slider, dropdown\n\n"
                 "Perfect for rapid UI prototyping, menu systems, dialog boxes, and complex UI structures without multiple API calls."
             ),
@@ -633,6 +634,32 @@ def get_tool_definitions() -> list[types.Tool]:
                 "**Output Formats:** json, dot, mermaid, summary"
             ),
             inputSchema=scene_relationship_graph_schema(),
+        ),
+        types.Tool(
+            name="unity_scene_dependency",
+            description=(
+                "High-level GameKit Scene Dependency: analyze asset dependencies of Unity scenes using AssetDatabase.\n\n"
+                "**Operations:**\n"
+                "- analyzeScene: List all asset dependencies of a scene, categorized by type "
+                "(Material, Texture, Shader, Model, Audio, Prefab, Script, etc.)\n"
+                "- findAssetUsage: Find all scenes that reference a specific asset (reverse lookup)\n"
+                "- findSharedAssets: Find assets shared across multiple scenes\n"
+                "- findUnusedAssets: Find assets not referenced by any scene\n\n"
+                "**Parameters:**\n"
+                "- scenePath: Scene to analyze (required for analyzeScene)\n"
+                "- assetPath: Asset to look up (required for findAssetUsage)\n"
+                "- includeIndirect: Include transitive dependencies (default: true)\n"
+                "- typeFilter: Filter by asset category (Material, Texture, Script, etc.)\n"
+                "- searchPath: Limit search scope to a folder\n"
+                "- scenePaths: Array of scenes for findSharedAssets (default: all)\n"
+                "- minSharedCount: Minimum shared count for findSharedAssets (default: 2)\n\n"
+                "**Use Cases:**\n"
+                "- Audit scene dependencies before building\n"
+                "- Find which scenes use a specific material or texture\n"
+                "- Identify shared assets for optimization (atlasing, bundling)\n"
+                "- Clean up unused assets to reduce project size"
+            ),
+            inputSchema=scene_dependency_schema(),
         ),
         # ── Development Cycle & Visual Tools ───────────────────────
         types.Tool(

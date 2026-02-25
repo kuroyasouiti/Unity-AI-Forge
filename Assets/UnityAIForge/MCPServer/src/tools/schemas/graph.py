@@ -214,6 +214,84 @@ def class_catalog_schema() -> dict[str, Any]:
     )
 
 
+def scene_dependency_schema() -> dict[str, Any]:
+    """Schema for the unity_scene_dependency MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyzeScene",
+                        "findAssetUsage",
+                        "findSharedAssets",
+                        "findUnusedAssets",
+                    ],
+                    "description": (
+                        "Scene dependency operation. "
+                        "'analyzeScene': list all asset dependencies of a scene, categorized by type. "
+                        "'findAssetUsage': find all scenes that reference a specific asset. "
+                        "'findSharedAssets': find assets shared across multiple scenes. "
+                        "'findUnusedAssets': find assets not referenced by any scene."
+                    ),
+                },
+                "scenePath": {
+                    "type": "string",
+                    "description": (
+                        "Scene path for analyzeScene (e.g., 'Assets/Scenes/Main.unity'). Required for analyzeScene."
+                    ),
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Asset path for findAssetUsage (e.g., 'Assets/Materials/Player.mat').",
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": (
+                        "Folder path to limit search scope. "
+                        "For findAssetUsage: limit scene search. "
+                        "For findUnusedAssets: folder to scan for unused assets (default: 'Assets')."
+                    ),
+                },
+                "scenePaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Array of scene paths for findSharedAssets. "
+                        "If omitted, all project scenes are analyzed."
+                    ),
+                },
+                "includeIndirect": {
+                    "type": "boolean",
+                    "description": (
+                        "Include transitive (indirect) dependencies in analyzeScene (default: true). "
+                        "When false, only direct dependencies are returned."
+                    ),
+                    "default": True,
+                },
+                "typeFilter": {
+                    "type": "string",
+                    "description": (
+                        "Filter results by asset category. "
+                        "Categories: Material, Texture, Shader, Model, Audio, AnimationClip, "
+                        "AnimatorController, Prefab, Script, Font, Asset, UXML, USS, Video, Data, Other."
+                    ),
+                },
+                "minSharedCount": {
+                    "type": "integer",
+                    "description": (
+                        "Minimum number of scenes an asset must be shared across "
+                        "for findSharedAssets (default: 2)."
+                    ),
+                    "default": 2,
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
 def validate_integrity_schema() -> dict[str, Any]:
     """Schema for the unity_validate_integrity MCP tool."""
     return schema_with_required(

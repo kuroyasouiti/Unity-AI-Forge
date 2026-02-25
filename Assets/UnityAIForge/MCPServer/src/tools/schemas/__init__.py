@@ -44,6 +44,7 @@ from tools.schemas.gamekit_systems import (
 from tools.schemas.graph import (
     class_catalog_schema,
     class_dependency_graph_schema,
+    scene_dependency_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
     validate_integrity_schema,
@@ -157,6 +158,7 @@ __all__ = [
     "validate_integrity_schema",
     "class_catalog_schema",
     "class_dependency_graph_schema",
+    "scene_dependency_schema",
     "scene_reference_graph_schema",
     "scene_relationship_graph_schema",
 ]

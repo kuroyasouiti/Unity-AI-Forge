@@ -206,6 +206,7 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("classCatalog", new Handlers.HighLevel.ClassCatalogHandler());
             CommandHandlerFactory.Register("sceneReferenceGraph", new Handlers.HighLevel.SceneReferenceGraphHandler());
             CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
+            CommandHandlerFactory.Register("sceneDependency", new Handlers.HighLevel.SceneDependencyHandler());
         }
     }
 }

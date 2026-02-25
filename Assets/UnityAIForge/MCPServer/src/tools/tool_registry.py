@@ -67,6 +67,7 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_class_catalog": "classCatalog",
     "unity_scene_reference_graph": "sceneReferenceGraph",
     "unity_scene_relationship_graph": "sceneRelationshipGraph",
+    "unity_scene_dependency": "sceneDependency",
 }
 
 # Reverse mapping: bridge name → MCP tool name.
