@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。49ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
+AI駆動型Unity開発ツールキット。51ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
 
 ## 🔴 Critical Rules
 
@@ -13,13 +13,13 @@ AI駆動型Unity開発ツールキット。49ツール、3層構造（Low/Mid/Hi
 
 ---
 
-## 📋 ツール一覧 (49ツール)
+## 📋 ツール一覧 (51ツール)
 
-### High-Level GameKit (15) - 3-Pillar Architecture
+### High-Level GameKit (17) - 3-Pillar Architecture
 
 | Pillar | ツール |
 |--------|-------|
-| **Logic (5)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph |
+| **Logic (7)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph, unity_scene_dependency, unity_script_syntax |
 | **UI (5)** UIシステム | unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection |
 | **Presentation (5)** 演出 | unity_gamekit_animation_sync, unity_gamekit_effect, unity_gamekit_feedback, unity_gamekit_vfx, unity_gamekit_audio |
 
@@ -50,9 +50,9 @@ unity_ping, unity_compilation_await, unity_batch_sequential_execute
 
 | Phase | やること | 主要ツール |
 |-------|---------|-----------|
-| **Plan** | 現状把握・影響調査 | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)` |
+| **Plan** | 現状把握・影響調査 | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
-| **Check** | 整合性検証 | `validate_integrity(all)`, `scene_relationship_graph(analyzeAll)`, `console_log(getErrors)` |
+| **Check** | 整合性検証 | `validate_integrity(all)`, `scene_relationship_graph(analyzeAll)`, `console_log(getErrors)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)` |
 | **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `validate_integrity(removeMissingScripts)`, `playmode_control(play/stop)` |
 
 ---
@@ -80,6 +80,18 @@ unity_class_dependency_graph(operation='findDependents', target='HealthSystem')
 # シーン遷移グラフ
 unity_scene_relationship_graph(operation='analyzeAll')
 unity_scene_relationship_graph(operation='validateBuildSettings')
+
+# シーンアセット依存関係（AssetDatabase経由）
+unity_scene_dependency(operation='analyzeScene', scenePath='Assets/Scenes/Main.unity')
+unity_scene_dependency(operation='findAssetUsage', assetPath='Assets/Materials/Player.mat')
+unity_scene_dependency(operation='findSharedAssets', minSharedCount=2)
+unity_scene_dependency(operation='findUnusedAssets', searchPath='Assets')
+
+# C#ソースコード構文解析（行番号付き、リフレクション不要）
+unity_script_syntax(operation='analyzeScript', scriptPath='Assets/Scripts/PlayerController.cs')
+unity_script_syntax(operation='findReferences', symbolName='PlayerController', symbolType='class')
+unity_script_syntax(operation='findUnusedCode', searchPath='Assets/Scripts')
+unity_script_syntax(operation='analyzeMetrics', searchPath='Assets/Scripts')
 ```
 
 ---
@@ -273,4 +285,4 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 
 ---
 
-Unity-AI-Forge v{VERSION} - 49 Tools, 3-Layer Architecture, 3-Pillar GameKit
+Unity-AI-Forge v{VERSION} - 51 Tools, 3-Layer Architecture, 3-Pillar GameKit

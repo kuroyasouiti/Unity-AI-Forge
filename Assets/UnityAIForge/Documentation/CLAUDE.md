@@ -4,7 +4,7 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 ## プロジェクト概要
 
-Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。49のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
+Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。51のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
 
 **バージョン:** 2.10.0
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
@@ -20,8 +20,8 @@ AIクライアント (Claude Code / Cursor) <--MCP--> Python Server <--WebSocket
 ツールは上位レベルから順に使用してください。上位ツールほど少ないコマンドで多くの処理を実行できます。
 
 ```
-High-Level GameKit (15ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
-  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (5)
+High-Level GameKit (17ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
+  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (7)
 Mid-Level Batch    (20ツール)  ← 複数設定をまとめて適用（UI Toolkit含む）
 Low-Level CRUD      (8ツール)  ← 個別のUnity操作
 Utility             (5ツール)  ← 接続確認・コンパイル待機など
@@ -39,7 +39,7 @@ GameKitツールはMonoBehaviourを直接追加するのではなく、テンプ
 
 ## ツール一覧
 
-### High-Level GameKit（15ツール）
+### High-Level GameKit（17ツール）
 
 GameKitは3本柱（UI・Logic・Presentation）で構成されています。ハンドラーはコード生成でスタンドアロンC#スクリプトを生成し、Unity-AI-Forgeパッケージへのランタイム依存はありません。
 
@@ -63,7 +63,7 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_gamekit_vfx` | VFXラッパー（プーリング対応） |
 | `unity_gamekit_audio` | オーディオラッパー（フェード対応） |
 
-**Logicピラー（5ツール）:**
+**Logicピラー（7ツール）:**
 
 | ツール名 | 用途 |
 |----------|------|
@@ -72,6 +72,8 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_class_dependency_graph` | C#スクリプトのクラス依存関係を解析 |
 | `unity_scene_reference_graph` | シーン内のオブジェクト間参照を解析 |
 | `unity_scene_relationship_graph` | シーン全体の関係性を包括的に解析 |
+| `unity_scene_dependency` | シーンのアセット依存関係を解析（AssetDatabase経由） |
+| `unity_script_syntax` | C#ソースコード構文解析（行番号付き、参照検索、メトリクス） |
 
 ### Mid-Level Batch（20ツール）
 

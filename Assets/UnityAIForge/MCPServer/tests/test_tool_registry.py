@@ -40,6 +40,8 @@ class TestToolNameToBridge:
             "unity_class_dependency_graph": "classDependencyGraph",
             "unity_scene_reference_graph": "sceneReferenceGraph",
             "unity_scene_relationship_graph": "sceneRelationshipGraph",
+            "unity_scene_dependency": "sceneDependency",
+            "unity_script_syntax": "scriptSyntax",
         }
         for mcp_name, bridge_name in expected.items():
             assert TOOL_NAME_TO_BRIDGE[mcp_name] == bridge_name

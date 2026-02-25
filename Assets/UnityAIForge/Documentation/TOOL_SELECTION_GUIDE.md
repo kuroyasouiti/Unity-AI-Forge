@@ -24,6 +24,10 @@ This guide helps you choose the right tool for your Unity development tasks.
 | Create single UI element | `unity_ui_foundation` |
 | Scene integrity validation | `unity_validate_integrity` |
 | Type discovery / inspection | `unity_class_catalog` |
+| Scene asset dependency audit | `unity_scene_dependency` |
+| C# source code analysis (with line numbers) | `unity_script_syntax` |
+| Dead code detection | `unity_script_syntax` |
+| Find asset usage across scenes | `unity_scene_dependency` |
 
 ---
 
@@ -372,15 +376,69 @@ unity_class_catalog({
 })
 ```
 
+### When to use `unity_scene_dependency`
+
+**Best for:** Asset dependency analysis at the scene level
+
+- Audit what assets a scene depends on before building
+- Find which scenes use a specific material, texture, or prefab (reverse lookup)
+- Identify shared assets across scenes for optimization (atlasing, bundling)
+- Clean up unused assets to reduce project size
+
+```python
+unity_scene_dependency({
+    "operation": "analyzeScene",
+    "scenePath": "Assets/Scenes/Main.unity"
+})
+
+unity_scene_dependency({
+    "operation": "findUnusedAssets",
+    "searchPath": "Assets",
+    "typeFilter": "Texture"
+})
+```
+
+### When to use `unity_script_syntax`
+
+**Best for:** Source code analysis with line numbers
+
+- Parse C# file structure (classes, methods, fields, properties) with exact line numbers
+- Find all references to a symbol (method, class, field) across the project
+- Detect dead code (unused methods/fields)
+- Compute code quality metrics (LOC, comment ratio, method length, nesting depth)
+
+**Complements reflection-based tools:**
+- `unity_class_dependency_graph` / `unity_class_catalog` use reflection (no line numbers)
+- `unity_script_syntax` parses source code directly (line numbers, reference search, metrics)
+
+```python
+unity_script_syntax({
+    "operation": "analyzeScript",
+    "scriptPath": "Assets/Scripts/PlayerController.cs"
+})
+
+unity_script_syntax({
+    "operation": "findReferences",
+    "symbolName": "TakeDamage",
+    "symbolType": "method",
+    "searchPath": "Assets/Scripts"
+})
+```
+
 ### Decision Matrix
 
-| Requirement | integrity | reference_graph | class_catalog | dependency_graph | relationship_graph |
-|-------------|-----------|----------------|---------------|-----------------|-------------------|
-| Find broken refs | Yes | No | No | No | No |
-| Object dependencies | No | Yes | No | No | No |
-| Type discovery | No | No | Yes | No | No |
-| Code dependencies | No | No | No | Yes | No |
-| Scene transitions | No | No | No | No | Yes |
+| Requirement | integrity | reference_graph | class_catalog | dependency_graph | relationship_graph | scene_dependency | script_syntax |
+|-------------|-----------|----------------|---------------|-----------------|-------------------|-----------------|---------------|
+| Find broken refs | Yes | No | No | No | No | No | No |
+| Object dependencies | No | Yes | No | No | No | No | No |
+| Type discovery | No | No | Yes | No | No | No | No |
+| Code dependencies | No | No | No | Yes | No | No | No |
+| Scene transitions | No | No | No | No | Yes | No | No |
+| Asset dependencies | No | No | No | No | No | Yes | No |
+| Source code structure | No | No | No | No | No | No | Yes |
+| Dead code detection | No | No | No | No | No | No | Yes |
+| Code metrics | No | No | No | No | No | No | Yes |
+| Unused assets | No | No | No | No | No | Yes | No |
 
 ---
 
@@ -429,7 +487,7 @@ unity_sprite2d_bundle({
 
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
-| **High-Level GameKit** | UI Pillar (5), Presentation Pillar (5), Logic Pillar (5) | Game systems, analysis, validation |
+| **High-Level GameKit** | UI Pillar (5), Presentation Pillar (5), Logic Pillar (7) | Game systems, analysis, validation |
 | **Mid-Level Batch** | transform_batch, physics_bundle, ui_hierarchy, etc. (21) | Batch operations, presets |
 | **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
 | **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |
