@@ -20,7 +20,7 @@
 ## パイプライン位置
 
 ```
-企画 → [設計] → プロジェクト初期設定 → プロトタイプ → アルファ → ベータ → リリース
+企画 → [設計] → プロジェクト初期設定 → シーン構築 → プロトタイプ → アルファ → ベータ → リリース
 ```
 
 **前提**: 企画書でコアループ・メカニクス・シーン構成・マイルストーンが定義済み（`game_workflow_guide(phase='planning')`）。企画書のメカニクス一覧と優先度をもとに、技術設計を行います。
@@ -418,7 +418,8 @@ stateDiagram-v2
 設計が完了したら、以下の順序で進みます:
 
 1. **プロジェクト初期設定** (`game_workflow_guide(phase='project_setup')`) - タグ・レイヤー・フォルダ構造の実装
-2. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
+2. **シーン構築** (`game_workflow_guide(phase='scene_building')`) - シーン階層・Manager・Canvas 骨格の構築
+3. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
 
 フェーズ別実装マッピングで `<<proto>>` を付与したクラス・状態のみをプロトタイプで実装し、`<<alpha>>` のクラスはアルファフェーズで正式なアーキテクチャとして実装します。`<<beta>>` の演出クラスはベータフェーズで Presentation Pillar ツールを使って追加します。
 

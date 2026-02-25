@@ -20,7 +20,7 @@
 ## パイプライン位置
 
 ```
-[企画] → 設計 → プロジェクト初期設定 → プロトタイプ → アルファ → ベータ → リリース
+[企画] → 設計 → プロジェクト初期設定 → シーン構築 → プロトタイプ → アルファ → ベータ → リリース
 ```
 
 ---
@@ -174,7 +174,8 @@ unity_asset_crud(operation='create',
 
 1. **設計フェーズ** (`game_workflow_guide(phase='design')`) - デザインパターン選定・UML設計
 2. **プロジェクト初期設定** (`game_workflow_guide(phase='project_setup')`) - タグ・レイヤー・フォルダ構造
-3. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
+3. **シーン構築** (`game_workflow_guide(phase='scene_building')`) - シーン階層・Manager・Canvas 骨格の構築
+4. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
 
 ---
 

@@ -7,7 +7,7 @@
 ## パイプライン位置
 
 ```
-企画 → 設計 → [プロジェクト初期設定] → プロトタイプ → アルファ → ベータ → リリース
+企画 → 設計 → [プロジェクト初期設定] → シーン構築 → プロトタイプ → アルファ → ベータ → リリース
 ```
 
 **前提**: 設計フェーズでデザインパターン・クラス構造・UML図が決定済み（`game_workflow_guide(phase='design')`）。設計で定義したタグ・レイヤー・シーン構成をもとにプロジェクトの骨格を構築します。
@@ -440,6 +440,20 @@ SceneManager.LoadScene(int buildIndex) は使わず、必ずシーン名 (string
 
 **Physics2D と Physics3D は独立したレイヤーマトリクス**
 2D プロジェクトと 3D プロジェクトでは別々にレイヤーマトリクスを設定する必要があります。
+
+---
+
+## 次のフェーズへ
+
+プロジェクト初期設定が完了したら、次はシーン構築フェーズです:
+
+1. **シーン構築** (`game_workflow_guide(phase='scene_building')`) - 空シーンに階層構造・Manager・Canvas 骨格を配置
+   - Boot シーンに BootManager を配置
+   - Manager シーンに永続 Manager オブジェクトを配置
+   - UI シーンに Canvas 骨格を作成
+   - Level シーンにカテゴリ別の親 GameObject を配置
+
+マルチシーン設計の詳細は `game_workflow_guide(phase='scene_structure')` を参照してください。
 
 ---
 

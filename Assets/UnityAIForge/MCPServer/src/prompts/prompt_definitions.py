@@ -32,6 +32,7 @@ WORKFLOW_OPTIONS: list[str] = [
     "planning",
     "design",
     "project_setup",
+    "scene_building",
     "prototype",
     "alpha",
     "beta",

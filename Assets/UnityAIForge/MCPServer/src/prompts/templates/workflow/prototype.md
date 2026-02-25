@@ -21,10 +21,10 @@
 ## パイプライン位置
 
 ```
-企画 → 設計 → プロジェクト初期設定 → [プロトタイプ] → アルファ → ベータ → リリース
+企画 → 設計 → プロジェクト初期設定 → シーン構築 → [プロトタイプ] → アルファ → ベータ → リリース
 ```
 
-**前提**: 企画書でコアループ・メカニクス・シーン構成が定義済み（`game_workflow_guide(phase='planning')`）。設計でデザインパターン・クラス構造が決定済み（`game_workflow_guide(phase='design')`）。プロジェクト初期設定でタグ・レイヤー・フォルダ構造が整備済み（`game_workflow_guide(phase='project_setup')`）。
+**前提**: 企画書でコアループ・メカニクス・シーン構成が定義済み（`game_workflow_guide(phase='planning')`）。設計でデザインパターン・クラス構造が決定済み（`game_workflow_guide(phase='design')`）。プロジェクト初期設定でタグ・レイヤー・フォルダ構造が整備済み（`game_workflow_guide(phase='project_setup')`）。シーン構築で Boot・Manager・UI・Level シーンの階層構造と Canvas 骨格が構築済み（`game_workflow_guide(phase='scene_building')`）。
 
 ---
 
