@@ -1,4 +1,4 @@
-"""Tool definitions for all 51 MCP tools.
+"""Tool definitions for all 48 MCP tools.
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -14,9 +14,7 @@ from tools.schemas import (
     animation2d_bundle_schema,
     animation3d_bundle_schema,
     asset_manage_schema,
-    audio_source_bundle_schema,
     camera_rig_schema,
-    character_controller_bundle_schema,
     class_catalog_schema,
     class_dependency_graph_schema,
     compilation_await_schema,
@@ -38,7 +36,6 @@ from tools.schemas import (
     light_bundle_schema,
     material_bundle_schema,
     particle_bundle_schema,
-    physics_bundle_schema,
     ping_schema,
     playmode_control_schema,
     prefab_manage_schema,
@@ -157,11 +154,6 @@ def get_tool_definitions() -> list[types.Tool]:
             inputSchema=rect_transform_batch_schema(),
         ),
         types.Tool(
-            name="unity_physics_bundle",
-            description="Mid-level physics setup: apply complete physics presets (dynamic: movable with physics, kinematic: movable without physics, static: immovable, character: player/NPC, platformer: 2D side-scrolling, topDown: 2D top-down, vehicle: car physics, projectile: bullets/arrows) or update individual Rigidbody/Collider properties. Automatically adds Rigidbody2D/Rigidbody + Collider (box/sphere/capsule/circle) with appropriate settings. Supports 2D and 3D physics, constraints (freeze position/rotation), collision detection modes (discrete/continuous), and physics materials. Perfect for rapid physics prototyping.",
-            inputSchema=physics_bundle_schema(),
-        ),
-        types.Tool(
             name="unity_camera_rig",
             description="Mid-level camera rig creation: create complete camera systems with single commands (follow: smooth following camera, orbit: rotate around target, splitScreen: multiplayer viewports, fixed: static camera, dolly: cinematic rail camera). Automatically configures Camera component, target tracking, follow smoothing, orbit distance, field of view, orthographic/perspective mode, and split-screen viewports. Perfect for quickly setting up player cameras, cinematic cameras, or multiplayer camera systems without manual rigging.",
             inputSchema=camera_rig_schema(),
@@ -172,19 +164,9 @@ def get_tool_definitions() -> list[types.Tool]:
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(
-            name="unity_audio_source_bundle",
-            description="Mid-level audio source setup: create and configure AudioSource components with presets (music: looping background music with lower priority, sfx: one-shot sound effects with high priority, ambient: looping environmental sounds, voice: dialogue with high priority, ui: button clicks/menu sounds). Automatically configures volume, pitch, loop, playOnAwake, spatialBlend (2D/3D), min/max distance for 3D audio, priority (0-256), and audio mixer group routing. Perfect for quickly setting up game audio without manual AudioSource configuration.",
-            inputSchema=audio_source_bundle_schema(),
-        ),
-        types.Tool(
             name="unity_input_profile",
             description="Mid-level input system setup: create PlayerInput component with New Input System, configure action maps (player: move/jump/fire, ui: navigate/submit/cancel, vehicle: accelerate/brake/steer), set up notification behaviors (sendMessages/broadcastMessages/invokeUnityEvents/invokeCSharpEvents), and define custom actions with bindings. Automatically generates or uses existing InputActions assets. Essential for setting up player input handling with Unity's modern Input System. Use presets for quick setup or 'custom' for full control.",
             inputSchema=input_profile_schema(),
-        ),
-        types.Tool(
-            name="unity_character_controller_bundle",
-            description="Mid-level CharacterController setup: apply CharacterController component with presets optimized for different character types (fps: 1.8m height for first-person, tps: 2.0m for third-person, platformer: 1.0m for platformers, child: 0.5m for small characters, large: 3.0m for large characters, narrow: thin capsule for tight spaces, custom: full manual control). Automatically configures capsule radius, height, center offset, slope limit (max climbable angle), step offset (max stair height), skin width (collision padding), and minimum move distance. Perfect for 3D character setup without manual physics configuration.",
-            inputSchema=character_controller_bundle_schema(),
         ),
         types.Tool(
             name="unity_tilemap_bundle",

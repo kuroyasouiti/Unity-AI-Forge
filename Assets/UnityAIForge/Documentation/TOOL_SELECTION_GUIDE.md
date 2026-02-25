@@ -163,73 +163,40 @@ unity_gamekit_ui_binding({
 
 ---
 
-## 3. Physics Setup Tools
+## 3. Physics & Character Setup (via component_crud)
 
-### When to use `unity_physics_bundle`
-
-**Best for:** Rigidbody-based physics
-
-- Objects with realistic physics (gravity, collision response)
-- Ragdoll-ready characters
-- Vehicles with physics simulation
-- Platformer characters (2D with Rigidbody2D)
-- Top-down 2D games
-- Projectiles with physics
-
-**Presets available:**
-- `dynamic` - Movable with physics
-- `kinematic` - Movable without physics
-- `static` - Immovable
-- `character` - Physics-based character
-- `platformer` - 2D platformer character
-- `topDown` - 2D top-down game
-- `vehicle` - Car physics
-- `projectile` - Bullets/arrows
+Physics and character controller setup uses `unity_component_crud` directly:
 
 ```python
-unity_physics_bundle({
-    "operation": "applyPreset2D",
-    "gameObjectPaths": ["Player"],
-    "preset": "platformer"
-})
-```
-
-### When to use `unity_character_controller_bundle`
-
-**Best for:** CharacterController-based movement
-
-- First-person shooter characters
-- Third-person action game characters
-- Precise movement control (no physics sliding)
-- Stair/slope climbing
-- Custom gravity implementation
-
-**Presets available:**
-- `fps` - First-person (1.8m height)
-- `tps` - Third-person (2.0m height)
-- `platformer` - 3D platformer (1.0m height)
-- `child` - Small character (0.5m height)
-- `large` - Large character (3.0m height)
-- `narrow` - Thin capsule for tight spaces
-
-```python
-unity_character_controller_bundle({
-    "operation": "applyPreset",
+# 2D Platformer: Rigidbody2D + BoxCollider2D
+unity_component_crud({
+    "operation": "add",
     "gameObjectPath": "Player",
-    "preset": "fps"
+    "componentType": "Rigidbody2D",
+    "propertyChanges": {"gravityScale": 3, "mass": 1, "constraints": {"freezeRotationZ": True}}
+})
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Player",
+    "componentType": "BoxCollider2D"
+})
+
+# FPS Character: CharacterController
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Player",
+    "componentType": "CharacterController",
+    "propertyChanges": {"height": 1.8, "radius": 0.4, "center": {"x": 0, "y": 0.9, "z": 0}, "slopeLimit": 45, "stepOffset": 0.3}
+})
+
+# AudioSource (BGM)
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Audio/BGM",
+    "componentType": "AudioSource",
+    "propertyChanges": {"clip": {"$ref": "Assets/Audio/BGM.mp3"}, "loop": true, "volume": 0.7, "playOnAwake": true}
 })
 ```
-
-### Decision Matrix
-
-| Requirement | Use `physics_bundle` | Use `character_controller_bundle` |
-|-------------|---------------------|----------------------------------|
-| Gravity/collision response | Yes | No (manual) |
-| Ragdoll support | Yes | No |
-| Precise stair climbing | No | Yes |
-| 2D games | Yes | No |
-| Physics interactions | Yes | Limited |
-| FPS/TPS movement | Possible | Recommended |
 
 ---
 
@@ -488,7 +455,7 @@ unity_sprite2d_bundle({
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
 | **High-Level GameKit** | UI Pillar (5), Presentation Pillar (5), Logic Pillar (7) | Game systems, analysis, validation |
-| **Mid-Level Batch** | transform_batch, physics_bundle, ui_hierarchy, etc. (21) | Batch operations, presets |
+| **Mid-Level Batch** | transform_batch, camera_rig, ui_hierarchy, etc. (18) | Batch operations, presets |
 | **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
 | **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |
 

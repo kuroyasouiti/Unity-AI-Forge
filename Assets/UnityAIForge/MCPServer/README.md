@@ -26,7 +26,7 @@ For manual installation and detailed documentation, see:
 - Material and shader control
 - Project settings configuration
 
-### GameKit Framework (16 Tools)
+### GameKit Framework (17 Tools)
 Code generation-based game systems with zero runtime dependency:
 - **UI Pillar** (5): UICommand, UIBinding, UIList, UISlot, UISelection
 - **Presentation Pillar** (5): AnimationSync, Effect, Feedback, VFX, Audio

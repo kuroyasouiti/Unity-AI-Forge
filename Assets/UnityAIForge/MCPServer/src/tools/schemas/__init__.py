@@ -61,11 +61,8 @@ from tools.schemas.low_level import (
     vector_sprite_convert_schema,
 )
 from tools.schemas.mid_level import (
-    audio_source_bundle_schema,
     camera_rig_schema,
-    character_controller_bundle_schema,
     input_profile_schema,
-    physics_bundle_schema,
     rect_transform_batch_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
@@ -122,15 +119,12 @@ __all__ = [
     # mid_level
     "transform_batch_schema",
     "rect_transform_batch_schema",
-    "physics_bundle_schema",
     "camera_rig_schema",
     "ui_foundation_schema",
     "ui_hierarchy_schema",
     "ui_state_schema",
     "ui_navigation_schema",
-    "audio_source_bundle_schema",
     "input_profile_schema",
-    "character_controller_bundle_schema",
     "tilemap_bundle_schema",
     "uitk_document_schema",
     "uitk_asset_schema",

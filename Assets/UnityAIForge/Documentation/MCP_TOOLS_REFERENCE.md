@@ -8,10 +8,10 @@
 |----------|----------|------|
 | Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
 | Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
-| Mid-Level Batch | 21 | バッチ操作・プリセット・UI・ビジュアル制御 |
+| Mid-Level Batch | 18 | バッチ操作・プリセット・UI・ビジュアル制御 |
 | High-Level GameKit | 17 | 3本柱ゲーム開発フレームワーク |
 
-**合計: 51 ツール**
+**合計: 48 ツール**
 
 ---
 
@@ -158,22 +158,6 @@ UI RectTransformバッチ操作。
 | spacing | number | 間隔 |
 
 **プリセット:** `topLeft`, `topCenter`, `topRight`, `middleLeft`, `middleCenter`, `middleRight`, `bottomLeft`, `bottomCenter`, `bottomRight`, `stretchLeft`, `stretchCenter`, `stretchRight`, `stretchTop`, `stretchMiddle`, `stretchBottom`, `stretchAll`
-
----
-
-### `unity_physics_bundle`
-物理セットアップ。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `applyPreset2D`, `applyPreset3D`, `updateRigidbody2D`, `updateRigidbody3D`, `updateCollider2D`, `updateCollider3D`, `inspect` |
-| gameObjectPaths | array | ターゲットパス配列 |
-| preset | string | プリセット |
-| colliderType | string | コライダー種類 |
-| mass/drag/angularDrag | number | 物理パラメータ |
-| constraints | object | 制約設定 |
-
-**プリセット:** `dynamic`, `kinematic`, `static`, `character`, `platformer`, `topDown`, `vehicle`, `projectile`
 
 ---
 
@@ -690,32 +674,6 @@ C#ソースコード構文解析（行番号付き）。リフレクションで
 
 ---
 
-### `unity_character_controller_bundle`
-CharacterControllerセットアップ。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `applyPreset`, `update`, `inspect` |
-| preset | string | `fps`, `tps`, `platformer`, `child`, `large`, `narrow`, `custom` |
-| radius/height | number | カプセルサイズ |
-| slopeLimit | number | 最大傾斜角度 |
-| stepOffset | number | 最大段差高さ |
-
----
-
-### `unity_audio_source_bundle`
-AudioSourceセットアップ。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `createAudioSource`, `updateAudioSource`, `inspect` |
-| preset | string | `music`, `sfx`, `ambient`, `voice`, `ui`, `custom` |
-| audioClipPath | string | オーディオクリップパス |
-| volume | number | 音量 (0-1) |
-| spatialBlend | number | 2D/3Dブレンド |
-
----
-
 ### `unity_input_profile`
 Input Systemセットアップ。
 
@@ -752,11 +710,18 @@ unity_gameobject_crud({
     "template": "Sphere"
 })
 
-# 物理設定適用
-unity_physics_bundle({
-    "operation": "applyPreset2D",
-    "gameObjectPaths": ["Player"],
-    "preset": "platformer"
+# 物理設定適用（component_crudで直接設定）
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Player",
+    "componentType": "Rigidbody2D",
+    "propertyChanges": {"gravityScale": 3, "mass": 1, "constraints": {"freezeRotationZ": True}}
+})
+unity_component_crud({
+    "operation": "add",
+    "gameObjectPath": "Player",
+    "componentType": "BoxCollider2D",
+    "propertyChanges": {"size": {"x": 1, "y": 1}}
 })
 
 # UIコマンドパネルで操作ボタン作成

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 51 tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 48 tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Requirements
 
@@ -97,18 +97,15 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `ScriptableObjectCommandHandler.cs` - ScriptableObject management
 - `VectorSpriteConvertHandler.cs` - Vector/primitive to sprite conversion
 
-**MidLevel/** (20 handlers) - Batch operations, presets, visual control, and UI Toolkit:
+**MidLevel/** (17 handlers) - Batch operations, presets, visual control, and UI Toolkit:
 - `TransformBatchHandler.cs` - Transform batch operations (arrange, rename patterns)
 - `RectTransformBatchHandler.cs` - UI RectTransform batch (anchors, alignment, distribution)
-- `PhysicsBundleHandler.cs` - Physics2D/3D setup with presets
 - `CameraRigHandler.cs` - Camera rig presets (follow, orbit, splitScreen, etc.)
 - `UIFoundationHandler.cs` - UGUI element creation (Canvas, Button, Text, ScrollView, etc.)
 - `UIHierarchyHandler.cs` - Declarative UI hierarchy from JSON definitions
 - `UIStateHandler.cs` - UI state management (define/apply/save/load states)
 - `UINavigationHandler.cs` - Keyboard/gamepad navigation setup
-- `AudioSourceBundleHandler.cs` - AudioSource setup with presets (music, sfx, ambient, etc.)
 - `InputProfileHandler.cs` - New Input System setup with action maps
-- `CharacterControllerBundleHandler.cs` - CharacterController setup with character presets
 - `TilemapBundleHandler.cs` - Tilemap creation and tile management
 - `Sprite2DBundleHandler.cs` - 2D sprite management and sprite sheet slicing
 - `Animation2DBundleHandler.cs` - 2D animation setup (Animator, AnimatorController, clips)
@@ -149,9 +146,9 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `main.py` - Entry point, sys.path setup and server launch
 - `version.py` - Package version info
 - `logger.py` - Logging configuration
-- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 47 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
-- `tools/tool_registry.py` - Single source of truth for 51 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
-- `tools/tool_definitions.py` - All 51 `types.Tool` definitions with descriptions and schema references.
+- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 44 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
+- `tools/tool_registry.py` - Single source of truth for 48 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
+- `tools/tool_definitions.py` - All 48 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
 - `tools/schemas/` - JSON Schema definitions split into 8 category files:
   - `common.py` - Shared type helpers (Vector3, Color, etc.)

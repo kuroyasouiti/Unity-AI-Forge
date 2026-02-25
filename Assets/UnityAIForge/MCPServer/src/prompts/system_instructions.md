@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。51ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
+AI駆動型Unity開発ツールキット。48ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
 
 ## 🔴 Critical Rules
 
@@ -13,7 +13,7 @@ AI駆動型Unity開発ツールキット。51ツール、3層構造（Low/Mid/Hi
 
 ---
 
-## 📋 ツール一覧 (51ツール)
+## 📋 ツール一覧 (48ツール)
 
 ### High-Level GameKit (17) - 3-Pillar Architecture
 
@@ -23,15 +23,15 @@ AI駆動型Unity開発ツールキット。51ツール、3層構造（Low/Mid/Hi
 | **UI (5)** UIシステム | unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection |
 | **Presentation (5)** 演出 | unity_gamekit_animation_sync, unity_gamekit_effect, unity_gamekit_feedback, unity_gamekit_vfx, unity_gamekit_audio |
 
-### Mid-Level (23) - バッチ操作・プリセット
+### Mid-Level (20) - バッチ操作・プリセット
 
 | カテゴリ | ツール |
 |---------|-------|
 | Transform | unity_transform_batch, unity_rectTransform_batch |
-| Physics/Camera | unity_physics_bundle, unity_camera_rig |
+| Camera | unity_camera_rig |
 | UI (UGUI) | unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
-| Audio/Input/Character | unity_audio_source_bundle, unity_input_profile, unity_character_controller_bundle |
+| Input | unity_input_profile |
 | 2D | unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle |
 | 3D/Visual | unity_material_bundle, unity_light_bundle, unity_particle_bundle, unity_animation3d_bundle |
 | Events/Dev-Cycle | unity_event_wiring, unity_playmode_control, unity_console_log |
@@ -153,8 +153,12 @@ unity_gamekit_animation_sync(operation='addTriggerRule', syncId='anim', triggerN
 unity_transform_batch(operation='arrangeCircle', gameObjectPaths=[...], radius=5.0)
 unity_transform_batch(operation='arrangeLine', gameObjectPaths=[...], startPosition={'x':0,'y':0,'z':0}, endPosition={'x':10,'y':0,'z':0})
 
-# 物理プリセット (preset: dynamic|kinematic|static|character|platformer|topDown|vehicle|projectile)
-unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'], preset='character')
+# 物理設定 → component_crudで直接設定
+# 2Dプラットフォーマー例: Rigidbody2D + BoxCollider2D
+unity_component_crud(operation='add', gameObjectPath='Player', componentType='Rigidbody2D',
+    propertyChanges={'gravityScale':3, 'mass':1, 'collisionDetection':'Continuous', 'constraints':{'freezeRotationZ':True}})
+unity_component_crud(operation='add', gameObjectPath='Player', componentType='BoxCollider2D',
+    propertyChanges={'size':{'x':1,'y':1}})
 
 # カメラリグ (rigType: follow|orbit|splitScreen|fixed|dolly)
 unity_camera_rig(operation='createRig', rigType='follow', rigName='MainCam', targetPath='Player', offset={'x':0,'y':5,'z':-10})
@@ -195,8 +199,10 @@ unity_light_bundle(operation='createLightingSetup', setupPreset='daylight')  # d
 # パーティクル (preset: explosion|fire|smoke|sparkle|rain|snow|dust|trail|hit|heal|magic|leaves)
 unity_particle_bundle(operation='create', gameObjectPath='FX/Fire', preset='fire')
 
-# オーディオソース (preset: music|sfx|ambient|voice|ui)
-unity_audio_source_bundle(operation='create', gameObjectPath='Audio/BGM', preset='music', clipPath='Assets/Audio/BGM.mp3')
+# オーディオソース → component_crudで直接設定
+# BGM例: AudioSource + ループ + 低優先度
+unity_component_crud(operation='add', gameObjectPath='Audio/BGM', componentType='AudioSource',
+    propertyChanges={'clip':{'$ref':'Assets/Audio/BGM.mp3'}, 'loop':True, 'volume':0.7, 'playOnAwake':True, 'priority':128})
 
 # イベント接続
 unity_event_wiring(operation='wire',
@@ -266,8 +272,9 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 | カテゴリ | componentType → 主要プロパティ |
 |---------|------|
 | **Transform** | `Transform` position,localScale / `RectTransform` anchoredPosition,sizeDelta,anchorMin,anchorMax,pivot |
-| **Physics2D** | `Rigidbody2D` bodyType(0=Dynamic,1=Kinematic,2=Static),mass,gravityScale / `BoxCollider2D` size,offset,isTrigger / `CircleCollider2D` radius,isTrigger / `CapsuleCollider2D` size,direction / `CompositeCollider2D` geometryType |
-| **Physics3D** | `Rigidbody` mass,drag,useGravity,isKinematic / `BoxCollider` center,size,isTrigger / `SphereCollider` radius / `CapsuleCollider` radius,height,direction / `MeshCollider` convex / `CharacterController` radius,height,slopeLimit,stepOffset |
+| **Physics2D** | `Rigidbody2D` bodyType(0=Dynamic,1=Kinematic,2=Static),mass,gravityScale,collisionDetection(0=Discrete,1=Continuous) / `BoxCollider2D` size,offset,isTrigger / `CircleCollider2D` radius,isTrigger / `CapsuleCollider2D` size,direction |
+| **Physics3D** | `Rigidbody` mass,drag,useGravity,isKinematic / `BoxCollider` center,size,isTrigger / `SphereCollider` radius / `CapsuleCollider` radius,height,direction / `MeshCollider` convex |
+| **CharCtrl** | `CharacterController` radius,height,center,slopeLimit(45),stepOffset(0.3),skinWidth(0.08) — FPS: h=1.8,r=0.4; TPS: h=2.0,r=0.5; Platformer: h=1.0,r=0.3 |
 | **Render2D** | `SpriteRenderer` sprite,color,flipX,flipY,sortingLayerName,sortingOrder |
 | **Render3D** | `MeshFilter` sharedMesh / `MeshRenderer` sharedMaterials,shadowCastingMode / `LineRenderer` startWidth,endWidth / `TrailRenderer` time,startWidth |
 | **Camera** | `Camera` fieldOfView,orthographic,orthographicSize,clearFlags(1=Skybox,2=SolidColor),backgroundColor |
@@ -285,4 +292,4 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 
 ---
 
-Unity-AI-Forge v{VERSION} - 51 Tools, 3-Layer Architecture, 3-Pillar GameKit
+Unity-AI-Forge v{VERSION} - 48 Tools, 3-Layer Architecture, 3-Pillar GameKit

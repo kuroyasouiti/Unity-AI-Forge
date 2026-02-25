@@ -8,10 +8,10 @@ import pytest
 class TestToolNameToBridge:
     """Tests for TOOL_NAME_TO_BRIDGE mapping."""
 
-    def test_mapping_has_50_entries(self) -> None:
+    def test_mapping_has_47_entries(self) -> None:
         from tools.tool_registry import TOOL_NAME_TO_BRIDGE
 
-        assert len(TOOL_NAME_TO_BRIDGE) == 50
+        assert len(TOOL_NAME_TO_BRIDGE) == 47
 
     def test_all_mcp_names_start_with_unity(self) -> None:
         from tools.tool_registry import TOOL_NAME_TO_BRIDGE

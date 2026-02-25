@@ -12,9 +12,7 @@ from tools.schemas import (
     animation2d_bundle_schema,
     animation3d_bundle_schema,
     asset_manage_schema,
-    audio_source_bundle_schema,
     camera_rig_schema,
-    character_controller_bundle_schema,
     class_catalog_schema,
     class_dependency_graph_schema,
     compilation_await_schema,
@@ -36,15 +34,16 @@ from tools.schemas import (
     light_bundle_schema,
     material_bundle_schema,
     particle_bundle_schema,
-    physics_bundle_schema,
     ping_schema,
     playmode_control_schema,
     prefab_manage_schema,
     project_settings_manage_schema,
     rect_transform_batch_schema,
+    scene_dependency_schema,
     scene_manage_schema,
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
+    script_syntax_schema,
     scriptable_object_manage_schema,
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
@@ -76,15 +75,12 @@ ALL_SCHEMA_FUNCTIONS = [
     ("vector_sprite_convert", vector_sprite_convert_schema),
     ("transform_batch", transform_batch_schema),
     ("rect_transform_batch", rect_transform_batch_schema),
-    ("physics_bundle", physics_bundle_schema),
     ("camera_rig", camera_rig_schema),
     ("ui_foundation", ui_foundation_schema),
     ("ui_hierarchy", ui_hierarchy_schema),
     ("ui_state", ui_state_schema),
     ("ui_navigation", ui_navigation_schema),
-    ("audio_source_bundle", audio_source_bundle_schema),
     ("input_profile", input_profile_schema),
-    ("character_controller_bundle", character_controller_bundle_schema),
     ("tilemap_bundle", tilemap_bundle_schema),
     ("uitk_document", uitk_document_schema),
     ("uitk_asset", uitk_asset_schema),
@@ -107,8 +103,10 @@ ALL_SCHEMA_FUNCTIONS = [
     ("gamekit_audio", gamekit_audio_schema),
     ("class_catalog", class_catalog_schema),
     ("class_dependency_graph", class_dependency_graph_schema),
+    ("scene_dependency", scene_dependency_schema),
     ("scene_reference_graph", scene_reference_graph_schema),
     ("scene_relationship_graph", scene_relationship_graph_schema),
+    ("script_syntax", script_syntax_schema),
     ("validate_integrity", validate_integrity_schema),
 ]
 
@@ -182,6 +180,6 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 48, (
-            f"Expected 48 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 47, (
+            f"Expected 47 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )
