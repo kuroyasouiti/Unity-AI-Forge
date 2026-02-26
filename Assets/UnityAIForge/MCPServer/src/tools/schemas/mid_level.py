@@ -38,7 +38,11 @@ def transform_batch_schema() -> dict[str, Any]:
                     },
                     "description": "Center point for circular arrangement.",
                 },
-                "radius": {"type": "number", "minimum": 0, "description": "Radius for circular arrangement."},
+                "radius": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Radius for circular arrangement.",
+                },
                 "startAngle": {
                     "type": "number",
                     "description": "Starting angle in degrees for circular arrangement (0 = right, 90 = up).",
@@ -300,6 +304,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                         "removeLayoutGroup",
                         "createFromTemplate",
                         "inspect",
+                        "configureCanvasGroup",
                     ],
                 },
                 "parentPath": {
@@ -539,6 +544,38 @@ def ui_foundation_schema() -> dict[str, Any]:
                 "slotCount": {
                     "type": "integer",
                     "description": "Number of slots for inventoryGrid template (default: 20).",
+                },
+                # configureCanvasGroup / createPanel CanvasGroup parameters
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject path for configureCanvasGroup operation.",
+                },
+                "gameObjectPaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Multiple target paths for batch configureCanvasGroup operation.",
+                },
+                "alpha": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "CanvasGroup alpha (0-1).",
+                },
+                "interactable": {
+                    "type": "boolean",
+                    "description": "CanvasGroup interactable.",
+                },
+                "blocksRaycasts": {
+                    "type": "boolean",
+                    "description": "CanvasGroup blocksRaycasts.",
+                },
+                "ignoreParentGroups": {
+                    "type": "boolean",
+                    "description": "CanvasGroup ignoreParentGroups.",
+                },
+                "addCanvasGroup": {
+                    "type": "boolean",
+                    "description": "Add CanvasGroup when creating Panel (default: false).",
                 },
             },
         },
@@ -820,6 +857,19 @@ def ui_hierarchy_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Set blocksRaycasts state when showing/hiding.",
                 },
+                "ignoreParentGroups": {
+                    "type": "boolean",
+                    "description": "Set CanvasGroup ignoreParentGroups when showing/hiding.",
+                },
+                "useCanvasGroup": {
+                    "type": "boolean",
+                    "description": "Use CanvasGroup for visibility control (default: true). Set false to use SetActive.",
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Multiple target paths for batch show/hide/toggle operations.",
+                },
                 "newName": {"type": "string", "description": "New name for cloned hierarchy root."},
             },
         },
@@ -875,6 +925,10 @@ def ui_state_schema() -> dict[str, Any]:
                             "blocksRaycasts": {
                                 "type": "boolean",
                                 "description": "CanvasGroup blocksRaycasts.",
+                            },
+                            "ignoreParentGroups": {
+                                "type": "boolean",
+                                "description": "CanvasGroup ignoreParentGroups.",
                             },
                             "anchoredPosition": {
                                 "type": "object",

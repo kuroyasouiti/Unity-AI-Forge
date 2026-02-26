@@ -93,7 +93,8 @@ namespace MCP.Editor.Handlers
                         Visible = GetBool(elemDict, "visible", true),
                         Interactable = GetBool(elemDict, "interactable", true),
                         Alpha = GetFloat(elemDict, "alpha", 1f),
-                        BlocksRaycasts = GetBool(elemDict, "blocksRaycasts", true)
+                        BlocksRaycasts = GetBool(elemDict, "blocksRaycasts", true),
+                        IgnoreParentGroups = GetBool(elemDict, "ignoreParentGroups", false)
                     };
 
                     // Optional position/size overrides
@@ -186,7 +187,7 @@ namespace MCP.Editor.Handlers
 
                     // Apply CanvasGroup settings if visible/alpha/interactable are specified
                     var canvasGroup = targetGo.GetComponent<CanvasGroup>();
-                    if (canvasGroup == null && (!elemState.Visible || elemState.Alpha < 1f || !elemState.Interactable || !elemState.BlocksRaycasts))
+                    if (canvasGroup == null && (!elemState.Visible || elemState.Alpha < 1f || !elemState.Interactable || !elemState.BlocksRaycasts || elemState.IgnoreParentGroups))
                     {
                         canvasGroup = targetGo.AddComponent<CanvasGroup>();
                     }
@@ -196,6 +197,7 @@ namespace MCP.Editor.Handlers
                         canvasGroup.alpha = elemState.Visible ? elemState.Alpha : 0f;
                         canvasGroup.interactable = elemState.Interactable;
                         canvasGroup.blocksRaycasts = elemState.BlocksRaycasts;
+                        canvasGroup.ignoreParentGroups = elemState.IgnoreParentGroups;
                     }
 
                     // Apply position/size overrides
@@ -294,7 +296,8 @@ namespace MCP.Editor.Handlers
                 Visible = canvasGroup == null || canvasGroup.alpha > 0,
                 Interactable = canvasGroup == null || canvasGroup.interactable,
                 Alpha = canvasGroup?.alpha ?? 1f,
-                BlocksRaycasts = canvasGroup == null || canvasGroup.blocksRaycasts
+                BlocksRaycasts = canvasGroup == null || canvasGroup.blocksRaycasts,
+                IgnoreParentGroups = canvasGroup != null && canvasGroup.ignoreParentGroups
             };
 
             if (rectTransform != null)
@@ -354,6 +357,7 @@ namespace MCP.Editor.Handlers
                 ["interactable"] = e.Interactable,
                 ["alpha"] = e.Alpha,
                 ["blocksRaycasts"] = e.BlocksRaycasts,
+                ["ignoreParentGroups"] = e.IgnoreParentGroups,
                 ["hasPositionOverride"] = e.HasPositionOverride,
                 ["hasSizeOverride"] = e.HasSizeOverride
             }).ToList();
@@ -644,6 +648,7 @@ namespace MCP.Editor.Handlers
             public bool Interactable = true;
             public float Alpha = 1f;
             public bool BlocksRaycasts = true;
+            public bool IgnoreParentGroups = false;
             public Vector2 AnchoredPosition;
             public Vector2 SizeDelta;
             public bool HasPositionOverride;

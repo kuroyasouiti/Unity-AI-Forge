@@ -454,6 +454,50 @@ unity_uitk_document(
 )
 ```
 
+### パターン 6: CanvasGroup によるUI制御
+
+```python
+# パネルにCanvasGroupを設定して透明度・操作性を制御
+unity_ui_foundation(
+    operation="configureCanvasGroup",
+    gameObjectPath="GameCanvas/UIRoot/Screens/PausePanel",
+    alpha=0.8,
+    interactable=True,
+    blocksRaycasts=True,
+    ignoreParentGroups=True  # 親CanvasGroupの影響を無視
+)
+
+# パネル作成時にCanvasGroupを同時追加
+unity_ui_foundation(
+    operation="createPanel",
+    name="OverlayPanel",
+    parentPath="GameCanvas/UIRoot/Overlays",
+    addCanvasGroup=True,
+    alpha=0.0,        # 初期状態は透明
+    interactable=False
+)
+
+# show/hide でCanvasGroup経由の表示切替（SetActiveより推奨）
+unity_ui_hierarchy(operation="show", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
+unity_ui_hierarchy(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
+
+# ui_state で ignoreParentGroups を含む状態定義
+unity_ui_state(
+    operation="defineState",
+    rootPath="GameCanvas",
+    stateName="dialog_open",
+    elements=[
+        {"path": "UIRoot/Overlays/DialogPanel", "active": True, "visible": True,
+         "alpha": 1.0, "ignoreParentGroups": True},
+        {"path": "UIRoot/Screens", "visible": False, "interactable": False}
+    ]
+)
+```
+
+> **推奨:** UI の表示/非表示には `SetActive(false)` よりも CanvasGroup (`alpha=0, interactable=false, blocksRaycasts=false`) を使用する。
+> CanvasGroup はレイアウト再計算を発生させず、フェードアニメーションとの相性も良い。
+> `ignoreParentGroups=true` を使えば、親パネルを非表示にしても子要素だけ独立して表示可能。
+
 ---
 
 ## 注意点・落とし穴

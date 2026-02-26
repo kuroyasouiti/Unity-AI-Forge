@@ -167,6 +167,8 @@ unity_camera_rig(operation='createRig', rigType='follow', rigName='MainCam', tar
 unity_ui_foundation(operation='createCanvas', name='GameUI')
 unity_ui_foundation(operation='createButton', name='Btn', parentPath='GameUI', text='Click')
 unity_ui_foundation(operation='addLayoutGroup', targetPath='GameUI/Panel', layoutType='Vertical', spacing=10)
+unity_ui_foundation(operation='configureCanvasGroup', gameObjectPath='GameUI/Panel', alpha=0.5, interactable=False)
+unity_ui_foundation(operation='createPanel', name='Overlay', parentPath='GameUI', addCanvasGroup=True, ignoreParentGroups=True)
 
 # 宣言的UI構築
 unity_ui_hierarchy(operation='create', parentPath='Canvas', hierarchy={

@@ -170,7 +170,15 @@ namespace MCP.Editor.Handlers
             // Add CanvasGroup for visibility control
             if (GetBool(element, "addCanvasGroup", false))
             {
-                go.AddComponent<CanvasGroup>();
+                var canvasGroup = go.AddComponent<CanvasGroup>();
+                if (element.ContainsKey("alpha"))
+                    canvasGroup.alpha = GetFloat(element, "alpha", 1f);
+                if (element.ContainsKey("interactable"))
+                    canvasGroup.interactable = GetBool(element, "interactable", true);
+                if (element.ContainsKey("blocksRaycasts"))
+                    canvasGroup.blocksRaycasts = GetBool(element, "blocksRaycasts", true);
+                if (element.ContainsKey("ignoreParentGroups"))
+                    canvasGroup.ignoreParentGroups = GetBool(element, "ignoreParentGroups", false);
             }
 
             return go;
@@ -945,7 +953,8 @@ namespace MCP.Editor.Handlers
                 {
                     ["alpha"] = canvasGroup.alpha,
                     ["interactable"] = canvasGroup.interactable,
-                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts
+                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
+                    ["ignoreParentGroups"] = canvasGroup.ignoreParentGroups
                 };
             }
 
@@ -1024,8 +1033,12 @@ namespace MCP.Editor.Handlers
 
                     Undo.RecordObject(canvasGroup, visible ? "Show UI" : "Hide UI");
                     canvasGroup.alpha = visible ? 1f : 0f;
-                    canvasGroup.interactable = visible;
-                    canvasGroup.blocksRaycasts = visible;
+                    canvasGroup.interactable = payload.ContainsKey("interactable")
+                        ? GetBool(payload, "interactable", true) : visible;
+                    canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
+                        ? GetBool(payload, "blocksRaycasts", true) : visible;
+                    if (payload.ContainsKey("ignoreParentGroups"))
+                        canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
                 }
                 else
                 {
@@ -1075,8 +1088,12 @@ namespace MCP.Editor.Handlers
 
                     Undo.RecordObject(canvasGroup, "Toggle UI Visibility");
                     canvasGroup.alpha = newVisible ? 1f : 0f;
-                    canvasGroup.interactable = newVisible;
-                    canvasGroup.blocksRaycasts = newVisible;
+                    canvasGroup.interactable = payload.ContainsKey("interactable")
+                        ? GetBool(payload, "interactable", true) : newVisible;
+                    canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
+                        ? GetBool(payload, "blocksRaycasts", true) : newVisible;
+                    if (payload.ContainsKey("ignoreParentGroups"))
+                        canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
                 }
                 else
                 {

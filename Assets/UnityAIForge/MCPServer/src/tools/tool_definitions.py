@@ -160,7 +160,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports LayoutGroups (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). Supports render modes (screenSpaceOverlay/screenSpaceCamera/worldSpace), anchor presets (topLeft/middleCenter/stretchAll, etc.), automatic sizing, and color configuration. Perfect for rapid UI prototyping and hierarchical UI design. Use for basic UI setup, then customize with unity_component_crud if needed.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports LayoutGroups (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). configureCanvasGroup: add/update CanvasGroup on any GameObject (alpha, interactable, blocksRaycasts, ignoreParentGroups) — supports batch via gameObjectPaths. createPanel supports addCanvasGroup option. inspect reports CanvasGroup properties. Supports render modes (screenSpaceOverlay/screenSpaceCamera/worldSpace), anchor presets (topLeft/middleCenter/stretchAll, etc.), automatic sizing, and color configuration. Perfect for rapid UI prototyping and hierarchical UI design. Use for basic UI setup, then customize with unity_component_crud if needed.",
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(
@@ -182,7 +182,7 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- clone: Duplicate existing UI hierarchy with optional rename\n"
                 "- inspect: Export UI hierarchy as JSON structure\n"
                 "- delete: Remove UI hierarchy\n"
-                "- show/hide/toggle: Control visibility using CanvasGroup (alpha, interactable, blocksRaycasts)\n\n"
+                "- show/hide/toggle: Control visibility using CanvasGroup (alpha, interactable, blocksRaycasts, ignoreParentGroups)\n\n"
                 "For navigation, use unity_ui_navigation tool.\n\n"
                 "**Hierarchy Structure Example:**\n"
                 "```json\n"
@@ -208,7 +208,7 @@ def get_tool_definitions() -> list[types.Tool]:
             description=(
                 "Mid-level UI state management: define, save, load, and transition between UI states.\n\n"
                 "**Operations:**\n"
-                "- defineState: Define a named UI state with element configurations (active, visible, interactable, alpha, position, size)\n"
+                "- defineState: Define a named UI state with element configurations (active, visible, interactable, alpha, blocksRaycasts, ignoreParentGroups, position, size)\n"
                 "- applyState: Apply a saved state to UI elements\n"
                 "- saveState: Capture current UI state (including children)\n"
                 "- loadState: Load state definition without applying\n"

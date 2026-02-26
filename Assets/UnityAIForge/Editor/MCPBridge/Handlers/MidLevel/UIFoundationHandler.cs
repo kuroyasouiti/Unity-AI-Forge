@@ -31,6 +31,7 @@ namespace MCP.Editor.Handlers
             "removeLayoutGroup",
             "createFromTemplate",
             "inspect",
+            "configureCanvasGroup",
         };
 
         public override string Category => "uiFoundation";
@@ -55,6 +56,7 @@ namespace MCP.Editor.Handlers
                 "removeLayoutGroup" => RemoveLayoutGroup(payload),
                 "createFromTemplate" => CreateFromTemplate(payload),
                 "inspect" => InspectUI(payload),
+                "configureCanvasGroup" => ConfigureCanvasGroup(payload),
                 _ => throw new InvalidOperationException($"Unsupported UI foundation operation: {operation}"),
             };
         }
@@ -207,6 +209,20 @@ namespace MCP.Editor.Handlers
             else
             {
                 image.color = new Color(1, 1, 1, 0.392f); // Default semi-transparent white
+            }
+
+            // Add CanvasGroup if requested
+            if (GetBool(payload, "addCanvasGroup", false))
+            {
+                var canvasGroup = Undo.AddComponent<CanvasGroup>(panelGo);
+                if (payload.ContainsKey("alpha"))
+                    canvasGroup.alpha = GetFloat(payload, "alpha", 1f);
+                if (payload.ContainsKey("interactable"))
+                    canvasGroup.interactable = GetBool(payload, "interactable", true);
+                if (payload.ContainsKey("blocksRaycasts"))
+                    canvasGroup.blocksRaycasts = GetBool(payload, "blocksRaycasts", true);
+                if (payload.ContainsKey("ignoreParentGroups"))
+                    canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
             }
 
             EditorSceneManager.MarkSceneDirty(panelGo.scene);
@@ -1849,10 +1865,99 @@ namespace MCP.Editor.Handlers
             if (rectMask != null)
                 components.Add("RectMask2D");
 
+            // CanvasGroup
+            var canvasGroup = go.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                components.Add("CanvasGroup");
+                info["canvasGroup"] = new Dictionary<string, object>
+                {
+                    ["alpha"] = canvasGroup.alpha,
+                    ["interactable"] = canvasGroup.interactable,
+                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
+                    ["ignoreParentGroups"] = canvasGroup.ignoreParentGroups
+                };
+            }
+
             // Child count
             info["childCount"] = go.transform.childCount;
 
             return CreateSuccessResponse(("ui", info));
+        }
+
+        #endregion
+
+        #region Configure CanvasGroup
+
+        private object ConfigureCanvasGroup(Dictionary<string, object> payload)
+        {
+            // Resolve targets: gameObjectPaths (batch) or gameObjectPath (single)
+            var targets = new List<string>();
+            if (payload.TryGetValue("gameObjectPaths", out var pathsObj) && pathsObj is List<object> pathsList)
+            {
+                foreach (var p in pathsList)
+                    targets.Add(p.ToString());
+            }
+            else
+            {
+                var singlePath = GetString(payload, "gameObjectPath");
+                if (string.IsNullOrEmpty(singlePath))
+                    throw new InvalidOperationException("gameObjectPath or gameObjectPaths is required for configureCanvasGroup.");
+                targets.Add(singlePath);
+            }
+
+            var results = new List<Dictionary<string, object>>();
+
+            foreach (var targetPath in targets)
+            {
+                var go = ResolveGameObject(targetPath);
+
+                var canvasGroup = go.GetComponent<CanvasGroup>();
+                if (canvasGroup == null)
+                {
+                    canvasGroup = Undo.AddComponent<CanvasGroup>(go);
+                }
+                else
+                {
+                    Undo.RecordObject(canvasGroup, "Configure CanvasGroup");
+                }
+
+                // Partial update: only set properties that are present in payload
+                if (payload.ContainsKey("alpha"))
+                    canvasGroup.alpha = GetFloat(payload, "alpha", 1f);
+                if (payload.ContainsKey("interactable"))
+                    canvasGroup.interactable = GetBool(payload, "interactable", true);
+                if (payload.ContainsKey("blocksRaycasts"))
+                    canvasGroup.blocksRaycasts = GetBool(payload, "blocksRaycasts", true);
+                if (payload.ContainsKey("ignoreParentGroups"))
+                    canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
+
+                EditorSceneManager.MarkSceneDirty(go.scene);
+
+                results.Add(new Dictionary<string, object>
+                {
+                    ["path"] = targetPath,
+                    ["alpha"] = canvasGroup.alpha,
+                    ["interactable"] = canvasGroup.interactable,
+                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
+                    ["ignoreParentGroups"] = canvasGroup.ignoreParentGroups
+                });
+            }
+
+            if (targets.Count == 1)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["success"] = true,
+                    ["canvasGroup"] = results[0]
+                };
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["canvasGroups"] = results
+            };
         }
 
         #endregion
