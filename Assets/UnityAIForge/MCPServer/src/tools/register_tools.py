@@ -1,7 +1,7 @@
 """Register all MCP tools with the server.
 
 This module wires up ``list_tools`` and ``call_tool`` handlers.  Schema
-definitions live in ``tools.schemas``, the 64 tool entries in
+definitions live in ``tools.schemas``, the 51 tool entries in
 ``tools.tool_definitions``, and the name→bridge mapping in
 ``tools.tool_registry``.
 """

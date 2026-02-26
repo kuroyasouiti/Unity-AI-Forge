@@ -30,7 +30,7 @@ For manual installation and detailed documentation, see:
 Code generation-based game systems with zero runtime dependency:
 - **UI Pillar** (5): UICommand, UIBinding, UIList, UISlot, UISelection
 - **Presentation Pillar** (5): AnimationSync, Effect, Feedback, VFX, Audio
-- **Logic Pillar** (6): Integrity validation, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph, SceneDependency, ScriptSyntax
+- **Logic Pillar** (7): Integrity validation, ClassCatalog, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph, SceneDependency, ScriptSyntax
 
 ### Declarative UI System
 - **UIHierarchy**: Create complex UI structures from JSON definitions

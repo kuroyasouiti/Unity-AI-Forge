@@ -38,7 +38,7 @@ def transform_batch_schema() -> dict[str, Any]:
                     },
                     "description": "Center point for circular arrangement.",
                 },
-                "radius": {"type": "number", "description": "Radius for circular arrangement."},
+                "radius": {"type": "number", "minimum": 0, "description": "Radius for circular arrangement."},
                 "startAngle": {
                     "type": "number",
                     "description": "Starting angle in degrees for circular arrangement (0 = right, 90 = up).",
@@ -322,14 +322,14 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "description": "Camera GameObject path for screenSpaceCamera render mode. Falls back to Camera.main if not specified.",
                 },
                 "text": {"type": "string", "description": "Text content."},
-                "fontSize": {"type": "integer", "description": "Font size."},
+                "fontSize": {"type": "integer", "minimum": 1, "description": "Font size."},
                 "color": {
                     "type": "object",
                     "properties": {
-                        "r": {"type": "number"},
-                        "g": {"type": "number"},
-                        "b": {"type": "number"},
-                        "a": {"type": "number"},
+                        "r": {"type": "number", "minimum": 0, "maximum": 1},
+                        "g": {"type": "number", "minimum": 0, "maximum": 1},
+                        "b": {"type": "number", "minimum": 0, "maximum": 1},
+                        "a": {"type": "number", "minimum": 0, "maximum": 1},
                     },
                     "description": "Color (RGBA 0-1).",
                 },
@@ -531,8 +531,9 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "type": "integer",
                     "description": "Number of columns for inventoryGrid template (default: 5).",
                 },
-                "cellSize": {
+                "templateCellSize": {
                     "type": "number",
+                    "minimum": 1,
                     "description": "Cell size for inventoryGrid template (default: 60).",
                 },
                 "slotCount": {

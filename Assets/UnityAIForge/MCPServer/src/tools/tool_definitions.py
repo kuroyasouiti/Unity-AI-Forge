@@ -1,4 +1,4 @@
-"""Tool definitions for all 48 MCP tools.
+"""Tool definitions for all 51 MCP tools (48 standard + 1 batch + 2 special).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce

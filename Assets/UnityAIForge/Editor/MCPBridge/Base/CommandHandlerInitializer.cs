@@ -55,15 +55,12 @@ namespace MCP.Editor.Base
             {
                 // 既存のハンドラーをクリア（再初期化時）
                 CommandHandlerFactory.Clear();
-                
-                // Phase 3で実装済みのハンドラーを登録
-                RegisterPhase3Handlers();
-                
-                // Phase 5で実装済みのハンドラーを登録
-                RegisterPhase5Handlers();
-                
-                // Phase 7で実装済みのハンドラーを登録
-                RegisterPhase7Handlers();
+
+                // ユーティリティハンドラーを登録
+                RegisterUtilityHandlers();
+
+                // ローレベルCRUDハンドラーを登録
+                RegisterLowLevelHandlers();
 
                 // ミドルレベルツールのハンドラーを登録
                 RegisterMidLevelHandlers();
@@ -91,48 +88,26 @@ namespace MCP.Editor.Base
         }
         
         /// <summary>
-        /// Phase 3で実装されたハンドラーを登録します。
+        /// ユーティリティハンドラーを登録します（Ping、コンパイル待機）。
         /// </summary>
-        private static void RegisterPhase3Handlers()
+        private static void RegisterUtilityHandlers()
         {
-            // Utility Handlers
             CommandHandlerFactory.Register("pingUnityEditor", new PingHandler());
             CommandHandlerFactory.Register("compilationAwait", new CompilationAwaitHandler());
+        }
 
-            // Scene Handler
+        /// <summary>
+        /// ローレベルCRUDハンドラーを登録します。
+        /// </summary>
+        private static void RegisterLowLevelHandlers()
+        {
             CommandHandlerFactory.Register("sceneManage", new SceneCommandHandler());
-
-            // GameObject Handler
             CommandHandlerFactory.Register("gameObjectManage", new GameObjectCommandHandler());
-
-            // Component Handler
             CommandHandlerFactory.Register("componentManage", new ComponentCommandHandler());
-
-            // Asset Handler
             CommandHandlerFactory.Register("assetManage", new AssetCommandHandler());
-        }
-        
-        /// <summary>
-        /// Phase 5で実装されたハンドラーを登録します。
-        /// </summary>
-        private static void RegisterPhase5Handlers()
-        {
-            // ScriptableObject Handler
             CommandHandlerFactory.Register("scriptableObjectManage", new ScriptableObjectCommandHandler());
-            
-            // Prefab Handler
             CommandHandlerFactory.Register("prefabManage", new PrefabCommandHandler());
-            
-            // Vector Sprite Converter
             CommandHandlerFactory.Register("vectorSpriteConvert", new VectorSpriteConvertHandler());
-        }
-        
-        /// <summary>
-        /// Phase 7で実装されたハンドラーを登録します（Settings & Utilities関連）。
-        /// </summary>
-        private static void RegisterPhase7Handlers()
-        {
-            // Project Settings Handler
             CommandHandlerFactory.Register("projectSettingsManage", new Handlers.Settings.ProjectSettingsManageHandler());
         }
 
@@ -160,20 +135,19 @@ namespace MCP.Editor.Base
 
         /// <summary>
         /// 開発サイクル基盤・ビジュアル制御ツールのハンドラーを登録します。
-        /// ROADMAP_MCP_TOOLS.md に基づく実装です。
         /// </summary>
         private static void RegisterDevCycleAndVisualHandlers()
         {
-            // Phase 1: 開発サイクル基盤 (最優先)
+            // 開発サイクル基盤
             CommandHandlerFactory.Register("playModeControl", new PlayModeControlHandler());
             CommandHandlerFactory.Register("consoleLog", new ConsoleLogHandler());
 
-            // Phase 2: ビジュアル制御 (重要)
+            // ビジュアル制御
             CommandHandlerFactory.Register("materialBundle", new MaterialBundleHandler());
             CommandHandlerFactory.Register("lightBundle", new LightBundleHandler());
             CommandHandlerFactory.Register("particleBundle", new ParticleBundleHandler());
 
-            // Phase 3: アニメーション・イベント (推奨)
+            // アニメーション・イベント
             CommandHandlerFactory.Register("animation3DBundle", new Animation3DBundleHandler());
             CommandHandlerFactory.Register("eventWiring", new EventWiringHandler());
         }
@@ -205,6 +179,7 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
             CommandHandlerFactory.Register("sceneDependency", new Handlers.HighLevel.SceneDependencyHandler());
             CommandHandlerFactory.Register("scriptSyntax", new Handlers.HighLevel.ScriptSyntaxHandler());
+        }
     }
 }
 

@@ -241,13 +241,15 @@ def gamekit_effect_schema() -> dict[str, Any]:
                                 "description": "Particle scale multiplier.",
                             },
                             "clipPath": {"type": "string", "description": "Audio clip path."},
-                            "volume": {"type": "number", "description": "Audio volume (0-1)."},
+                            "volume": {"type": "number", "minimum": 0, "maximum": 1, "description": "Audio volume (0-1)."},
                             "pitchVariation": {
                                 "type": "number",
                                 "description": "Pitch variation range.",
                             },
                             "spatialBlend": {
                                 "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
                                 "description": "3D spatial blend (0=2D, 1=3D).",
                             },
                             "intensity": {
@@ -265,12 +267,12 @@ def gamekit_effect_schema() -> dict[str, Any]:
                             "color": {
                                 "type": "object",
                                 "properties": {
-                                    "r": {"type": "number"},
-                                    "g": {"type": "number"},
-                                    "b": {"type": "number"},
-                                    "a": {"type": "number"},
+                                    "r": {"type": "number", "minimum": 0, "maximum": 1},
+                                    "g": {"type": "number", "minimum": 0, "maximum": 1},
+                                    "b": {"type": "number", "minimum": 0, "maximum": 1},
+                                    "a": {"type": "number", "minimum": 0, "maximum": 1},
                                 },
-                                "description": "Flash color.",
+                                "description": "Flash color (RGBA 0-1).",
                             },
                             "flashDuration": {
                                 "type": "number",

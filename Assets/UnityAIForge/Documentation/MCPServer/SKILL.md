@@ -19,20 +19,21 @@ Before using these tools, ensure:
 
 ## 3-Layer Architecture
 
-Unity-AI-Forge provides **49 tools** organized in 3 layers. Always prefer higher-level tools first:
+Unity-AI-Forge provides **48 tools** organized in 3 layers. Always prefer higher-level tools first:
 
 ```
-High-Level GameKit (15 tools)  ← Game systems & analysis (use first)
-Mid-Level Batch   (21 tools)  ← Batch operations & presets
+High-Level GameKit (17 tools)  ← Game systems & analysis (use first)
+Mid-Level Batch   (20 tools)  ← Batch operations & presets
 Low-Level CRUD     (8 tools)  ← Individual object operations
-Utility            (5 tools)  ← Helpers & diagnostics
+Utility            (2 tools)  ← Helpers & diagnostics
+Batch Operations   (1 tool)   ← Sequential execution
 ```
 
 | Purpose | Recommended Layer | Example |
 |---------|------------------|---------|
 | Game systems (UI, effects, audio) | High-Level GameKit | `unity_gamekit_ui_command`, `unity_gamekit_effect` |
 | Scene/code analysis | High-Level Analysis | `unity_scene_reference_graph`, `unity_class_catalog` |
-| Batch operations & presets | Mid-Level Batch | `unity_transform_batch`, `unity_physics_bundle` |
+| Batch operations & presets | Mid-Level Batch | `unity_transform_batch`, `unity_material_bundle` |
 | Individual object control | Low-Level CRUD | `unity_gameobject_crud`, `unity_component_crud` |
 
 ---
@@ -45,7 +46,7 @@ GameKit uses **code generation** to produce standalone C# scripts from templates
 |--------|-------|---------|
 | **UI** (5 tools) | Command, Binding, List, Slot, Selection | UI Toolkit-based components (UXML/USS + C#) |
 | **Presentation** (5 tools) | AnimationSync, Effect, Feedback, VFX, Audio | Visual effects, animation, and audio components |
-| **Logic** (5 tools) | Integrity, Catalog, Dependencies, References, Relationships | Scene/code analysis and validation |
+| **Logic** (7 tools) | Integrity, Catalog, Dependencies, References, Relationships, SceneDependency, ScriptSyntax | Scene/code analysis and validation |
 
 After `create` operations, call `unity_compilation_await` to wait for Unity to compile the generated scripts.
 
@@ -369,18 +370,6 @@ unity_transform_batch({
 })
 ```
 
-### Physics Bundle
-
-```python
-# Apply physics preset
-unity_physics_bundle({
-    "operation": "applyPreset2D",
-    "gameObjectPaths": ["Player"],
-    "preset": "character"
-})
-# Presets: dynamic, kinematic, static, character, platformer, topDown, vehicle, projectile
-```
-
 ### Camera Rig
 
 ```python
@@ -406,17 +395,6 @@ unity_light_bundle({"operation": "createLightingSetup", "setupPreset": "daylight
 
 # Create particle system with preset
 unity_particle_bundle({"operation": "create", "gameObjectPath": "Effects/Fire", "preset": "fire"})
-```
-
-### Audio Source Bundle
-
-```python
-unity_audio_source_bundle({
-    "operation": "createAudioSource",
-    "gameObjectPath": "BGM",
-    "preset": "music"
-})
-# Presets: music, sfx, ambient, voice, ui
 ```
 
 ### 2D Tools
@@ -478,17 +456,6 @@ unity_input_profile({
 # Presets: player (move/jump/fire), ui (navigate/submit/cancel), vehicle (accelerate/brake/steer)
 ```
 
-### Character Controller Bundle
-
-```python
-unity_character_controller_bundle({
-    "operation": "applyPreset",
-    "gameObjectPath": "Player",
-    "preset": "fps"
-})
-# Presets: fps, tps, platformer, child, large, narrow, custom
-```
-
 ### UI State & Navigation
 
 ```python
@@ -546,7 +513,7 @@ unity_vector_sprite_convert({
 
 ---
 
-## Utility Tools
+## Utility & Batch Tools
 
 ```python
 # Check bridge connection
@@ -554,16 +521,6 @@ unity_ping()
 
 # Wait for script compilation
 unity_compilation_await({"operation": "await", "timeoutSeconds": 60})
-
-# Control play mode
-unity_playmode_control({"operation": "play"})
-unity_playmode_control({"operation": "stop"})
-unity_playmode_control({"operation": "getState"})
-
-# Get console logs
-unity_console_log({"operation": "getRecent", "count": 50})
-unity_console_log({"operation": "getErrors"})
-unity_console_log({"operation": "getCompilationErrors"})
 
 # Sequential batch execution with resume
 unity_batch_sequential_execute({
@@ -601,7 +558,7 @@ unity_class_catalog({"operation": "listTypes", "typeKind": "MonoBehaviour"})
 unity_gamekit_ui_command({"operation": "createCommandPanel", ...})
 
 # Mid-Level: Batch operations
-unity_physics_bundle({"operation": "applyPreset2D", "gameObjectPaths": ["Player"], "preset": "character"})
+unity_transform_batch({"operation": "arrangeCircle", "gameObjectPaths": ["Obj1", "Obj2"], "radius": 5.0})
 
 # Low-Level: Individual control
 unity_component_crud({"operation": "add", "gameObjectPath": "Player", "componentType": "..."})
@@ -764,7 +721,7 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-## Complete Tool Reference (49 Tools)
+## Complete Tool Reference (48 Tools)
 
 ### High-Level GameKit - UI Pillar (5 tools)
 
@@ -786,7 +743,7 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_gamekit_vfx` | ParticleSystem wrapper with pooling |
 | `unity_gamekit_audio` | Sound management (SFX, music, ambient) |
 
-### High-Level GameKit - Logic Pillar (5 tools)
+### High-Level GameKit - Logic Pillar (7 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -795,22 +752,21 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_class_dependency_graph` | C# class dependency analysis |
 | `unity_scene_reference_graph` | Scene object reference analysis |
 | `unity_scene_relationship_graph` | Scene transition and relationship analysis |
+| `unity_scene_dependency` | Scene asset dependency analysis (AssetDatabase) |
+| `unity_script_syntax` | C# source code structure analysis with line numbers |
 
-### Mid-Level Batch (21 tools)
+### Mid-Level Batch (20 tools)
 
 | Tool | Description |
 |------|-------------|
 | `unity_transform_batch` | Batch arrange, rename patterns |
 | `unity_rectTransform_batch` | UI anchors, alignment, distribution |
-| `unity_physics_bundle` | Physics presets (2D/3D) |
 | `unity_camera_rig` | Camera rig presets (follow, orbit, etc.) |
 | `unity_ui_foundation` | UGUI element creation (Canvas, Button, Text, etc.) |
 | `unity_ui_hierarchy` | Declarative UI hierarchy from JSON |
 | `unity_ui_state` | UI state management |
 | `unity_ui_navigation` | Keyboard/gamepad navigation setup |
-| `unity_audio_source_bundle` | AudioSource presets |
 | `unity_input_profile` | New Input System setup |
-| `unity_character_controller_bundle` | CharacterController presets |
 | `unity_tilemap_bundle` | Tilemap creation and tile management |
 | `unity_sprite2d_bundle` | 2D sprite management |
 | `unity_animation2d_bundle` | 2D animation setup |
@@ -819,6 +775,8 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_light_bundle` | Light setup and presets |
 | `unity_particle_bundle` | Particle system presets |
 | `unity_event_wiring` | UnityEvent wiring (onClick, onValueChanged, etc.) |
+| `unity_playmode_control` | Play mode control (play/pause/stop/step) |
+| `unity_console_log` | Console log retrieval and filtering |
 | `unity_uitk_document` | UI Toolkit UIDocument management |
 | `unity_uitk_asset` | UI Toolkit asset creation (UXML, USS) |
 
@@ -835,14 +793,12 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_vector_sprite_convert` | Vector/primitive to sprite conversion |
 | `unity_projectSettings_crud` | Project settings (player, quality, physics, tags/layers, build) |
 
-### Utility (5 tools)
+### Utility (2 tools) + Batch (1 tool)
 
 | Tool | Description |
 |------|-------------|
 | `unity_ping` | Bridge connectivity check |
 | `unity_compilation_await` | Wait for script compilation |
-| `unity_playmode_control` | Play mode control (play/pause/stop/step) |
-| `unity_console_log` | Console log retrieval and filtering |
 | `unity_batch_sequential_execute` | Sequential batch execution with resume |
 
 ---
@@ -859,4 +815,4 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-**You now have complete control over Unity Editor with 49 tools across 3 layers. Build amazing projects!**
+**You now have complete control over Unity Editor with 48 tools across 3 layers. Build amazing projects!**

@@ -4,9 +4,9 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 ## プロジェクト概要
 
-Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。48のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level Batch / Low-Level CRUD）で構成されています。
+Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。48のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level / Low-Level CRUD）で構成されています。
 
-**バージョン:** 2.10.0
+**バージョン:** 2.10.1
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
 
 ### 通信フロー
@@ -22,9 +22,9 @@ AIクライアント (Claude Code / Cursor) <--MCP--> Python Server <--WebSocket
 ```
 High-Level GameKit (17ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
   UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (7)
-Mid-Level Batch    (17ツール)  ← 複数設定をまとめて適用（UI Toolkit含む）
+Mid-Level          (20ツール)  ← バッチ操作・プリセット・開発サイクル（UI Toolkit含む）
 Low-Level CRUD      (8ツール)  ← 個別のUnity操作
-Utility             (5ツール)  ← 接続確認・コンパイル待機など
+Utility             (2ツール)  ← 接続確認・コンパイル待機
 Batch Operations    (1ツール)  ← 複数コマンドの順次実行
 ```
 
@@ -76,7 +76,7 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_scene_dependency` | シーンのアセット依存関係を解析（AssetDatabase経由） |
 | `unity_script_syntax` | C#ソースコード構文解析（行番号付き、参照検索、メトリクス） |
 
-### Mid-Level Batch（17ツール）
+### Mid-Level（20ツール）
 
 | ツール名 | 用途 |
 |----------|------|
@@ -91,12 +91,15 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_tilemap_bundle` | タイルマップ設定 |
 | `unity_sprite2d_bundle` | 2Dスプライト設定 |
 | `unity_animation2d_bundle` | 2Dアニメーション設定 |
+| `unity_uitk_document` | UI Toolkitドキュメント操作 |
+| `unity_uitk_asset` | UI Toolkitアセット管理 |
 | `unity_material_bundle` | マテリアル設定 |
 | `unity_light_bundle` | ライト設定 |
 | `unity_particle_bundle` | パーティクル設定 |
 | `unity_animation3d_bundle` | 3Dアニメーション設定 |
-| `unity_uitk_document` | UI Toolkitドキュメント操作 |
-| `unity_uitk_asset` | UI Toolkitアセット管理 |
+| `unity_event_wiring` | UnityEventの接続 |
+| `unity_playmode_control` | プレイモード制御 |
+| `unity_console_log` | コンソールログ取得 |
 
 ### Low-Level CRUD（8ツール）
 
@@ -111,15 +114,12 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_vector_sprite_convert` | ベクター画像からスプライト生成 |
 | `unity_projectSettings_crud` | プロジェクト設定管理 |
 
-### Utility（5ツール）
+### Utility（2ツール）
 
 | ツール名 | 用途 |
 |----------|------|
 | `unity_ping` | ブリッジ接続確認 |
 | `unity_compilation_await` | コンパイル完了待機 |
-| `unity_playmode_control` | プレイモード制御 |
-| `unity_console_log` | コンソールログ取得 |
-| `unity_event_wiring` | UnityEventの接続 |
 
 ### Batch Operations（1ツール）
 

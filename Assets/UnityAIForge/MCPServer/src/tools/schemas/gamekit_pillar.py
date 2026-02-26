@@ -523,12 +523,12 @@ def gamekit_feedback_schema() -> dict[str, Any]:
                             "color": {
                                 "type": "object",
                                 "properties": {
-                                    "r": {"type": "number"},
-                                    "g": {"type": "number"},
-                                    "b": {"type": "number"},
-                                    "a": {"type": "number"},
+                                    "r": {"type": "number", "minimum": 0, "maximum": 1},
+                                    "g": {"type": "number", "minimum": 0, "maximum": 1},
+                                    "b": {"type": "number", "minimum": 0, "maximum": 1},
+                                    "a": {"type": "number", "minimum": 0, "maximum": 1},
                                 },
-                                "description": "Flash color.",
+                                "description": "Flash color (RGBA 0-1).",
                             },
                             "fadeTime": {"type": "number", "description": "Flash fade time."},
                             "scaleAmount": {
@@ -602,7 +602,7 @@ def gamekit_vfx_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Enable object pooling (default: true).",
                 },
-                "poolSize": {"type": "integer", "description": "Pool size (default: 5)."},
+                "poolSize": {"type": "integer", "minimum": 1, "description": "Pool size (default: 5)."},
                 "attachToParent": {
                     "type": "boolean",
                     "description": "Attach to parent transform when playing.",
@@ -681,7 +681,7 @@ def gamekit_audio_schema() -> dict[str, Any]:
                     "description": "Auto-play on enable.",
                 },
                 "loop": {"type": "boolean", "description": "Loop playback."},
-                "volume": {"type": "number", "description": "Volume (0-1)."},
+                "volume": {"type": "number", "minimum": 0, "maximum": 1, "description": "Volume (0-1)."},
                 "pitch": {"type": "number", "description": "Pitch (default: 1.0)."},
                 "pitchVariation": {
                     "type": "number",
@@ -689,22 +689,28 @@ def gamekit_audio_schema() -> dict[str, Any]:
                 },
                 "spatialBlend": {
                     "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
                     "description": "2D/3D blend (0=2D, 1=3D).",
                 },
                 "fadeInDuration": {
                     "type": "number",
+                    "minimum": 0,
                     "description": "Fade in duration in seconds.",
                 },
                 "fadeOutDuration": {
                     "type": "number",
+                    "minimum": 0,
                     "description": "Fade out duration in seconds.",
                 },
                 "minDistance": {
                     "type": "number",
+                    "minimum": 0,
                     "description": "3D audio min distance.",
                 },
                 "maxDistance": {
                     "type": "number",
+                    "minimum": 0,
                     "description": "3D audio max distance.",
                 },
             },

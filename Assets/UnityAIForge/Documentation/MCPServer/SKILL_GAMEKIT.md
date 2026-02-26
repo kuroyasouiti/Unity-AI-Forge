@@ -34,7 +34,7 @@ GameKit is organized into three pillars:
 |--------|-------|---------|
 | **UI** | 5 tools | Generate UI Toolkit-based components (UXML/USS + C#) |
 | **Presentation** | 5 tools | Generate visual effects, animation, feedback, and audio components |
-| **Logic** | 5 tools | Scene/code analysis and integrity validation |
+| **Logic** | 7 tools | Scene/code analysis and integrity validation |
 
 All UI and Presentation pillar tools use **code generation**:
 - Templates in `Assets/UnityAIForge/Editor/CodeGen/Templates/`
@@ -792,6 +792,8 @@ The Logic pillar provides analysis and validation tools. These do not use code g
 | `unity_class_dependency_graph` | Analyze C# class dependencies |
 | `unity_scene_reference_graph` | Analyze references between GameObjects in scene |
 | `unity_scene_relationship_graph` | Analyze scene transitions and relationships |
+| `unity_scene_dependency` | Analyze scene asset dependencies (AssetDatabase) |
+| `unity_script_syntax` | C# source code structure analysis with line numbers |
 
 ### Verifying Changes
 

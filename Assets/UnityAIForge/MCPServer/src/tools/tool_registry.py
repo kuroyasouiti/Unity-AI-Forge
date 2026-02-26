@@ -33,11 +33,12 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_ui_navigation": "uiNavigation",
     "unity_input_profile": "inputProfile",
     "unity_tilemap_bundle": "tilemapBundle",
-    "unity_sprite2d_bundle": "sprite2DBundle",
-    "unity_animation2d_bundle": "animation2DBundle",
     # ── Mid-Level UI Toolkit ────────────────────────────────
     "unity_uitk_document": "uitkDocument",
     "unity_uitk_asset": "uitkAsset",
+    # ── Mid-Level Visual ────────────────────────────────────
+    "unity_sprite2d_bundle": "sprite2DBundle",
+    "unity_animation2d_bundle": "animation2DBundle",
     # ── Dev-Cycle & Visual ───────────────────────────────────
     "unity_playmode_control": "playModeControl",
     "unity_console_log": "consoleLog",

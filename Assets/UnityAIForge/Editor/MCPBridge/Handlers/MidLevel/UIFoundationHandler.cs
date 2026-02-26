@@ -1635,7 +1635,7 @@ namespace MCP.Editor.Handlers
             contentRect.sizeDelta = new Vector2(0, 0);
 
             var columns = GetInt(payload, "columns", 5);
-            var cellSize = GetFloat(payload, "cellSize", 60f);
+            var cellSize = GetFloat(payload, "templateCellSize", 60f);
 
             var glg = Undo.AddComponent<GridLayoutGroup>(contentGo);
             glg.cellSize = new Vector2(cellSize, cellSize);
