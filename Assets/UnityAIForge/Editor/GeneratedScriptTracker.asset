@@ -308,13 +308,6 @@ MonoBehaviour:
     gameObjectPath: AnimSyncTarget
     variablesJson: '{"SYNC_ID":"test_sync","AUTO_FIND_ANIMATOR":true,"CLASS_NAME":"TestSyncAnimationSync"}'
     pendingAttach: 1
-  - componentId: test_audio_2
-    className: MyAudio
-    scriptPath: Assets/Scripts/Generated/MyAudio.cs
-    templateName: Audio
-    gameObjectPath: AudioTarget2
-    variablesJson: '{"AUDIO_ID":"test_audio_2","AUDIO_TYPE":"Music","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":1,"PITCH":1,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"MyAudio"}'
-    pendingAttach: 0
   - componentId: test_audio
     className: TestAudioAudio
     scriptPath: Assets/Scripts/Generated/TestAudioAudio.cs
@@ -322,13 +315,6 @@ MonoBehaviour:
     gameObjectPath: AudioTarget
     variablesJson: '{"AUDIO_ID":"test_audio","AUDIO_TYPE":"SFX","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":1,"PITCH":1,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"TestAudioAudio"}'
     pendingAttach: 1
-  - componentId: test_effect_2
-    className: MyEffect
-    scriptPath: Assets/Scripts/Generated/MyEffect.cs
-    templateName: Effect
-    gameObjectPath: EffectTarget2
-    variablesJson: '{"EFFECT_ID":"test_effect_2","COMPONENT_COUNT":0,"CLASS_NAME":"MyEffect"}'
-    pendingAttach: 0
   - componentId: test_effect
     className: TestEffectEffect
     scriptPath: Assets/Scripts/Generated/TestEffectEffect.cs
@@ -342,6 +328,55 @@ MonoBehaviour:
     templateName: EffectManager
     gameObjectPath: EffectMgr
     variablesJson: '{"MANAGER_ID":"test_manager","PERSISTENT":"true","AUDIO_POOL_SIZE":5,"CLASS_NAME":"TestManager"}'
+    pendingAttach: 1
+  - componentId: test_feedback
+    className: TestFeedbackFeedback
+    scriptPath: Assets/Scripts/Generated/TestFeedbackFeedback.cs
+    templateName: Feedback
+    gameObjectPath: FeedbackTarget
+    variablesJson: '{"FEEDBACK_ID":"test_feedback","PLAY_ON_ENABLE":false,"GLOBAL_INTENSITY":1,"CLASS_NAME":"TestFeedbackFeedback"}'
+    pendingAttach: 1
+  - componentId: test_binding
+    className: TestBindingUIBinding
+    scriptPath: Assets/Scripts/Generated/TestBindingUIBinding.cs
+    templateName: UIBinding
+    gameObjectPath: BindTarget
+    variablesJson: '{"BINDING_ID":"test_binding","SOURCE_TYPE":"Health","SOURCE_ID":"player_hp","ELEMENT_NAME":"","TARGET_PROPERTY":"","FORMAT":"Raw","FORMAT_STRING":"{0}","MIN_VALUE":0,"MAX_VALUE":100,"UPDATE_INTERVAL":0.1,"SMOOTH_TRANSITION":false,"SMOOTH_SPEED":5,"CLASS_NAME":"TestBindingUIBinding"}'
+    pendingAttach: 1
+  - componentId: test_list
+    className: TestListUIList
+    scriptPath: Assets/Scripts/Generated/TestListUIList.cs
+    templateName: UIList
+    gameObjectPath: ListTarget
+    variablesJson: '{"LIST_ID":"test_list","LAYOUT":"Vertical","COLUMNS":4,"CELL_SIZE_X":80,"CELL_SIZE_Y":80,"SPACING_X":10,"SPACING_Y":10,"DATA_SOURCE":"Custom","SOURCE_ID":"","SELECTABLE":"false","MULTI_SELECT":"false","CLASS_NAME":"TestListUIList"}'
+    pendingAttach: 1
+  - componentId: test_slot
+    className: TestSlotUISlot
+    scriptPath: Assets/Scripts/Generated/TestSlotUISlot.cs
+    templateName: UISlot
+    gameObjectPath: SlotTarget
+    variablesJson: '{"SLOT_ID":"test_slot","SLOT_INDEX":0,"SLOT_TYPE":"Storage","EQUIP_SLOT_NAME":"","INVENTORY_ID":"","DRAG_DROP_ENABLED":"true","CLASS_NAME":"TestSlotUISlot"}'
+    pendingAttach: 1
+  - componentId: test_vfx
+    className: TestVfxVFX
+    scriptPath: Assets/Scripts/Generated/TestVfxVFX.cs
+    templateName: VFX
+    gameObjectPath: VFXTarget
+    variablesJson: '{"VFX_ID":"test_vfx","AUTO_PLAY":false,"LOOP":false,"USE_POOLING":false,"POOL_SIZE":5,"ATTACH_TO_PARENT":false,"DURATION_MULTIPLIER":1,"SIZE_MULTIPLIER":1,"EMISSION_MULTIPLIER":1,"CLASS_NAME":"TestVfxVFX"}'
+    pendingAttach: 1
+  - componentId: test_audio_2
+    className: MyAudio
+    scriptPath: Assets/Scripts/Generated/MyAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioTarget2
+    variablesJson: '{"AUDIO_ID":"test_audio_2","AUDIO_TYPE":"Music","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":1,"PITCH":1,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"MyAudio"}'
+    pendingAttach: 0
+  - componentId: test_effect_2
+    className: MyEffect
+    scriptPath: Assets/Scripts/Generated/MyEffect.cs
+    templateName: Effect
+    gameObjectPath: EffectTarget2
+    variablesJson: '{"EFFECT_ID":"test_effect_2","COMPONENT_COUNT":0,"CLASS_NAME":"MyEffect"}'
     pendingAttach: 0
   - componentId: test_feedback_2
     className: MyFeedback
@@ -350,13 +385,6 @@ MonoBehaviour:
     gameObjectPath: FeedbackTarget2
     variablesJson: '{"FEEDBACK_ID":"test_feedback_2","PLAY_ON_ENABLE":false,"GLOBAL_INTENSITY":1,"CLASS_NAME":"MyFeedback"}'
     pendingAttach: 0
-  - componentId: test_feedback
-    className: TestFeedbackFeedback
-    scriptPath: Assets/Scripts/Generated/TestFeedbackFeedback.cs
-    templateName: Feedback
-    gameObjectPath: FeedbackTarget
-    variablesJson: '{"FEEDBACK_ID":"test_feedback","PLAY_ON_ENABLE":false,"GLOBAL_INTENSITY":1,"CLASS_NAME":"TestFeedbackFeedback"}'
-    pendingAttach: 1
   - componentId: test_binding_2
     className: MyBinding
     scriptPath: Assets/Scripts/Generated/MyBinding.cs
@@ -364,13 +392,13 @@ MonoBehaviour:
     gameObjectPath: BindTarget2
     variablesJson: '{"BINDING_ID":"test_binding_2","SOURCE_TYPE":"Health","SOURCE_ID":"player_hp","ELEMENT_NAME":"","TARGET_PROPERTY":"","FORMAT":"Raw","FORMAT_STRING":"{0}","MIN_VALUE":0,"MAX_VALUE":100,"UPDATE_INTERVAL":0.1,"SMOOTH_TRANSITION":false,"SMOOTH_SPEED":5,"CLASS_NAME":"MyBinding"}'
     pendingAttach: 0
-  - componentId: test_binding
-    className: TestBindingUIBinding
-    scriptPath: Assets/Scripts/Generated/TestBindingUIBinding.cs
-    templateName: UIBinding
-    gameObjectPath: BindTarget
-    variablesJson: '{"BINDING_ID":"test_binding","SOURCE_TYPE":"Health","SOURCE_ID":"player_hp","ELEMENT_NAME":"","TARGET_PROPERTY":"","FORMAT":"Raw","FORMAT_STRING":"{0}","MIN_VALUE":0,"MAX_VALUE":100,"UPDATE_INTERVAL":0.1,"SMOOTH_TRANSITION":false,"SMOOTH_SPEED":5,"CLASS_NAME":"TestBindingUIBinding"}'
-    pendingAttach: 1
+  - componentId: test_vfx_2
+    className: MyVFX
+    scriptPath: Assets/Scripts/Generated/MyVFX.cs
+    templateName: VFX
+    gameObjectPath: VFXTarget2
+    variablesJson: '{"VFX_ID":"test_vfx_2","AUTO_PLAY":false,"LOOP":false,"USE_POOLING":false,"POOL_SIZE":5,"ATTACH_TO_PARENT":false,"DURATION_MULTIPLIER":1,"SIZE_MULTIPLIER":1,"EMISSION_MULTIPLIER":1,"CLASS_NAME":"MyVFX"}'
+    pendingAttach: 0
   - componentId: test_panel_2
     className: MyCustomPanel
     scriptPath: Assets/Scripts/Generated/MyCustomPanel.cs
@@ -385,38 +413,10 @@ MonoBehaviour:
     gameObjectPath: test_panel
     variablesJson: '{"PANEL_ID":"test_panel","UXML_PATH":"Assets/UI/Generated/TestPanelUICommand.uxml","USS_PATH":"Assets/UI/Generated/TestPanelUICommand.uss","CLASS_NAME":"TestPanelUICommand"}'
     pendingAttach: 1
-  - componentId: test_list
-    className: TestListUIList
-    scriptPath: Assets/Scripts/Generated/TestListUIList.cs
-    templateName: UIList
-    gameObjectPath: ListTarget
-    variablesJson: '{"LIST_ID":"test_list","LAYOUT":"Vertical","COLUMNS":4,"CELL_SIZE_X":80,"CELL_SIZE_Y":80,"SPACING_X":10,"SPACING_Y":10,"DATA_SOURCE":"Custom","SOURCE_ID":"","SELECTABLE":"false","MULTI_SELECT":"false","CLASS_NAME":"TestListUIList"}'
-    pendingAttach: 1
   - componentId: test_selection
     className: TestSelectionUISelection
     scriptPath: Assets/Scripts/Generated/TestSelectionUISelection.cs
     templateName: UISelection
     gameObjectPath: SelectionTarget/test_selection
     variablesJson: '{"SELECTION_ID":"test_selection","SELECTION_TYPE":"Radio","ALLOW_NONE":false,"DEFAULT_INDEX":0,"LAYOUT":"Horizontal","SPACING":10,"UXML_PATH":"Assets/UI/Generated/TestSelectionUISelection.uxml","USS_PATH":"Assets/UI/Generated/TestSelectionUISelection.uss","CLASS_NAME":"TestSelectionUISelection"}'
-    pendingAttach: 1
-  - componentId: test_slot
-    className: TestSlotUISlot
-    scriptPath: Assets/Scripts/Generated/TestSlotUISlot.cs
-    templateName: UISlot
-    gameObjectPath: SlotTarget
-    variablesJson: '{"SLOT_ID":"test_slot","SLOT_INDEX":0,"SLOT_TYPE":"Storage","EQUIP_SLOT_NAME":"","INVENTORY_ID":"","DRAG_DROP_ENABLED":"true","CLASS_NAME":"TestSlotUISlot"}'
-    pendingAttach: 1
-  - componentId: test_vfx_2
-    className: MyVFX
-    scriptPath: Assets/Scripts/Generated/MyVFX.cs
-    templateName: VFX
-    gameObjectPath: VFXTarget2
-    variablesJson: '{"VFX_ID":"test_vfx_2","AUTO_PLAY":false,"LOOP":false,"USE_POOLING":false,"POOL_SIZE":5,"ATTACH_TO_PARENT":false,"DURATION_MULTIPLIER":1,"SIZE_MULTIPLIER":1,"EMISSION_MULTIPLIER":1,"CLASS_NAME":"MyVFX"}'
-    pendingAttach: 0
-  - componentId: test_vfx
-    className: TestVfxVFX
-    scriptPath: Assets/Scripts/Generated/TestVfxVFX.cs
-    templateName: VFX
-    gameObjectPath: VFXTarget
-    variablesJson: '{"VFX_ID":"test_vfx","AUTO_PLAY":false,"LOOP":false,"USE_POOLING":false,"POOL_SIZE":5,"ATTACH_TO_PARENT":false,"DURATION_MULTIPLIER":1,"SIZE_MULTIPLIER":1,"EMISSION_MULTIPLIER":1,"CLASS_NAME":"TestVfxVFX"}'
     pendingAttach: 1
