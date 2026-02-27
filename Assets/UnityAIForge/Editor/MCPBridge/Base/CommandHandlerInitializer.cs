@@ -131,6 +131,10 @@ namespace MCP.Editor.Base
             // UI Toolkit tools
             CommandHandlerFactory.Register("uitkDocument", new UITKDocumentHandler());
             CommandHandlerFactory.Register("uitkAsset", new UITKAssetHandler());
+
+            // Physics & NavMesh
+            CommandHandlerFactory.Register("physicsBundle", new PhysicsBundleHandler());
+            CommandHandlerFactory.Register("navmeshBundle", new NavMeshBundleHandler());
         }
 
         /// <summary>
@@ -170,6 +174,10 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("gamekitFeedback", new Handlers.GameKit.GameKitFeedbackHandler());
             CommandHandlerFactory.Register("gamekitVFX", new Handlers.GameKit.GameKitVFXHandler());
             CommandHandlerFactory.Register("gamekitAudio", new Handlers.GameKit.GameKitAudioHandler());
+
+            // Systems (Pool & Data)
+            CommandHandlerFactory.Register("gamekitPool", new Handlers.GameKit.GameKitPoolHandler());
+            CommandHandlerFactory.Register("gamekitData", new Handlers.GameKit.GameKitDataHandler());
 
             // Logic Pillar — 整合性検証・依存関係/参照解析・型カタログ
             CommandHandlerFactory.Register("sceneIntegrity", new Handlers.HighLevel.SceneIntegrityHandler());

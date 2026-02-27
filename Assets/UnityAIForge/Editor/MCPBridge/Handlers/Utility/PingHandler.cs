@@ -12,7 +12,7 @@ namespace MCP.Editor.Handlers
     /// </summary>
     public class PingHandler : BaseCommandHandler
     {
-        public override string Category => "ping";
+        public override string Category => "pingUnityEditor";
 
         public override IEnumerable<string> SupportedOperations => new[]
         {

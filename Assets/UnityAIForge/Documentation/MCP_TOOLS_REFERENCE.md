@@ -8,10 +8,10 @@
 |----------|----------|------|
 | Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
 | Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
-| Mid-Level Batch | 18 | バッチ操作・プリセット・UI・ビジュアル制御 |
-| High-Level GameKit | 17 | 3本柱ゲーム開発フレームワーク |
+| Mid-Level Batch | 22 | バッチ操作・プリセット・UI・ビジュアル制御・物理・NavMesh |
+| High-Level GameKit | 19 | 3本柱ゲーム開発フレームワーク + Systemsピラー |
 
-**合計: 48 ツール**
+**合計: 52 ツール** (+ batch_sequential 1 = 合計52 MCP定義)
 
 ---
 

@@ -39,7 +39,9 @@ from tools.schemas.gamekit_pillar import (
 )
 from tools.schemas.gamekit_systems import (
     gamekit_animation_sync_schema,
+    gamekit_data_schema,
     gamekit_effect_schema,
+    gamekit_pool_schema,
 )
 from tools.schemas.graph import (
     class_catalog_schema,
@@ -63,6 +65,8 @@ from tools.schemas.low_level import (
 from tools.schemas.mid_level import (
     camera_rig_schema,
     input_profile_schema,
+    navmesh_bundle_schema,
+    physics_bundle_schema,
     rect_transform_batch_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
@@ -128,6 +132,8 @@ __all__ = [
     "tilemap_bundle_schema",
     "uitk_document_schema",
     "uitk_asset_schema",
+    "physics_bundle_schema",
+    "navmesh_bundle_schema",
     # visual
     "sprite2d_bundle_schema",
     "animation2d_bundle_schema",
@@ -138,9 +144,11 @@ __all__ = [
     "event_wiring_schema",
     # gamekit_core (UI Pillar)
     "gamekit_ui_command_schema",
-    # gamekit_systems (Presentation Pillar)
+    # gamekit_systems (Presentation Pillar + Systems)
     "gamekit_animation_sync_schema",
     "gamekit_effect_schema",
+    "gamekit_pool_schema",
+    "gamekit_data_schema",
     # gamekit_pillar (UI + Presentation Pillar)
     "gamekit_ui_binding_schema",
     "gamekit_ui_list_schema",

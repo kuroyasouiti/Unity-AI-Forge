@@ -32,7 +32,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsPrefab()
         {
-            Assert.AreEqual("prefab", _handler.Category);
+            Assert.AreEqual("prefabManage", _handler.Category);
         }
 
         [Test]

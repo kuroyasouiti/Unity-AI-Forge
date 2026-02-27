@@ -19,11 +19,11 @@ Before using these tools, ensure:
 
 ## 3-Layer Architecture
 
-Unity-AI-Forge provides **48 tools** organized in 3 layers. Always prefer higher-level tools first:
+Unity-AI-Forge provides **52 tools** organized in 3 layers. Always prefer higher-level tools first:
 
 ```
-High-Level GameKit (17 tools)  ← Game systems & analysis (use first)
-Mid-Level Batch   (20 tools)  ← Batch operations & presets
+High-Level GameKit (19 tools)  ← Game systems & analysis (use first)
+Mid-Level Batch   (22 tools)  ← Batch operations & presets
 Low-Level CRUD     (8 tools)  ← Individual object operations
 Utility            (2 tools)  ← Helpers & diagnostics
 Batch Operations   (1 tool)   ← Sequential execution
@@ -721,7 +721,7 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-## Complete Tool Reference (48 Tools)
+## Complete Tool Reference (52 Tools)
 
 ### High-Level GameKit - UI Pillar (5 tools)
 
@@ -755,7 +755,14 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_scene_dependency` | Scene asset dependency analysis (AssetDatabase) |
 | `unity_script_syntax` | C# source code structure analysis with line numbers |
 
-### Mid-Level Batch (20 tools)
+### High-Level GameKit - Systems (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `unity_gamekit_pool` | Object pooling (UnityEngine.Pool) with code generation |
+| `unity_gamekit_data` | Event channels, data containers, runtime sets (ScriptableObject) |
+
+### Mid-Level Batch (22 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -779,6 +786,8 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_console_log` | Console log retrieval and filtering |
 | `unity_uitk_document` | UI Toolkit UIDocument management |
 | `unity_uitk_asset` | UI Toolkit asset creation (UXML, USS) |
+| `unity_physics_bundle` | Physics presets, collision matrix, physics materials |
+| `unity_navmesh_bundle` | NavMesh baking, agents, obstacles, links, modifiers |
 
 ### Low-Level CRUD (8 tools)
 
@@ -815,4 +824,4 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-**You now have complete control over Unity Editor with 48 tools across 3 layers. Build amazing projects!**
+**You now have complete control over Unity Editor with 52 tools across 3 layers. Build amazing projects!**

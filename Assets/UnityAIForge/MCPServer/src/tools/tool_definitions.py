@@ -1,4 +1,4 @@
-"""Tool definitions for all 51 MCP tools (48 standard + 1 batch + 2 special).
+"""Tool definitions for all 52 MCP tools (51 registry + 1 batch_sequential).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -24,8 +24,10 @@ from tools.schemas import (
     game_object_manage_schema,
     gamekit_animation_sync_schema,
     gamekit_audio_schema,
+    gamekit_data_schema,
     gamekit_effect_schema,
     gamekit_feedback_schema,
+    gamekit_pool_schema,
     gamekit_ui_binding_schema,
     gamekit_ui_command_schema,
     gamekit_ui_list_schema,
@@ -35,7 +37,9 @@ from tools.schemas import (
     input_profile_schema,
     light_bundle_schema,
     material_bundle_schema,
+    navmesh_bundle_schema,
     particle_bundle_schema,
+    physics_bundle_schema,
     ping_schema,
     playmode_control_schema,
     prefab_manage_schema,
@@ -62,7 +66,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 51 MCP tool definitions."""
+    """Return the list of all 52 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -395,6 +399,42 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=event_wiring_schema(),
         ),
+        # ── Mid-Level Physics & NavMesh ────────────────────────────
+        types.Tool(
+            name="unity_physics_bundle",
+            description=(
+                "Mid-level physics configuration: apply physics presets, configure collision matrices, and create physics materials.\n\n"
+                "**Operations:**\n"
+                "- applyPreset: Apply physics preset to GameObject (platformer2D, topDown2D, fps3D, thirdPerson3D, space, racing)\n"
+                "- setCollisionMatrix: Configure layer collision matrix (Physics or Physics2D)\n"
+                "- createPhysicsMaterial: Create PhysicMaterial asset (3D) with friction/bounciness\n"
+                "- createPhysicsMaterial2D: Create PhysicsMaterial2D asset with friction/bounciness\n"
+                "- inspect: View current Rigidbody/Collider/PhysicsMaterial configuration\n\n"
+                "**Presets:** platformer2D (high gravity, freeze rotation Z), topDown2D (no gravity, kinematic-optional), "
+                "fps3D (CharacterController-ready), thirdPerson3D (capsule collider + rigidbody), "
+                "space (zero gravity, no drag), racing (wheel collider-ready)\n\n"
+                "Use for quick physics setup instead of manually configuring Rigidbody + Collider via unity_component_crud."
+            ),
+            inputSchema=physics_bundle_schema(),
+        ),
+        types.Tool(
+            name="unity_navmesh_bundle",
+            description=(
+                "Mid-level NavMesh navigation setup: bake navigation meshes, add agents, obstacles, links, and modifiers.\n\n"
+                "**Operations:**\n"
+                "- bake: Add NavMeshSurface and bake NavMesh (requires com.unity.ai.navigation package, falls back to legacy API)\n"
+                "- addAgent: Add NavMeshAgent with speed/stopping/radius configuration\n"
+                "- addObstacle: Add NavMeshObstacle with shape/carve settings\n"
+                "- addLink: Add NavMeshLink between two points (requires com.unity.ai.navigation)\n"
+                "- addModifier: Add NavMeshModifier for area overrides (requires com.unity.ai.navigation)\n"
+                "- inspect: View NavMesh agent/obstacle/surface configuration\n"
+                "- clearNavMesh: Clear baked NavMesh data\n\n"
+                "**Package Support:** Built-in types (NavMeshAgent, NavMeshObstacle) always available. "
+                "Advanced types (NavMeshSurface, NavMeshLink, NavMeshModifier) require com.unity.ai.navigation package "
+                "and are accessed via reflection for compatibility."
+            ),
+            inputSchema=navmesh_bundle_schema(),
+        ),
         # ── GameKit – UI Pillar ────────────────────────────────────
         types.Tool(
             name="unity_gamekit_ui_command",
@@ -537,6 +577,42 @@ def get_tool_definitions() -> list[types.Tool]:
                 "**Features:** Pitch variation, fade in/out, 2D/3D spatial blend, registry-based lookup, cross-fade support"
             ),
             inputSchema=gamekit_audio_schema(),
+        ),
+        # ── GameKit – Systems ──────────────────────────────────────
+        types.Tool(
+            name="unity_gamekit_pool",
+            description=(
+                "High-level GameKit Object Pool: generate standalone object pooling MonoBehaviour using UnityEngine.Pool.\n\n"
+                "**Operations:**\n"
+                "- create: Generate ObjectPool script and attach to GameObject (requires compilation wait)\n"
+                "- update: Update pool settings (prefab, initialSize, maxSize, parent)\n"
+                "- inspect: View pool configuration\n"
+                "- delete: Remove pool component and generated script\n"
+                "- findByPoolId: Find pool by ID in scene\n\n"
+                "**Features:** Uses Unity's built-in ObjectPool<T> (2021+), configurable initial/max size, "
+                "collection checks, default parent transform, warmup and stats support.\n\n"
+                "Generated scripts are standalone — no dependency on Unity-AI-Forge package."
+            ),
+            inputSchema=gamekit_pool_schema(),
+        ),
+        types.Tool(
+            name="unity_gamekit_data",
+            description=(
+                "High-level GameKit Data Architecture: generate ScriptableObject-based data patterns (Event Channels, Data Containers, Runtime Sets).\n\n"
+                "**Operations:**\n"
+                "- createEventChannel: Generate typed EventChannel ScriptableObject + optional EventListener MonoBehaviour\n"
+                "- createDataContainer: Generate DataContainer ScriptableObject with custom fields and reset-on-play\n"
+                "- createRuntimeSet: Generate RuntimeSet ScriptableObject for auto-register/unregister patterns\n"
+                "- inspect: View generated data asset configuration\n"
+                "- delete: Remove generated scripts and assets\n"
+                "- findByDataId: Find data asset by ID\n\n"
+                "**Event Types:** void, int, float, string, Vector3, GameObject\n"
+                "**Data Field Types:** int, float, string, bool, Vector2, Vector3, Color\n\n"
+                "Implements Unity best practices: ScriptableObject event channels for decoupled communication, "
+                "data containers for shared game state, runtime sets for dynamic object tracking. "
+                "All generated scripts are standalone."
+            ),
+            inputSchema=gamekit_data_schema(),
         ),
         # ── GameKit – Logic Pillar ─────────────────────────────────
         types.Tool(

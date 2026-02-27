@@ -5,6 +5,53 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.12.0] - 2026-02-27
+
+### 追加
+
+- **`unity_physics_bundle` (Mid-Level)**: 物理プリセット・衝突マトリクス・物理マテリアル管理
+  - `applyPreset`: 6種のプリセット（platformer2D, topDown2D, fps3D, thirdPerson3D, space, racing）でRigidbody/Colliderを一括設定
+  - `setCollisionMatrix`: レイヤー間のコリジョン有効/無効切替（2D/3D対応）
+  - `createPhysicsMaterial` / `createPhysicsMaterial2D`: 物理マテリアルアセット作成
+  - `inspect`: GameObjectの物理コンポーネント構成を一括取得
+
+- **`unity_navmesh_bundle` (Mid-Level)**: NavMesh ベイク・エージェント・障害物・リンク管理
+  - `bake`: NavMeshSurface（com.unity.ai.navigation）またはレガシーNavMeshBuilderでベイク
+  - `addAgent`: NavMeshAgent追加（速度、停止距離、半径等の設定）
+  - `addObstacle`: NavMeshObstacle追加（形状、カービング設定）
+  - `addLink` / `addModifier`: NavMeshLink/Modifier追加（リフレクション経由、パッケージ任意）
+  - `inspect` / `clearNavMesh`: NavMeshコンポーネント確認・ベイクデータクリア
+
+- **`unity_gamekit_pool` (GameKit Systems)**: オブジェクトプーリング（コード生成）
+  - `create`: `UnityEngine.Pool.ObjectPool<T>` を使用したプールMonoBehaviourを生成
+  - `update` / `inspect` / `delete` / `findByPoolId`: 標準CRUD操作
+
+- **`unity_gamekit_data` (GameKit Systems)**: データアーキテクチャ（コード生成）
+  - `createEventChannel`: ScriptableObjectベースのイベントチャンネル生成（void/int/float/string/Vector3/GameObject型）
+  - `createDataContainer`: リセット対応データコンテナSO生成（int/float/string/bool/Vector2/Vector3/Color型フィールド）
+  - `createRuntimeSet`: 自動登録/解除パターンのランタイムセットSO生成
+  - `inspect` / `delete` / `findByDataId`: 標準CRUD操作
+
+- **CodeGenテンプレート5種追加**:
+  - `ObjectPool.cs.txt`, `EventChannel.cs.txt`, `EventListener.cs.txt`, `DataContainer.cs.txt`, `RuntimeSet.cs.txt`
+
+- **プロンプトテンプレート3種追加**:
+  - `animation_controller.md`: Animator Controller設計ガイド（Hub-and-Spoke、BlendTree、Layer分離）
+  - `event_channel.md`: ScriptableObjectイベントチャンネルパターンガイド
+  - `object_pooling.md`: オブジェクトプーリング実装ガイド
+
+### 変更
+
+- **ツール総数**: 48 → 52（Mid-Level +2, GameKit Systems +2）
+- **ハンドラーCategory修正**: 8つのハンドラーのCategoryプロパティをブリッジ登録名と統一
+- **system_instructions.md更新**: 52ツール対応、新ツール使用例追加、ベストプラクティス追加（物理最適化、SO設計、Animator設計、プーリング）
+- **既存プロンプトテンプレート6件修正**: platformer_2d, enemy_ai, state_machine, ui_ux, design, testingの各テンプレートを改善
+
+### テスト
+
+- Python MCP Serverテスト: スキーマ数47→51、ツール定義数48→52、レジストリ数47→51に更新
+- プロンプトテスト: 3新テンプレート追加分のテスト追加
+
 ## [2.11.0] - 2026-02-27
 
 ### 追加

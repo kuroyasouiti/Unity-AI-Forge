@@ -35,7 +35,7 @@ namespace MCP.Editor.Handlers
 
         #region ICommandHandler Implementation
 
-        public override string Category => "component";
+        public override string Category => "componentManage";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {

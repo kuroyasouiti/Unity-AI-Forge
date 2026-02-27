@@ -169,9 +169,15 @@ unity_animation2d_bundle(operation='addState',
     controllerPath='Assets/Animations/Player/PlayerAnimator.controller',
     stateName='Jump', clipPath='Assets/Animations/Player/Jump.anim')
 
-# 物理プリセット（platformer: Rigidbody2D + CapsuleCollider2D 最適設定）
-unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'],
-    preset='platformer')
+# 物理設定（Rigidbody2D + CapsuleCollider2D をプラットフォーマー向けに最適化）
+unity_component_crud(operation='add', gameObjectPath='Player',
+    componentType='Rigidbody2D',
+    propertyChanges={'gravityScale': 3, 'mass': 1,
+        'collisionDetection': 'Continuous',
+        'constraints': {'freezeRotationZ': True}})
+unity_component_crud(operation='add', gameObjectPath='Player',
+    componentType='CapsuleCollider2D',
+    propertyChanges={'size': {'x': 0.8, 'y': 1.2}, 'direction': 1})
 
 # Animator をアタッチ
 unity_animation2d_bundle(operation='setupAnimator', gameObjectPath='Player',
@@ -251,8 +257,14 @@ unity_sprite2d_bundle(operation='createSprite',
     gameObjectPath='Enemies/Enemy_Goomba',
     spritePath='Assets/Sprites/Enemies/goomba.png', pixelsPerUnit=16)
 
-unity_physics_bundle(operation='applyPreset2D',
-    gameObjectPaths=['Enemies/Enemy_Goomba'], preset='character')
+unity_component_crud(operation='add',
+    gameObjectPath='Enemies/Enemy_Goomba', componentType='Rigidbody2D',
+    propertyChanges={'gravityScale': 2, 'mass': 1,
+        'collisionDetection': 'Continuous',
+        'constraints': {'freezeRotationZ': True}})
+unity_component_crud(operation='add',
+    gameObjectPath='Enemies/Enemy_Goomba', componentType='BoxCollider2D',
+    propertyChanges={'size': {'x': 0.9, 'y': 0.9}})
 
 # プレハブ化して複数配置
 unity_prefab_crud(operation='create',
@@ -315,7 +327,7 @@ unity_scene_relationship_graph(operation='analyzeAll')
 
 ### 接地判定の実装
 
-`unity_physics_bundle` の `platformer` プリセットで Rigidbody2D + CapsuleCollider2D が設定される。
+`unity_component_crud` で Rigidbody2D（gravityScale=3, Continuous衝突検出）+ CapsuleCollider2D が設定される。
 接地判定は Raycast または足元の小さな BoxCast で実装する。
 `animation_sync` の `addSyncRule` で `isGrounded` を `Bool` パラメータにバインドすれば
 ジャンプアニメーションへの遷移が自動化される。
@@ -356,7 +368,7 @@ unity_scene_relationship_graph(operation='analyzeAll')
 | 地形 | `unity_sprite2d_bundle` | スプライト設定・スライス |
 | アニメーション | `unity_animation2d_bundle` | Animator・クリップ生成 |
 | アニメーション | `unity_gamekit_animation_sync` | 速度→アニメパラメータ同期 |
-| 物理 | `unity_physics_bundle` | 物理プリセット適用 |
+| 物理 | `unity_component_crud` | Rigidbody2D・Collider2D 追加・物理設定 |
 | カメラ | `unity_camera_rig` | フォローカメラ設定 |
 | オブジェクト | `unity_gameobject_crud` | GameObject 作成・配置 |
 | コンポーネント | `unity_component_crud` | Collider・Rigidbody 追加 |

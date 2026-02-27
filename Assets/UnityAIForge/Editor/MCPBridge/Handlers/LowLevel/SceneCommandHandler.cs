@@ -18,7 +18,7 @@ namespace MCP.Editor.Handlers
     {
         #region ICommandHandler Implementation
         
-        public override string Category => "scene";
+        public override string Category => "sceneManage";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {

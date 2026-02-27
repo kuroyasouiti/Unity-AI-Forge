@@ -32,7 +32,7 @@ namespace MCP.Editor.Handlers
 
         #region ICommandHandler Implementation
 
-        public override string Category => "gameObject";
+        public override string Category => "gameObjectManage";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {

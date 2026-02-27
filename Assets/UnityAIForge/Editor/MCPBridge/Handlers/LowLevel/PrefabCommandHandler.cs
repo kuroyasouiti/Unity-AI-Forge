@@ -15,7 +15,7 @@ namespace MCP.Editor.Handlers
     {
         #region ICommandHandler Implementation
         
-        public override string Category => "prefab";
+        public override string Category => "prefabManage";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {

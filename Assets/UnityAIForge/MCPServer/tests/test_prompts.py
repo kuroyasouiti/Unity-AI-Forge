@@ -47,7 +47,7 @@ class TestPromptDefinitions:
         assert len(GENRE_OPTIONS) == 6
 
     def test_mechanic_options_count(self) -> None:
-        assert len(MECHANIC_OPTIONS) == 6
+        assert len(MECHANIC_OPTIONS) == 9
 
     def test_workflow_options_count(self) -> None:
         assert len(WORKFLOW_OPTIONS) == 9
@@ -95,7 +95,7 @@ class TestTemplateLoader:
 
     def test_list_available_templates(self) -> None:
         templates = list_available_templates()
-        assert len(templates) == 21
+        assert len(templates) == 24
         assert "genre/platformer_2d.md" in templates
         assert "mechanics/state_machine.md" in templates
         assert "workflow/planning.md" in templates

@@ -4,9 +4,9 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 ## プロジェクト概要
 
-Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。48のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level / Low-Level CRUD）で構成されています。
+Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。52のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level / Low-Level CRUD）で構成されています。
 
-**バージョン:** 2.10.1
+**バージョン:** 2.12.0
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
 
 ### 通信フロー
@@ -20,9 +20,9 @@ AIクライアント (Claude Code / Cursor) <--MCP--> Python Server <--WebSocket
 ツールは上位レベルから順に使用してください。上位ツールほど少ないコマンドで多くの処理を実行できます。
 
 ```
-High-Level GameKit (17ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
-  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (7)
-Mid-Level          (20ツール)  ← バッチ操作・プリセット・開発サイクル（UI Toolkit含む）
+High-Level GameKit (19ツール)  ← 最優先: ゲームシステム一式を1コマンドで構築
+  UI Pillar (5) / Presentation Pillar (5) / Logic Pillar (7) / Systems (2)
+Mid-Level          (22ツール)  ← バッチ操作・プリセット・開発サイクル（UI Toolkit含む）
 Low-Level CRUD      (8ツール)  ← 個別のUnity操作
 Utility             (2ツール)  ← 接続確認・コンパイル待機
 Batch Operations    (1ツール)  ← 複数コマンドの順次実行
@@ -64,6 +64,13 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_gamekit_vfx` | VFXラッパー（プーリング対応） |
 | `unity_gamekit_audio` | オーディオラッパー（フェード対応） |
 
+**Systemsピラー（2ツール）:**
+
+| ツール名 | 用途 |
+|----------|------|
+| `unity_gamekit_pool` | オブジェクトプーリング（UnityEngine.Pool、コード生成） |
+| `unity_gamekit_data` | イベントチャンネル、データコンテナ、ランタイムセット（ScriptableObject、コード生成） |
+
 **Logicピラー（7ツール）:**
 
 | ツール名 | 用途 |
@@ -76,7 +83,7 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_scene_dependency` | シーンのアセット依存関係を解析（AssetDatabase経由） |
 | `unity_script_syntax` | C#ソースコード構文解析（行番号付き、参照検索、メトリクス） |
 
-### Mid-Level（20ツール）
+### Mid-Level（22ツール）
 
 | ツール名 | 用途 |
 |----------|------|
@@ -100,6 +107,8 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_event_wiring` | UnityEventの接続 |
 | `unity_playmode_control` | プレイモード制御 |
 | `unity_console_log` | コンソールログ取得 |
+| `unity_physics_bundle` | 物理プリセット・衝突マトリクス・物理マテリアル |
+| `unity_navmesh_bundle` | NavMeshベイク・エージェント・障害物・リンク |
 
 ### Low-Level CRUD（8ツール）
 

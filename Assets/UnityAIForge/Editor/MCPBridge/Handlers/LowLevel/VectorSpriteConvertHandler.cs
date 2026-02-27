@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers
     {
         #region ICommandHandler Implementation
         
-        public override string Category => "sprite";
+        public override string Category => "vectorSpriteConvert";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {

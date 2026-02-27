@@ -332,6 +332,32 @@ unity_scene_reference_graph(
 
 ### パターン 1: NavMesh 対応（3D）
 
+NavMesh を使った敵AIの経路探索は以下の手順で構築します。
+
+#### 1-1. NavMeshSurface の設定
+
+Unity 2022 LTS 以降は `AI Navigation` パッケージ（com.unity.ai.navigation）を使用します。
+従来の Window > AI > Navigation ではなく、コンポーネントベースでベイクを行います。
+
+```python
+# 地形オブジェクトに NavMeshSurface を追加
+unity_component_crud(
+    operation="add",
+    gameObjectPath="Environment/Ground",
+    componentType="Unity.AI.Navigation.NavMeshSurface",
+    propertyChanges={
+        "agentTypeID": 0,
+        "collectObjects": 0,
+        "useGeometry": 0
+    }
+)
+```
+
+**注意**: NavMeshSurface のベイクは Unity Editor 上で手動実行するか、
+エディタスクリプトから `surface.BuildNavMesh()` を呼ぶ必要があります。
+
+#### 1-2. NavMeshAgent の設定
+
 ```python
 # NavMesh Agent の設定
 unity_component_crud(
@@ -340,11 +366,67 @@ unity_component_crud(
     componentType="UnityEngine.AI.NavMeshAgent",
     propertyChanges={
         "speed": 4.0,
+        "acceleration": 8.0,
         "stoppingDistance": 1.5,
-        "angularSpeed": 360
+        "angularSpeed": 360,
+        "radius": 0.5,
+        "height": 1.0,
+        "autoBraking": True
     }
 )
 ```
+
+#### 1-3. NavMeshObstacle（動的障害物）
+
+移動しない障害物は Static にして NavMesh に焼き込みますが、
+ランタイムで動く障害物は NavMeshObstacle を使用します。
+
+```python
+# 動的障害物（移動する箱など）
+unity_component_crud(
+    operation="add",
+    gameObjectPath="MovingBox",
+    componentType="UnityEngine.AI.NavMeshObstacle",
+    propertyChanges={
+        "shape": 0,
+        "center": {"x": 0, "y": 0.5, "z": 0},
+        "size": {"x": 1, "y": 1, "z": 1},
+        "carve": True,
+        "carveOnlyStationary": True
+    }
+)
+```
+
+#### 1-4. NavMesh エリアとコスト
+
+特定のエリア（水場、泥地など）に移動コストを設定して経路選択に影響を与えます。
+
+```python
+# カスタムエリアをタグ/レイヤーで設定
+unity_projectSettings_crud(operation="write",
+    category="tagsLayers", property="addTag", value="SlowZone")
+
+# NavMeshModifier で特定オブジェクトのエリアタイプを変更
+unity_component_crud(
+    operation="add",
+    gameObjectPath="Environment/SwampArea",
+    componentType="Unity.AI.Navigation.NavMeshModifier",
+    propertyChanges={
+        "overrideArea": True,
+        "area": 3
+    }
+)
+```
+
+#### 1-5. NavMesh のよくある問題
+
+| 問題 | 原因 | 対策 |
+|------|------|------|
+| Agent が動かない | NavMesh がベイクされていない | NavMeshSurface の Build 実行 |
+| Agent がすり抜ける | Agent の radius が小さすぎる | radius をコライダーに合わせる |
+| 段差を超えられない | Step Height が低い | Agent の stepHeight を調整 |
+| 経路が不自然 | エリアコストが未設定 | NavMeshModifier でコスト調整 |
+| Off-Mesh Link が機能しない | 両端が NavMesh 上にない | Link の端点位置を確認 |
 
 ### パターン 2: 敵のウェーブスポーン
 

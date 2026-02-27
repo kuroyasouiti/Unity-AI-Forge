@@ -33,7 +33,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsAsset()
         {
-            Assert.AreEqual("asset", _handler.Category);
+            Assert.AreEqual("assetManage", _handler.Category);
         }
 
         [Test]

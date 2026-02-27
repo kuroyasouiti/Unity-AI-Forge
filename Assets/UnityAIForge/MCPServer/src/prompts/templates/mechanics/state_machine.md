@@ -130,10 +130,12 @@ unity_gameobject_crud(
 )
 
 # CharacterController を追加（物理移動用）
-unity_character_controller_bundle(
-    operation="applyPreset",
-    targetPath="Player",
-    preset="platformer"
+unity_component_crud(
+    operation="add",
+    gameObjectPath="Player",
+    componentType="CharacterController",
+    propertyChanges={"height": 1.8, "radius": 0.4, "center": {"x": 0, "y": 0.9, "z": 0},
+        "slopeLimit": 45, "stepOffset": 0.3}
 )
 
 # 入力プロファイルを設定
@@ -321,7 +323,7 @@ BossDeathState              -> 死亡演出
 | `unity_gamekit_feedback` | 状態遷移時のスクリーンシェイク・ヒットストップ |
 | `unity_gamekit_ui_command` | 状態に応じた UI パネルの表示/非表示 |
 | `unity_input_profile` | 入力アクションの定義（遷移トリガー） |
-| `unity_character_controller_bundle` | プレイヤー移動の物理基盤 |
+| `unity_component_crud` (CharacterController) | プレイヤー移動の物理基盤 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |
 | `unity_validate_integrity` | 実装後の整合性チェック |
 | `unity_scene_reference_graph` | 参照関係の確認・可視化 |

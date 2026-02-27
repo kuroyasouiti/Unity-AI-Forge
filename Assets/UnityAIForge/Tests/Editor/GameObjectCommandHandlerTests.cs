@@ -28,7 +28,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsGameObject()
         {
-            Assert.AreEqual("gameObject", _handler.Category);
+            Assert.AreEqual("gameObjectManage", _handler.Category);
         }
 
         [Test]

@@ -28,7 +28,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsComponent()
         {
-            Assert.AreEqual("component", _handler.Category);
+            Assert.AreEqual("componentManage", _handler.Category);
         }
 
         [Test]

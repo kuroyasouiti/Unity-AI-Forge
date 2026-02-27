@@ -19,7 +19,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsPing()
         {
-            Assert.AreEqual("ping", _handler.Category);
+            Assert.AreEqual("pingUnityEditor", _handler.Category);
         }
 
         [Test]

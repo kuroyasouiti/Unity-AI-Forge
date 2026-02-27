@@ -241,7 +241,12 @@ def gamekit_effect_schema() -> dict[str, Any]:
                                 "description": "Particle scale multiplier.",
                             },
                             "clipPath": {"type": "string", "description": "Audio clip path."},
-                            "volume": {"type": "number", "minimum": 0, "maximum": 1, "description": "Audio volume (0-1)."},
+                            "volume": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                                "description": "Audio volume (0-1).",
+                            },
                             "pitchVariation": {
                                 "type": "number",
                                 "description": "Pitch variation range.",
@@ -315,6 +320,145 @@ def gamekit_effect_schema() -> dict[str, Any]:
                 "persistent": {
                     "type": "boolean",
                     "description": "Manager persists across scenes (DontDestroyOnLoad).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def gamekit_pool_schema() -> dict[str, Any]:
+    """Schema for the unity_gamekit_pool MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "findByPoolId",
+                    ],
+                    "description": "Object pool operation to perform.",
+                },
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "poolId": {
+                    "type": "string",
+                    "description": "Unique object pool identifier.",
+                },
+                "prefabPath": {
+                    "type": "string",
+                    "description": "Prefab asset path for pooled objects (e.g., 'Assets/Prefabs/Bullet.prefab').",
+                },
+                "initialSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of objects to pre-instantiate (default: 10).",
+                },
+                "maxSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum pool size (default: 100).",
+                },
+                "defaultParentPath": {
+                    "type": "string",
+                    "description": "Default parent Transform path for pooled objects.",
+                },
+                "collectionCheck": {
+                    "type": "boolean",
+                    "description": "Enable double-release detection (default: true).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def gamekit_data_schema() -> dict[str, Any]:
+    """Schema for the unity_gamekit_data MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "createEventChannel",
+                        "createDataContainer",
+                        "createRuntimeSet",
+                        "inspect",
+                        "delete",
+                        "findByDataId",
+                    ],
+                    "description": "Data architecture operation to perform.",
+                },
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path (for listener attachment).",
+                },
+                "dataId": {
+                    "type": "string",
+                    "description": "Unique data asset identifier.",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Output asset path (e.g., 'Assets/Data/OnPlayerDeath.asset').",
+                },
+                "eventType": {
+                    "type": "string",
+                    "enum": ["void", "int", "float", "string", "Vector3", "GameObject"],
+                    "description": "Event channel payload type (default: void).",
+                },
+                "createListener": {
+                    "type": "boolean",
+                    "description": "Also create an EventListener MonoBehaviour on targetPath (default: false).",
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Field name.",
+                            },
+                            "fieldType": {
+                                "type": "string",
+                                "enum": [
+                                    "int",
+                                    "float",
+                                    "string",
+                                    "bool",
+                                    "Vector2",
+                                    "Vector3",
+                                    "Color",
+                                ],
+                                "description": "Field type.",
+                            },
+                            "defaultValue": {
+                                "description": "Default value for the field.",
+                            },
+                        },
+                    },
+                    "description": "Fields for DataContainer (name, fieldType, defaultValue).",
+                },
+                "resetOnPlay": {
+                    "type": "boolean",
+                    "description": "Reset DataContainer values on play mode entry (default: true).",
+                },
+                "elementType": {
+                    "type": "string",
+                    "description": "Fully qualified type name for RuntimeSet elements (default: GameObject).",
+                },
+                "scriptOutputDir": {
+                    "type": "string",
+                    "description": "Output directory for generated scripts (default: 'Assets/Scripts/Generated').",
                 },
             },
         },

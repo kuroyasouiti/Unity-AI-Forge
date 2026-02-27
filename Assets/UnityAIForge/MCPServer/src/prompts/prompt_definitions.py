@@ -26,6 +26,9 @@ MECHANIC_OPTIONS: list[str] = [
     "enemy_ai",
     "level_design",
     "ui_ux",
+    "object_pooling",
+    "event_channel",
+    "animation_controller",
 ]
 
 WORKFLOW_OPTIONS: list[str] = [

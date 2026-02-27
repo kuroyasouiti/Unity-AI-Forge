@@ -47,6 +47,9 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_particle_bundle": "particleBundle",
     "unity_animation3d_bundle": "animation3DBundle",
     "unity_event_wiring": "eventWiring",
+    # ── Mid-Level Physics & NavMesh ────────────────────────
+    "unity_physics_bundle": "physicsBundle",
+    "unity_navmesh_bundle": "navmeshBundle",
     # ── High-Level GameKit – UI Pillar ───────────────────────
     "unity_gamekit_ui_command": "gamekitUICommand",
     "unity_gamekit_ui_binding": "gamekitUIBinding",
@@ -59,6 +62,9 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_gamekit_feedback": "gamekitFeedback",
     "unity_gamekit_vfx": "gamekitVFX",
     "unity_gamekit_audio": "gamekitAudio",
+    # ── High-Level GameKit – Systems ──────────────────────────
+    "unity_gamekit_pool": "gamekitPool",
+    "unity_gamekit_data": "gamekitData",
     # ── High-Level GameKit – Logic Pillar ─────────────────────
     "unity_validate_integrity": "sceneIntegrity",
     "unity_class_dependency_graph": "classDependencyGraph",

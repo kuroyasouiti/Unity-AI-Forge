@@ -18,7 +18,7 @@ namespace MCP.Editor.Handlers
     {
         #region ICommandHandler Implementation
         
-        public override string Category => "scriptableObject";
+        public override string Category => "scriptableObjectManage";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {

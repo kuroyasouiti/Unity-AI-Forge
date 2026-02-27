@@ -1250,3 +1250,234 @@ def ui_navigation_schema() -> dict[str, Any]:
         },
         ["operation"],
     )
+
+
+def physics_bundle_schema() -> dict[str, Any]:
+    """Schema for the unity_physics_bundle MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "applyPreset",
+                        "setCollisionMatrix",
+                        "createPhysicsMaterial",
+                        "createPhysicsMaterial2D",
+                        "inspect",
+                    ],
+                    "description": "Physics bundle operation to perform.",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path (for applyPreset/inspect).",
+                },
+                "preset": {
+                    "type": "string",
+                    "enum": [
+                        "platformer2D",
+                        "topDown2D",
+                        "fps3D",
+                        "thirdPerson3D",
+                        "space",
+                        "racing",
+                    ],
+                    "description": "Physics preset to apply.",
+                },
+                "layerA": {
+                    "type": "string",
+                    "description": "First layer name for collision matrix (setCollisionMatrix).",
+                },
+                "layerB": {
+                    "type": "string",
+                    "description": "Second layer name for collision matrix (setCollisionMatrix).",
+                },
+                "ignore": {
+                    "type": "boolean",
+                    "description": "Whether to ignore collisions between layers (default: true).",
+                },
+                "is2D": {
+                    "type": "boolean",
+                    "description": "Use Physics2D collision matrix instead of Physics (default: false).",
+                },
+                "materialPath": {
+                    "type": "string",
+                    "description": "Asset path for physics material (createPhysicsMaterial/createPhysicsMaterial2D).",
+                },
+                "dynamicFriction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Dynamic friction (3D material, default: 0.6).",
+                },
+                "staticFriction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Static friction (3D material, default: 0.6).",
+                },
+                "bounciness": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Bounciness (0-1, default: 0).",
+                },
+                "friction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Friction (2D material, default: 0.4).",
+                },
+                "frictionCombine": {
+                    "type": "string",
+                    "enum": ["Average", "Minimum", "Maximum", "Multiply"],
+                    "description": "Friction combine mode (3D material).",
+                },
+                "bounceCombine": {
+                    "type": "string",
+                    "enum": ["Average", "Minimum", "Maximum", "Multiply"],
+                    "description": "Bounce combine mode (3D material).",
+                },
+                "assignTo": {
+                    "type": "string",
+                    "description": "GameObject path to assign created material to its collider.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def navmesh_bundle_schema() -> dict[str, Any]:
+    """Schema for the unity_navmesh_bundle MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "bake",
+                        "addAgent",
+                        "addObstacle",
+                        "addLink",
+                        "addModifier",
+                        "inspect",
+                        "clearNavMesh",
+                    ],
+                    "description": "NavMesh bundle operation to perform.",
+                },
+                "gameObjectPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path.",
+                },
+                "agentTypeId": {
+                    "type": "integer",
+                    "description": "NavMesh agent type ID (default: 0 = Humanoid).",
+                },
+                "agentRadius": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Agent bake radius (default: 0.5).",
+                },
+                "agentHeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Agent bake height (default: 2.0).",
+                },
+                "agentSlope": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 60,
+                    "description": "Max walkable slope in degrees (default: 45).",
+                },
+                "agentClimb": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Step height the agent can climb (default: 0.4).",
+                },
+                "speed": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshAgent speed (default: 3.5).",
+                },
+                "angularSpeed": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshAgent angular speed (default: 120).",
+                },
+                "acceleration": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshAgent acceleration (default: 8).",
+                },
+                "stoppingDistance": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshAgent stopping distance (default: 0).",
+                },
+                "radius": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshAgent/NavMeshObstacle radius.",
+                },
+                "height": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshObstacle height.",
+                },
+                "shape": {
+                    "type": "string",
+                    "enum": ["Capsule", "Box"],
+                    "description": "NavMeshObstacle shape (default: Capsule).",
+                },
+                "carve": {
+                    "type": "boolean",
+                    "description": "Whether the obstacle carves the NavMesh (default: true).",
+                },
+                "startPoint": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "Start point for NavMeshLink.",
+                },
+                "endPoint": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "End point for NavMeshLink.",
+                },
+                "linkWidth": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "NavMeshLink width (default: 1.0).",
+                },
+                "bidirectional": {
+                    "type": "boolean",
+                    "description": "Whether NavMeshLink is bidirectional (default: true).",
+                },
+                "area": {
+                    "type": "integer",
+                    "description": "NavMesh area index (0=Walkable, 1=NotWalkable, 2=Jump).",
+                },
+                "overrideArea": {
+                    "type": "boolean",
+                    "description": "Whether NavMeshModifier overrides area (default: false).",
+                },
+                "affectedAgents": {
+                    "type": "boolean",
+                    "description": "Whether NavMeshModifier affects specific agent types.",
+                },
+                "collectObjects": {
+                    "type": "string",
+                    "enum": ["All", "Volume", "Children"],
+                    "description": "NavMeshSurface object collection mode (default: All).",
+                },
+            },
+        },
+        ["operation"],
+    )

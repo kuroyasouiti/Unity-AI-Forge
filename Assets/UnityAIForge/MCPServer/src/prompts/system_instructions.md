@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。48ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
+AI駆動型Unity開発ツールキット。52ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
 
 ## 🔴 Critical Rules
 
@@ -10,25 +10,29 @@ AI駆動型Unity開発ツールキット。48ツール、3層構造（Low/Mid/Hi
 4. **ツール優先順位: High-Level → Mid-Level → Low-Level**
 5. **UI優先設計**: UIから実装し、ロジックは後
 6. **PDCA遵守**: Plan(inspect/graph) → Do(実行) → Check(validate_integrity/console_log) → Act(修正)
+7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作
+8. **物理設定のベストプラクティス**: Layer Collision Matrixで不要な衝突を除外、高速オブジェクトのCollision DetectionはContinuousに設定
 
 ---
 
-## 📋 ツール一覧 (48ツール)
+## 📋 ツール一覧 (52ツール)
 
-### High-Level GameKit (17) - 3-Pillar Architecture
+### High-Level GameKit (19) - 3-Pillar Architecture + Systems
 
 | Pillar | ツール |
 |--------|-------|
 | **Logic (7)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph, unity_scene_dependency, unity_script_syntax |
 | **UI (5)** UIシステム | unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection |
 | **Presentation (5)** 演出 | unity_gamekit_animation_sync, unity_gamekit_effect, unity_gamekit_feedback, unity_gamekit_vfx, unity_gamekit_audio |
+| **Systems (2)** データ・プール | unity_gamekit_pool, unity_gamekit_data |
 
-### Mid-Level (20) - バッチ操作・プリセット
+### Mid-Level (22) - バッチ操作・プリセット
 
 | カテゴリ | ツール |
 |---------|-------|
 | Transform | unity_transform_batch, unity_rectTransform_batch |
 | Camera | unity_camera_rig |
+| Physics | unity_physics_bundle, unity_navmesh_bundle |
 | UI (UGUI) | unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
 | Input | unity_input_profile |
@@ -149,6 +153,31 @@ unity_gamekit_animation_sync(operation='addTriggerRule', syncId='anim', triggerN
 
 ---
 
+## 🏗️ GameKit Systems - プール・データアーキテクチャ
+
+```python
+# オブジェクトプール（UnityEngine.Pool使用）
+unity_gamekit_pool(operation='create', targetPath='PoolManager', poolId='bullets', prefabPath='Assets/Prefabs/Bullet.prefab', initialSize=20, maxSize=100)
+unity_gamekit_pool(operation='update', poolId='bullets', maxSize=200)
+unity_gamekit_pool(operation='inspect', poolId='bullets')
+
+# イベントチャンネル（ScriptableObject型、eventType: void|int|float|string|Vector3|GameObject）
+unity_gamekit_data(operation='createEventChannel', dataId='OnPlayerDeath', eventType='void', createListener=True, targetPath='GameManager')
+unity_gamekit_data(operation='createEventChannel', dataId='OnDamage', eventType='float', assetPath='Assets/Data/OnDamage.asset')
+
+# データコンテナ（ScriptableObject、リセット対応）
+unity_gamekit_data(operation='createDataContainer', dataId='PlayerStats', fields=[
+    {'name': 'health', 'fieldType': 'int', 'defaultValue': 100},
+    {'name': 'speed', 'fieldType': 'float', 'defaultValue': 5.0},
+    {'name': 'playerName', 'fieldType': 'string', 'defaultValue': 'Player'}
+], resetOnPlay=True)
+
+# ランタイムセット（自動登録/解除パターン）
+unity_gamekit_data(operation='createRuntimeSet', dataId='ActiveEnemies', elementType='GameObject')
+```
+
+---
+
 ## ⚡ Mid-Level 主要ツール
 
 ```python
@@ -156,8 +185,10 @@ unity_gamekit_animation_sync(operation='addTriggerRule', syncId='anim', triggerN
 unity_transform_batch(operation='arrangeCircle', gameObjectPaths=[...], radius=5.0)
 unity_transform_batch(operation='arrangeLine', gameObjectPaths=[...], startPosition={'x':0,'y':0,'z':0}, endPosition={'x':10,'y':0,'z':0})
 
-# 物理設定 → component_crudで直接設定
-# 2Dプラットフォーマー例: Rigidbody2D + BoxCollider2D
+# 物理設定 → unity_physics_bundleで簡単設定、または component_crudで直接設定
+# プリセット使用（推奨）:
+unity_physics_bundle(operation='applyPreset', gameObjectPath='Player', preset='platformer2D')
+# 手動設定:
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='Rigidbody2D',
     propertyChanges={'gravityScale':3, 'mass':1, 'collisionDetection':'Continuous', 'constraints':{'freezeRotationZ':True}})
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='BoxCollider2D',
@@ -227,6 +258,20 @@ unity_console_log(operation='getErrors')
 unity_console_log(operation='snapshot')                                    # ログスナップショット取得
 unity_console_log(operation='diff', severity=['error','warning'])          # スナップショット後の新規エラー/警告
 unity_console_log(operation='filter', severity=['error'], keyword='NullRef')  # 正規表現フィルタ
+
+# 物理プリセット (preset: platformer2D|topDown2D|fps3D|thirdPerson3D|space|racing)
+unity_physics_bundle(operation='applyPreset', gameObjectPath='Player', preset='platformer2D')
+unity_physics_bundle(operation='setCollisionMatrix', layerA='Player', layerB='PlayerBullet', ignore=True)
+unity_physics_bundle(operation='createPhysicsMaterial', materialPath='Assets/Physics/Bouncy.physicMaterial', bounciness=0.8)
+unity_physics_bundle(operation='createPhysicsMaterial2D', materialPath='Assets/Physics/Slippery.physicsMaterial2D', friction=0.1)
+unity_physics_bundle(operation='inspect', gameObjectPath='Player')
+
+# NavMesh (com.unity.ai.navigation パッケージ推奨)
+unity_navmesh_bundle(operation='bake', gameObjectPath='Level')
+unity_navmesh_bundle(operation='addAgent', gameObjectPath='Enemy', speed=5.0, stoppingDistance=1.5)
+unity_navmesh_bundle(operation='addObstacle', gameObjectPath='Rock', shape='Box', carve=True)
+unity_navmesh_bundle(operation='addLink', gameObjectPath='Bridge', startPoint={'x':0,'y':0,'z':0}, endPoint={'x':5,'y':2,'z':0})
+unity_navmesh_bundle(operation='inspect', gameObjectPath='Enemy')
 ```
 
 ---
@@ -296,11 +341,40 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 | **UI Display** | `Image` sprite,color,type,fillAmount / `TMPro.TextMeshProUGUI` text,fontSize,color |
 | **UI Input** | `Button` interactable / `Toggle` isOn / `Slider` value,minValue,maxValue / `TMPro.TMP_InputField` text,characterLimit / `ScrollRect` content,horizontal,vertical |
 | **UI Layout** | `HorizontalLayoutGroup` spacing,padding,childAlignment / `VerticalLayoutGroup` / `GridLayoutGroup` cellSize,spacing,constraint / `ContentSizeFitter` horizontalFit,verticalFit |
-| **NavMesh** | `NavMeshAgent` speed,stoppingDistance,radius / `NavMeshObstacle` shape,carve |
+| **NavMesh** | `NavMeshAgent` speed,acceleration,stoppingDistance,radius,height / `NavMeshObstacle` shape,carve,carveOnlyStationary / `Unity.AI.Navigation.NavMeshSurface` agentTypeID,collectObjects / `Unity.AI.Navigation.NavMeshModifier` overrideArea,area |
+| **Light2D** | `UnityEngine.Rendering.Universal.Light2D` lightType(0=Freeform,1=Sprite,2=Point,4=Global),color,intensity,pointLightOuterRadius,shapeLightFalloffSize |
 | **Particle** | `ParticleSystem` → `unity_particle_bundle`推奨 |
 
 ※ `UnityEngine.`プレフィックスは省略可。UI系は`UnityEngine.UI.`、TextMeshProは`TMPro.`が必要。
+※ NavMeshSurface/NavMeshModifierは`Unity.AI.Navigation.`プレフィックス必須（com.unity.ai.navigationパッケージ）。
+※ Light2Dは`UnityEngine.Rendering.Universal.`プレフィックス必須（URP 2Dライティング）。
 
 ---
 
-Unity-AI-Forge v{VERSION} - 48 Tools, 3-Layer Architecture, 3-Pillar GameKit
+## 🏗️ Unity ベストプラクティス
+
+### 物理最適化
+- **Layer Collision Matrix**: `projectSettings_crud(category='physics')` で不要な衝突ペアを無効化（大幅な負荷軽減）
+- **Collision Detection**: 高速移動オブジェクト（弾丸等）は `Continuous` に設定。壁すり抜け（トンネリング）を防止
+- **FixedTimestep**: デフォルト 0.02s（50Hz）。モバイルでは 0.04s（25Hz）で負荷軽減可能
+- **静的コライダー**: Rigidbody のないコライダーを移動させない（物理ワールドの再構築が走る）
+
+### ScriptableObject 設計パターン
+- **データ駆動設計**: 敵パラメータ、アイテムデータ、スキルテーブル等は `scriptableObject_crud` でSOに分離
+- **イベントチャネル**: SO ベースの Observer パターンでシステム間を疎結合に（`game_mechanics_guide(mechanic='event_channel')`）
+- **ランタイムセット**: シーン内オブジェクトの動的登録/解除に SO リストを使用
+
+### Animator Controller 設計
+- **Hub-and-Spoke**: 中央 Empty State から各アクション状態へ放射状遷移。デバッグ容易
+- **Blend Tree**: 速度・方向の連続値にはステートではなく BlendTree を使用。ステート数削減
+- **Layer 分離**: 上半身/下半身/表情を独立レイヤーで制御（`game_mechanics_guide(mechanic='animation_controller')`）
+- **AnimationSync 連携**: `gamekit_animation_sync` でパラメータ自動同期。手動 SetFloat/SetBool 不要
+
+### オブジェクトプーリング
+- **頻繁な生成/破棄を避ける**: 弾丸、エフェクト、敵スポーンには `ObjectPool<T>` を使用
+- **GameKit VFX 内蔵プーリング**: VFX用途は `gamekit_vfx(usePooling=True)` が最も簡潔
+- **汎用プール**: `game_mechanics_guide(mechanic='object_pooling')` 参照
+
+---
+
+Unity-AI-Forge v{VERSION} - 52 Tools, 3-Layer Architecture, 3-Pillar GameKit

@@ -500,6 +500,140 @@ unity_ui_state(
 
 ---
 
+## UI アーキテクチャパターン
+
+### MVP (Model-View-Presenter)
+
+ゲーム UI に最も適した分離パターン。Presenter がデータとUIの仲介役を担い、
+View はデータを直接参照しません。Unity 公式の QuizU サンプルでも採用されています。
+
+```
+Model (ScriptableObject / C# class)
+  ├── データ保持（HP, スコア, 設定値）
+  └── データ変更イベント発火
+        ↓ event通知
+Presenter (MonoBehaviour)
+  ├── Model と View の橋渡し
+  ├── Model のイベントを購読
+  └── View の更新メソッドを呼び出し
+        ↓ メソッド呼び出し
+View (MonoBehaviour on UI)
+  ├── UI 要素への参照（Text, Image, Slider）
+  ├── 表示更新のみ（ロジックなし）
+  └── ユーザー入力を Presenter に通知
+```
+
+**使い分け:**
+- **HUD (HP, Score, Timer)** → `unity_gamekit_ui_binding` で十分（1対1バインド）
+- **インベントリ画面** → MVP が有効（複数要素の連動、フィルタ、ソート等）
+- **設定画面** → MVP が有効（設定値の読み書き、適用/リセットのロジック）
+
+### MVP 実装例
+
+```python
+# Model: ゲーム設定データ
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Scripts/UI/Settings/SettingsModel.cs",
+    content="""using System;
+using UnityEngine;
+
+[CreateAssetMenu(menuName = \"Game/SettingsModel\")]
+public class SettingsModel : ScriptableObject
+{
+    [Range(0f, 1f)] public float masterVolume = 1f;
+    [Range(0f, 1f)] public float bgmVolume = 0.8f;
+    [Range(0f, 1f)] public float sfxVolume = 1f;
+    public bool fullscreen = true;
+    public int qualityLevel = 2;
+
+    public event Action OnSettingsChanged;
+
+    public void Apply()
+    {
+        AudioListener.volume = masterVolume;
+        Screen.fullScreen = fullscreen;
+        QualitySettings.SetQualityLevel(qualityLevel);
+        OnSettingsChanged?.Invoke();
+    }
+}"""
+)
+
+# View: UI 要素の参照と表示更新のみ
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Scripts/UI/Settings/SettingsView.cs",
+    content="""using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public class SettingsView : MonoBehaviour
+{
+    [SerializeField] private Slider masterVolumeSlider;
+    [SerializeField] private Slider bgmVolumeSlider;
+    [SerializeField] private Slider sfxVolumeSlider;
+    [SerializeField] private Toggle fullscreenToggle;
+    [SerializeField] private TMP_Dropdown qualityDropdown;
+
+    public Slider MasterVolumeSlider => masterVolumeSlider;
+    public Slider BgmVolumeSlider => bgmVolumeSlider;
+    public Slider SfxVolumeSlider => sfxVolumeSlider;
+    public Toggle FullscreenToggle => fullscreenToggle;
+    public TMP_Dropdown QualityDropdown => qualityDropdown;
+
+    public void UpdateView(float master, float bgm, float sfx, bool fs, int quality)
+    {
+        masterVolumeSlider.SetValueWithoutNotify(master);
+        bgmVolumeSlider.SetValueWithoutNotify(bgm);
+        sfxVolumeSlider.SetValueWithoutNotify(sfx);
+        fullscreenToggle.SetIsOnWithoutNotify(fs);
+        qualityDropdown.SetValueWithoutNotify(quality);
+    }
+}"""
+)
+
+# Presenter: Model と View の仲介
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Scripts/UI/Settings/SettingsPresenter.cs",
+    content="""using UnityEngine;
+
+public class SettingsPresenter : MonoBehaviour
+{
+    [SerializeField] private SettingsModel model;
+    [SerializeField] private SettingsView view;
+
+    void Start()
+    {
+        // View → Model の入力接続
+        view.MasterVolumeSlider.onValueChanged.AddListener(v => { model.masterVolume = v; model.Apply(); });
+        view.BgmVolumeSlider.onValueChanged.AddListener(v => { model.bgmVolume = v; model.Apply(); });
+        view.SfxVolumeSlider.onValueChanged.AddListener(v => { model.sfxVolume = v; model.Apply(); });
+        view.FullscreenToggle.onValueChanged.AddListener(v => { model.fullscreen = v; model.Apply(); });
+        view.QualityDropdown.onValueChanged.AddListener(v => { model.qualityLevel = v; model.Apply(); });
+
+        // 初期表示
+        view.UpdateView(model.masterVolume, model.bgmVolume, model.sfxVolume,
+                        model.fullscreen, model.qualityLevel);
+    }
+}"""
+)
+
+unity_compilation_await(operation="await", timeoutSeconds=30)
+```
+
+### GameKit UIBinding との使い分け
+
+| 場面 | 推奨 | 理由 |
+|------|------|------|
+| HP/スコア等のシンプルな数値表示 | `unity_gamekit_ui_binding` | 1行で完結、ロジック不要 |
+| データの読み書き双方向 | MVP | Slider/Toggle の入力→Model 更新が必要 |
+| フィルタ/ソートのあるリスト | MVP + `unity_gamekit_ui_list` | Presenter でデータ変換 |
+| 複数画面の連動 | MVP + Event Channel | 画面間のデータ受け渡し |
+| プロトタイプ段階 | `unity_gamekit_ui_binding` | 速度優先 |
+
+---
+
 ## 注意点・落とし穴
 
 1. **コード生成後のコンパイル待ち**

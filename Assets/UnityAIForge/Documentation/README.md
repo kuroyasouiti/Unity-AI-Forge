@@ -5,8 +5,21 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.10.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.12.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## v2.12.0 のハイライト
+
+- **4つの新ツール追加（48 → 52ツール）**
+  - `unity_physics_bundle`: 物理プリセット・衝突マトリクス・物理マテリアル管理
+  - `unity_navmesh_bundle`: NavMeshベイク・エージェント・障害物・リンク管理
+  - `unity_gamekit_pool`: オブジェクトプーリング（コード生成）
+  - `unity_gamekit_data`: イベントチャンネル・データコンテナ・ランタイムセット（コード生成）
+
+- **3つの新プロンプトテンプレート追加**
+  - `animation_controller`: Animator Controller設計ガイド
+  - `event_channel`: ScriptableObjectイベントチャンネルパターン
+  - `object_pooling`: オブジェクトプーリング実装ガイド
 
 ## v2.10.0 のハイライト
 

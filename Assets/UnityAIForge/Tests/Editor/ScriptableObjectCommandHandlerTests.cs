@@ -28,7 +28,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsScriptableObject()
         {
-            Assert.AreEqual("scriptableObject", _handler.Category);
+            Assert.AreEqual("scriptableObjectManage", _handler.Category);
         }
 
         [Test]

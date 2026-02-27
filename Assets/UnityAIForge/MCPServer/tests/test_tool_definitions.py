@@ -6,11 +6,11 @@ from __future__ import annotations
 class TestGetToolDefinitions:
     """Tests for get_tool_definitions function."""
 
-    def test_returns_48_tools(self) -> None:
+    def test_returns_52_tools(self) -> None:
         from tools.tool_definitions import get_tool_definitions
 
         defs = get_tool_definitions()
-        assert len(defs) == 48
+        assert len(defs) == 52
 
     def test_all_names_are_unique(self) -> None:
         from tools.tool_definitions import get_tool_definitions

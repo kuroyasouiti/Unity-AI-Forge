@@ -27,7 +27,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsSprite()
         {
-            Assert.AreEqual("sprite", _handler.Category);
+            Assert.AreEqual("vectorSpriteConvert", _handler.Category);
         }
 
         [Test]

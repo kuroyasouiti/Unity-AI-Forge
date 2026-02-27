@@ -77,6 +77,34 @@ public static event Action<float> OnHealthChanged;
 
 **使いどころ**: HP変化通知, スコア更新, ゲーム状態変化, UI更新トリガー
 
+#### ScriptableObject イベントチャネル（推奨）
+
+C# event は直接参照が必要で、UnityEvent はシーンに閉じます。
+ScriptableObject をイベントバスとして使う **Event Channel パターン** は
+シーン横断・Inspector 可視・テスト容易の3点を同時に満たすため、Unity 公式推奨です。
+
+```
+EventChannel (ScriptableObject)
+  +-- event Action<T> OnEventRaised
+  +-- Raise(T value)
+
+EventListener (MonoBehaviour)
+  +-- channel: EventChannel    ← Inspector で SO アセットを接続
+  +-- response: UnityEvent<T>  ← Inspector でレスポンスを接続
+  +-- OnEnable() で登録 / OnDisable() で解除
+```
+
+チャネルアセットは `Assets/Data/Events/` に配置し、
+`unity_scriptableObject_crud` で作成します。
+
+**使い分け:**
+- 同一 GameObject 内 → C# `event`
+- 1対1のUI表示更新 → `unity_gamekit_ui_binding`
+- 多対多のシステム間通知 → **SO Event Channel**
+- Inspector で非プログラマーが接続 → **SO Event Channel** or `UnityEvent`
+
+**詳細**: `game_mechanics_guide(mechanic='event_channel')`
+
 ### Command (コマンド)
 
 入力→実行を分離。Undo/Redo、リプレイ、AIの行動キューに使用。

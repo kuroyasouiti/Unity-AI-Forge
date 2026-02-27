@@ -19,7 +19,7 @@ namespace MCP.Editor.Tests
         [Test]
         public void Category_ReturnsScene()
         {
-            Assert.AreEqual("scene", _handler.Category);
+            Assert.AreEqual("sceneManage", _handler.Category);
         }
 
         [Test]

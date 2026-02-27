@@ -500,6 +500,177 @@ apply ではなく applyOverrides、revert ではなく revertOverrides を使�
 
 ---
 
+## Unity Test Framework (UTF) による自動テスト
+
+MCP ツールによるインタラクティブ検証に加え、Unity Test Framework を使った
+自動テストでリグレッション（デグレ）を防止します。
+
+### テストの種類
+
+| テスト種別 | 実行環境 | 特徴 | 用途 |
+|-----------|---------|------|------|
+| **Edit Mode テスト** | エディタ上 | Editor API にアクセス可能、同期実行 | データ検証、エディタ拡張、ScriptableObject |
+| **Play Mode テスト** | プレイモード | コルーチン対応、複数フレームにまたがるテスト | ゲームロジック、物理、UI操作 |
+
+### テストアセンブリの構築
+
+```python
+# テスト用フォルダとアセンブリ定義の作成
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Tests/Editor/Tests.Editor.asmdef",
+    content="""{
+    "name": "Tests.Editor",
+    "rootNamespace": "Tests.Editor",
+    "references": [],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}"""
+)
+
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Tests/Runtime/Tests.Runtime.asmdef",
+    content="""{
+    "name": "Tests.Runtime",
+    "rootNamespace": "Tests.Runtime",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}"""
+)
+```
+
+### Edit Mode テストの例
+
+```python
+# ScriptableObject のデータ検証テスト
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Tests/Editor/EnemyDataTests.cs",
+    content="""using NUnit.Framework;
+using UnityEngine;
+
+namespace Tests.Editor
+{
+    public class EnemyDataTests
+    {
+        [Test]
+        public void EnemyData_MaxHP_IsPositive()
+        {
+            var data = ScriptableObject.CreateInstance<EnemyData>();
+            data.maxHP = 100;
+            Assert.That(data.maxHP, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void EnemyData_MoveSpeed_InValidRange()
+        {
+            var data = ScriptableObject.CreateInstance<EnemyData>();
+            data.moveSpeed = 5f;
+            Assert.That(data.moveSpeed, Is.InRange(0f, 100f));
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            // テスト後のクリーンアップ
+        }
+    }
+}"""
+)
+```
+
+### Play Mode テストの例
+
+```python
+# プレイヤー移動の統合テスト
+unity_asset_crud(
+    operation="create",
+    assetPath="Assets/Tests/Runtime/PlayerMovementTests.cs",
+    content="""using System.Collections;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestUtils;
+
+namespace Tests.Runtime
+{
+    public class PlayerMovementTests
+    {
+        private GameObject player;
+
+        [SetUp]
+        public void SetUp()
+        {
+            player = new GameObject(\"TestPlayer\");
+            player.AddComponent<Rigidbody2D>();
+        }
+
+        [UnityTest]
+        public IEnumerator Player_Falls_WithGravity()
+        {
+            var rb = player.GetComponent<Rigidbody2D>();
+            rb.gravityScale = 1f;
+            var startY = player.transform.position.y;
+
+            // 物理シミュレーションを数フレーム待つ
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            Assert.That(player.transform.position.y, Is.LessThan(startY),
+                \"Player should fall due to gravity\");
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            Object.Destroy(player);
+        }
+    }
+}"""
+)
+```
+
+### テスト実行ワークフロー
+
+```python
+# テストスクリプト作成後のコンパイル待ち
+unity_compilation_await(operation="await", timeoutSeconds=60)
+
+# コンパイルエラーの確認
+unity_console_log(operation="getCompilationErrors")
+
+# プレイモードテストの実行確認
+unity_playmode_control(operation="play")
+unity_playmode_control(operation="captureState", includeConsole=True)
+unity_playmode_control(operation="stop")
+```
+
+### テスト設計のベストプラクティス
+
+1. **AAA パターン**: Arrange（準備）→ Act（実行）→ Assert（検証）の構造で記述
+2. **1テスト1アサーション**: テストメソッドは1つの振る舞いのみ検証する
+3. **テスト名**: `メソッド名_条件_期待結果` 形式（例: `TakeDamage_WhenHPZero_TriggersDeath`）
+4. **SetUp/TearDown**: テスト間の依存を排除し、各テストを独立させる
+5. **テストダブル**: 外部依存はインターフェース経由でモック化可能にする
+
+---
+
 ## 関連ツール一覧
 
 | ツール | テスト・検証での用途 |

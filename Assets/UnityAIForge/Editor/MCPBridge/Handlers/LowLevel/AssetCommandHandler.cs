@@ -17,7 +17,7 @@ namespace MCP.Editor.Handlers
     {
         #region ICommandHandler Implementation
         
-        public override string Category => "asset";
+        public override string Category => "assetManage";
         
         public override IEnumerable<string> SupportedOperations => new[]
         {
