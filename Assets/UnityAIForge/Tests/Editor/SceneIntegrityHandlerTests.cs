@@ -66,5 +66,45 @@ namespace MCP.Editor.Tests
             var result = _handler.Execute(TestUtilities.CreatePayload("removeMissingScripts"));
             TestUtilities.AssertSuccess(result);
         }
+
+        [Test]
+        public void SupportedOperations_ContainsNewOps()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("typeCheck", ops);
+            Assert.Contains("report", ops);
+            Assert.Contains("checkPrefab", ops);
+        }
+
+        [Test]
+        public void TypeCheck_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("typeCheck"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void Report_ActiveScene_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("report",
+                ("scope", "active_scene")));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void Report_DefaultScope_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("report"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void CheckPrefab_InvalidPath_ReturnsError()
+        {
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("checkPrefab",
+                    ("prefabPath", "Assets/NonExistent.prefab"))),
+                "not found");
+        }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using MCP.Editor.Base;
 using UnityEditor;
 using UnityEngine;
@@ -21,6 +22,10 @@ namespace MCP.Editor.Handlers
         private static readonly MethodInfo ClearMethod;
         private static readonly MethodInfo StartGettingEntriesMethod;
         private static readonly MethodInfo EndGettingEntriesMethod;
+
+        // Snapshot state for diff operations
+        private static List<Dictionary<string, object>> _snapshotLogs;
+        private static int _snapshotTotalCount;
 
         static ConsoleLogHandler()
         {
@@ -52,7 +57,10 @@ namespace MCP.Editor.Handlers
             "getLogs",
             "clear",
             "getCompilationErrors",
-            "getSummary"
+            "getSummary",
+            "snapshot",
+            "diff",
+            "filter"
         };
 
         public override string Category => "consoleLog";
@@ -75,6 +83,9 @@ namespace MCP.Editor.Handlers
                 "clear" => HandleClear(payload),
                 "getCompilationErrors" => HandleGetCompilationErrors(payload),
                 "getSummary" => HandleGetSummary(payload),
+                "snapshot" => HandleSnapshot(payload),
+                "diff" => HandleDiff(payload),
+                "filter" => HandleFilter(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
         }
@@ -197,6 +208,207 @@ namespace MCP.Editor.Handlers
                 ("isCompiling", EditorApplication.isCompiling),
                 ("isPlaying", EditorApplication.isPlaying)
             );
+        }
+
+        /// <summary>
+        /// Take a snapshot of current console logs for later diff comparison.
+        /// </summary>
+        private object HandleSnapshot(Dictionary<string, object> payload)
+        {
+            var severities = GetSeverityList(payload);
+            var logs = GetConsoleLogs(int.MaxValue, null);
+
+            if (severities != null && severities.Count > 0)
+            {
+                logs = FilterBySeverity(logs, severities);
+            }
+
+            _snapshotLogs = logs;
+            _snapshotTotalCount = logs.Count;
+
+            return CreateSuccessResponse(
+                ("snapshotCount", _snapshotTotalCount),
+                ("message", $"Snapshot taken with {_snapshotTotalCount} log entries")
+            );
+        }
+
+        /// <summary>
+        /// Compare current console logs against the last snapshot, returning only new entries.
+        /// </summary>
+        private object HandleDiff(Dictionary<string, object> payload)
+        {
+            if (_snapshotLogs == null)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["success"] = false,
+                    ["error"] = "No snapshot taken. Call 'snapshot' operation first."
+                };
+            }
+
+            int limit = GetInt(payload, "limit", 100);
+            var severities = GetSeverityList(payload);
+            var keyword = GetString(payload, "keyword");
+
+            // Get all current logs
+            var currentLogs = GetConsoleLogs(int.MaxValue, null);
+
+            // Find the max index from the snapshot to detect new entries
+            int snapshotMaxIndex = -1;
+            foreach (var log in _snapshotLogs)
+            {
+                if (log.ContainsKey("index") && log["index"] is int idx && idx > snapshotMaxIndex)
+                {
+                    snapshotMaxIndex = idx;
+                }
+            }
+
+            // Collect only new entries (index > snapshotMaxIndex)
+            var newLogs = new List<Dictionary<string, object>>();
+            foreach (var log in currentLogs)
+            {
+                if (log.ContainsKey("index") && log["index"] is int idx && idx > snapshotMaxIndex)
+                {
+                    newLogs.Add(log);
+                }
+            }
+
+            // Apply severity filter
+            if (severities != null && severities.Count > 0)
+            {
+                newLogs = FilterBySeverity(newLogs, severities);
+            }
+
+            // Apply keyword filter
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                newLogs = FilterByKeyword(newLogs, keyword);
+            }
+
+            // Apply limit
+            if (newLogs.Count > limit)
+            {
+                newLogs = newLogs.GetRange(0, limit);
+            }
+
+            return CreateSuccessResponse(
+                ("logs", newLogs),
+                ("count", newLogs.Count),
+                ("snapshotCount", _snapshotTotalCount),
+                ("message", $"{newLogs.Count} new log entries since snapshot")
+            );
+        }
+
+        /// <summary>
+        /// Filter console logs by severity and/or keyword regex.
+        /// </summary>
+        private object HandleFilter(Dictionary<string, object> payload)
+        {
+            int limit = GetInt(payload, "limit", 100);
+            var severities = GetSeverityList(payload);
+            var keyword = GetString(payload, "keyword");
+
+            var logs = GetConsoleLogs(int.MaxValue, null);
+
+            // Apply severity filter
+            if (severities != null && severities.Count > 0)
+            {
+                logs = FilterBySeverity(logs, severities);
+            }
+
+            // Apply keyword filter
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                logs = FilterByKeyword(logs, keyword);
+            }
+
+            // Apply limit
+            if (logs.Count > limit)
+            {
+                logs = logs.GetRange(0, limit);
+            }
+
+            return CreateSuccessResponse(
+                ("logs", logs),
+                ("count", logs.Count)
+            );
+        }
+
+        /// <summary>
+        /// Extract severity array from payload.
+        /// </summary>
+        private List<string> GetSeverityList(Dictionary<string, object> payload)
+        {
+            if (!payload.ContainsKey("severity")) return null;
+
+            var result = new List<string>();
+            if (payload["severity"] is IList<object> list)
+            {
+                foreach (var item in list)
+                {
+                    if (item != null)
+                        result.Add(item.ToString().ToLower());
+                }
+            }
+            else if (payload["severity"] is string s)
+            {
+                result.Add(s.ToLower());
+            }
+            return result.Count > 0 ? result : null;
+        }
+
+        /// <summary>
+        /// Filter log entries by severity types.
+        /// </summary>
+        private List<Dictionary<string, object>> FilterBySeverity(
+            List<Dictionary<string, object>> logs, List<string> severities)
+        {
+            var filtered = new List<Dictionary<string, object>>();
+            foreach (var log in logs)
+            {
+                if (log.ContainsKey("type") && severities.Contains(log["type"].ToString().ToLower()))
+                {
+                    filtered.Add(log);
+                }
+            }
+            return filtered;
+        }
+
+        /// <summary>
+        /// Filter log entries by keyword regex pattern.
+        /// </summary>
+        private List<Dictionary<string, object>> FilterByKeyword(
+            List<Dictionary<string, object>> logs, string keyword)
+        {
+            var filtered = new List<Dictionary<string, object>>();
+            Regex regex;
+            try
+            {
+                regex = new Regex(keyword, RegexOptions.IgnoreCase);
+            }
+            catch (ArgumentException)
+            {
+                // Invalid regex, fallback to literal contains
+                foreach (var log in logs)
+                {
+                    var message = log.ContainsKey("message") ? log["message"]?.ToString() ?? "" : "";
+                    if (message.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        filtered.Add(log);
+                    }
+                }
+                return filtered;
+            }
+
+            foreach (var log in logs)
+            {
+                var message = log.ContainsKey("message") ? log["message"]?.ToString() ?? "" : "";
+                if (regex.IsMatch(message))
+                {
+                    filtered.Add(log);
+                }
+            }
+            return filtered;
         }
 
         /// <summary>

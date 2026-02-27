@@ -549,10 +549,13 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- brokenEvents: Detect UnityEvent listeners with null targets or missing methods\n"
                 "- brokenPrefabs: Detect prefab instances with missing or disconnected assets\n"
                 "- removeMissingScripts: Detect and remove all missing MonoBehaviour scripts (undoable)\n"
-                "- all: Run all checks and return categorized summary\n\n"
+                "- all: Run all checks and return categorized summary\n"
+                "- typeCheck: Detect type mismatches in object reference fields (field type vs actual object type)\n"
+                "- report: Run all integrity checks across multiple scenes (scope: active_scene/build_scenes/all_scenes)\n"
+                "- checkPrefab: Validate a prefab asset for missing scripts, null refs, and broken events\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
-                "Returns a flat issue list with type, severity (error/warning), gameObjectPath, and message. "
+                "Returns a flat issue list with type, severity (error/warning), gameObjectPath, message, and optional suggestion. "
                 "Use 'rootPath' parameter to limit analysis to a specific subtree."
             ),
             inputSchema=validate_integrity_schema(),
@@ -677,7 +680,9 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- unpause: Resume paused play mode\n"
                 "- stop: Stop play mode\n"
                 "- step: Step one frame (while paused)\n"
-                "- getState: Get current play mode state (stopped/playing/paused)\n\n"
+                "- getState: Get current play mode state (stopped/playing/paused)\n"
+                "- captureState: Capture runtime state of specified GameObjects (position, rotation, components). Requires play mode.\n"
+                "- waitForScene: Check if a scene is loaded by name/path. Poll until loaded=true for scene transitions.\n\n"
                 "Essential for LLMs to execute and test games autonomously."
             ),
             inputSchema=playmode_control_schema(),
@@ -693,7 +698,11 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- getLogs: Get normal Debug.Log messages only\n"
                 "- clear: Clear console\n"
                 "- getCompilationErrors: Get detailed compilation errors with file/line info\n"
-                "- getSummary: Get log count summary (errors/warnings/logs)\n\n"
+                "- getSummary: Get log count summary (errors/warnings/logs)\n"
+                "- snapshot: Take a snapshot of current logs for later diff comparison\n"
+                "- diff: Compare current logs against last snapshot, returning only new entries. Supports severity/keyword filters.\n"
+                "- filter: Filter all logs by severity array and/or keyword regex pattern\n\n"
+                "**Snapshot workflow:** snapshot → (make changes / play test) → diff → fix issues → repeat.\n\n"
                 "Essential for LLMs to debug and fix issues autonomously."
             ),
             inputSchema=console_log_schema(),

@@ -52,7 +52,7 @@ unity_ping, unity_compilation_await, unity_batch_sequential_execute
 |-------|---------|-----------|
 | **Plan** | 現状把握・影響調査 | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
-| **Check** | 整合性検証 | `validate_integrity(all)`, `scene_relationship_graph(analyzeAll)`, `console_log(getErrors)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)` |
+| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
 | **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `validate_integrity(removeMissingScripts)`, `playmode_control(play/stop)` |
 
 ---
@@ -63,6 +63,9 @@ unity_ping, unity_compilation_await, unity_batch_sequential_execute
 # シーン整合性（Missing Script, null参照, 壊れたEvent/Prefab）
 unity_validate_integrity(operation='all')                    # 全チェック
 unity_validate_integrity(operation='removeMissingScripts')   # 自動除去（Undo可）
+unity_validate_integrity(operation='typeCheck')              # 型ミスマッチ検出
+unity_validate_integrity(operation='report', scope='build_scenes')  # 複数シーンレポート
+unity_validate_integrity(operation='checkPrefab', prefabPath='Assets/Prefabs/Player.prefab')  # Prefab検証
 
 # クラスカタログ（型の列挙・詳細）
 unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
@@ -213,11 +216,17 @@ unity_event_wiring(operation='wire',
 unity_event_wiring(operation='wireMultiple', wirings=[...])
 unity_event_wiring(operation='listEvents', gameObjectPath='Button')
 
-# プレイモード (operation: play|pause|unpause|stop|step|getState)
+# プレイモード (operation: play|pause|unpause|stop|step|getState|captureState|waitForScene)
 unity_playmode_control(operation='play')
+unity_playmode_control(operation='captureState', targets=['Player', 'GameManager'], includeConsole=True)  # ランタイム状態取得
+unity_playmode_control(operation='waitForScene', sceneName='Level2')  # シーン読込待機（ポーリング）
 
-# コンソールログ (operation: getRecent|getErrors|getWarnings|getCompilationErrors|getSummary|clear)
+# コンソールログ (operation: getRecent|getErrors|getWarnings|getCompilationErrors|getSummary|clear|snapshot|diff|filter)
 unity_console_log(operation='getErrors')
+# スナップショットワークフロー: snapshot → 変更 → diff で新規ログのみ取得
+unity_console_log(operation='snapshot')                                    # ログスナップショット取得
+unity_console_log(operation='diff', severity=['error','warning'])          # スナップショット後の新規エラー/警告
+unity_console_log(operation='filter', severity=['error'], keyword='NullRef')  # 正規表現フィルタ
 ```
 
 ---

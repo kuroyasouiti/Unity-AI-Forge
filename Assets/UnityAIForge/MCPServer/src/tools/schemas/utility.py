@@ -41,8 +41,45 @@ def playmode_control_schema() -> dict[str, Any]:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["play", "pause", "unpause", "stop", "step", "getState"],
-                    "description": "PlayMode control operation.",
+                    "enum": [
+                        "play",
+                        "pause",
+                        "unpause",
+                        "stop",
+                        "step",
+                        "getState",
+                        "captureState",
+                        "waitForScene",
+                    ],
+                    "description": (
+                        "PlayMode control operation. "
+                        "'captureState': capture runtime state of specified GameObjects (requires play mode). "
+                        "'waitForScene': check if a scene is loaded (poll until loaded=true)."
+                    ),
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "GameObject paths to capture state for in captureState operation "
+                        "(e.g., ['Player', 'GameManager'])."
+                    ),
+                },
+                "includeConsole": {
+                    "type": "boolean",
+                    "description": "Include console log summary in captureState (default: false).",
+                    "default": False,
+                },
+                "sceneName": {
+                    "type": "string",
+                    "description": "Scene name or path to wait for in waitForScene operation.",
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": (
+                        "Guidance timeout in seconds for waitForScene. "
+                        "The tool returns immediately; AI client should poll until loaded=true or timeout."
+                    ),
                 },
             },
         },
@@ -66,12 +103,43 @@ def console_log_schema() -> dict[str, Any]:
                         "clear",
                         "getCompilationErrors",
                         "getSummary",
+                        "snapshot",
+                        "diff",
+                        "filter",
                     ],
-                    "description": "Console log operation.",
+                    "description": (
+                        "Console log operation. "
+                        "'snapshot': take a snapshot of current logs for later diff. "
+                        "'diff': compare current logs against last snapshot, returning only new entries. "
+                        "'filter': filter all logs by severity and/or keyword regex."
+                    ),
                 },
                 "count": {
                     "type": "integer",
                     "description": "Number of logs to retrieve (default: 50 for getRecent, 100 for filtered).",
+                },
+                "severity": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["error", "warning", "log"],
+                    },
+                    "description": (
+                        "Filter by severity types. Used by snapshot, diff, and filter operations. "
+                        "Example: ['error', 'warning'] to get only errors and warnings."
+                    ),
+                },
+                "keyword": {
+                    "type": "string",
+                    "description": (
+                        "Regex pattern to filter log messages. Used by diff and filter operations. "
+                        "Falls back to literal match if regex is invalid."
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return for diff/filter (default: 100).",
+                    "default": 100,
                 },
             },
         },

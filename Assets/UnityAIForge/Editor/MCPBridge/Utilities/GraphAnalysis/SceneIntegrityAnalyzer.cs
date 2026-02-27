@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -26,6 +27,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             public string ComponentType { get; set; }
             public string FieldName { get; set; }
             public string Message { get; set; }
+            public string Suggestion { get; set; }
 
             public Dictionary<string, object> ToDictionary()
             {
@@ -42,6 +44,8 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                     dict["componentType"] = ComponentType;
                 if (!string.IsNullOrEmpty(FieldName))
                     dict["fieldName"] = FieldName;
+                if (!string.IsNullOrEmpty(Suggestion))
+                    dict["suggestion"] = Suggestion;
                 return dict;
             }
         }
@@ -52,8 +56,15 @@ namespace MCP.Editor.Utilities.GraphAnalysis
         /// </summary>
         public List<IntegrityIssue> FindMissingScripts(string rootPath = null)
         {
+            return FindMissingScripts(GetTargetGameObjects(rootPath));
+        }
+
+        /// <summary>
+        /// Find GameObjects with missing scripts from a provided list.
+        /// </summary>
+        public List<IntegrityIssue> FindMissingScripts(List<GameObject> gameObjects)
+        {
             var issues = new List<IntegrityIssue>();
-            var gameObjects = GetTargetGameObjects(rootPath);
 
             foreach (var go in gameObjects)
             {
@@ -112,8 +123,15 @@ namespace MCP.Editor.Utilities.GraphAnalysis
         /// </summary>
         public List<IntegrityIssue> FindNullReferences(string rootPath = null)
         {
+            return FindNullReferences(GetTargetGameObjects(rootPath));
+        }
+
+        /// <summary>
+        /// Find null references from a provided list of GameObjects.
+        /// </summary>
+        public List<IntegrityIssue> FindNullReferences(List<GameObject> gameObjects)
+        {
             var issues = new List<IntegrityIssue>();
-            var gameObjects = GetTargetGameObjects(rootPath);
 
             foreach (var go in gameObjects)
             {
@@ -166,8 +184,15 @@ namespace MCP.Editor.Utilities.GraphAnalysis
         /// </summary>
         public List<IntegrityIssue> FindBrokenEvents(string rootPath = null)
         {
+            return FindBrokenEvents(GetTargetGameObjects(rootPath));
+        }
+
+        /// <summary>
+        /// Find broken events from a provided list of GameObjects.
+        /// </summary>
+        public List<IntegrityIssue> FindBrokenEvents(List<GameObject> gameObjects)
+        {
             var issues = new List<IntegrityIssue>();
-            var gameObjects = GetTargetGameObjects(rootPath);
 
             foreach (var go in gameObjects)
             {
@@ -287,6 +312,165 @@ namespace MCP.Editor.Utilities.GraphAnalysis
         }
 
         /// <summary>
+        /// Find type mismatches in object reference fields.
+        /// Detects where the assigned object's type doesn't match the field's declared type.
+        /// </summary>
+        public List<IntegrityIssue> FindTypeMismatches(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            foreach (var go in gameObjects)
+            {
+                var components = go.GetComponents<Component>();
+                foreach (var component in components)
+                {
+                    if (component == null) continue;
+
+                    try
+                    {
+                        var componentType = component.GetType();
+                        var so = new SerializedObject(component);
+                        var iterator = so.GetIterator();
+
+                        while (iterator.NextVisible(true))
+                        {
+                            if (iterator.propertyType != SerializedPropertyType.ObjectReference)
+                                continue;
+                            if (iterator.name == "m_Script")
+                                continue;
+                            if (iterator.objectReferenceValue == null)
+                                continue;
+
+                            // Extract root field name from propertyPath
+                            var rootFieldName = iterator.propertyPath.Split('.')[0];
+                            var fieldInfo = componentType.GetField(rootFieldName,
+                                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                            if (fieldInfo == null) continue;
+
+                            if (!fieldInfo.FieldType.IsAssignableFrom(iterator.objectReferenceValue.GetType()))
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "typeMismatch",
+                                    Severity = "warning",
+                                    GameObjectPath = GetGameObjectPath(go),
+                                    ComponentType = componentType.Name,
+                                    FieldName = iterator.propertyPath,
+                                    Message = $"Type mismatch in {componentType.Name}.{iterator.propertyPath}: " +
+                                              $"expected {fieldInfo.FieldType.Name}, got {iterator.objectReferenceValue.GetType().Name}"
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Some components might not be serializable
+                    }
+                }
+            }
+
+            return issues;
+        }
+
+        /// <summary>
+        /// Generate fix suggestions for null reference issues by searching for compatible objects in the scene.
+        /// </summary>
+        public void GenerateSuggestions(List<IntegrityIssue> nullRefIssues)
+        {
+            foreach (var issue in nullRefIssues)
+            {
+                if (issue.Type != "nullReference" || string.IsNullOrEmpty(issue.ComponentType) ||
+                    string.IsNullOrEmpty(issue.FieldName))
+                    continue;
+
+                try
+                {
+                    // Find the GameObject and component
+                    var go = FindGameObjectByPath(issue.GameObjectPath);
+                    if (go == null) continue;
+
+                    var component = go.GetComponent(issue.ComponentType);
+                    if (component == null) continue;
+
+                    var rootFieldName = issue.FieldName.Split('.')[0];
+                    var fieldInfo = component.GetType().GetField(rootFieldName,
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                    if (fieldInfo == null) continue;
+
+                    // Search scene for objects of the expected type
+                    var expectedType = fieldInfo.FieldType;
+                    if (typeof(Component).IsAssignableFrom(expectedType))
+                    {
+                        var candidates = UnityEngine.Object.FindObjectsOfType(expectedType);
+                        if (candidates.Length > 0 && candidates.Length <= 5)
+                        {
+                            var paths = new List<string>();
+                            foreach (var candidate in candidates)
+                            {
+                                if (candidate is Component comp)
+                                {
+                                    paths.Add(GetGameObjectPath(comp.gameObject));
+                                }
+                            }
+                            issue.Suggestion = $"Possible candidates ({expectedType.Name}): {string.Join(", ", paths)}";
+                        }
+                        else if (candidates.Length > 5)
+                        {
+                            issue.Suggestion = $"Found {candidates.Length} {expectedType.Name} instances in scene";
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // Skip suggestion generation on error
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check a prefab asset for integrity issues (missing scripts, null refs, broken events).
+        /// </summary>
+        public (List<IntegrityIssue> issues, Dictionary<string, int> summary) CheckPrefabAsset(string prefabPath)
+        {
+            var summary = new Dictionary<string, int>
+            {
+                ["missingScripts"] = 0,
+                ["nullReferences"] = 0,
+                ["brokenEvents"] = 0
+            };
+
+            var root = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                var gameObjects = new List<GameObject>();
+                CollectGameObjectsRecursive(root, gameObjects);
+
+                var missingScripts = FindMissingScripts(gameObjects);
+                summary["missingScripts"] = missingScripts.Count;
+
+                var nullRefs = FindNullReferences(gameObjects);
+                summary["nullReferences"] = nullRefs.Count;
+
+                var brokenEvents = FindBrokenEvents(gameObjects);
+                summary["brokenEvents"] = brokenEvents.Count;
+
+                var allIssues = new List<IntegrityIssue>();
+                allIssues.AddRange(missingScripts);
+                allIssues.AddRange(nullRefs);
+                allIssues.AddRange(brokenEvents);
+
+                return (allIssues, summary);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        /// <summary>
         /// Run all integrity checks and return combined results with summary.
         /// </summary>
         public (List<IntegrityIssue> issues, Dictionary<string, int> summary) FindAllIssues(string rootPath = null)
@@ -297,7 +481,8 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 ["missingScripts"] = 0,
                 ["nullReferences"] = 0,
                 ["brokenEvents"] = 0,
-                ["brokenPrefabs"] = 0
+                ["brokenPrefabs"] = 0,
+                ["typeMismatches"] = 0
             };
 
             var missingScripts = FindMissingScripts(rootPath);
@@ -306,6 +491,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
 
             var nullRefs = FindNullReferences(rootPath);
             summary["nullReferences"] = nullRefs.Count;
+            GenerateSuggestions(nullRefs);
             allIssues.AddRange(nullRefs);
 
             var brokenEvents = FindBrokenEvents(rootPath);
@@ -315,6 +501,10 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             var brokenPrefabs = FindBrokenPrefabs(rootPath);
             summary["brokenPrefabs"] = brokenPrefabs.Count;
             allIssues.AddRange(brokenPrefabs);
+
+            var typeMismatches = FindTypeMismatches(rootPath);
+            summary["typeMismatches"] = typeMismatches.Count;
+            allIssues.AddRange(typeMismatches);
 
             return (allIssues, summary);
         }

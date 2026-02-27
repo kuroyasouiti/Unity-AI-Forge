@@ -5,6 +5,44 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.11.0] - 2026-02-27
+
+### 追加
+
+- **`unity_console_log` にスナップショット/差分/フィルタ機能追加**
+  - `snapshot`: 現在のコンソールログのスナップショットを取得し、後のdiff比較用に保存
+  - `diff`: 前回のスナップショット以降の新規ログエントリのみを返却（severity/keywordフィルタ対応）
+  - `filter`: severity配列とkeyword正規表現によるログフィルタリング
+  - スナップショットワークフロー: `snapshot` → 変更/テスト → `diff` → 修正 → 繰り返し
+
+- **`unity_validate_integrity` に型チェック/レポート/プレファブ検証機能追加**
+  - `typeCheck`: オブジェクト参照フィールドの型ミスマッチを検出（フィールド宣言型 vs 実際のオブジェクト型）
+  - `report`: 複数シーンにまたがる整合性チェック（scope: active_scene/build_scenes/all_scenes、最大20シーン）
+  - `checkPrefab`: プレファブアセットのMissing Script、null参照、壊れたイベントを検証
+  - `IntegrityIssue` に `Suggestion` プロパティ追加（null参照に対する修正候補を提示）
+  - `FindAllIssues` に `typeMismatches` カテゴリ追加、null参照への自動サジェスション生成
+
+- **`unity_playmode_control` にランタイム状態キャプチャ/シーン待機機能追加**
+  - `captureState`: プレイモード中のGameObjectランタイム状態を取得（位置、回転、コンポーネント一覧、コンソールサマリー）
+  - `waitForScene`: シーンのロード状態をチェック（AIクライアントがloaded=trueまでポーリング）
+
+### 変更
+
+- **SceneIntegrityAnalyzer リファクタリング**
+  - `FindMissingScripts`、`FindNullReferences`、`FindBrokenEvents` に `List<GameObject>` オーバーロード追加
+  - `CheckPrefabAsset` で `PrefabUtility.LoadPrefabContents` を使用した安全なプレファブ検証
+
+- **system_instructions.md 更新**
+  - PDCAワークフローのCheckフェーズに `validate_integrity(typeCheck)`, `console_log(diff/filter)`, `playmode_control(captureState)` を追加
+  - Mid-Levelセクションにスナップショットワークフロー例、captureState/waitForScene例を追加
+  - Logic Pillarセクションに typeCheck/report/checkPrefab の使用例を追加
+
+### テスト
+
+- `ConsoleLogHandlerTests.cs`: 6テスト追加（snapshot, diff, filter の正常系・異常系）
+- `SceneIntegrityHandlerTests.cs`: 5テスト追加（typeCheck, report, checkPrefab の正常系・異常系）
+- `PlayModeControlHandlerTests.cs`: 4テスト追加（captureState, waitForScene の正常系・異常系）
+
 ## [2.10.0] - 2026-02-24
 
 ### 追加

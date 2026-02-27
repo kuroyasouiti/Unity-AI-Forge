@@ -66,5 +66,55 @@ namespace MCP.Editor.Tests
             var result = _handler.Execute(TestUtilities.CreatePayload("clear"));
             TestUtilities.AssertSuccess(result);
         }
+
+        [Test]
+        public void SupportedOperations_ContainsNewOps()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("snapshot", ops);
+            Assert.Contains("diff", ops);
+            Assert.Contains("filter", ops);
+        }
+
+        [Test]
+        public void Snapshot_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("snapshot"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        [Order(1)]
+        public void Diff_WithoutSnapshot_ReturnsError()
+        {
+            // This test must run before any snapshot is taken.
+            // Static _snapshotLogs starts as null, so diff should fail.
+            TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("diff")),
+                "No snapshot taken");
+        }
+
+        [Test]
+        [Order(2)]
+        public void Diff_AfterSnapshot_ReturnsSuccess()
+        {
+            _handler.Execute(TestUtilities.CreatePayload("snapshot"));
+            var result = _handler.Execute(TestUtilities.CreatePayload("diff"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void Filter_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("filter"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void Filter_WithKeyword_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("filter",
+                ("keyword", "test")));
+            TestUtilities.AssertSuccess(result);
+        }
     }
 }

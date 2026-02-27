@@ -43,5 +43,39 @@ namespace MCP.Editor.Tests
         {
             TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
         }
+
+        [Test]
+        public void SupportedOperations_ContainsNewOps()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("captureState", ops);
+            Assert.Contains("waitForScene", ops);
+        }
+
+        [Test]
+        public void CaptureState_NotPlaying_ReturnsError()
+        {
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("captureState")),
+                "play mode");
+        }
+
+        [Test]
+        public void WaitForScene_MissingSceneName_ReturnsError()
+        {
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("waitForScene")),
+                "sceneName is required");
+        }
+
+        [Test]
+        public void WaitForScene_ReturnsLoadedStatus()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("waitForScene",
+                ("sceneName", "NonExistentScene")));
+            TestUtilities.AssertSuccess(result);
+            var loaded = TestUtilities.GetResultValue<bool>(result, "loaded");
+            Assert.IsFalse(loaded);
+        }
     }
 }

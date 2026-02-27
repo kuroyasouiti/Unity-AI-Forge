@@ -376,6 +376,9 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "brokenPrefabs",
                         "removeMissingScripts",
                         "all",
+                        "typeCheck",
+                        "report",
+                        "checkPrefab",
                     ],
                     "description": (
                         "Integrity check operation. "
@@ -384,7 +387,10 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'brokenEvents': detect UnityEvent listeners with null targets or missing methods. "
                         "'brokenPrefabs': detect prefab instances with missing or disconnected assets. "
                         "'removeMissingScripts': detect and remove all missing MonoBehaviour scripts (undoable). "
-                        "'all': run all checks and return categorized summary."
+                        "'all': run all checks and return categorized summary. "
+                        "'typeCheck': detect type mismatches in object reference fields. "
+                        "'report': run integrity checks across multiple scenes (active/build/all). "
+                        "'checkPrefab': validate a prefab asset for integrity issues."
                     ),
                 },
                 "rootPath": {
@@ -392,6 +398,23 @@ def validate_integrity_schema() -> dict[str, Any]:
                     "description": (
                         "Optional GameObject path to limit analysis to a subtree "
                         "(e.g., '/Canvas/Panel'). If omitted, scans the entire active scene."
+                    ),
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": ["active_scene", "build_scenes", "all_scenes"],
+                    "description": (
+                        "Scope for report operation. "
+                        "'active_scene': check only the active scene (default). "
+                        "'build_scenes': check all scenes in Build Settings. "
+                        "'all_scenes': check all scene assets in the project (max 20)."
+                    ),
+                },
+                "prefabPath": {
+                    "type": "string",
+                    "description": (
+                        "Asset path to a prefab for checkPrefab operation "
+                        "(e.g., 'Assets/Prefabs/Player.prefab')."
                     ),
                 },
             },
