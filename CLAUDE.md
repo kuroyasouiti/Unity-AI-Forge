@@ -119,19 +119,19 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `NavMeshBundleHandler.cs` - NavMesh baking, agents, obstacles, links, modifiers
 
 **HighLevel/** (7 handlers) - Analysis and integrity tools (registered as GameKit Logic Pillar):
-- `SceneIntegrityHandler.cs` - Scene integrity validation (missing scripts, null refs, broken events/prefabs)
+- `SceneIntegrityHandler.cs` - Scene integrity validation (missing scripts, null refs, broken events/prefabs, CanvasGroup audit, reference semantics)
 - `ClassCatalogHandler.cs` - Type enumeration and inspection (classes, MonoBehaviours, enums)
 - `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
 - `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
 - `SceneRelationshipGraphHandler.cs` - Scene transition and relationship analysis
 - `SceneDependencyHandler.cs` - Scene asset dependency analysis (AssetDatabase-based)
-- `ScriptSyntaxHandler.cs` - C# source code structure analysis with line numbers
+- `ScriptSyntaxHandler.cs` - C# source code structure analysis with line numbers, event coverage, FSM reachability
 
 **Utility/** (5 handlers) - Helper tools:
 - `PingHandler.cs` - Bridge connectivity check
 - `CompilationAwaitHandler.cs` - Compilation monitoring with async polling
 - `ConsoleLogHandler.cs` - Console log retrieval and filtering
-- `PlayModeControlHandler.cs` - Play mode control (play/pause/stop/step)
+- `PlayModeControlHandler.cs` - Play mode control (play/pause/stop/step/validateState)
 - `EventWiringHandler.cs` - UnityEvent wiring (Button.onClick, Slider.onValueChanged, etc.)
 
 **GameKit/** (12 handlers) - Game systems (3-Pillar Architecture, code generation):

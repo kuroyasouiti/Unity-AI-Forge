@@ -6,7 +6,7 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。52のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level / Low-Level CRUD）で構成されています。
 
-**バージョン:** 2.12.0
+**バージョン:** 2.13.0
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
 
 ### 通信フロー
@@ -75,13 +75,13 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 
 | ツール名 | 用途 |
 |----------|------|
-| `unity_validate_integrity` | シーン整合性の検証 |
+| `unity_validate_integrity` | シーン整合性の検証（CanvasGroupアルファ競合、参照セマンティクス検査含む） |
 | `unity_class_catalog` | プロジェクト内の型を列挙・詳細検査 |
 | `unity_class_dependency_graph` | C#スクリプトのクラス依存関係を解析 |
 | `unity_scene_reference_graph` | シーン内のオブジェクト間参照を解析 |
 | `unity_scene_relationship_graph` | シーン全体の関係性を包括的に解析 |
 | `unity_scene_dependency` | シーンのアセット依存関係を解析（AssetDatabase経由） |
-| `unity_script_syntax` | C#ソースコード構文解析（行番号付き、参照検索、メトリクス） |
+| `unity_script_syntax` | C#ソースコード構文解析（行番号付き、参照検索、メトリクス、イベントカバレッジ、FSM到達可能性） |
 
 ### Mid-Level（22ツール）
 
@@ -105,7 +105,7 @@ GameKitは3本柱（UI・Logic・Presentation）で構成されています。�
 | `unity_particle_bundle` | パーティクル設定 |
 | `unity_animation3d_bundle` | 3Dアニメーション設定 |
 | `unity_event_wiring` | UnityEventの接続 |
-| `unity_playmode_control` | プレイモード制御 |
+| `unity_playmode_control` | プレイモード制御（ランタイムマネージャー状態検証含む） |
 | `unity_console_log` | コンソールログ取得 |
 | `unity_physics_bundle` | 物理プリセット・衝突マトリクス・物理マテリアル |
 | `unity_navmesh_bundle` | NavMeshベイク・エージェント・障害物・リンク |

@@ -30,7 +30,7 @@ namespace MCP.Editor.Tests
             Assert.Contains("findReferences", ops);
             Assert.Contains("findUnusedCode", ops);
             Assert.Contains("analyzeMetrics", ops);
-            Assert.AreEqual(4, ops.Count);
+            Assert.AreEqual(6, ops.Count);
         }
 
         [Test]
@@ -98,6 +98,46 @@ namespace MCP.Editor.Tests
         {
             var result = _handler.Execute(TestUtilities.CreatePayload("analyzeMetrics",
                 ("scriptPath", "Assets/UnityAIForge/Editor/MCPBridge/Handlers/HighLevel/ScriptSyntaxHandler.cs")));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void SupportedOperations_ContainsEventCoverage()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("eventCoverage", ops);
+        }
+
+        [Test]
+        public void SupportedOperations_ContainsFsmReachability()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("fsmReachability", ops);
+        }
+
+        [Test]
+        public void EventCoverage_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("eventCoverage",
+                ("searchPath", "Assets/UnityAIForge/Editor/MCPBridge/Handlers/HighLevel")));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void FsmReachability_MissingEnumType_ReturnsError()
+        {
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("fsmReachability")),
+                "enumType");
+        }
+
+        [Test]
+        public void FsmReachability_ValidEnumType_ReturnsSuccess()
+        {
+            // Use AITool — a project-defined enum in McpConfigManager.cs
+            var result = _handler.Execute(TestUtilities.CreatePayload("fsmReachability",
+                ("enumType", "AITool"),
+                ("searchPath", "Assets/UnityAIForge/Editor")));
             TestUtilities.AssertSuccess(result);
         }
     }

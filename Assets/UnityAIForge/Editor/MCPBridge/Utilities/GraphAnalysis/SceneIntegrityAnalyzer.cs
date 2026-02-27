@@ -482,7 +482,9 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 ["nullReferences"] = 0,
                 ["brokenEvents"] = 0,
                 ["brokenPrefabs"] = 0,
-                ["typeMismatches"] = 0
+                ["typeMismatches"] = 0,
+                ["canvasGroupIssues"] = 0,
+                ["semanticRefIssues"] = 0
             };
 
             var missingScripts = FindMissingScripts(rootPath);
@@ -506,7 +508,174 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             summary["typeMismatches"] = typeMismatches.Count;
             allIssues.AddRange(typeMismatches);
 
+            var canvasGroupIssues = FindCanvasGroupIssues(rootPath);
+            summary["canvasGroupIssues"] = canvasGroupIssues.Count;
+            allIssues.AddRange(canvasGroupIssues);
+
+            var semanticRefIssues = FindReferenceSemanticsIssues(rootPath);
+            summary["semanticRefIssues"] = semanticRefIssues.Count;
+            allIssues.AddRange(semanticRefIssues);
+
             return (allIssues, summary);
+        }
+
+        /// <summary>
+        /// Find CanvasGroup parent-child alpha conflicts and mismatched CanvasGroup references.
+        /// Detects cases where a parent CanvasGroup with alpha=0 blocks a child CanvasGroup,
+        /// and SerializedField references pointing to child CanvasGroups hidden by a parent.
+        /// </summary>
+        public List<IntegrityIssue> FindCanvasGroupIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            foreach (var go in gameObjects)
+            {
+                var cg = go.GetComponent<CanvasGroup>();
+                if (cg == null) continue;
+
+                // Check: parent CanvasGroup alpha=0 blocks this child CanvasGroup
+                var parent = go.transform.parent;
+                while (parent != null)
+                {
+                    var parentCg = parent.GetComponent<CanvasGroup>();
+                    if (parentCg != null && parentCg.alpha < 0.01f && cg.alpha > 0.01f)
+                    {
+                        issues.Add(new IntegrityIssue
+                        {
+                            Type = "canvasGroupConflict",
+                            Severity = "warning",
+                            GameObjectPath = GetGameObjectPath(go),
+                            ComponentType = "CanvasGroup",
+                            Message = $"Parent '{parent.name}' CanvasGroup(alpha={parentCg.alpha:F2}) blocks child '{go.name}' CanvasGroup(alpha={cg.alpha:F2})",
+                            Suggestion = $"If '{go.name}' should be visible, set parent '{parent.name}' CanvasGroup alpha > 0 or move visibility control to the parent."
+                        });
+                        break;
+                    }
+                    parent = parent.parent;
+                }
+            }
+
+            // Check: SerializedField<CanvasGroup> references that point to child instead of parent
+            foreach (var go in gameObjects)
+            {
+                var components = go.GetComponents<Component>();
+                foreach (var comp in components)
+                {
+                    if (comp == null || comp is CanvasGroup) continue;
+                    try
+                    {
+                        var so = new SerializedObject(comp);
+                        var iter = so.GetIterator();
+                        while (iter.NextVisible(true))
+                        {
+                            if (iter.propertyType != SerializedPropertyType.ObjectReference) continue;
+                            if (iter.name == "m_Script") continue;
+                            var refObj = iter.objectReferenceValue;
+                            if (refObj == null || !(refObj is CanvasGroup refCg)) continue;
+
+                            // Check: is there a parent CanvasGroup with alpha=0 above the referenced one?
+                            var refGo = refCg.gameObject;
+                            var ancestor = refGo.transform.parent;
+                            while (ancestor != null)
+                            {
+                                var ancestorCg = ancestor.GetComponent<CanvasGroup>();
+                                if (ancestorCg != null && ancestorCg.alpha < 0.01f)
+                                {
+                                    issues.Add(new IntegrityIssue
+                                    {
+                                        Type = "canvasGroupRefMismatch",
+                                        Severity = "error",
+                                        GameObjectPath = GetGameObjectPath(go),
+                                        ComponentType = comp.GetType().Name,
+                                        FieldName = iter.propertyPath,
+                                        Message = $"{comp.GetType().Name}.{iter.propertyPath} references CanvasGroup on '{refGo.name}', but ancestor '{ancestor.name}' has CanvasGroup(alpha=0) that blocks rendering",
+                                        Suggestion = $"Change reference to point to '{ancestor.name}' CanvasGroup instead"
+                                    });
+                                    break;
+                                }
+                                ancestor = ancestor.parent;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            return issues;
+        }
+
+        /// <summary>
+        /// Find semantic reference issues: references to inactive GameObjects, self-references.
+        /// Detects logical inconsistencies that pass compilation but cause runtime problems.
+        /// </summary>
+        public List<IntegrityIssue> FindReferenceSemanticsIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            foreach (var go in gameObjects)
+            {
+                var components = go.GetComponents<Component>();
+                foreach (var comp in components)
+                {
+                    if (comp == null) continue;
+                    try
+                    {
+                        var so = new SerializedObject(comp);
+                        var iter = so.GetIterator();
+                        while (iter.NextVisible(true))
+                        {
+                            if (iter.propertyType != SerializedPropertyType.ObjectReference) continue;
+                            if (iter.name == "m_Script") continue;
+                            var refObj = iter.objectReferenceValue;
+                            if (refObj == null) continue;
+
+                            // Rule: disabledTarget — reference to inactive GameObject
+                            if (refObj is Component refComp && !refComp.gameObject.activeInHierarchy)
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "semanticRef_disabledTarget",
+                                    Severity = "warning",
+                                    GameObjectPath = GetGameObjectPath(go),
+                                    ComponentType = comp.GetType().Name,
+                                    FieldName = iter.propertyPath,
+                                    Message = $"{comp.GetType().Name}.{iter.propertyPath} references inactive GameObject '{refComp.gameObject.name}'"
+                                });
+                            }
+                            else if (refObj is GameObject refGo2 && !refGo2.activeInHierarchy)
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "semanticRef_disabledTarget",
+                                    Severity = "warning",
+                                    GameObjectPath = GetGameObjectPath(go),
+                                    ComponentType = comp.GetType().Name,
+                                    FieldName = iter.propertyPath,
+                                    Message = $"{comp.GetType().Name}.{iter.propertyPath} references inactive GameObject '{refGo2.name}'"
+                                });
+                            }
+
+                            // Rule: selfReference — component references itself
+                            if (refObj == comp)
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "semanticRef_selfReference",
+                                    Severity = "info",
+                                    GameObjectPath = GetGameObjectPath(go),
+                                    ComponentType = comp.GetType().Name,
+                                    FieldName = iter.propertyPath,
+                                    Message = $"{comp.GetType().Name}.{iter.propertyPath} references itself"
+                                });
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            return issues;
         }
 
         #region Private Helpers

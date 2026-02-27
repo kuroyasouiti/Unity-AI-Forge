@@ -24,7 +24,8 @@ namespace MCP.Editor.Handlers
             "step",
             "getState",
             "captureState",
-            "waitForScene"
+            "waitForScene",
+            "validateState"
         };
 
         public override string Category => "playModeControl";
@@ -48,6 +49,7 @@ namespace MCP.Editor.Handlers
                 "getState" => HandleGetState(payload),
                 "captureState" => HandleCaptureState(payload),
                 "waitForScene" => HandleWaitForScene(payload),
+                "validateState" => HandleValidateState(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
         }
@@ -361,6 +363,128 @@ namespace MCP.Editor.Handlers
                 ("activeScenes", activeScenes),
                 ("message", loaded ? $"Scene '{sceneName}' is loaded" : $"Scene '{sceneName}' is not yet loaded"),
                 ("isPlaying", EditorApplication.isPlaying)
+            );
+        }
+
+        /// <summary>
+        /// Validate runtime manager state: check that specified MonoBehaviours exist and
+        /// their collection fields have the required minimum count. Requires play mode.
+        /// </summary>
+        private object HandleValidateState(Dictionary<string, object> payload)
+        {
+            if (!EditorApplication.isPlaying)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["success"] = false,
+                    ["error"] = "validateState requires play mode"
+                };
+            }
+
+            var managersRaw = GetListFromPayload(payload, "managers");
+            if (managersRaw == null || managersRaw.Count == 0)
+            {
+                return new Dictionary<string, object>
+                {
+                    ["success"] = false,
+                    ["error"] = "managers array is required"
+                };
+            }
+
+            var results = new List<Dictionary<string, object>>();
+            int passCount = 0, failCount = 0;
+
+            foreach (var item in managersRaw)
+            {
+                var spec = item as Dictionary<string, object>;
+                if (spec == null) continue;
+
+                var typeName = spec.ContainsKey("type") ? spec["type"]?.ToString() : null;
+                var fieldName = spec.ContainsKey("field") ? spec["field"]?.ToString() : null;
+                var minCount = spec.ContainsKey("minCount") ? Convert.ToInt32(spec["minCount"]) : 0;
+
+                if (string.IsNullOrEmpty(typeName))
+                {
+                    failCount++;
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = typeName ?? "", ["found"] = false, ["status"] = "FAIL",
+                        ["message"] = "type is required in manager spec"
+                    });
+                    continue;
+                }
+
+                // Find manager by type name among all MonoBehaviours
+                MonoBehaviour found = null;
+                foreach (var mb in UnityEngine.Object.FindObjectsOfType<MonoBehaviour>())
+                {
+                    if (mb.GetType().Name == typeName)
+                    {
+                        found = mb;
+                        break;
+                    }
+                }
+
+                if (found == null)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = typeName, ["found"] = false, ["status"] = "FAIL",
+                        ["message"] = $"{typeName} not found in scene"
+                    });
+                    failCount++;
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(fieldName))
+                {
+                    // No field check, just verify the type exists
+                    passCount++;
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = typeName, ["found"] = true, ["status"] = "PASS",
+                        ["message"] = $"{typeName} found in scene"
+                    });
+                    continue;
+                }
+
+                // Reflect on field to get count
+                var fi = found.GetType().GetField(fieldName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (fi == null)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = typeName, ["found"] = true, ["field"] = fieldName,
+                        ["status"] = "FAIL",
+                        ["message"] = $"Field '{fieldName}' not found on {typeName}"
+                    });
+                    failCount++;
+                    continue;
+                }
+
+                var value = fi.GetValue(found);
+                int count = -1;
+                if (value is System.Collections.ICollection col) count = col.Count;
+                else if (value is Array arr) count = arr.Length;
+
+                var pass = count >= minCount;
+                if (pass) passCount++; else failCount++;
+
+                results.Add(new Dictionary<string, object>
+                {
+                    ["type"] = typeName, ["found"] = true, ["field"] = fieldName,
+                    ["count"] = count, ["minCount"] = minCount,
+                    ["status"] = pass ? "PASS" : "FAIL"
+                });
+            }
+
+            return CreateSuccessResponse(
+                ("managers", results),
+                ("totalChecked", results.Count),
+                ("passed", passCount),
+                ("failed", failCount),
+                ("allPassed", failCount == 0)
             );
         }
 

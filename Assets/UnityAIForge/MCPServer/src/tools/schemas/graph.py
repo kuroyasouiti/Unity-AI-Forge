@@ -305,6 +305,8 @@ def script_syntax_schema() -> dict[str, Any]:
                         "findReferences",
                         "findUnusedCode",
                         "analyzeMetrics",
+                        "eventCoverage",
+                        "fsmReachability",
                     ],
                     "description": (
                         "Script syntax analysis operation. "
@@ -312,7 +314,9 @@ def script_syntax_schema() -> dict[str, Any]:
                         "(namespaces, types, methods, fields, properties) with line numbers. "
                         "'findReferences': find all references to a symbol across project scripts. "
                         "'findUnusedCode': find methods/fields that are declared but never referenced. "
-                        "'analyzeMetrics': compute code metrics (lines, complexity, nesting depth)."
+                        "'analyzeMetrics': compute code metrics (lines, complexity, nesting depth). "
+                        "'eventCoverage': detect orphaned event publishes/subscribes and critical event violations. "
+                        "'fsmReachability': detect FSM enum states with no handler (unreachable states)."
                     ),
                 },
                 "scriptPath": {
@@ -355,6 +359,64 @@ def script_syntax_schema() -> dict[str, Any]:
                         "If omitted, both are checked."
                     ),
                 },
+                "publishMethod": {
+                    "type": "string",
+                    "description": (
+                        "Method name pattern for event publishing in eventCoverage "
+                        "(default: 'Publish'). Matches Publish<EventType>(...)."
+                    ),
+                },
+                "subscribeMethod": {
+                    "type": "string",
+                    "description": (
+                        "Method name pattern for event subscribing in eventCoverage "
+                        "(default: 'Subscribe'). Matches Subscribe<EventType>(...)."
+                    ),
+                },
+                "criticalEvents": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "eventType": {
+                                "type": "string",
+                                "description": "Event type name to check.",
+                            },
+                            "minSubscribers": {
+                                "type": "integer",
+                                "description": "Minimum required subscriber count (default: 1).",
+                                "default": 1,
+                            },
+                        },
+                        "required": ["eventType"],
+                    },
+                    "description": (
+                        "Array of critical events to validate in eventCoverage. "
+                        "Reports violations when subscriber count is below minSubscribers."
+                    ),
+                },
+                "enumType": {
+                    "type": "string",
+                    "description": (
+                        "Enum type name for fsmReachability "
+                        "(e.g., 'GamePhase'). Required for fsmReachability."
+                    ),
+                },
+                "transitionMethod": {
+                    "type": "string",
+                    "description": (
+                        "Transition method name for fsmReachability "
+                        "(e.g., 'NextPhase'). If provided, checks whether handlers call this method."
+                    ),
+                },
+                "excludeStates": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "States to exclude from reachability analysis in fsmReachability "
+                        "(e.g., ['Setup', 'Cleanup'])."
+                    ),
+                },
             },
         },
         ["operation"],
@@ -379,6 +441,8 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "typeCheck",
                         "report",
                         "checkPrefab",
+                        "canvasGroupAudit",
+                        "referenceSemantics",
                     ],
                     "description": (
                         "Integrity check operation. "

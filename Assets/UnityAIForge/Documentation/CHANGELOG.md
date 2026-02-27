@@ -5,6 +5,36 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.13.0] - 2026-02-28
+
+### 追加
+
+- **`unity_validate_integrity` に2つの新オペレーション追加**
+  - `canvasGroupAudit`: 親CanvasGroup(alpha=0)が子CanvasGroupの描画をブロックする問題を検出。SerializedField参照が祖先の非表示CanvasGroupの下を指している場合も警告
+  - `referenceSemantics`: 論理的な参照不整合を検出（非アクティブGameObjectへの参照、自己参照）
+  - `FindAllIssues`（`all`オペレーション）のサマリーに `canvasGroupIssues`、`semanticRefIssues` キーを追加
+
+- **`unity_script_syntax` に2つの新オペレーション追加**
+  - `eventCoverage`: イベントPublish/Subscribe対応の解析。孤立したPublish（購読者なし）、孤立したSubscribe（発行者なし）、クリティカルイベント違反（最小購読者数未達）を検出
+  - `fsmReachability`: FSMの状態到達可能性解析。enum型の各状態にswitch/caseまたはif条件のハンドラーがあるか検出し、到達不能状態を報告
+  - `StripCommentsAndStrings`、`FindAllScripts` を `internal` に変更
+
+- **`unity_playmode_control` に1つの新オペレーション追加**
+  - `validateState`: ランタイムマネージャーの状態検証（プレイモード必須）。指定したMonoBehaviourの存在確認とコレクションフィールドの最小要素数チェック
+
+### 変更
+
+- **Pythonスキーマ更新**
+  - `graph.py`: `validate_integrity_schema` に2つのenum値追加、`script_syntax_schema` に2つのenum値と6つの新プロパティ追加
+  - `utility.py`: `playmode_control_schema` に1つのenum値と `managers` 配列プロパティ追加
+  - `tool_definitions.py`: 3ツールの説明を新オペレーション情報で更新
+
+### テスト
+
+- `SceneIntegrityHandlerTests.cs`: 5テスト追加（canvasGroupAudit, referenceSemantics の操作確認・正常系・allサマリーキー確認）
+- `ScriptSyntaxHandlerTests.cs`: 5テスト追加（eventCoverage, fsmReachability の操作確認・正常系・異常系）、カウントアサーション 4→6 に更新
+- `PlayModeControlHandlerTests.cs`: 3テスト追加（validateState の操作確認・プレイモードチェック・managersチェック）
+
 ## [2.12.0] - 2026-02-27
 
 ### 追加

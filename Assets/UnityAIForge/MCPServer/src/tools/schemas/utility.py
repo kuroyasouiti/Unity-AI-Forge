@@ -50,11 +50,14 @@ def playmode_control_schema() -> dict[str, Any]:
                         "getState",
                         "captureState",
                         "waitForScene",
+                        "validateState",
                     ],
                     "description": (
                         "PlayMode control operation. "
                         "'captureState': capture runtime state of specified GameObjects (requires play mode). "
-                        "'waitForScene': check if a scene is loaded (poll until loaded=true)."
+                        "'waitForScene': check if a scene is loaded (poll until loaded=true). "
+                        "'validateState': validate runtime manager state (requires play mode). "
+                        "Checks that specified MonoBehaviours exist and their collections meet minimum counts."
                     ),
                 },
                 "targets": {
@@ -79,6 +82,33 @@ def playmode_control_schema() -> dict[str, Any]:
                     "description": (
                         "Guidance timeout in seconds for waitForScene. "
                         "The tool returns immediately; AI client should poll until loaded=true or timeout."
+                    ),
+                },
+                "managers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "MonoBehaviour type name to find in scene.",
+                            },
+                            "field": {
+                                "type": "string",
+                                "description": "Field name (collection) to check count on.",
+                            },
+                            "minCount": {
+                                "type": "integer",
+                                "description": "Minimum required element count (default: 0).",
+                                "default": 0,
+                            },
+                        },
+                        "required": ["type"],
+                    },
+                    "description": (
+                        "Array of manager specifications for validateState. "
+                        "Each entry checks that a MonoBehaviour of the given type exists "
+                        "and optionally that a collection field meets a minimum count."
                     ),
                 },
             },

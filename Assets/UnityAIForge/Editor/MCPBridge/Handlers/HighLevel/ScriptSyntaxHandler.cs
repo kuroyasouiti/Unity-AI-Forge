@@ -17,7 +17,9 @@ namespace MCP.Editor.Handlers.HighLevel
             "analyzeScript",
             "findReferences",
             "findUnusedCode",
-            "analyzeMetrics"
+            "analyzeMetrics",
+            "eventCoverage",
+            "fsmReachability"
         };
 
         public override string Category => "scriptSyntax";
@@ -34,6 +36,8 @@ namespace MCP.Editor.Handlers.HighLevel
                 "findReferences" => FindReferences(payload),
                 "findUnusedCode" => FindUnusedCode(payload),
                 "analyzeMetrics" => AnalyzeMetrics(payload),
+                "eventCoverage" => EventCoverage(payload),
+                "fsmReachability" => FsmReachability(payload),
                 _ => throw new InvalidOperationException($"Unsupported script syntax operation: {operation}"),
             };
         }
@@ -99,6 +103,52 @@ namespace MCP.Editor.Handlers.HighLevel
 
             var analyzer = new ScriptSyntaxAnalyzer();
             var result = analyzer.AnalyzeMetrics(scriptPath, searchPath);
+            result["success"] = true;
+            return result;
+        }
+
+        /// <summary>
+        /// Analyze event publish/subscribe coverage across project scripts.
+        /// </summary>
+        private object EventCoverage(Dictionary<string, object> payload)
+        {
+            var publishMethod = GetString(payload, "publishMethod");
+            var subscribeMethod = GetString(payload, "subscribeMethod");
+            var searchPath = GetString(payload, "searchPath");
+
+            List<Dictionary<string, object>> criticalEvents = null;
+            var rawList = GetListFromPayload(payload, "criticalEvents");
+            if (rawList != null)
+            {
+                criticalEvents = new List<Dictionary<string, object>>();
+                foreach (var item in rawList)
+                {
+                    if (item is Dictionary<string, object> dict)
+                        criticalEvents.Add(dict);
+                }
+            }
+
+            var analyzer = new ScriptSyntaxAnalyzer();
+            var result = analyzer.AnalyzeEventCoverage(publishMethod, subscribeMethod, searchPath, criticalEvents);
+            result["success"] = true;
+            return result;
+        }
+
+        /// <summary>
+        /// Analyze FSM state reachability for a given enum type.
+        /// </summary>
+        private object FsmReachability(Dictionary<string, object> payload)
+        {
+            var enumType = GetString(payload, "enumType");
+            if (string.IsNullOrEmpty(enumType))
+                throw new ArgumentException("enumType is required for fsmReachability operation");
+
+            var transitionMethod = GetString(payload, "transitionMethod");
+            var excludeStates = GetStringList(payload, "excludeStates");
+            var searchPath = GetString(payload, "searchPath");
+
+            var analyzer = new ScriptSyntaxAnalyzer();
+            var result = analyzer.AnalyzeFsmReachability(enumType, transitionMethod, excludeStates, searchPath);
             result["success"] = true;
             return result;
         }

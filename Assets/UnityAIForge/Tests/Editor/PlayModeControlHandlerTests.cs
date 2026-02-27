@@ -77,5 +77,30 @@ namespace MCP.Editor.Tests
             var loaded = TestUtilities.GetResultValue<bool>(result, "loaded");
             Assert.IsFalse(loaded);
         }
+
+        [Test]
+        public void SupportedOperations_ContainsValidateState()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("validateState", ops);
+        }
+
+        [Test]
+        public void ValidateState_NotPlaying_ReturnsError()
+        {
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("validateState")),
+                "play mode");
+        }
+
+        [Test]
+        public void ValidateState_MissingManagers_ReturnsError()
+        {
+            // Not in play mode, so this should fail with "play mode" error
+            // This test verifies the play mode check comes first
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("validateState")),
+                "play mode");
+        }
     }
 }

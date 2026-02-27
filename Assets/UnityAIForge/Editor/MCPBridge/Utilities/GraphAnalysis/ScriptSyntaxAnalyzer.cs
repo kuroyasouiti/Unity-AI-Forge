@@ -422,6 +422,265 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             return result;
         }
 
+        /// <summary>
+        /// Analyze event publish/subscribe coverage across project scripts.
+        /// Detects orphaned publishes (no subscribers), orphaned subscribes (no publishers),
+        /// and critical event violations (events with fewer subscribers than required).
+        /// </summary>
+        public Dictionary<string, object> AnalyzeEventCoverage(
+            string publishMethod, string subscribeMethod, string searchPath,
+            List<Dictionary<string, object>> criticalEvents)
+        {
+            var pubMethod = string.IsNullOrEmpty(publishMethod) ? "Publish" : publishMethod;
+            var subMethod = string.IsNullOrEmpty(subscribeMethod) ? "Subscribe" : subscribeMethod;
+
+            var scripts = FindAllScripts(searchPath);
+            var pubPattern = new Regex($@"\b{Regex.Escape(pubMethod)}\s*<\s*(\w+)\s*>\s*\(", RegexOptions.Compiled);
+            var subPattern = new Regex($@"\b{Regex.Escape(subMethod)}\s*<\s*(\w+)\s*>\s*\(", RegexOptions.Compiled);
+
+            var publishMap = new Dictionary<string, List<Dictionary<string, object>>>();
+            var subscribeMap = new Dictionary<string, List<Dictionary<string, object>>>();
+
+            foreach (var script in scripts)
+            {
+                try
+                {
+                    var content = File.ReadAllText(Path.GetFullPath(script));
+                    var stripped = StripCommentsAndStrings(content);
+                    var lines = stripped.Split('\n');
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        foreach (Match m in pubPattern.Matches(lines[i]))
+                        {
+                            var eventType = m.Groups[1].Value;
+                            if (!publishMap.ContainsKey(eventType))
+                                publishMap[eventType] = new List<Dictionary<string, object>>();
+                            publishMap[eventType].Add(new Dictionary<string, object>
+                            {
+                                ["scriptPath"] = script, ["line"] = i + 1
+                            });
+                        }
+                        foreach (Match m in subPattern.Matches(lines[i]))
+                        {
+                            var eventType = m.Groups[1].Value;
+                            if (!subscribeMap.ContainsKey(eventType))
+                                subscribeMap[eventType] = new List<Dictionary<string, object>>();
+                            subscribeMap[eventType].Add(new Dictionary<string, object>
+                            {
+                                ["scriptPath"] = script, ["line"] = i + 1
+                            });
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Orphaned publishes (published but no subscribers)
+            var orphanedPublishes = publishMap.Keys
+                .Where(e => !subscribeMap.ContainsKey(e))
+                .Select(e => new Dictionary<string, object>
+                {
+                    ["eventType"] = e,
+                    ["publishers"] = publishMap[e],
+                    ["subscriberCount"] = 0
+                }).ToList();
+
+            // Orphaned subscribes (subscribed but never published)
+            var orphanedSubscribes = subscribeMap.Keys
+                .Where(e => !publishMap.ContainsKey(e))
+                .Select(e => new Dictionary<string, object>
+                {
+                    ["eventType"] = e,
+                    ["subscribers"] = subscribeMap[e],
+                    ["publisherCount"] = 0
+                }).ToList();
+
+            // Critical event violations
+            var violations = new List<Dictionary<string, object>>();
+            if (criticalEvents != null)
+            {
+                foreach (var ce in criticalEvents)
+                {
+                    var eventType = ce.ContainsKey("eventType") ? ce["eventType"]?.ToString() : null;
+                    var minSubs = ce.ContainsKey("minSubscribers") ? Convert.ToInt32(ce["minSubscribers"]) : 1;
+                    if (string.IsNullOrEmpty(eventType)) continue;
+                    var actual = subscribeMap.ContainsKey(eventType) ? subscribeMap[eventType].Count : 0;
+                    if (actual < minSubs)
+                    {
+                        violations.Add(new Dictionary<string, object>
+                        {
+                            ["eventType"] = eventType,
+                            ["required"] = minSubs,
+                            ["actual"] = actual,
+                            ["subscribers"] = subscribeMap.ContainsKey(eventType)
+                                ? (object)subscribeMap[eventType]
+                                : new List<Dictionary<string, object>>()
+                        });
+                    }
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["publishedEventCount"] = publishMap.Count,
+                ["subscribedEventCount"] = subscribeMap.Count,
+                ["publishedEvents"] = publishMap.Keys.OrderBy(k => k).ToList(),
+                ["subscribedEvents"] = subscribeMap.Keys.OrderBy(k => k).ToList(),
+                ["orphanedPublishes"] = orphanedPublishes,
+                ["orphanedSubscribes"] = orphanedSubscribes,
+                ["criticalViolations"] = violations
+            };
+        }
+
+        /// <summary>
+        /// Analyze FSM state reachability: find enum states with no handler (switch/case or if-condition).
+        /// Detects unreachable states that would cause the game loop to stall.
+        /// </summary>
+        public Dictionary<string, object> AnalyzeFsmReachability(
+            string enumType, string transitionMethod,
+            List<string> excludeStates, string searchPath)
+        {
+            if (string.IsNullOrEmpty(enumType))
+                throw new ArgumentException("enumType is required");
+
+            var scripts = FindAllScripts(searchPath);
+            var excludeSet = new HashSet<string>(excludeStates ?? new List<string>());
+
+            // Step 1: Find enum declaration and extract values
+            var enumValues = new List<string>();
+            var enumPattern = new Regex(
+                $@"enum\s+{Regex.Escape(enumType)}\s*\{{([^}}]+)\}}",
+                RegexOptions.Compiled | RegexOptions.Singleline);
+
+            foreach (var script in scripts)
+            {
+                try
+                {
+                    var content = File.ReadAllText(Path.GetFullPath(script));
+                    var stripped = StripCommentsAndStrings(content);
+                    var match = enumPattern.Match(stripped);
+                    if (match.Success)
+                    {
+                        var body = match.Groups[1].Value;
+                        foreach (var item in body.Split(','))
+                        {
+                            var name = item.Split('=')[0].Trim();
+                            if (!string.IsNullOrEmpty(name))
+                                enumValues.Add(name);
+                        }
+                        break;
+                    }
+                }
+                catch { }
+            }
+
+            if (enumValues.Count == 0)
+                throw new ArgumentException($"Enum '{enumType}' not found");
+
+            // Step 2: For each non-excluded state, search for handlers
+            var stateResults = new List<Dictionary<string, object>>();
+            var unreachableStates = new List<string>();
+            var casePattern = new Regex(
+                $@"case\s+(?:{Regex.Escape(enumType)}\.)?(\w+)\s*:", RegexOptions.Compiled);
+            var ifPattern = new Regex(
+                $@"==\s*(?:{Regex.Escape(enumType)}\.)?(\w+)\b", RegexOptions.Compiled);
+            var transitionPattern = !string.IsNullOrEmpty(transitionMethod)
+                ? new Regex($@"\b{Regex.Escape(transitionMethod)}\s*\(", RegexOptions.Compiled)
+                : null;
+
+            // Build map: state → handlers
+            var stateHandlers = new Dictionary<string, List<Dictionary<string, object>>>();
+            foreach (var v in enumValues)
+                stateHandlers[v] = new List<Dictionary<string, object>>();
+
+            foreach (var script in scripts)
+            {
+                try
+                {
+                    var content = File.ReadAllText(Path.GetFullPath(script));
+                    var stripped = StripCommentsAndStrings(content);
+                    var lines = stripped.Split('\n');
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        foreach (Match m in casePattern.Matches(lines[i]))
+                        {
+                            var state = m.Groups[1].Value;
+                            if (stateHandlers.ContainsKey(state))
+                                stateHandlers[state].Add(new Dictionary<string, object>
+                                {
+                                    ["scriptPath"] = script, ["line"] = i + 1, ["matchType"] = "switch_case"
+                                });
+                        }
+                        foreach (Match m in ifPattern.Matches(lines[i]))
+                        {
+                            var state = m.Groups[1].Value;
+                            if (stateHandlers.ContainsKey(state))
+                                stateHandlers[state].Add(new Dictionary<string, object>
+                                {
+                                    ["scriptPath"] = script, ["line"] = i + 1, ["matchType"] = "if_condition"
+                                });
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            foreach (var state in enumValues)
+            {
+                var excluded = excludeSet.Contains(state);
+                var handlers = stateHandlers[state];
+                var hasHandler = handlers.Count > 0;
+
+                // Check if any handler calls the transition method
+                var callsTransition = false;
+                if (transitionPattern != null && hasHandler)
+                {
+                    foreach (var h in handlers)
+                    {
+                        try
+                        {
+                            var content = File.ReadAllText(Path.GetFullPath((string)h["scriptPath"]));
+                            var stripped = StripCommentsAndStrings(content);
+                            if (transitionPattern.IsMatch(stripped))
+                                callsTransition = true;
+                        }
+                        catch { }
+                    }
+                }
+
+                var stateDict = new Dictionary<string, object>
+                {
+                    ["state"] = state,
+                    ["excluded"] = excluded,
+                    ["hasHandler"] = excluded || hasHandler,
+                    ["handlers"] = handlers,
+                    ["callsTransition"] = callsTransition
+                };
+
+                if (!excluded && !hasHandler)
+                {
+                    stateDict["message"] = $"{enumType}.{state} has no handler"
+                        + (!string.IsNullOrEmpty(transitionMethod)
+                            ? $" — {transitionMethod}() will never be called from this state"
+                            : "");
+                    unreachableStates.Add(state);
+                }
+
+                stateResults.Add(stateDict);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["enumType"] = enumType,
+                ["allStates"] = enumValues,
+                ["stateCount"] = enumValues.Count,
+                ["excludedStates"] = excludeStates ?? new List<string>(),
+                ["unreachableStates"] = unreachableStates,
+                ["unreachableCount"] = unreachableStates.Count,
+                ["states"] = stateResults
+            };
+        }
+
         #region Private Helpers
 
         private static List<Dictionary<string, object>> ParseTypeDeclarations(
@@ -720,7 +979,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             return "reference";
         }
 
-        private static string StripCommentsAndStrings(string content)
+        internal static string StripCommentsAndStrings(string content)
         {
             // Order matters: remove strings first, then block comments, then line comments
             var result = StringLiteralPattern.Replace(content, m => new string(' ', m.Length));
@@ -864,7 +1123,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 throw new ArgumentException($"Script not found: {scriptPath}");
         }
 
-        private static string[] FindAllScripts(string searchPath)
+        internal static string[] FindAllScripts(string searchPath)
         {
             string[] searchFolders = string.IsNullOrEmpty(searchPath)
                 ? new[] { "Assets" }

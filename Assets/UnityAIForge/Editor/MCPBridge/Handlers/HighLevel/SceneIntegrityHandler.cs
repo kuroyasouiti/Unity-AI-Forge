@@ -24,7 +24,9 @@ namespace MCP.Editor.Handlers.HighLevel
             "all",
             "typeCheck",
             "report",
-            "checkPrefab"
+            "checkPrefab",
+            "canvasGroupAudit",
+            "referenceSemantics"
         };
 
         public override string Category => "sceneIntegrity";
@@ -49,6 +51,8 @@ namespace MCP.Editor.Handlers.HighLevel
                 "typeCheck" => BuildResponse(operation, analyzer.FindTypeMismatches(rootPath)),
                 "report" => HandleReport(payload),
                 "checkPrefab" => HandleCheckPrefab(payload),
+                "canvasGroupAudit" => BuildResponse(operation, analyzer.FindCanvasGroupIssues(rootPath)),
+                "referenceSemantics" => BuildResponse(operation, analyzer.FindReferenceSemanticsIssues(rootPath)),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
             };
         }

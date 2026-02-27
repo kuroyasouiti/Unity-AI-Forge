@@ -106,5 +106,46 @@ namespace MCP.Editor.Tests
                     ("prefabPath", "Assets/NonExistent.prefab"))),
                 "not found");
         }
+
+        [Test]
+        public void SupportedOperations_ContainsCanvasGroupAudit()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("canvasGroupAudit", ops);
+        }
+
+        [Test]
+        public void SupportedOperations_ContainsReferenceSemantics()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("referenceSemantics", ops);
+        }
+
+        [Test]
+        public void CanvasGroupAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("canvasGroupAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void ReferenceSemantics_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("referenceSemantics"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void All_IncludesNewChecksInSummary()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("all"));
+            TestUtilities.AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsTrue(dict.ContainsKey("summary"), "Result should contain 'summary' key");
+            var summary = dict["summary"] as Dictionary<string, int>;
+            Assert.IsNotNull(summary, "Summary should be a Dictionary<string, int>");
+            Assert.IsTrue(summary.ContainsKey("canvasGroupIssues"), "Summary should contain 'canvasGroupIssues'");
+            Assert.IsTrue(summary.ContainsKey("semanticRefIssues"), "Summary should contain 'semanticRefIssues'");
+        }
     }
 }
