@@ -39,28 +39,54 @@ namespace MCP.Editor.Handlers
             var rigName = GetString(payload, "rigName") ?? $"CameraRig_{rigType}";
             var parentPath = GetString(payload, "parentPath");
 
-            GameObject parent = null;
-            if (!string.IsNullOrEmpty(parentPath))
+            // Check for existing GameObject with the same name
+            var existingGo = TryResolveGameObject(rigName);
+            bool reused = existingGo != null;
+
+            GameObject rigRoot;
+            GameObject cameraGo;
+
+            if (reused)
             {
-                parent = ResolveGameObject(parentPath);
+                rigRoot = existingGo;
+                Undo.RecordObject(rigRoot, "Reuse Camera Rig");
+
+                // Use existing Camera if present, otherwise create child
+                var existingCamera = rigRoot.GetComponent<Camera>()
+                                  ?? rigRoot.GetComponentInChildren<Camera>();
+                if (existingCamera != null)
+                {
+                    cameraGo = existingCamera.gameObject;
+                    Undo.RecordObject(existingCamera, "Configure Camera");
+                    ConfigureCamera(existingCamera, payload);
+                }
+                else
+                {
+                    cameraGo = new GameObject("Camera");
+                    Undo.RegisterCreatedObjectUndo(cameraGo, "Create Camera");
+                    cameraGo.transform.SetParent(rigRoot.transform, false);
+                    var camera = Undo.AddComponent<Camera>(cameraGo);
+                    ConfigureCamera(camera, payload);
+                }
             }
-
-            // Create rig root
-            var rigRoot = new GameObject(rigName);
-            Undo.RegisterCreatedObjectUndo(rigRoot, "Create Camera Rig");
-
-            if (parent != null)
+            else
             {
-                rigRoot.transform.SetParent(parent.transform, false);
+                // Original flow: create new rig root + child camera
+                rigRoot = new GameObject(rigName);
+                Undo.RegisterCreatedObjectUndo(rigRoot, "Create Camera Rig");
+
+                if (!string.IsNullOrEmpty(parentPath))
+                {
+                    var parent = ResolveGameObject(parentPath);
+                    rigRoot.transform.SetParent(parent.transform, false);
+                }
+
+                cameraGo = new GameObject("Camera");
+                Undo.RegisterCreatedObjectUndo(cameraGo, "Create Camera");
+                cameraGo.transform.SetParent(rigRoot.transform, false);
+                var camera = Undo.AddComponent<Camera>(cameraGo);
+                ConfigureCamera(camera, payload);
             }
-
-            // Create camera child
-            var cameraGo = new GameObject("Camera");
-            Undo.RegisterCreatedObjectUndo(cameraGo, "Create Camera");
-            cameraGo.transform.SetParent(rigRoot.transform, false);
-
-            var camera = Undo.AddComponent<Camera>(cameraGo);
-            ConfigureCamera(camera, payload);
 
             // Apply rig-specific setup
             switch (rigType)
@@ -87,7 +113,8 @@ namespace MCP.Editor.Handlers
             return CreateSuccessResponse(
                 ("rigPath", BuildGameObjectPath(rigRoot)),
                 ("cameraPath", BuildGameObjectPath(cameraGo)),
-                ("rigType", rigType)
+                ("rigType", rigType),
+                ("reused", reused)
             );
         }
 
@@ -116,8 +143,12 @@ namespace MCP.Editor.Handlers
 
             cameraGo.transform.localPosition = offset;
 
-            // Add a simple follow script component (placeholder - would need actual script)
-            var script = rigRoot.AddComponent<CameraFollowHelper>();
+            // Add or reuse follow script component
+            var script = rigRoot.GetComponent<CameraFollowHelper>();
+            if (script == null)
+                script = Undo.AddComponent<CameraFollowHelper>(rigRoot);
+            else
+                Undo.RecordObject(script, "Update Follow Helper");
             script.offset = offset;
             script.followSpeed = followSpeed;
             script.lookAtTarget = lookAtTarget;
@@ -146,7 +177,11 @@ namespace MCP.Editor.Handlers
 
             cameraGo.transform.localPosition = new Vector3(0, 0, -distance);
 
-            var script = rigRoot.AddComponent<CameraOrbitHelper>();
+            var script = rigRoot.GetComponent<CameraOrbitHelper>();
+            if (script == null)
+                script = Undo.AddComponent<CameraOrbitHelper>(rigRoot);
+            else
+                Undo.RecordObject(script, "Update Orbit Helper");
             script.distance = distance;
             script.lookAtTarget = lookAtTarget;
 
@@ -219,7 +254,11 @@ namespace MCP.Editor.Handlers
             var offset = GetVector3(payload, "offset", new Vector3(0, 5, -10));
             cameraGo.transform.localPosition = offset;
 
-            var script = rigRoot.AddComponent<CameraDollyHelper>();
+            var script = rigRoot.GetComponent<CameraDollyHelper>();
+            if (script == null)
+                script = Undo.AddComponent<CameraDollyHelper>(rigRoot);
+            else
+                Undo.RecordObject(script, "Update Dolly Helper");
             script.offset = offset;
 
             if (payload.TryGetValue("targetPath", out var targetPathObj))
