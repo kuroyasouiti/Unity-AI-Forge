@@ -420,3 +420,116 @@ MonoBehaviour:
     gameObjectPath: SelectionTarget/test_selection
     variablesJson: '{"SELECTION_ID":"test_selection","SELECTION_TYPE":"Radio","ALLOW_NONE":false,"DEFAULT_INDEX":0,"LAYOUT":"Horizontal","SPACING":10,"UXML_PATH":"Assets/UI/Generated/TestSelectionUISelection.uxml","USS_PATH":"Assets/UI/Generated/TestSelectionUISelection.uss","CLASS_NAME":"TestSelectionUISelection"}'
     pendingAttach: 1
+  - componentId: PlayerStats
+    className: PlayerStatsDataContainer
+    scriptPath: Assets/Scripts/Generated/PlayerStatsDataContainer.cs
+    templateName: DataContainer
+    gameObjectPath: 
+    variablesJson: '{"DATA_ID":"PlayerStats","RESET_ON_PLAY":true,"FIELDS":"    [SerializeField]
+      public int hp = 100;\r\n    [SerializeField] public int maxHp = 100;\r\n   
+      [SerializeField] public int mp = 50;\r\n    [SerializeField] public int maxMp
+      = 50;\r\n    [SerializeField] public int atk = 10;\r\n    [SerializeField]
+      public int def = 5;\r\n    [SerializeField] public float moveSpeed = 5f;\r\n   
+      [SerializeField] public int gold = 0;","CLASS_NAME":"PlayerStatsDataContainer"}'
+    pendingAttach: 0
+  - componentId: playerAnim
+    className: PlayerAnimAnimationSync
+    scriptPath: Assets/Scripts/Generated/PlayerAnimAnimationSync.cs
+    templateName: AnimationSync
+    gameObjectPath: Player
+    variablesJson: '{"SYNC_ID":"playerAnim","AUTO_FIND_ANIMATOR":true,"CLASS_NAME":"PlayerAnimAnimationSync"}'
+    pendingAttach: 0
+  - componentId: OnDamage
+    className: OnDamageEventChannel
+    scriptPath: Assets/Scripts/Generated/OnDamageEventChannel.cs
+    templateName: EventChannel
+    gameObjectPath: 
+    variablesJson: '{"DATA_ID":"OnDamage","EVENT_TYPE_LABEL":"Float","EVENT_TYPE_GENERIC":"<float>","EVENT_TYPE_PARAM":"float
+      value","EVENT_TYPE_ARG":"value","DESCRIPTION":"Event channel: OnDamage (float)","CLASS_NAME":"OnDamageEventChannel"}'
+    pendingAttach: 0
+  - componentId: OnEnemyDeath
+    className: OnEnemyDeathEventChannel
+    scriptPath: Assets/Scripts/Generated/OnEnemyDeathEventChannel.cs
+    templateName: EventChannel
+    gameObjectPath: 
+    variablesJson: '{"DATA_ID":"OnEnemyDeath","EVENT_TYPE_LABEL":"Void","EVENT_TYPE_GENERIC":"","EVENT_TYPE_PARAM":"","EVENT_TYPE_ARG":"","DESCRIPTION":"Event
+      channel: OnEnemyDeath (void)","CLASS_NAME":"OnEnemyDeathEventChannel"}'
+    pendingAttach: 0
+  - componentId: ActiveEnemies
+    className: ActiveEnemiesRuntimeSet
+    scriptPath: Assets/Scripts/Generated/ActiveEnemiesRuntimeSet.cs
+    templateName: RuntimeSet
+    gameObjectPath: 
+    variablesJson: '{"DATA_ID":"ActiveEnemies","ELEMENT_TYPE":"GameObject","CLASS_NAME":"ActiveEnemiesRuntimeSet"}'
+    pendingAttach: 0
+  - componentId: OnItemPickup
+    className: OnItemPickupEventChannel
+    scriptPath: Assets/Scripts/Generated/OnItemPickupEventChannel.cs
+    templateName: EventChannel
+    gameObjectPath: 
+    variablesJson: '{"DATA_ID":"OnItemPickup","EVENT_TYPE_LABEL":"Void","EVENT_TYPE_GENERIC":"","EVENT_TYPE_PARAM":"","EVENT_TYPE_ARG":"","DESCRIPTION":"Event
+      channel: OnItemPickup (void)","CLASS_NAME":"OnItemPickupEventChannel"}'
+    pendingAttach: 0
+  - componentId: bgm_dungeon
+    className: BgmDungeonAudio
+    scriptPath: Assets/Scripts/Generated/BgmDungeonAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioManager
+    variablesJson: '{"AUDIO_ID":"bgm_dungeon","AUDIO_TYPE":"Music","PLAY_ON_ENABLE":true,"LOOP":true,"VOLUME":0.5,"PITCH":1,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":1,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"BgmDungeonAudio"}'
+    pendingAttach: 0
+  - componentId: se_attack
+    className: SeAttackAudio
+    scriptPath: Assets/Scripts/Generated/SeAttackAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioManager/SE_Attack
+    variablesJson: '{"AUDIO_ID":"se_attack","AUDIO_TYPE":"SFX","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":0.7,"PITCH":1,"PITCH_VARIATION":0.1,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"SeAttackAudio"}'
+    pendingAttach: 0
+  - componentId: se_hit
+    className: SeHitAudio
+    scriptPath: Assets/Scripts/Generated/SeHitAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioManager/SE_Hit
+    variablesJson: '{"AUDIO_ID":"se_hit","AUDIO_TYPE":"SFX","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":0.6,"PITCH":1,"PITCH_VARIATION":0.15,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"SeHitAudio"}'
+    pendingAttach: 0
+  - componentId: se_item_pickup
+    className: SeItemPickupAudio
+    scriptPath: Assets/Scripts/Generated/SeItemPickupAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioManager/SE_ItemPickup
+    variablesJson: '{"AUDIO_ID":"se_item_pickup","AUDIO_TYPE":"SFX","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":0.6,"PITCH":1.2,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"SeItemPickupAudio"}'
+    pendingAttach: 0
+  - componentId: se_enemy_death
+    className: SeEnemyDeathAudio
+    scriptPath: Assets/Scripts/Generated/SeEnemyDeathAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioManager/SE_EnemyDeath
+    variablesJson: '{"AUDIO_ID":"se_enemy_death","AUDIO_TYPE":"SFX","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":0.7,"PITCH":0.8,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"SeEnemyDeathAudio"}'
+    pendingAttach: 0
+  - componentId: se_ui
+    className: SeUiAudio
+    scriptPath: Assets/Scripts/Generated/SeUiAudio.cs
+    templateName: Audio
+    gameObjectPath: AudioManager/SE_UI
+    variablesJson: '{"AUDIO_ID":"se_ui","AUDIO_TYPE":"UI","PLAY_ON_ENABLE":false,"LOOP":false,"VOLUME":0.5,"PITCH":1.1,"PITCH_VARIATION":0,"SPATIAL_BLEND":0,"FADE_IN_DURATION":0,"FADE_OUT_DURATION":0,"MIN_DISTANCE":1,"MAX_DISTANCE":500,"CLASS_NAME":"SeUiAudio"}'
+    pendingAttach: 0
+  - componentId: hit_feedback
+    className: HitFeedbackFeedback
+    scriptPath: Assets/Scripts/Generated/HitFeedbackFeedback.cs
+    templateName: Feedback
+    gameObjectPath: FeedbackManager
+    variablesJson: '{"FEEDBACK_ID":"hit_feedback","PLAY_ON_ENABLE":false,"GLOBAL_INTENSITY":1,"CLASS_NAME":"HitFeedbackFeedback"}'
+    pendingAttach: 0
+  - componentId: EffectManager_1671ba61
+    className: EffectManager1671ba61
+    scriptPath: Assets/Scripts/Generated/EffectManager1671ba61.cs
+    templateName: EffectManager
+    gameObjectPath: FeedbackManager
+    variablesJson: '{"MANAGER_ID":"EffectManager_1671ba61","PERSISTENT":"false","AUDIO_POOL_SIZE":5,"CLASS_NAME":"EffectManager1671ba61"}'
+    pendingAttach: 0
+  - componentId: explosion_effect
+    className: ExplosionEffectEffect
+    scriptPath: Assets/Scripts/Generated/ExplosionEffectEffect.cs
+    templateName: Effect
+    gameObjectPath: FeedbackManager/ExplosionEffect
+    variablesJson: '{"EFFECT_ID":"explosion_effect","COMPONENT_COUNT":3,"CLASS_NAME":"ExplosionEffectEffect"}'
+    pendingAttach: 0
