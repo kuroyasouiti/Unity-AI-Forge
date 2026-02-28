@@ -163,6 +163,7 @@ namespace MCP.Editor.Handlers
                 importer.alphaIsTransparency = true;
                 importer.mipmapEnabled = false;
                 importer.filterMode = FilterMode.Bilinear;
+                importer.spritePixelsPerUnit = Mathf.Max(width, height);
                 importer.SaveAndReimport();
             }
 
@@ -218,7 +219,8 @@ namespace MCP.Editor.Handlers
                 TextureImporterPlatformSettings settings = importer.GetDefaultPlatformTextureSettings();
                 settings.maxTextureSize = Mathf.Max(width, height);
                 importer.SetPlatformTextureSettings(settings);
-                
+                importer.spritePixelsPerUnit = Mathf.Max(width, height);
+
                 importer.SaveAndReimport();
             }
 
@@ -376,6 +378,7 @@ namespace MCP.Editor.Handlers
                 importer.alphaIsTransparency = true;
                 importer.mipmapEnabled = false;
                 importer.filterMode = FilterMode.Point;
+                importer.spritePixelsPerUnit = Mathf.Max(width, height);
                 importer.SaveAndReimport();
             }
 
