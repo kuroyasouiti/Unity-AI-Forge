@@ -114,4 +114,5 @@ docs/
 .mcp_bridge_token
 .mcp_bridge_tokens.json
 nul
-Assets/UnityAIForge/Editor/GeneratedScriptTracker.asset
+*/GeneratedScriptTracker.asset
+*/uv.lock
