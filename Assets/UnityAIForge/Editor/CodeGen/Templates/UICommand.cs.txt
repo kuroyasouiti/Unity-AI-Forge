@@ -44,7 +44,12 @@ public class {{CLASS_NAME}} : MonoBehaviour
     [SerializeField] private UIDocument uiDocument;
 
     [Header("Commands")]
-    [SerializeField] private List<UICommandBinding> commandBindings = new List<UICommandBinding>();
+    [SerializeField] private List<UICommandBinding> commandBindings = new List<UICommandBinding>()
+    {
+{{#FOREACH COMMANDS}}
+        new UICommandBinding { commandName = "{{CMD_NAME}}", buttonName = "{{CMD_NAME}}", commandType = CommandType.{{CMD_TYPE}} },
+{{/FOREACH}}
+    };
     [SerializeField] private bool logCommands = false;
 
     #endregion

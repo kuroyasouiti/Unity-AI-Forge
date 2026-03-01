@@ -5,6 +5,25 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.13.1] - 2026-03-01
+
+### 修正
+
+- **UICommand 初期コマンド登録の修正**: `createCommandPanel` の `commands` パラメータで指定した初期コマンドがテンプレート生成時に反映されない問題を修正。FOREACH テンプレートブロックでフィールド初期化子に埋め込むように変更
+- **UISlot サイレント成功の修正**: `SetItem`/`ClearSlot`/`SetHighlight` でメソッドが見つからない場合に成功を返していた問題を修正し、notesで状況を報告するように変更
+- **UIBinding FindByBindingId 境界チェック追加**: `enumValueIndex` が範囲外の場合に `IndexOutOfRangeException` が発生する問題を修正
+- **USS インポートエラーの修正**: UXML ファイルのインポート時にまだ存在しない USS ファイルへの参照でエラーが出る問題を修正。`WriteUXMLAndUSS` メソッドで USS を先に書き込んでからインポートする順序に変更
+- **bridge_manager.py 接続チェック追加**: `await_compilation()` が未接続時に `TimeoutError` を投げる問題を修正し、事前に接続状態を確認するガードを追加
+- **テスト修正**: `test_bridge_manager.py` の `CompilationWaiter` 使用修正、`test_config_env.py` の削除済み機能テスト更新
+
+### 改善
+
+- **Delete 操作の孤立スクリプトクリーンアップ追加**: UICommand, UIList, UISlot (DeleteSlot/DeleteSlotBar), UISelection の Delete 操作で、親 GameObject が既に破棄されている場合でも生成スクリプトと UI アセットを確実にクリーンアップ
+- **Undo サポート追加**: UIList (7操作), UISlot (3操作), UISelection (10操作) の状態変更前に `Undo.RecordObject` を呼び出すように変更
+- **共有リフレクションヘルパー統合**: `CodeGenHelper` に `InvokeMethod`, `GetPropertyValue`, `FindNestedType` を集約し、UISelection の重複ヘルパーを削除
+- **共有コンポーネント解決メソッド追加**: `BaseCommandHandler.ResolveGeneratedComponent()` を追加し、5つの UI Pillar ハンドラーの Resolve メソッドを1行委譲に簡素化
+- **冗長なテンプレート変数変換の削除**: `FormatValue` が既に処理する `bool`/`float` の手動変換を UIList, UISlot から削除
+
 ## [2.13.0] - 2026-02-28
 
 ### 追加

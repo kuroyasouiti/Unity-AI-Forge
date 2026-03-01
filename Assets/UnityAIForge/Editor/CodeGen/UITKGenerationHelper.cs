@@ -17,6 +17,8 @@ namespace MCP.Editor.CodeGen
 
         /// <summary>
         /// Writes a UXML file to disk and imports it into the AssetDatabase.
+        /// If the UXML references a USS file, prefer <see cref="WriteUXMLAndUSS"/> to avoid
+        /// import errors caused by the USS not existing yet.
         /// </summary>
         /// <param name="outputDir">Directory to write to.</param>
         /// <param name="fileName">File name without extension.</param>
@@ -45,6 +47,34 @@ namespace MCP.Editor.CodeGen
             File.WriteAllText(path, ussContent, System.Text.Encoding.UTF8);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
             return path;
+        }
+
+        /// <summary>
+        /// Writes both UXML and USS files to disk, then imports them in the correct order
+        /// (USS first, then UXML) so that the UXML import can resolve the stylesheet reference.
+        /// </summary>
+        /// <param name="outputDir">Directory to write to.</param>
+        /// <param name="fileName">File name without extension (used for both files).</param>
+        /// <param name="uxmlContent">UXML content string.</param>
+        /// <param name="ussContent">USS content string.</param>
+        /// <returns>Tuple of (uxmlPath, ussPath).</returns>
+        public static (string uxmlPath, string ussPath) WriteUXMLAndUSS(
+            string outputDir, string fileName, string uxmlContent, string ussContent)
+        {
+            EnsureDirectoryExists(outputDir);
+
+            var uxmlPath = Path.Combine(outputDir, fileName + ".uxml").Replace("\\", "/");
+            var ussPath = Path.Combine(outputDir, fileName + ".uss").Replace("\\", "/");
+
+            // Write both files to disk before importing either
+            File.WriteAllText(ussPath, ussContent, System.Text.Encoding.UTF8);
+            File.WriteAllText(uxmlPath, uxmlContent, System.Text.Encoding.UTF8);
+
+            // Import USS first so the UXML import can resolve the stylesheet reference
+            AssetDatabase.ImportAsset(ussPath, ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset(uxmlPath, ImportAssetOptions.ForceUpdate);
+
+            return (uxmlPath, ussPath);
         }
 
         /// <summary>

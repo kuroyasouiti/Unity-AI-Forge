@@ -5,15 +5,16 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.13.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.13.1-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## v2.13.0 のハイライト
+## v2.13.1 のハイライト
 
-- **既存3ツールに5つの新オペレーション追加**（論理的不整合の検出強化）
-  - `unity_validate_integrity`: +`canvasGroupAudit`（CanvasGroupアルファ競合検出）、+`referenceSemantics`（非アクティブ参照・自己参照検出）
-  - `unity_script_syntax`: +`eventCoverage`（孤立イベント検出）、+`fsmReachability`（FSM到達不能状態検出）
-  - `unity_playmode_control`: +`validateState`（ランタイムマネージャー状態検証）
+- **GameKit UI Pillar 品質改善**
+  - UICommand 初期コマンド登録バグの修正、UISlot サイレント成功バグの修正
+  - 全5ハンドラーに Delete 孤立クリーンアップと Undo サポートを追加
+  - 共有ヘルパー統合（`ResolveGeneratedComponent`, リフレクションヘルパー）でコード重複を削減
+  - USS インポートエラーの修正（`WriteUXMLAndUSS` で正しい書き込み順序を保証）
 
 ## v2.10.0 のハイライト
 

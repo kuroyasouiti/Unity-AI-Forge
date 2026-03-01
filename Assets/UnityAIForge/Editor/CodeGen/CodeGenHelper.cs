@@ -264,6 +264,69 @@ namespace MCP.Editor.CodeGen
             return response;
         }
 
+        #region Reflection Helpers
+
+        /// <summary>
+        /// Invokes a public instance method on a component via reflection and returns the result.
+        /// Returns default(T) if the method is not found.
+        /// </summary>
+        public static T InvokeMethod<T>(Component component, string methodName, params object[] args)
+        {
+            var method = component.GetType().GetMethod(methodName,
+                BindingFlags.Public | BindingFlags.Instance);
+            if (method == null)
+                return default;
+
+            var result = method.Invoke(component, args);
+            if (result is T typed) return typed;
+            if (result != null) return (T)Convert.ChangeType(result, typeof(T));
+            return default;
+        }
+
+        /// <summary>
+        /// Invokes a public instance method on a component via reflection (void return).
+        /// Does nothing if the method is not found.
+        /// </summary>
+        public static void InvokeMethod(Component component, string methodName, params object[] args)
+        {
+            var method = component.GetType().GetMethod(methodName,
+                BindingFlags.Public | BindingFlags.Instance);
+            method?.Invoke(component, args);
+        }
+
+        /// <summary>
+        /// Gets a public instance property value from a component via reflection.
+        /// Returns default(T) if the property is not found.
+        /// </summary>
+        public static T GetPropertyValue<T>(Component component, string propertyName)
+        {
+            var prop = component.GetType().GetProperty(propertyName,
+                BindingFlags.Public | BindingFlags.Instance);
+            if (prop == null) return default;
+            var value = prop.GetValue(component);
+            if (value is T typed) return typed;
+            if (value != null) return (T)Convert.ChangeType(value, typeof(T));
+            return default;
+        }
+
+        /// <summary>
+        /// Finds a nested type by name, searching up the inheritance hierarchy.
+        /// </summary>
+        public static Type FindNestedType(Type type, string nestedTypeName)
+        {
+            var current = type;
+            while (current != null && current != typeof(object))
+            {
+                var nested = current.GetNestedType(nestedTypeName,
+                    BindingFlags.Public | BindingFlags.NonPublic);
+                if (nested != null) return nested;
+                current = current.BaseType;
+            }
+            return null;
+        }
+
+        #endregion
+
         #region SerializedProperty Helpers
 
         private static void SetSerializedPropertyValue(SerializedProperty prop, object value)

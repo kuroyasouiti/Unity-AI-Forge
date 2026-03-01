@@ -6,7 +6,7 @@ AIアシスタントがUnity-AI-ForgeのMCPツールを使ってUnity Editorを�
 
 Unity-AI-Forgeは、Model Context Protocol (MCP)を通じてAIアシスタントがUnity Editorをリアルタイムで操作するための開発ツールキットです。52のMCPツールを提供し、3層アーキテクチャ（High-Level GameKit / Mid-Level / Low-Level CRUD）で構成されています。
 
-**バージョン:** 2.13.0
+**バージョン:** 2.13.1
 **要件:** Unity 2022.3 LTS以降、Python 3.10+、.NET Standard 2.1
 
 ### 通信フロー

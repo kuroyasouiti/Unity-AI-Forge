@@ -3,27 +3,18 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.9.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.13.1-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。**49ツール**を備え、Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKit（3本柱アーキテクチャ）の3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
+Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。**52ツール**を備え、Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKit（3本柱アーキテクチャ + Systems）の3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
 
-## v2.9.0のハイライト
+## v2.13.1のハイライト
 
-- **コード生成アーキテクチャへの完全移行**
-  - GameKitハンドラーがスタンドアロンC#スクリプトをテンプレートから生成
-  - ランタイムライブラリ（`UnityAIForge.GameKit.Runtime`）を削除し、ゼロ依存を実現
-  - ユーザープロジェクトはUnity-AI-Forgeパッケージをアンインストールしても動作可能
-
-- **GameKit 3本柱アーキテクチャ（15ツール）**
-  - **UIピラー** (5): UICommand, UIBinding, UIList, UISlot, UISelection（UI Toolkit ベース）
-  - **Presentationピラー** (5): AnimationSync, Effect, Feedback, VFX, Audio
-  - **Logicピラー** (5): Integrity検証, ClassCatalog, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
-
-- **ツール構成の最適化（49ツール）**
-  - GameKit 15 (UI 5 + Presentation 5 + Logic 5)
-  - Mid-Level 20 (バッチ操作 + ビジュアル制御 + UI Toolkit)
-  - Low-Level 8 / Utility 5 / Settings 1 / Batch 1
+- **GameKit UI Pillar 品質改善**
+  - UICommand 初期コマンド登録バグの修正、UISlot サイレント成功バグの修正
+  - 全5ハンドラーに Delete 孤立クリーンアップと Undo サポートを追加
+  - 共有ヘルパー統合（`ResolveGeneratedComponent`, リフレクションヘルパー）でコード重複を削減
+  - USS インポートエラーの修正（`WriteUXMLAndUSS` で正しい書き込み順序を保証）
 
 ## 📦 パッケージ構造
 
@@ -35,7 +26,7 @@ Unity-AI-Forge/
 │       │   ├── MCPBridge/                      # Unity C# WebSocketブリッジ
 │       │   │   └── Handlers/                   # 48ハンドラー（6カテゴリ）
 │       │   ├── CodeGen/                        # コード生成インフラ
-│       │   │   └── Templates/                  # 11テンプレート（*.cs.txt）
+│       │   │   └── Templates/                  # 16テンプレート（*.cs.txt）
 │       │   └── MCPServerManager/               # サーバー管理UI
 │       ├── MCPServer/                          # MCPサーバー（Python）
 │       │   ├── src/                            # Python MCPサーバー

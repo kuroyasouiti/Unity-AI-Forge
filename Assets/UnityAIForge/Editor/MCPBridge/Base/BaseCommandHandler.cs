@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MCP.Editor.CodeGen;
 using MCP.Editor.Interfaces;
 using MCP.Editor.Utilities;
 using UnityEditor;
@@ -429,6 +430,61 @@ namespace MCP.Editor.Base
             }
 
             return response;
+        }
+
+        #endregion
+
+        #region Generated Component Resolution
+
+        /// <summary>
+        /// Resolves a generated component by searching for a serialized field value.
+        /// Tries ID-based lookup first, then falls back to targetPath-based lookup.
+        /// </summary>
+        /// <param name="payload">The command payload.</param>
+        /// <param name="idFieldName">The serialized field name on the component (e.g. "bindingId").</param>
+        /// <param name="idPayloadKey">The primary payload key for the ID (e.g. "bindingId").</param>
+        /// <param name="typeName">Display name for error messages (e.g. "UIBinding").</param>
+        /// <param name="alternateIdKeys">Additional payload keys to check for the ID (e.g. "barId").</param>
+        /// <returns>The resolved component.</returns>
+        /// <exception cref="InvalidOperationException">If the component cannot be found.</exception>
+        protected Component ResolveGeneratedComponent(
+            Dictionary<string, object> payload,
+            string idFieldName, string idPayloadKey,
+            string typeName, params string[] alternateIdKeys)
+        {
+            // Try primary ID key
+            var id = GetString(payload, idPayloadKey);
+
+            // Try alternate keys if primary is empty
+            if (string.IsNullOrEmpty(id))
+            {
+                foreach (var key in alternateIdKeys)
+                {
+                    id = GetString(payload, key);
+                    if (!string.IsNullOrEmpty(id)) break;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(id))
+            {
+                var byId = CodeGenHelper.FindComponentInSceneByField(idFieldName, id);
+                if (byId != null) return byId;
+            }
+
+            var targetPath = GetString(payload, "targetPath");
+            if (!string.IsNullOrEmpty(targetPath))
+            {
+                var targetGo = ResolveGameObject(targetPath);
+                if (targetGo != null)
+                {
+                    var byPath = CodeGenHelper.FindComponentByField(targetGo, idFieldName, null);
+                    if (byPath != null) return byPath;
+                    throw new InvalidOperationException($"No {typeName} component found on '{targetPath}'.");
+                }
+                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
+            }
+
+            throw new InvalidOperationException($"Either {idPayloadKey} or targetPath is required.");
         }
 
         #endregion

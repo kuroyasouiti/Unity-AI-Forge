@@ -104,33 +104,32 @@ class TestLoadBridgeToken:
         os.environ["MCP_BRIDGE_TOKEN"] = "test-token-123"
         assert _load_bridge_token() == "test-token-123"
 
-    def test_load_from_json_file(
+    def test_load_ignores_json_file(
         self, clean_env: None, temp_project_dir: Path
     ) -> None:
+        """Token files are no longer searched; only env var is used."""
         from config import env
 
-        # Create token file
+        # Create token file — should be ignored
         token_file = temp_project_dir / ".mcp_bridge_tokens.json"
         token_file.write_text(json.dumps({"tokens": ["json-token-456"]}))
 
-        # Patch project root
         with patch.object(env, "_project_root", temp_project_dir):
-            # Re-import to use patched _project_root
             token = env._load_bridge_token()
-            assert token == "json-token-456"
+            assert token is None
 
-    def test_load_from_legacy_file(
+    def test_load_ignores_legacy_file(
         self, clean_env: None, temp_project_dir: Path
     ) -> None:
+        """Legacy token files are no longer searched; only env var is used."""
         from config import env
 
-        # Create legacy token file
         legacy_file = temp_project_dir / ".mcp_bridge_token"
         legacy_file.write_text("legacy-token-789")
 
         with patch.object(env, "_project_root", temp_project_dir):
             token = env._load_bridge_token()
-            assert token == "legacy-token-789"
+            assert token is None
 
     def test_load_returns_none_when_no_token(
         self, clean_env: None, temp_project_dir: Path
@@ -138,20 +137,6 @@ class TestLoadBridgeToken:
         from config import env
 
         with patch.object(env, "_project_root", temp_project_dir):
-            token = env._load_bridge_token()
-            assert token is None
-
-    def test_load_handles_invalid_json(
-        self, clean_env: None, temp_project_dir: Path
-    ) -> None:
-        from config import env
-
-        # Create invalid JSON file
-        token_file = temp_project_dir / ".mcp_bridge_tokens.json"
-        token_file.write_text("not valid json {")
-
-        with patch.object(env, "_project_root", temp_project_dir):
-            # Should not raise, should return None
             token = env._load_bridge_token()
             assert token is None
 

@@ -130,7 +130,14 @@ class BridgeManager:
             During compilation, Unity may disconnect the bridge due to domain reload.
             This is expected behavior and this method will wait for reconnection.
         """
-        # Don't require socket - we may be waiting for reconnection after domain reload
+        # If we're not connected and not in a compilation state (e.g. disconnected
+        # during domain reload), there's nothing to wait for — fail immediately.
+        if not self.is_connected() and not self._is_compiling:
+            raise RuntimeError("Unity bridge is not connected")
+
+        # If connected or disconnected during active compilation, proceed to wait.
+        # During domain reload Unity disconnects temporarily and reconnects with
+        # a bridge:restarted message that resolves pending waiters.
         loop = asyncio.get_running_loop()
 
         future: asyncio.Future[dict[str, Any]] = loop.create_future()

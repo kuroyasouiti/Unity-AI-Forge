@@ -355,7 +355,7 @@ class TestBridgeManagerMessageHandling:
             loop.close()
 
     def test_handle_compilation_complete(self) -> None:
-        from bridge.bridge_manager import BridgeManager
+        from bridge.bridge_manager import BridgeManager, CompilationWaiter
 
         manager = BridgeManager()
         loop = asyncio.new_event_loop()
@@ -363,7 +363,13 @@ class TestBridgeManagerMessageHandling:
 
         try:
             future: asyncio.Future[dict[str, Any]] = loop.create_future()
-            manager._compilation_waiters.append(future)
+            timeout_handle = loop.call_later(60, lambda: None)
+            waiter = CompilationWaiter(
+                future=future,
+                timeout_handle=timeout_handle,
+                timeout_seconds=60,
+            )
+            manager._compilation_waiters.append(waiter)
 
             message = {
                 "type": "compilation:complete",
@@ -384,7 +390,7 @@ class TestBridgeManagerMessageHandling:
             loop.close()
 
     def test_handle_bridge_restarted(self) -> None:
-        from bridge.bridge_manager import BridgeManager
+        from bridge.bridge_manager import BridgeManager, CompilationWaiter
 
         manager = BridgeManager()
         loop = asyncio.new_event_loop()
@@ -392,7 +398,13 @@ class TestBridgeManagerMessageHandling:
 
         try:
             future: asyncio.Future[dict[str, Any]] = loop.create_future()
-            manager._compilation_waiters.append(future)
+            timeout_handle = loop.call_later(60, lambda: None)
+            waiter = CompilationWaiter(
+                future=future,
+                timeout_handle=timeout_handle,
+                timeout_seconds=60,
+            )
+            manager._compilation_waiters.append(waiter)
             manager._session_id = "old-session"
 
             message = {

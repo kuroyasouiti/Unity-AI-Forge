@@ -83,13 +83,10 @@ namespace MCP.Editor.Handlers.GameKit
                 var className = GetString(payload, "className") ?? ScriptGenerator.ToPascalCase(listId, "UIList");
                 var layout = GetString(payload, "layout") ?? "vertical";
 
-                // Generate UXML
+                // Generate UXML + USS (USS written first to avoid import errors)
                 var uxmlContent = BuildListUXML(className, layout, payload);
-                var uxmlPath = UITKGenerationHelper.WriteUXML(uiOutputDir, className, uxmlContent);
-
-                // Generate USS
                 var ussContent = BuildListUSS(layout, payload);
-                var ussPath = UITKGenerationHelper.WriteUSS(uiOutputDir, className, ussContent);
+                var (uxmlPath, ussPath) = UITKGenerationHelper.WriteUXMLAndUSS(uiOutputDir, className, uxmlContent, ussContent);
 
                 // Create UIDocument GameObject
                 targetGo = UITKGenerationHelper.CreateUIDocumentGameObject(listName, parent.transform, uxmlPath, ussPath);
@@ -142,8 +139,8 @@ namespace MCP.Editor.Handlers.GameKit
                 { "SPACING_Y", spacingY },
                 { "DATA_SOURCE", dataSourceStr },
                 { "SOURCE_ID", sourceId },
-                { "SELECTABLE", selectable.ToString().ToLowerInvariant() },
-                { "MULTI_SELECT", multiSelect.ToString().ToLowerInvariant() }
+                { "SELECTABLE", selectable },
+                { "MULTI_SELECT", multiSelect }
             };
 
             if (!string.IsNullOrEmpty(uxmlPath)) variables["UXML_PATH"] = uxmlPath;
@@ -330,21 +327,37 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteList(Dictionary<string, object> payload)
         {
-            var component = ResolveListComponent(payload);
-            var path = BuildGameObjectPath(component.gameObject);
-            var listId = new SerializedObject(component).FindProperty("listId").stringValue;
-            var scene = component.gameObject.scene;
+            var listId = GetString(payload, "listId");
 
-            UITKGenerationHelper.DeleteUIAssets(listId);
-            Undo.DestroyObjectImmediate(component.gameObject);
-            ScriptGenerator.Delete(listId);
-            EditorSceneManager.MarkSceneDirty(scene);
+            try
+            {
+                var component = ResolveListComponent(payload);
+                var path = BuildGameObjectPath(component.gameObject);
+                listId = new SerializedObject(component).FindProperty("listId").stringValue;
+                var scene = component.gameObject.scene;
 
-            return CreateSuccessResponse(
-                ("listId", listId),
-                ("path", path),
-                ("deleted", true)
-            );
+                UITKGenerationHelper.DeleteUIAssets(listId);
+                Undo.DestroyObjectImmediate(component.gameObject);
+                ScriptGenerator.Delete(listId);
+                EditorSceneManager.MarkSceneDirty(scene);
+
+                return CreateSuccessResponse(
+                    ("listId", listId),
+                    ("path", path),
+                    ("deleted", true)
+                );
+            }
+            catch (InvalidOperationException) when (!string.IsNullOrEmpty(listId))
+            {
+                UITKGenerationHelper.DeleteUIAssets(listId);
+                ScriptGenerator.Delete(listId);
+
+                return CreateSuccessResponse(
+                    ("listId", listId),
+                    ("deleted", true),
+                    ("note", "Component not found in scene; orphaned script cleaned up.")
+                );
+            }
         }
 
         #endregion
@@ -358,7 +371,7 @@ namespace MCP.Editor.Handlers.GameKit
             if (!payload.TryGetValue("items", out var itemsObj) || !(itemsObj is List<object> itemsList))
                 throw new InvalidOperationException("items array is required for setItems.");
 
-            var listItemDataType = FindNestedType(component.GetType(), "ListItemData");
+            var listItemDataType = CodeGenHelper.FindNestedType(component.GetType(), "ListItemData");
             if (listItemDataType == null)
             {
                 return CreateSuccessResponse(
@@ -382,7 +395,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var setItemsMethod = component.GetType().GetMethod("SetItems");
             if (setItemsMethod != null)
+            {
+                Undo.RecordObject(component, "Set UIList Items");
                 setItemsMethod.Invoke(component, new[] { items });
+            }
             else
                 return CreateSuccessResponse(
                     ("listId", new SerializedObject(component).FindProperty("listId").stringValue),
@@ -407,7 +423,7 @@ namespace MCP.Editor.Handlers.GameKit
             if (!payload.TryGetValue("item", out var itemObj) || !(itemObj is Dictionary<string, object> itemDict))
                 throw new InvalidOperationException("item object is required for addItem.");
 
-            var listItemDataType = FindNestedType(component.GetType(), "ListItemData");
+            var listItemDataType = CodeGenHelper.FindNestedType(component.GetType(), "ListItemData");
             if (listItemDataType == null)
                 return CreateSuccessResponse(
                     ("listId", new SerializedObject(component).FindProperty("listId").stringValue),
@@ -419,7 +435,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var addItemMethod = component.GetType().GetMethod("AddItem");
             if (addItemMethod != null)
+            {
+                Undo.RecordObject(component, "Add UIList Item");
                 addItemMethod.Invoke(component, new[] { itemData });
+            }
             else
                 return CreateSuccessResponse(
                     ("listId", new SerializedObject(component).FindProperty("listId").stringValue),
@@ -448,7 +467,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var removeMethod = component.GetType().GetMethod("RemoveItemAt");
             if (removeMethod != null)
+            {
+                Undo.RecordObject(component, "Remove UIList Item");
                 removeMethod.Invoke(component, new object[] { index });
+            }
             else
                 return CreateSuccessResponse(("listId", listId), ("note", "RemoveItemAt method not found."));
 
@@ -470,7 +492,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var clearMethod = component.GetType().GetMethod("Clear");
             if (clearMethod != null)
+            {
+                Undo.RecordObject(component, "Clear UIList");
                 clearMethod.Invoke(component, null);
+            }
             else
                 return CreateSuccessResponse(("listId", listId), ("note", "Clear method not found."));
 
@@ -491,7 +516,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var selectMethod = component.GetType().GetMethod("SelectItem");
             if (selectMethod != null)
+            {
+                Undo.RecordObject(component, "Select UIList Item");
                 selectMethod.Invoke(component, new object[] { index });
+            }
             else
                 return CreateSuccessResponse(("listId", listId), ("note", "SelectItem method not found."));
 
@@ -507,7 +535,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var deselectMethod = component.GetType().GetMethod("DeselectItem");
             if (deselectMethod != null)
+            {
+                Undo.RecordObject(component, "Deselect UIList Item");
                 deselectMethod.Invoke(component, new object[] { index });
+            }
             else
                 return CreateSuccessResponse(("listId", listId), ("note", "DeselectItem method not found."));
 
@@ -522,7 +553,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var clearSelMethod = component.GetType().GetMethod("ClearSelection");
             if (clearSelMethod != null)
+            {
+                Undo.RecordObject(component, "Clear UIList Selection");
                 clearSelMethod.Invoke(component, null);
+            }
             else
                 return CreateSuccessResponse(("listId", listId), ("note", "ClearSelection method not found."));
 
@@ -579,29 +613,7 @@ namespace MCP.Editor.Handlers.GameKit
         #region Helpers
 
         private Component ResolveListComponent(Dictionary<string, object> payload)
-        {
-            var listId = GetString(payload, "listId");
-            if (!string.IsNullOrEmpty(listId))
-            {
-                var byId = CodeGenHelper.FindComponentInSceneByField("listId", listId);
-                if (byId != null) return byId;
-            }
-
-            var targetPath = GetString(payload, "targetPath");
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                var targetGo = ResolveGameObject(targetPath);
-                if (targetGo != null)
-                {
-                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "listId", null);
-                    if (byPath != null) return byPath;
-                    throw new InvalidOperationException($"No UIList component found on '{targetPath}'.");
-                }
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
-
-            throw new InvalidOperationException("Either listId or targetPath is required.");
-        }
+            => ResolveGeneratedComponent(payload, "listId", "listId", "UIList");
 
         private int ResolveItemIndex(Component component, Dictionary<string, object> payload)
         {
@@ -638,12 +650,6 @@ namespace MCP.Editor.Handlers.GameKit
                 "custom" => "Custom",
                 _ => "Custom"
             };
-        }
-
-        private Type FindNestedType(Type componentType, string nestedTypeName)
-        {
-            return componentType?.GetNestedType(nestedTypeName,
-                BindingFlags.Public | BindingFlags.NonPublic);
         }
 
         private object CreateListItemDataViaReflection(Type listItemDataType, Dictionary<string, object> dict)

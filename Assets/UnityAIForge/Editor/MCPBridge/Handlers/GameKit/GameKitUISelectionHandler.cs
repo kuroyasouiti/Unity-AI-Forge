@@ -79,13 +79,10 @@ namespace MCP.Editor.Handlers.GameKit
             var className = GetString(payload, "className")
                 ?? ScriptGenerator.ToPascalCase(selectionId, "UISelection");
 
-            // Generate UXML
+            // Generate UXML + USS (USS written first to avoid import errors)
             var uxmlContent = BuildSelectionUXML(className, selectionId, layout, selectionType);
-            var uxmlPath = UITKGenerationHelper.WriteUXML(uiOutputDir, className, uxmlContent);
-
-            // Generate USS
             var ussContent = BuildSelectionUSS(layout, spacing, selectionType);
-            var ussPath = UITKGenerationHelper.WriteUSS(uiOutputDir, className, ussContent);
+            var (uxmlPath, ussPath) = UITKGenerationHelper.WriteUXMLAndUSS(uiOutputDir, className, uxmlContent, ussContent);
 
             // Create UIDocument GameObject
             var selectionGo = UITKGenerationHelper.CreateUIDocumentGameObject(
@@ -283,9 +280,9 @@ namespace MCP.Editor.Handlers.GameKit
             var selectionTypeProp = so.FindProperty("selectionType");
 
             // Use reflection to call runtime methods for state info
-            var selectedIds = InvokeMethod<List<string>>(component, "GetSelectedIds") ?? new List<string>();
-            var selectedIndex = InvokeMethod<int>(component, "GetSelectedIndex");
-            var itemCount = GetPropertyValue<int>(component, "ItemCount");
+            var selectedIds = CodeGenHelper.InvokeMethod<List<string>>(component, "GetSelectedIds") ?? new List<string>();
+            var selectedIndex = CodeGenHelper.InvokeMethod<int>(component, "GetSelectedIndex");
+            var itemCount = CodeGenHelper.GetPropertyValue<int>(component, "ItemCount");
 
             var info = new Dictionary<string, object>
             {
@@ -300,11 +297,11 @@ namespace MCP.Editor.Handlers.GameKit
             };
 
             // Include items info via reflection
-            var items = GetPropertyValue<object>(component, "Items");
+            var items = CodeGenHelper.GetPropertyValue<object>(component, "Items");
             if (items != null)
             {
                 var itemsInfo = new List<Dictionary<string, object>>();
-                var selectedIndices = GetPropertyValue<object>(component, "SelectedIndices");
+                var selectedIndices = CodeGenHelper.GetPropertyValue<object>(component, "SelectedIndices");
                 var itemsList = items as System.Collections.IList;
                 if (itemsList != null)
                 {
@@ -356,24 +353,40 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteSelection(Dictionary<string, object> payload)
         {
-            var component = ResolveSelectionComponent(payload);
-            var path = BuildGameObjectPath(component.gameObject);
-            var selectionId = new SerializedObject(component).FindProperty("selectionId").stringValue;
-            var scene = component.gameObject.scene;
+            var selectionId = GetString(payload, "selectionId");
 
-            // Delete UXML/USS assets
-            UITKGenerationHelper.DeleteUIAssets(selectionId);
+            try
+            {
+                var component = ResolveSelectionComponent(payload);
+                var path = BuildGameObjectPath(component.gameObject);
+                selectionId = new SerializedObject(component).FindProperty("selectionId").stringValue;
+                var scene = component.gameObject.scene;
 
-            Undo.DestroyObjectImmediate(component.gameObject);
-            ScriptGenerator.Delete(selectionId);
+                // Delete UXML/USS assets
+                UITKGenerationHelper.DeleteUIAssets(selectionId);
 
-            EditorSceneManager.MarkSceneDirty(scene);
+                Undo.DestroyObjectImmediate(component.gameObject);
+                ScriptGenerator.Delete(selectionId);
 
-            return CreateSuccessResponse(
-                ("selectionId", selectionId),
-                ("path", path),
-                ("deleted", true)
-            );
+                EditorSceneManager.MarkSceneDirty(scene);
+
+                return CreateSuccessResponse(
+                    ("selectionId", selectionId),
+                    ("path", path),
+                    ("deleted", true)
+                );
+            }
+            catch (InvalidOperationException) when (!string.IsNullOrEmpty(selectionId))
+            {
+                UITKGenerationHelper.DeleteUIAssets(selectionId);
+                ScriptGenerator.Delete(selectionId);
+
+                return CreateSuccessResponse(
+                    ("selectionId", selectionId),
+                    ("deleted", true),
+                    ("note", "Component not found in scene; orphaned script cleaned up.")
+                );
+            }
         }
 
         #endregion
@@ -391,7 +404,7 @@ namespace MCP.Editor.Handlers.GameKit
 
             var compType = component.GetType();
             var itemType = compType.GetNestedType("SelectionItem")
-                ?? FindNestedType(compType, "SelectionItem");
+                ?? CodeGenHelper.FindNestedType(compType, "SelectionItem");
 
             if (itemType == null)
             {
@@ -413,6 +426,7 @@ namespace MCP.Editor.Handlers.GameKit
             var setItemsMethod = compType.GetMethod("SetItems");
             if (setItemsMethod != null)
             {
+                Undo.RecordObject(component, "Set UISelection Items");
                 setItemsMethod.Invoke(component, new object[] { items });
             }
 
@@ -435,7 +449,7 @@ namespace MCP.Editor.Handlers.GameKit
 
             var compType = component.GetType();
             var itemType = compType.GetNestedType("SelectionItem")
-                ?? FindNestedType(compType, "SelectionItem");
+                ?? CodeGenHelper.FindNestedType(compType, "SelectionItem");
 
             if (itemType == null)
             {
@@ -448,10 +462,11 @@ namespace MCP.Editor.Handlers.GameKit
             var addItemMethod = compType.GetMethod("AddItem");
             if (addItemMethod != null)
             {
+                Undo.RecordObject(component, "Add UISelection Item");
                 addItemMethod.Invoke(component, new object[] { selectionItem });
             }
 
-            var itemCount = GetPropertyValue<int>(component, "ItemCount");
+            var itemCount = CodeGenHelper.GetPropertyValue<int>(component, "ItemCount");
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
@@ -473,7 +488,7 @@ namespace MCP.Editor.Handlers.GameKit
             }
             else if (payload.TryGetValue("itemId", out var idObj))
             {
-                index = InvokeMethod<int>(component, "FindItemIndex", idObj.ToString());
+                index = CodeGenHelper.InvokeMethod<int>(component, "FindItemIndex", idObj.ToString());
             }
 
             if (index < 0)
@@ -481,8 +496,9 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException("Either index or itemId is required for removeItem.");
             }
 
-            InvokeMethod(component, "RemoveItemAt", index);
-            var itemCount = GetPropertyValue<int>(component, "ItemCount");
+            Undo.RecordObject(component, "Remove UISelection Item");
+            CodeGenHelper.InvokeMethod(component, "RemoveItemAt", index);
+            var itemCount = CodeGenHelper.GetPropertyValue<int>(component, "ItemCount");
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
@@ -496,7 +512,8 @@ namespace MCP.Editor.Handlers.GameKit
         private object ClearSelection(Dictionary<string, object> payload)
         {
             var component = ResolveSelectionComponent(payload);
-            InvokeMethod(component, "Clear");
+            Undo.RecordObject(component, "Clear UISelection");
+            CodeGenHelper.InvokeMethod(component, "Clear");
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
             return CreateSuccessResponse(
@@ -525,7 +542,8 @@ namespace MCP.Editor.Handlers.GameKit
                 fireEvents = Convert.ToBoolean(fireObj);
             }
 
-            InvokeMethod(component, "SelectItem", index, fireEvents);
+            Undo.RecordObject(component, "Select UISelection Item");
+            CodeGenHelper.InvokeMethod(component, "SelectItem", index, fireEvents);
 
             return CreateSuccessResponse(
                 ("selectionId", new SerializedObject(component).FindProperty("selectionId").stringValue),
@@ -549,9 +567,10 @@ namespace MCP.Editor.Handlers.GameKit
                 fireEvents = Convert.ToBoolean(fireObj);
             }
 
-            InvokeMethod(component, "SelectItemById", itemId, fireEvents);
+            Undo.RecordObject(component, "Select UISelection Item By Id");
+            CodeGenHelper.InvokeMethod(component, "SelectItemById", itemId, fireEvents);
 
-            var foundIndex = InvokeMethod<int>(component, "FindItemIndex", itemId);
+            var foundIndex = CodeGenHelper.InvokeMethod<int>(component, "FindItemIndex", itemId);
 
             return CreateSuccessResponse(
                 ("selectionId", new SerializedObject(component).FindProperty("selectionId").stringValue),
@@ -571,7 +590,7 @@ namespace MCP.Editor.Handlers.GameKit
             }
             else if (payload.TryGetValue("itemId", out var idObj))
             {
-                index = InvokeMethod<int>(component, "FindItemIndex", idObj.ToString());
+                index = CodeGenHelper.InvokeMethod<int>(component, "FindItemIndex", idObj.ToString());
             }
 
             if (index < 0)
@@ -585,7 +604,8 @@ namespace MCP.Editor.Handlers.GameKit
                 fireEvents = Convert.ToBoolean(fireObj);
             }
 
-            InvokeMethod(component, "DeselectItem", index, fireEvents);
+            Undo.RecordObject(component, "Deselect UISelection Item");
+            CodeGenHelper.InvokeMethod(component, "DeselectItem", index, fireEvents);
 
             return CreateSuccessResponse(
                 ("selectionId", new SerializedObject(component).FindProperty("selectionId").stringValue),
@@ -596,7 +616,8 @@ namespace MCP.Editor.Handlers.GameKit
         private object ClearAllSelections(Dictionary<string, object> payload)
         {
             var component = ResolveSelectionComponent(payload);
-            InvokeMethod(component, "ClearSelection");
+            Undo.RecordObject(component, "Clear All UISelection");
+            CodeGenHelper.InvokeMethod(component, "ClearSelection");
 
             return CreateSuccessResponse(
                 ("selectionId", new SerializedObject(component).FindProperty("selectionId").stringValue),
@@ -619,7 +640,7 @@ namespace MCP.Editor.Handlers.GameKit
 
             var compType = component.GetType();
             var actionType = compType.GetNestedType("SelectionAction")
-                ?? FindNestedType(compType, "SelectionAction");
+                ?? CodeGenHelper.FindNestedType(compType, "SelectionAction");
 
             if (actionType == null)
             {
@@ -678,6 +699,7 @@ namespace MCP.Editor.Handlers.GameKit
             var setActionsMethod = compType.GetMethod("SetSelectionActions");
             if (setActionsMethod != null)
             {
+                Undo.RecordObject(component, "Set UISelection Actions");
                 setActionsMethod.Invoke(component, new object[] { actions });
             }
 
@@ -698,7 +720,7 @@ namespace MCP.Editor.Handlers.GameKit
             }
             else if (payload.TryGetValue("itemId", out var idObj))
             {
-                index = InvokeMethod<int>(component, "FindItemIndex", idObj.ToString());
+                index = CodeGenHelper.InvokeMethod<int>(component, "FindItemIndex", idObj.ToString());
             }
 
             if (index < 0)
@@ -712,7 +734,8 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             bool enabled = Convert.ToBoolean(enabledObj);
-            InvokeMethod(component, "SetItemEnabled", index, enabled);
+            Undo.RecordObject(component, "Set UISelection Item Enabled");
+            CodeGenHelper.InvokeMethod(component, "SetItemEnabled", index, enabled);
 
             return CreateSuccessResponse(
                 ("selectionId", new SerializedObject(component).FindProperty("selectionId").stringValue),
@@ -741,8 +764,8 @@ namespace MCP.Editor.Handlers.GameKit
 
             var so = new SerializedObject(component);
             var selectionTypeProp = so.FindProperty("selectionType");
-            var itemCount = GetPropertyValue<int>(component, "ItemCount");
-            var selectedIndex = InvokeMethod<int>(component, "GetSelectedIndex");
+            var itemCount = CodeGenHelper.GetPropertyValue<int>(component, "ItemCount");
+            var selectedIndex = CodeGenHelper.InvokeMethod<int>(component, "GetSelectedIndex");
 
             return CreateSuccessResponse(
                 ("found", true),
@@ -760,35 +783,7 @@ namespace MCP.Editor.Handlers.GameKit
         #region Helpers
 
         private Component ResolveSelectionComponent(Dictionary<string, object> payload)
-        {
-            var selectionId = GetString(payload, "selectionId");
-            if (!string.IsNullOrEmpty(selectionId))
-            {
-                var byId = CodeGenHelper.FindComponentInSceneByField("selectionId", selectionId);
-                if (byId != null)
-                {
-                    return byId;
-                }
-            }
-
-            var targetPath = GetString(payload, "targetPath");
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                var targetGo = ResolveGameObject(targetPath);
-                if (targetGo != null)
-                {
-                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "selectionId", null);
-                    if (byPath != null)
-                    {
-                        return byPath;
-                    }
-                    throw new InvalidOperationException($"No UISelection component found on '{targetPath}'.");
-                }
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
-
-            throw new InvalidOperationException("Either selectionId or targetPath is required.");
-        }
+            => ResolveGeneratedComponent(payload, "selectionId", "selectionId", "UISelection");
 
         private string ParseSelectionType(string str)
         {
@@ -860,54 +855,6 @@ namespace MCP.Editor.Handlers.GameKit
             }
 
             return item;
-        }
-
-        private static Type FindNestedType(Type type, string nestedTypeName)
-        {
-            var current = type;
-            while (current != null && current != typeof(object))
-            {
-                var nested = current.GetNestedType(nestedTypeName,
-                    BindingFlags.Public | BindingFlags.NonPublic);
-                if (nested != null) return nested;
-                current = current.BaseType;
-            }
-            return null;
-        }
-
-        private static T InvokeMethod<T>(Component component, string methodName, params object[] args)
-        {
-            var method = component.GetType().GetMethod(methodName,
-                BindingFlags.Public | BindingFlags.Instance);
-            if (method == null)
-            {
-                return default;
-            }
-            var result = method.Invoke(component, args);
-            if (result is T typed) return typed;
-            if (result != null) return (T)Convert.ChangeType(result, typeof(T));
-            return default;
-        }
-
-        private static void InvokeMethod(Component component, string methodName, params object[] args)
-        {
-            var method = component.GetType().GetMethod(methodName,
-                BindingFlags.Public | BindingFlags.Instance);
-            if (method != null)
-            {
-                method.Invoke(component, args);
-            }
-        }
-
-        private static T GetPropertyValue<T>(Component component, string propertyName)
-        {
-            var prop = component.GetType().GetProperty(propertyName,
-                BindingFlags.Public | BindingFlags.Instance);
-            if (prop == null) return default;
-            var value = prop.GetValue(component);
-            if (value is T typed) return typed;
-            if (value != null) return (T)Convert.ChangeType(value, typeof(T));
-            return default;
         }
 
         #endregion

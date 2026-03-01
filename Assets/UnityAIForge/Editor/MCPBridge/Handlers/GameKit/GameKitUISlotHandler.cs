@@ -88,13 +88,10 @@ namespace MCP.Editor.Handlers.GameKit
                 float slotW = payload.TryGetValue("width", out var wObj) ? Convert.ToSingle(wObj) : size;
                 float slotH = payload.TryGetValue("height", out var hObj) ? Convert.ToSingle(hObj) : size;
 
-                // Generate UXML
+                // Generate UXML + USS (USS written first to avoid import errors)
                 var uxmlContent = BuildSlotUXML(className);
-                var uxmlPath = UITKGenerationHelper.WriteUXML(uiOutputDir, className, uxmlContent);
-
-                // Generate USS
                 var ussContent = BuildSlotUSS(slotW, slotH);
-                var ussPath = UITKGenerationHelper.WriteUSS(uiOutputDir, className, ussContent);
+                var (uxmlPath, ussPath) = UITKGenerationHelper.WriteUXMLAndUSS(uiOutputDir, className, uxmlContent, ussContent);
 
                 // Create UIDocument GameObject
                 targetGo = UITKGenerationHelper.CreateUIDocumentGameObject(slotName, parent.transform, uxmlPath, ussPath);
@@ -127,7 +124,7 @@ namespace MCP.Editor.Handlers.GameKit
                 { "SLOT_TYPE", slotTypeStr },
                 { "EQUIP_SLOT_NAME", equipSlotName },
                 { "INVENTORY_ID", inventoryId },
-                { "DRAG_DROP_ENABLED", dragDropEnabled.ToString().ToLowerInvariant() }
+                { "DRAG_DROP_ENABLED", dragDropEnabled }
             };
 
             if (!string.IsNullOrEmpty(uxmlPath)) variables["UXML_PATH"] = uxmlPath;
@@ -301,17 +298,33 @@ namespace MCP.Editor.Handlers.GameKit
 
         private object DeleteSlot(Dictionary<string, object> payload)
         {
-            var component = ResolveSlotComponent(payload);
-            var path = BuildGameObjectPath(component.gameObject);
-            var slotId = new SerializedObject(component).FindProperty("slotId").stringValue;
-            var scene = component.gameObject.scene;
+            var slotId = GetString(payload, "slotId");
 
-            UITKGenerationHelper.DeleteUIAssets(slotId);
-            Undo.DestroyObjectImmediate(component.gameObject);
-            ScriptGenerator.Delete(slotId);
-            EditorSceneManager.MarkSceneDirty(scene);
+            try
+            {
+                var component = ResolveSlotComponent(payload);
+                var path = BuildGameObjectPath(component.gameObject);
+                slotId = new SerializedObject(component).FindProperty("slotId").stringValue;
+                var scene = component.gameObject.scene;
 
-            return CreateSuccessResponse(("slotId", slotId), ("path", path), ("deleted", true));
+                UITKGenerationHelper.DeleteUIAssets(slotId);
+                Undo.DestroyObjectImmediate(component.gameObject);
+                ScriptGenerator.Delete(slotId);
+                EditorSceneManager.MarkSceneDirty(scene);
+
+                return CreateSuccessResponse(("slotId", slotId), ("path", path), ("deleted", true));
+            }
+            catch (InvalidOperationException) when (!string.IsNullOrEmpty(slotId))
+            {
+                UITKGenerationHelper.DeleteUIAssets(slotId);
+                ScriptGenerator.Delete(slotId);
+
+                return CreateSuccessResponse(
+                    ("slotId", slotId),
+                    ("deleted", true),
+                    ("note", "Component not found in scene; orphaned script cleaned up.")
+                );
+            }
         }
 
         #endregion
@@ -324,11 +337,10 @@ namespace MCP.Editor.Handlers.GameKit
             var so = new SerializedObject(component);
             var slotId = so.FindProperty("slotId").stringValue;
 
-            var slotDataType = component.GetType().GetNestedType("SlotData",
-                BindingFlags.Public | BindingFlags.NonPublic);
+            var slotDataType = CodeGenHelper.FindNestedType(component.GetType(), "SlotData");
             if (slotDataType == null)
                 return CreateSuccessResponse(("slotId", slotId),
-                    ("note", "SetItem requires compiled script."));
+                    ("note", "SetItem requires the generated script to be compiled. Please wait for compilation and try again."));
 
             var slotData = Activator.CreateInstance(slotDataType);
             if (payload.TryGetValue("itemId", out var idObj))
@@ -342,7 +354,15 @@ namespace MCP.Editor.Handlers.GameKit
 
             var setItemMethod = component.GetType().GetMethod("SetItem");
             if (setItemMethod != null)
+            {
+                Undo.RecordObject(component, "Set UISlot Item");
                 setItemMethod.Invoke(component, new[] { slotData });
+            }
+            else
+            {
+                return CreateSuccessResponse(("slotId", slotId),
+                    ("note", "SetItem requires the generated script to be compiled. Please wait for compilation and try again."));
+            }
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
             return CreateSuccessResponse(("slotId", slotId), ("itemSet", true));
@@ -356,7 +376,15 @@ namespace MCP.Editor.Handlers.GameKit
 
             var clearMethod = component.GetType().GetMethod("ClearSlot");
             if (clearMethod != null)
+            {
+                Undo.RecordObject(component, "Clear UISlot");
                 clearMethod.Invoke(component, null);
+            }
+            else
+            {
+                return CreateSuccessResponse(("slotId", slotId),
+                    ("note", "ClearSlot requires the generated script to be compiled. Please wait for compilation and try again."));
+            }
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
             return CreateSuccessResponse(("slotId", slotId), ("cleared", true));
@@ -371,7 +399,15 @@ namespace MCP.Editor.Handlers.GameKit
 
             var highlightMethod = component.GetType().GetMethod("SetHighlight");
             if (highlightMethod != null)
+            {
+                Undo.RecordObject(component, "Set UISlot Highlight");
                 highlightMethod.Invoke(component, new object[] { highlighted });
+            }
+            else
+            {
+                return CreateSuccessResponse(("slotId", slotId),
+                    ("note", "SetHighlight requires the generated script to be compiled. Please wait for compilation and try again."));
+            }
 
             return CreateSuccessResponse(("slotId", slotId), ("highlighted", highlighted));
         }
@@ -406,12 +442,10 @@ namespace MCP.Editor.Handlers.GameKit
 
             var className = GetString(payload, "className") ?? ScriptGenerator.ToPascalCase(barId, "UISlotBar");
 
-            // Generate bar UXML with slot elements
+            // Generate UXML + USS (USS written first to avoid import errors)
             var uxmlContent = BuildSlotBarUXML(className, slotCount);
-            var uxmlPath = UITKGenerationHelper.WriteUXML(uiOutputDir, className, uxmlContent);
-
             var ussContent = BuildSlotBarUSS(layout, spacing, slotW, slotH);
-            var ussPath = UITKGenerationHelper.WriteUSS(uiOutputDir, className, ussContent);
+            var (uxmlPath, ussPath) = UITKGenerationHelper.WriteUXMLAndUSS(uiOutputDir, className, uxmlContent, ussContent);
 
             var barGo = UITKGenerationHelper.CreateUIDocumentGameObject(barName, parent.transform, uxmlPath, ussPath);
 
@@ -422,7 +456,7 @@ namespace MCP.Editor.Handlers.GameKit
                 { "SLOT_TYPE", "Storage" },
                 { "EQUIP_SLOT_NAME", "" },
                 { "INVENTORY_ID", GetString(payload, "inventoryId") ?? "" },
-                { "DRAG_DROP_ENABLED", "true" },
+                { "DRAG_DROP_ENABLED", true },
                 { "UXML_PATH", uxmlPath },
                 { "USS_PATH", ussPath }
             };
@@ -534,17 +568,31 @@ namespace MCP.Editor.Handlers.GameKit
             if (string.IsNullOrEmpty(barId))
                 throw new InvalidOperationException("barId is required for deleteSlotBar.");
 
-            var component = CodeGenHelper.FindComponentInSceneByField("slotId", barId);
-            if (component == null)
-                throw new InvalidOperationException($"Slot bar with ID '{barId}' not found.");
+            try
+            {
+                var component = CodeGenHelper.FindComponentInSceneByField("slotId", barId);
+                if (component == null)
+                    throw new InvalidOperationException($"Slot bar with ID '{barId}' not found.");
 
-            var scene = component.gameObject.scene;
-            UITKGenerationHelper.DeleteUIAssets(barId);
-            Undo.DestroyObjectImmediate(component.gameObject);
-            ScriptGenerator.Delete(barId);
-            EditorSceneManager.MarkSceneDirty(scene);
+                var scene = component.gameObject.scene;
+                UITKGenerationHelper.DeleteUIAssets(barId);
+                Undo.DestroyObjectImmediate(component.gameObject);
+                ScriptGenerator.Delete(barId);
+                EditorSceneManager.MarkSceneDirty(scene);
 
-            return CreateSuccessResponse(("barId", barId), ("deleted", true));
+                return CreateSuccessResponse(("barId", barId), ("deleted", true));
+            }
+            catch (InvalidOperationException)
+            {
+                UITKGenerationHelper.DeleteUIAssets(barId);
+                ScriptGenerator.Delete(barId);
+
+                return CreateSuccessResponse(
+                    ("barId", barId),
+                    ("deleted", true),
+                    ("note", "Component not found in scene; orphaned script cleaned up.")
+                );
+            }
         }
 
         private object UseSlot(Dictionary<string, object> payload)
@@ -608,29 +656,7 @@ namespace MCP.Editor.Handlers.GameKit
         #region Helpers
 
         private Component ResolveSlotComponent(Dictionary<string, object> payload)
-        {
-            var slotId = GetString(payload, "slotId") ?? GetString(payload, "barId");
-            if (!string.IsNullOrEmpty(slotId))
-            {
-                var byId = CodeGenHelper.FindComponentInSceneByField("slotId", slotId);
-                if (byId != null) return byId;
-            }
-
-            var targetPath = GetString(payload, "targetPath");
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                var targetGo = ResolveGameObject(targetPath);
-                if (targetGo != null)
-                {
-                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "slotId", null);
-                    if (byPath != null) return byPath;
-                    throw new InvalidOperationException($"No UISlot component found on '{targetPath}'.");
-                }
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
-
-            throw new InvalidOperationException("Either slotId/barId or targetPath is required.");
-        }
+            => ResolveGeneratedComponent(payload, "slotId", "slotId", "UISlot", "barId");
 
         private string ParseSlotType(string str)
         {

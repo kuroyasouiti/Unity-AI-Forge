@@ -301,11 +301,13 @@ namespace MCP.Editor.Handlers.GameKit
                 return CreateSuccessResponse(("found", false), ("bindingId", bindingId));
 
             var so = new SerializedObject(component);
+            var sourceTypeProp = so.FindProperty("sourceType");
             return CreateSuccessResponse(
                 ("found", true),
                 ("bindingId", bindingId),
                 ("path", BuildGameObjectPath(component.gameObject)),
-                ("sourceType", so.FindProperty("sourceType").enumDisplayNames[so.FindProperty("sourceType").enumValueIndex]),
+                ("sourceType", sourceTypeProp.enumValueIndex < sourceTypeProp.enumDisplayNames.Length
+                    ? sourceTypeProp.enumDisplayNames[sourceTypeProp.enumValueIndex] : "Health"),
                 ("sourceId", so.FindProperty("sourceId").stringValue)
             );
         }
@@ -315,29 +317,7 @@ namespace MCP.Editor.Handlers.GameKit
         #region Helpers
 
         private Component ResolveBindingComponent(Dictionary<string, object> payload)
-        {
-            var bindingId = GetString(payload, "bindingId");
-            if (!string.IsNullOrEmpty(bindingId))
-            {
-                var byId = CodeGenHelper.FindComponentInSceneByField("bindingId", bindingId);
-                if (byId != null) return byId;
-            }
-
-            var targetPath = GetString(payload, "targetPath");
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                var targetGo = ResolveGameObject(targetPath);
-                if (targetGo != null)
-                {
-                    var byPath = CodeGenHelper.FindComponentByField(targetGo, "bindingId", null);
-                    if (byPath != null) return byPath;
-                    throw new InvalidOperationException($"No UIBinding component found on '{targetPath}'.");
-                }
-                throw new InvalidOperationException($"GameObject not found at path: {targetPath}");
-            }
-
-            throw new InvalidOperationException("Either bindingId or targetPath is required.");
-        }
+            => ResolveGeneratedComponent(payload, "bindingId", "bindingId", "UIBinding");
 
         private string ParseSourceType(string str)
         {

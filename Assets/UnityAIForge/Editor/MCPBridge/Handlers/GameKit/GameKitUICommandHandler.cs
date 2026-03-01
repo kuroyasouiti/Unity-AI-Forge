@@ -71,23 +71,31 @@ namespace MCP.Editor.Handlers.GameKit
                 }
             }
 
-            // Generate UXML
+            // Generate UXML + USS (USS written first to avoid import errors)
             var uxmlContent = BuildCommandPanelUXML(className, panelId, commands, layout);
-            var uxmlPath = UITKGenerationHelper.WriteUXML(uiOutputDir, className, uxmlContent);
-
-            // Generate USS
             var ussContent = BuildCommandPanelUSS(layout);
-            var ussPath = UITKGenerationHelper.WriteUSS(uiOutputDir, className, ussContent);
+            var (uxmlPath, ussPath) = UITKGenerationHelper.WriteUXMLAndUSS(uiOutputDir, className, uxmlContent, ussContent);
 
             // Create UIDocument GameObject
             var panelGo = UITKGenerationHelper.CreateUIDocumentGameObject(panelId, parent, uxmlPath, ussPath);
 
             // Build template variables
+            var commandsData = new List<Dictionary<string, object>>();
+            foreach (var (name, label, cmdType) in commands)
+            {
+                commandsData.Add(new Dictionary<string, object>
+                {
+                    { "CMD_NAME", name },
+                    { "CMD_TYPE", ParseCommandType(cmdType) }
+                });
+            }
+
             var variables = new Dictionary<string, object>
             {
                 { "PANEL_ID", panelId },
                 { "UXML_PATH", uxmlPath },
-                { "USS_PATH", ussPath }
+                { "USS_PATH", ussPath },
+                { "COMMANDS", commandsData }
             };
 
             var outputDir = GetString(payload, "outputPath");
@@ -101,16 +109,6 @@ namespace MCP.Editor.Handlers.GameKit
                 throw new InvalidOperationException(result.TryGetValue("error", out var err)
                     ? err.ToString()
                     : "Failed to generate UICommand script.");
-            }
-
-            // Register command bindings on the component if it was added
-            var uiCommandComp = CodeGenHelper.FindComponentByField(panelGo, "panelId", panelId);
-            if (uiCommandComp != null)
-            {
-                foreach (var (name, label, cmdType) in commands)
-                {
-                    RegisterCommandBinding(uiCommandComp, name, name, cmdType);
-                }
             }
 
             EditorSceneManager.MarkSceneDirty(panelGo.scene);
@@ -207,6 +205,8 @@ namespace MCP.Editor.Handlers.GameKit
             if (payload.TryGetValue("commands", out var commandsObj) && commandsObj is List<object> commandsList)
             {
                 var newButtons = new List<(string name, string label)>();
+
+                Undo.RecordObject(component, "Add UICommand Bindings");
 
                 foreach (var commandObj in commandsList)
                 {
@@ -318,21 +318,35 @@ namespace MCP.Editor.Handlers.GameKit
             if (string.IsNullOrEmpty(panelId))
                 throw new InvalidOperationException("panelId is required for delete.");
 
-            var component = CodeGenHelper.FindComponentInSceneByField("panelId", panelId);
-            if (component == null)
-                throw new InvalidOperationException($"Command panel with ID '{panelId}' not found.");
+            try
+            {
+                var component = CodeGenHelper.FindComponentInSceneByField("panelId", panelId);
+                if (component == null)
+                    throw new InvalidOperationException($"Command panel with ID '{panelId}' not found.");
 
-            var scene = component.gameObject.scene;
+                var scene = component.gameObject.scene;
 
-            // Delete UXML/USS assets
-            UITKGenerationHelper.DeleteUIAssets(panelId);
+                // Delete UXML/USS assets
+                UITKGenerationHelper.DeleteUIAssets(panelId);
 
-            Undo.DestroyObjectImmediate(component.gameObject);
-            ScriptGenerator.Delete(panelId);
+                Undo.DestroyObjectImmediate(component.gameObject);
+                ScriptGenerator.Delete(panelId);
 
-            EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.MarkSceneDirty(scene);
 
-            return CreateSuccessResponse(("panelId", panelId), ("deleted", true));
+                return CreateSuccessResponse(("panelId", panelId), ("deleted", true));
+            }
+            catch (InvalidOperationException) when (!string.IsNullOrEmpty(panelId))
+            {
+                UITKGenerationHelper.DeleteUIAssets(panelId);
+                ScriptGenerator.Delete(panelId);
+
+                return CreateSuccessResponse(
+                    ("panelId", panelId),
+                    ("deleted", true),
+                    ("note", "Component not found in scene; orphaned script cleaned up.")
+                );
+            }
         }
 
         #endregion
