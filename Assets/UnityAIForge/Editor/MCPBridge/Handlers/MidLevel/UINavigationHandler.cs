@@ -80,40 +80,46 @@ namespace MCP.Editor.Handlers
             };
 
             // Set wrap around if applicable
-            if (GetBool(payload, "wrapAround", false))
-            {
-                navigation.wrapAround = true;
-            }
+            navigation.wrapAround = GetBool(payload, "wrapAround", false);
 
             // Set explicit targets if provided
             if (payload.TryGetValue("selectOnUp", out var upPath) && upPath is string upStr && !string.IsNullOrEmpty(upStr))
             {
-                var upGo = GameObject.Find(upStr);
-                if (upGo != null)
-                    navigation.selectOnUp = upGo.GetComponent<Selectable>();
+                var upGo = ResolveGameObject(upStr);
+                var upSel = upGo.GetComponent<Selectable>();
+                if (upSel == null)
+                    throw new InvalidOperationException($"Navigation target '{upStr}' does not have a Selectable component.");
+                navigation.selectOnUp = upSel;
             }
 
             if (payload.TryGetValue("selectOnDown", out var downPath) && downPath is string downStr && !string.IsNullOrEmpty(downStr))
             {
-                var downGo = GameObject.Find(downStr);
-                if (downGo != null)
-                    navigation.selectOnDown = downGo.GetComponent<Selectable>();
+                var downGo = ResolveGameObject(downStr);
+                var downSel = downGo.GetComponent<Selectable>();
+                if (downSel == null)
+                    throw new InvalidOperationException($"Navigation target '{downStr}' does not have a Selectable component.");
+                navigation.selectOnDown = downSel;
             }
 
             if (payload.TryGetValue("selectOnLeft", out var leftPath) && leftPath is string leftStr && !string.IsNullOrEmpty(leftStr))
             {
-                var leftGo = GameObject.Find(leftStr);
-                if (leftGo != null)
-                    navigation.selectOnLeft = leftGo.GetComponent<Selectable>();
+                var leftGo = ResolveGameObject(leftStr);
+                var leftSel = leftGo.GetComponent<Selectable>();
+                if (leftSel == null)
+                    throw new InvalidOperationException($"Navigation target '{leftStr}' does not have a Selectable component.");
+                navigation.selectOnLeft = leftSel;
             }
 
             if (payload.TryGetValue("selectOnRight", out var rightPath) && rightPath is string rightStr && !string.IsNullOrEmpty(rightStr))
             {
-                var rightGo = GameObject.Find(rightStr);
-                if (rightGo != null)
-                    navigation.selectOnRight = rightGo.GetComponent<Selectable>();
+                var rightGo = ResolveGameObject(rightStr);
+                var rightSel = rightGo.GetComponent<Selectable>();
+                if (rightSel == null)
+                    throw new InvalidOperationException($"Navigation target '{rightStr}' does not have a Selectable component.");
+                navigation.selectOnRight = rightSel;
             }
 
+            Undo.RecordObject(selectable, "Configure Navigation");
             selectable.navigation = navigation;
             EditorUtility.SetDirty(selectable);
             EditorSceneManager.MarkSceneDirty(go.scene);
@@ -154,44 +160,45 @@ namespace MCP.Editor.Handlers
             // Set explicit navigation targets
             if (payload.TryGetValue("up", out var upPath) && upPath is string upStr && !string.IsNullOrEmpty(upStr))
             {
-                var upGo = GameObject.Find(upStr);
-                if (upGo != null)
-                {
-                    navigation.selectOnUp = upGo.GetComponent<Selectable>();
-                    connections["up"] = upStr;
-                }
+                var upGo = ResolveGameObject(upStr);
+                var upSel = upGo.GetComponent<Selectable>();
+                if (upSel == null)
+                    throw new InvalidOperationException($"Navigation target '{upStr}' does not have a Selectable component.");
+                navigation.selectOnUp = upSel;
+                connections["up"] = upStr;
             }
 
             if (payload.TryGetValue("down", out var downPath) && downPath is string downStr && !string.IsNullOrEmpty(downStr))
             {
-                var downGo = GameObject.Find(downStr);
-                if (downGo != null)
-                {
-                    navigation.selectOnDown = downGo.GetComponent<Selectable>();
-                    connections["down"] = downStr;
-                }
+                var downGo = ResolveGameObject(downStr);
+                var downSel = downGo.GetComponent<Selectable>();
+                if (downSel == null)
+                    throw new InvalidOperationException($"Navigation target '{downStr}' does not have a Selectable component.");
+                navigation.selectOnDown = downSel;
+                connections["down"] = downStr;
             }
 
             if (payload.TryGetValue("left", out var leftPath) && leftPath is string leftStr && !string.IsNullOrEmpty(leftStr))
             {
-                var leftGo = GameObject.Find(leftStr);
-                if (leftGo != null)
-                {
-                    navigation.selectOnLeft = leftGo.GetComponent<Selectable>();
-                    connections["left"] = leftStr;
-                }
+                var leftGo = ResolveGameObject(leftStr);
+                var leftSel = leftGo.GetComponent<Selectable>();
+                if (leftSel == null)
+                    throw new InvalidOperationException($"Navigation target '{leftStr}' does not have a Selectable component.");
+                navigation.selectOnLeft = leftSel;
+                connections["left"] = leftStr;
             }
 
             if (payload.TryGetValue("right", out var rightPath) && rightPath is string rightStr && !string.IsNullOrEmpty(rightStr))
             {
-                var rightGo = GameObject.Find(rightStr);
-                if (rightGo != null)
-                {
-                    navigation.selectOnRight = rightGo.GetComponent<Selectable>();
-                    connections["right"] = rightStr;
-                }
+                var rightGo = ResolveGameObject(rightStr);
+                var rightSel = rightGo.GetComponent<Selectable>();
+                if (rightSel == null)
+                    throw new InvalidOperationException($"Navigation target '{rightStr}' does not have a Selectable component.");
+                navigation.selectOnRight = rightSel;
+                connections["right"] = rightStr;
             }
 
+            Undo.RecordObject(selectable, "Configure Navigation");
             selectable.navigation = navigation;
             EditorUtility.SetDirty(selectable);
             EditorSceneManager.MarkSceneDirty(go.scene);
@@ -260,6 +267,9 @@ namespace MCP.Editor.Handlers
             var configuredCount = 0;
             var configuredPaths = new List<string>();
 
+            var gridColumns = direction == "grid" ? GetInt(payload, "columns", DetectColumns(selectables)) : 0;
+            var gridTotalRows = direction == "grid" ? (selectables.Count + gridColumns - 1) / gridColumns : 0;
+
             for (int i = 0; i < selectables.Count; i++)
             {
                 var selectable = selectables[i];
@@ -280,11 +290,10 @@ namespace MCP.Editor.Handlers
                 }
                 else if (direction == "grid")
                 {
-                    // Grid navigation - detect columns
-                    var columnsPerRow = GetInt(payload, "columns", DetectColumns(selectables));
+                    var columnsPerRow = gridColumns;
                     var row = i / columnsPerRow;
                     var col = i % columnsPerRow;
-                    var totalRows = (selectables.Count + columnsPerRow - 1) / columnsPerRow;
+                    var totalRows = gridTotalRows;
 
                     // Up
                     if (row > 0)
@@ -318,6 +327,7 @@ namespace MCP.Editor.Handlers
                         navigation.selectOnRight = selectables[row * columnsPerRow];
                 }
 
+                Undo.RecordObject(selectable, "Configure Navigation");
                 selectable.navigation = navigation;
                 EditorUtility.SetDirty(selectable);
                 configuredCount++;
@@ -326,12 +336,15 @@ namespace MCP.Editor.Handlers
 
             EditorSceneManager.MarkSceneDirty(rootGo.scene);
 
-            // Set first selected if EventSystem exists
-            var eventSystem = UnityEngine.Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
-            if (eventSystem != null && selectables.Count > 0)
+            if (GetBool(payload, "setFirstSelected", false))
             {
-                eventSystem.firstSelectedGameObject = selectables[0].gameObject;
-                EditorUtility.SetDirty(eventSystem);
+                var eventSystem = UnityEngine.Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+                if (eventSystem != null && selectables.Count > 0)
+                {
+                    Undo.RecordObject(eventSystem, "Set First Selected");
+                    eventSystem.firstSelectedGameObject = selectables[0].gameObject;
+                    EditorUtility.SetDirty(eventSystem);
+                }
             }
 
             return new Dictionary<string, object>
@@ -383,13 +396,11 @@ namespace MCP.Editor.Handlers
             var selectables = new List<Selectable>();
             foreach (var path in elementPaths)
             {
-                var go = GameObject.Find(path);
-                if (go != null)
-                {
-                    var selectable = go.GetComponent<Selectable>();
-                    if (selectable != null)
-                        selectables.Add(selectable);
-                }
+                var go = ResolveGameObject(path);
+                var selectable = go.GetComponent<Selectable>();
+                if (selectable == null)
+                    throw new InvalidOperationException($"Element '{path}' does not have a Selectable component.");
+                selectables.Add(selectable);
             }
 
             if (selectables.Count == 0)
@@ -429,6 +440,7 @@ namespace MCP.Editor.Handlers
                     navigation.selectOnRight = i < selectables.Count - 1 ? selectables[i + 1] : (wrapAround ? selectables[0] : navigation.selectOnRight);
                 }
 
+                Undo.RecordObject(selectable, "Configure Navigation");
                 selectable.navigation = navigation;
                 EditorUtility.SetDirty(selectable);
             }
@@ -475,6 +487,7 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("No EventSystem found in the scene.");
             }
 
+            Undo.RecordObject(eventSystem, "Set First Selected");
             eventSystem.firstSelectedGameObject = go;
             EditorUtility.SetDirty(eventSystem);
             EditorSceneManager.MarkSceneDirty(go.scene);
@@ -578,6 +591,7 @@ namespace MCP.Editor.Handlers
             navigation.selectOnDown = null;
             navigation.selectOnLeft = null;
             navigation.selectOnRight = null;
+            Undo.RecordObject(selectable, "Configure Navigation");
             selectable.navigation = navigation;
             EditorUtility.SetDirty(selectable);
         }
@@ -606,6 +620,7 @@ namespace MCP.Editor.Handlers
                 {
                     var navigation = selectable.navigation;
                     navigation.mode = Navigation.Mode.None;
+                    Undo.RecordObject(selectable, "Configure Navigation");
                     selectable.navigation = navigation;
                     EditorUtility.SetDirty(selectable);
                     disabledCount++;
@@ -618,6 +633,7 @@ namespace MCP.Editor.Handlers
                 {
                     var navigation = selectable.navigation;
                     navigation.mode = Navigation.Mode.None;
+                    Undo.RecordObject(selectable, "Configure Navigation");
                     selectable.navigation = navigation;
                     EditorUtility.SetDirty(selectable);
                     disabledCount = 1;

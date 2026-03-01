@@ -87,7 +87,7 @@ namespace MCP.Editor.Handlers
 
             var canvas = Undo.AddComponent<Canvas>(canvasGo);
             var scaler = Undo.AddComponent<CanvasScaler>(canvasGo);
-            var raycaster = Undo.AddComponent<GraphicRaycaster>(canvasGo);
+            Undo.AddComponent<GraphicRaycaster>(canvasGo);
 
             // Set render mode
             switch (renderMode)
@@ -103,7 +103,9 @@ namespace MCP.Editor.Handlers
                     {
                         var cameraGo = ResolveGameObject(cameraPath);
                         var cam = cameraGo.GetComponent<Camera>();
-                        if (cam != null) canvas.worldCamera = cam;
+                        if (cam == null)
+                            throw new InvalidOperationException($"GameObject at '{cameraPath}' does not have a Camera component.");
+                        canvas.worldCamera = cam;
                     }
                     else if (Camera.main != null)
                     {
@@ -593,7 +595,7 @@ namespace MCP.Editor.Handlers
                     "unrestricted" => ScrollRect.MovementType.Unrestricted,
                     "elastic" => ScrollRect.MovementType.Elastic,
                     "clamped" => ScrollRect.MovementType.Clamped,
-                    _ => scrollRect.movementType
+                    _ => throw new InvalidOperationException($"Unknown movementType: '{movementType}'. Use 'unrestricted', 'elastic', or 'clamped'.")
                 };
             }
 
@@ -1020,7 +1022,7 @@ namespace MCP.Editor.Handlers
                     "upperright" => GridLayoutGroup.Corner.UpperRight,
                     "lowerleft" => GridLayoutGroup.Corner.LowerLeft,
                     "lowerright" => GridLayoutGroup.Corner.LowerRight,
-                    _ => glg.startCorner
+                    _ => throw new InvalidOperationException($"Unknown startCorner: '{startCorner}'. Use 'upperLeft', 'upperRight', 'lowerLeft', or 'lowerRight'.")
                 };
             }
 
@@ -1032,7 +1034,7 @@ namespace MCP.Editor.Handlers
                 {
                     "horizontal" => GridLayoutGroup.Axis.Horizontal,
                     "vertical" => GridLayoutGroup.Axis.Vertical,
-                    _ => glg.startAxis
+                    _ => throw new InvalidOperationException($"Unknown startAxis: '{startAxis}'. Use 'horizontal' or 'vertical'.")
                 };
             }
 
@@ -1052,7 +1054,7 @@ namespace MCP.Editor.Handlers
                     "flexible" => GridLayoutGroup.Constraint.Flexible,
                     "fixedcolumncount" => GridLayoutGroup.Constraint.FixedColumnCount,
                     "fixedrowcount" => GridLayoutGroup.Constraint.FixedRowCount,
-                    _ => glg.constraint
+                    _ => throw new InvalidOperationException($"Unknown constraint: '{constraint}'. Use 'flexible', 'fixedColumnCount', or 'fixedRowCount'.")
                 };
             }
 
@@ -1076,7 +1078,7 @@ namespace MCP.Editor.Handlers
                 "lowerleft" => TextAnchor.LowerLeft,
                 "lowercenter" => TextAnchor.LowerCenter,
                 "lowerright" => TextAnchor.LowerRight,
-                _ => TextAnchor.UpperLeft
+                _ => throw new InvalidOperationException($"Unknown alignment: '{alignment}'. Use 'upperLeft', 'upperCenter', 'upperRight', 'middleLeft', 'middleCenter', 'middleRight', 'lowerLeft', 'lowerCenter', or 'lowerRight'.")
             };
         }
 
@@ -1087,7 +1089,7 @@ namespace MCP.Editor.Handlers
                 "unconstrained" => ContentSizeFitter.FitMode.Unconstrained,
                 "minsize" => ContentSizeFitter.FitMode.MinSize,
                 "preferredsize" => ContentSizeFitter.FitMode.PreferredSize,
-                _ => ContentSizeFitter.FitMode.Unconstrained
+                _ => throw new InvalidOperationException($"Unknown fitMode: '{mode}'. Use 'unconstrained', 'minSize', or 'preferredSize'.")
             };
         }
 
@@ -1166,7 +1168,8 @@ namespace MCP.Editor.Handlers
             if (!TryAddTextMeshPro(titleGo, new Dictionary<string, object>
                 {
                     { "text", GetString(payload, "title") ?? "Dialog Title" },
-                    { "fontSize", 24 }
+                    { "fontSize", 24 },
+                    { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } }
                 }))
             {
                 var titleText = Undo.AddComponent<Text>(titleGo);
@@ -1209,7 +1212,7 @@ namespace MCP.Editor.Handlers
             okBtnRect.sizeDelta = new Vector2(80, 35);
             var okBtnImage = Undo.AddComponent<Image>(okBtnGo);
             okBtnImage.color = new Color(0.3f, 0.6f, 0.3f, 1f);
-            var okBtn = Undo.AddComponent<Button>(okBtnGo);
+            Undo.AddComponent<Button>(okBtnGo);
             var okBtnLE = Undo.AddComponent<LayoutElement>(okBtnGo);
             okBtnLE.minWidth = 80;
             okBtnLE.preferredWidth = 80;
@@ -1221,7 +1224,7 @@ namespace MCP.Editor.Handlers
             okTextRect.anchorMin = Vector2.zero;
             okTextRect.anchorMax = Vector2.one;
             okTextRect.sizeDelta = Vector2.zero;
-            if (!TryAddTextMeshPro(okTextGo, new Dictionary<string, object> { { "text", "OK" }, { "fontSize", 14 } }))
+            if (!TryAddTextMeshPro(okTextGo, new Dictionary<string, object> { { "text", "OK" }, { "fontSize", 14 }, { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } } }))
             {
                 var okText = Undo.AddComponent<Text>(okTextGo);
                 okText.text = "OK";
@@ -1237,7 +1240,7 @@ namespace MCP.Editor.Handlers
             cancelBtnRect.sizeDelta = new Vector2(80, 35);
             var cancelBtnImage = Undo.AddComponent<Image>(cancelBtnGo);
             cancelBtnImage.color = new Color(0.5f, 0.5f, 0.5f, 1f);
-            var cancelBtn = Undo.AddComponent<Button>(cancelBtnGo);
+            Undo.AddComponent<Button>(cancelBtnGo);
             var cancelBtnLE = Undo.AddComponent<LayoutElement>(cancelBtnGo);
             cancelBtnLE.minWidth = 80;
             cancelBtnLE.preferredWidth = 80;
@@ -1249,7 +1252,7 @@ namespace MCP.Editor.Handlers
             cancelTextRect.anchorMin = Vector2.zero;
             cancelTextRect.anchorMax = Vector2.one;
             cancelTextRect.sizeDelta = Vector2.zero;
-            if (!TryAddTextMeshPro(cancelTextGo, new Dictionary<string, object> { { "text", "Cancel" }, { "fontSize", 14 } }))
+            if (!TryAddTextMeshPro(cancelTextGo, new Dictionary<string, object> { { "text", "Cancel" }, { "fontSize", 14 }, { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } } }))
             {
                 var cancelText = Undo.AddComponent<Text>(cancelTextGo);
                 cancelText.text = "Cancel";
@@ -1445,7 +1448,7 @@ namespace MCP.Editor.Handlers
             titleLE.minHeight = 50;
             titleLE.preferredHeight = 50;
 
-            if (!TryAddTextMeshPro(titleGo, new Dictionary<string, object> { { "text", GetString(payload, "title") ?? "Menu" }, { "fontSize", 32 } }))
+            if (!TryAddTextMeshPro(titleGo, new Dictionary<string, object> { { "text", GetString(payload, "title") ?? "Menu" }, { "fontSize", 32 }, { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } } }))
             {
                 var titleText = Undo.AddComponent<Text>(titleGo);
                 titleText.text = GetString(payload, "title") ?? "Menu";
@@ -1495,7 +1498,7 @@ namespace MCP.Editor.Handlers
 
             var btnImage = Undo.AddComponent<Image>(btnGo);
             btnImage.color = new Color(0.3f, 0.3f, 0.3f, 1f);
-            var btn = Undo.AddComponent<Button>(btnGo);
+            Undo.AddComponent<Button>(btnGo);
 
             var btnLE = Undo.AddComponent<LayoutElement>(btnGo);
             btnLE.minHeight = 45;
@@ -1509,7 +1512,7 @@ namespace MCP.Editor.Handlers
             textRect.anchorMax = Vector2.one;
             textRect.sizeDelta = Vector2.zero;
 
-            if (!TryAddTextMeshPro(textGo, new Dictionary<string, object> { { "text", text }, { "fontSize", 20 } }))
+            if (!TryAddTextMeshPro(textGo, new Dictionary<string, object> { { "text", text }, { "fontSize", 20 }, { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } } }))
             {
                 var btnText = Undo.AddComponent<Text>(textGo);
                 btnText.text = text;
@@ -1601,7 +1604,7 @@ namespace MCP.Editor.Handlers
             titleLE.minHeight = 35;
             titleLE.preferredHeight = 35;
 
-            if (!TryAddTextMeshPro(titleGo, new Dictionary<string, object> { { "text", GetString(payload, "title") ?? "Inventory" }, { "fontSize", 20 } }))
+            if (!TryAddTextMeshPro(titleGo, new Dictionary<string, object> { { "text", GetString(payload, "title") ?? "Inventory" }, { "fontSize", 20 }, { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } } }))
             {
                 var titleText = Undo.AddComponent<Text>(titleGo);
                 titleText.text = GetString(payload, "title") ?? "Inventory";
@@ -1936,7 +1939,7 @@ namespace MCP.Editor.Handlers
 
                 results.Add(new Dictionary<string, object>
                 {
-                    ["path"] = targetPath,
+                    ["path"] = BuildGameObjectPath(go),
                     ["alpha"] = canvasGroup.alpha,
                     ["interactable"] = canvasGroup.interactable,
                     ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
@@ -2103,7 +2106,7 @@ namespace MCP.Editor.Handlers
                 textAreaRect.anchorMax = Vector2.one;
                 textAreaRect.sizeDelta = new Vector2(-10, 0);
 
-                var textAreaMask = Undo.AddComponent<RectMask2D>(textAreaGo);
+                Undo.AddComponent<RectMask2D>(textAreaGo);
 
                 // Create text child
                 var textGo = new GameObject("Text", typeof(RectTransform));
@@ -2188,8 +2191,9 @@ namespace MCP.Editor.Handlers
 
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.LogWarning($"[UIFoundation] TMP InputField creation failed, falling back to legacy: {ex.Message}");
                 CleanupChildren(createdChildren);
                 Undo.DestroyObjectImmediate(tmpInput);
                 return false;

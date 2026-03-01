@@ -124,6 +124,7 @@ namespace MCP.Editor.Handlers
             var stateKey = GetStateKey(rootPath, stateName);
             var json = JsonUtility.ToJson(stateData);
             EditorPrefs.SetString(stateKey, json);
+            AddToRegistry(rootPath, stateName);
 
             return new Dictionary<string, object>
             {
@@ -175,7 +176,12 @@ namespace MCP.Editor.Handlers
                         ? rootPath
                         : $"{rootPath}/{elemState.Path}";
 
-                    var targetGo = GameObject.Find(targetPath);
+                    Transform targetTransform;
+                    if (string.IsNullOrEmpty(elemState.Path))
+                        targetTransform = rootGo.transform;
+                    else
+                        targetTransform = rootGo.transform.Find(elemState.Path);
+                    var targetGo = targetTransform?.gameObject;
                     if (targetGo == null)
                     {
                         errors.Add($"Element not found: {targetPath}");
@@ -183,17 +189,19 @@ namespace MCP.Editor.Handlers
                     }
 
                     // Apply active state
+                    Undo.RecordObject(targetGo, "Apply UI State");
                     targetGo.SetActive(elemState.Active);
 
                     // Apply CanvasGroup settings if visible/alpha/interactable are specified
                     var canvasGroup = targetGo.GetComponent<CanvasGroup>();
                     if (canvasGroup == null && (!elemState.Visible || elemState.Alpha < 1f || !elemState.Interactable || !elemState.BlocksRaycasts || elemState.IgnoreParentGroups))
                     {
-                        canvasGroup = targetGo.AddComponent<CanvasGroup>();
+                        canvasGroup = Undo.AddComponent<CanvasGroup>(targetGo);
                     }
 
                     if (canvasGroup != null)
                     {
+                        Undo.RecordObject(canvasGroup, "Apply UI State");
                         canvasGroup.alpha = elemState.Visible ? elemState.Alpha : 0f;
                         canvasGroup.interactable = elemState.Interactable;
                         canvasGroup.blocksRaycasts = elemState.BlocksRaycasts;
@@ -204,6 +212,7 @@ namespace MCP.Editor.Handlers
                     var rectTransform = targetGo.GetComponent<RectTransform>();
                     if (rectTransform != null)
                     {
+                        Undo.RecordObject(rectTransform, "Apply UI State");
                         if (elemState.HasPositionOverride)
                         {
                             rectTransform.anchoredPosition = elemState.AnchoredPosition;
@@ -273,6 +282,7 @@ namespace MCP.Editor.Handlers
             var stateKey = GetStateKey(rootPath, stateName);
             var json = JsonUtility.ToJson(stateData);
             EditorPrefs.SetString(stateKey, json);
+            AddToRegistry(rootPath, stateName);
 
             return new Dictionary<string, object>
             {
@@ -442,11 +452,7 @@ namespace MCP.Editor.Handlers
 
             if (!EditorPrefs.HasKey(stateKey))
             {
-                return new Dictionary<string, object>
-                {
-                    ["success"] = false,
-                    ["message"] = $"State '{stateName}' not found for root '{rootPath}'."
-                };
+                throw new InvalidOperationException($"State '{stateName}' not found for root '{rootPath}'.");
             }
 
             EditorPrefs.DeleteKey(stateKey);
@@ -575,12 +581,7 @@ namespace MCP.Editor.Handlers
         private string GetStateKey(string rootPath, string stateName)
         {
             var safePath = string.IsNullOrEmpty(rootPath) ? "root" : rootPath.Replace("/", "_");
-            var key = $"UIState_{safePath}_{stateName}";
-
-            // Register state name
-            AddToRegistry(rootPath, stateName);
-
-            return key;
+            return $"UIState_{safePath}_{stateName}";
         }
 
         private void AddToRegistry(string rootPath, string stateName)

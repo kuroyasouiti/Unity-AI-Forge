@@ -32,8 +32,9 @@ namespace MCP.Editor.Handlers
         };
 
         private static readonly XNamespace UiNs = "UnityEngine.UIElements";
-        private static readonly XNamespace UxmlNs = "UnityEngine.UIElements";
         private static readonly XNamespace EditorNs = "UnityEditor.UIElements";
+
+        private static readonly HashSet<string> SkipAttrs = new() { "name", "class", "text", "style" };
 
         private static readonly HashSet<string> SupportedElementTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -84,7 +85,8 @@ namespace MCP.Editor.Handlers
             var fullPath = Path.Combine(Application.dataPath, "..", assetPath);
             EnsureDirectoryExists(fullPath);
 
-            File.WriteAllText(fullPath, doc.Declaration + "\n" + doc.ToString(), Encoding.UTF8);
+            var declaration = doc.Declaration != null ? doc.Declaration + "\n" : "";
+            File.WriteAllText(fullPath, declaration + doc.ToString(), Encoding.UTF8);
             AssetDatabase.ImportAsset(assetPath);
 
             var result = CreateSuccessResponse(
@@ -272,7 +274,15 @@ namespace MCP.Editor.Handlers
                 return CreateFailureResponse($"UXML file not found: {assetPath}");
 
             var content = File.ReadAllText(fullPath);
-            var doc = XDocument.Parse(content);
+            XDocument doc;
+            try
+            {
+                doc = XDocument.Parse(content);
+            }
+            catch (System.Xml.XmlException ex)
+            {
+                return CreateFailureResponse($"Failed to parse UXML at {assetPath}: {ex.Message}");
+            }
             var root = doc.Root;
 
             var result = new Dictionary<string, object>
@@ -326,9 +336,8 @@ namespace MCP.Editor.Handlers
                 result["style"] = style;
 
             // Other attributes
-            var skipAttrs = new HashSet<string> { "name", "class", "text", "style" };
             var attrs = new Dictionary<string, object>();
-            foreach (var attr in element.Attributes().Where(a => !a.IsNamespaceDeclaration && !skipAttrs.Contains(a.Name.LocalName)))
+            foreach (var attr in element.Attributes().Where(a => !a.IsNamespaceDeclaration && !SkipAttrs.Contains(a.Name.LocalName)))
             {
                 attrs[attr.Name.LocalName] = attr.Value;
             }
@@ -412,7 +421,15 @@ namespace MCP.Editor.Handlers
                 return CreateFailureResponse($"UXML file not found: {assetPath}");
 
             var content = File.ReadAllText(fullPath);
-            var doc = XDocument.Parse(content);
+            XDocument doc;
+            try
+            {
+                doc = XDocument.Parse(content);
+            }
+            catch (System.Xml.XmlException ex)
+            {
+                return CreateFailureResponse($"Failed to parse UXML at {assetPath}: {ex.Message}");
+            }
             var root = doc.Root;
 
             var updateAction = GetString(payload, "action") ?? "add";
@@ -432,7 +449,8 @@ namespace MCP.Editor.Handlers
                     throw new InvalidOperationException($"Unsupported updateUXML action: {updateAction}. Supported: add, remove, replace");
             }
 
-            File.WriteAllText(fullPath, doc.Declaration + "\n" + doc.ToString(), Encoding.UTF8);
+            var declaration = doc.Declaration != null ? doc.Declaration + "\n" : "";
+            File.WriteAllText(fullPath, declaration + doc.ToString(), Encoding.UTF8);
             AssetDatabase.ImportAsset(assetPath);
 
             var result = CreateSuccessResponse(
@@ -553,9 +571,9 @@ namespace MCP.Editor.Handlers
                 var properties = GetDictFromPayload(ruleDict, "properties");
                 if (properties == null || properties.Count == 0) continue;
 
-                // Try to find and replace existing rule
+                // Try to find and replace existing rule (anchor to prevent substring match)
                 var escapedSelector = Regex.Escape(selector);
-                var pattern = $@"{escapedSelector}\s*\{{[^}}]*\}}";
+                var pattern = $@"(?<![.\w#-]){escapedSelector}(?![.\w#-])\s*\{{[^}}]*\}}";
                 if (Regex.IsMatch(content, pattern, RegexOptions.Singleline))
                 {
                     var newRule = BuildSingleUSSRule(selector, properties);
@@ -583,7 +601,7 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("'selector' is required for remove action");
 
             var escapedSelector = Regex.Escape(selector);
-            var pattern = $@"\s*{escapedSelector}\s*\{{[^}}]*\}}\s*";
+            var pattern = $@"\s*(?<![.\w#-]){escapedSelector}(?![.\w#-])\s*\{{[^}}]*\}}\s*";
             content = Regex.Replace(content, pattern, "\n", RegexOptions.Singleline);
 
             return content.Trim() + "\n";
@@ -664,6 +682,7 @@ namespace MCP.Editor.Handlers
             }
 
             AssetDatabase.CreateAsset(panelSettings, assetPath);
+            Undo.RegisterCreatedObjectUndo(panelSettings, "Create PanelSettings");
             AssetDatabase.SaveAssets();
 
             return CreateSuccessResponse(
@@ -712,20 +731,23 @@ namespace MCP.Editor.Handlers
                     throw new InvalidOperationException($"Unknown template: {templateName}. Supported: menu, dialog, hud, settings, inventory");
             }
 
-            // Build and write UXML
+            // Build USS content
+            var ussContent = BuildUSSContent(ussRules);
+            var ussFullPath = Path.Combine(Application.dataPath, "..", ussPath);
+            EnsureDirectoryExists(ussFullPath);
+
+            // Build UXML content
             var styleSheets = new List<string> { ussPath };
             var uxmlDoc = BuildUXMLDocument(uxmlElements, styleSheets, uxmlPath);
             var uxmlFullPath = Path.Combine(Application.dataPath, "..", uxmlPath);
             EnsureDirectoryExists(uxmlFullPath);
-            File.WriteAllText(uxmlFullPath, uxmlDoc.Declaration + "\n" + uxmlDoc.ToString(), Encoding.UTF8);
-            AssetDatabase.ImportAsset(uxmlPath);
 
-            // Build and write USS
-            var ussContent = BuildUSSContent(ussRules);
-            var ussFullPath = Path.Combine(Application.dataPath, "..", ussPath);
-            EnsureDirectoryExists(ussFullPath);
+            // Write USS first, then UXML (USS must exist before UXML import parses stylesheet references)
             File.WriteAllText(ussFullPath, ussContent, Encoding.UTF8);
+            var declaration = uxmlDoc.Declaration != null ? uxmlDoc.Declaration + "\n" : "";
+            File.WriteAllText(uxmlFullPath, declaration + uxmlDoc.ToString(), Encoding.UTF8);
             AssetDatabase.ImportAsset(ussPath);
+            AssetDatabase.ImportAsset(uxmlPath);
 
             var result = CreateSuccessResponse(
                 ("uxmlPath", uxmlPath),

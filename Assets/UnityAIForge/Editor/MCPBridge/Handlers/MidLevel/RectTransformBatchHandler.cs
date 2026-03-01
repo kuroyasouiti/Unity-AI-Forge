@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Base;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace MCP.Editor.Handlers
@@ -62,7 +61,7 @@ namespace MCP.Editor.Handlers
                 rt.anchorMax = anchorMax;
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -81,7 +80,7 @@ namespace MCP.Editor.Handlers
                 rt.pivot = pivot;
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -100,7 +99,7 @@ namespace MCP.Editor.Handlers
                 rt.sizeDelta = sizeDelta;
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -119,7 +118,7 @@ namespace MCP.Editor.Handlers
                 rt.anchoredPosition = anchoredPosition;
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -130,7 +129,7 @@ namespace MCP.Editor.Handlers
         private object AlignToParent(Dictionary<string, object> payload)
         {
             var targets = GetTargetRectTransforms(payload);
-            var preset = GetString(payload, "preset")?.ToLowerInvariant() ?? "middleCenter";
+            var preset = GetString(payload, "preset")?.ToLowerInvariant() ?? "middlecenter";
 
             foreach (var rt in targets)
             {
@@ -138,7 +137,7 @@ namespace MCP.Editor.Handlers
                 ApplyAnchorPreset(rt, preset);
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -227,6 +226,9 @@ namespace MCP.Editor.Handlers
                     rt.pivot = new Vector2(0.5f, 0.5f);
                     rt.sizeDelta = Vector2.zero;
                     break;
+                default:
+                    throw new InvalidOperationException(
+                        $"Unknown preset: '{preset}'. Use 'topLeft', 'topCenter', 'topRight', 'middleLeft', 'middleCenter', 'middleRight', 'bottomLeft', 'bottomCenter', 'bottomRight', 'stretchLeft', 'stretchCenter', 'stretchRight', 'stretchTop', 'stretchMiddle', 'stretchBottom', or 'stretchAll'.");
             }
         }
 
@@ -242,7 +244,7 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("At least 2 RectTransforms are required for distribution.");
             }
 
-            var spacing = GetFloatPayload(payload, "spacing", 0f);
+            var spacing = GetFloat(payload, "spacing", 0f);
 
             // Sort by current X position
             var sorted = targets.OrderBy(rt => rt.anchoredPosition.x).ToList();
@@ -269,7 +271,7 @@ namespace MCP.Editor.Handlers
                 }
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -285,7 +287,7 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("At least 2 RectTransforms are required for distribution.");
             }
 
-            var spacing = GetFloatPayload(payload, "spacing", 0f);
+            var spacing = GetFloat(payload, "spacing", 0f);
 
             // Sort by current Y position (descending, since UI Y is bottom-to-top)
             var sorted = targets.OrderByDescending(rt => rt.anchoredPosition.y).ToList();
@@ -312,7 +314,7 @@ namespace MCP.Editor.Handlers
                 }
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -339,6 +341,9 @@ namespace MCP.Editor.Handlers
             var matchWidth = GetBool(payload, "matchWidth");
             var matchHeight = GetBool(payload, "matchHeight");
 
+            if (!matchWidth && !matchHeight)
+                throw new InvalidOperationException("At least one of 'matchWidth' or 'matchHeight' must be true.");
+
             foreach (var rt in targets)
             {
                 Undo.RecordObject(rt, "Match Size");
@@ -354,7 +359,7 @@ namespace MCP.Editor.Handlers
                 rt.sizeDelta = newSize;
             }
 
-            MarkScenesDirty(targets);
+            MarkScenesDirty(targets.Select(rt => rt.gameObject));
             return CreateSuccessResponse(("count", targets.Count));
         }
 
@@ -365,6 +370,8 @@ namespace MCP.Editor.Handlers
         private List<RectTransform> GetTargetRectTransforms(Dictionary<string, object> payload)
         {
             var paths = GetStringList(payload, "gameObjectPaths");
+            if (paths.Count == 0)
+                throw new InvalidOperationException("'gameObjectPaths' is required and must contain at least one path.");
             var result = new List<RectTransform>();
             foreach (var path in paths)
             {
@@ -377,27 +384,6 @@ namespace MCP.Editor.Handlers
                 result.Add(rt);
             }
             return result;
-        }
-
-        private float GetFloatPayload(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (!payload.TryGetValue(key, out var value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            return Convert.ToSingle(value);
-        }
-
-        private void MarkScenesDirty(IEnumerable<RectTransform> rects)
-        {
-            foreach (var scene in rects.Select(rt => rt.gameObject.scene).Distinct())
-            {
-                if (scene.IsValid())
-                {
-                    EditorSceneManager.MarkSceneDirty(scene);
-                }
-            }
         }
 
         #endregion

@@ -58,10 +58,7 @@ namespace MCP.Editor.Handlers
             if (!string.IsNullOrEmpty(parentPath))
             {
                 var parent = ResolveGameObject(parentPath);
-                if (parent != null)
-                {
-                    Undo.SetTransformParent(go.transform, parent.transform, "Set UIDocument Parent");
-                }
+                Undo.SetTransformParent(go.transform, parent.transform, "Set UIDocument Parent");
             }
 
             // Assign UXML source asset
@@ -69,11 +66,10 @@ namespace MCP.Editor.Handlers
             if (!string.IsNullOrEmpty(uxmlPath))
             {
                 var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(uxmlPath);
-                if (asset != null)
-                {
-                    Undo.RecordObject(uiDoc, "Set UXML Source");
-                    uiDoc.visualTreeAsset = asset;
-                }
+                if (asset == null)
+                    return CreateFailureResponse($"VisualTreeAsset not found at '{uxmlPath}'");
+                Undo.RecordObject(uiDoc, "Set UXML Source");
+                uiDoc.visualTreeAsset = asset;
             }
 
             // Assign PanelSettings
@@ -81,19 +77,17 @@ namespace MCP.Editor.Handlers
             if (!string.IsNullOrEmpty(panelSettingsPath))
             {
                 var panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(panelSettingsPath);
-                if (panelSettings != null)
-                {
-                    Undo.RecordObject(uiDoc, "Set PanelSettings");
-                    uiDoc.panelSettings = panelSettings;
-                }
+                if (panelSettings == null)
+                    return CreateFailureResponse($"PanelSettings not found at '{panelSettingsPath}'");
+                Undo.RecordObject(uiDoc, "Set PanelSettings");
+                uiDoc.panelSettings = panelSettings;
             }
 
             // Sort order
-            var sortOrder = GetFloat(payload, "sortingOrder", 0f);
-            if (sortOrder != 0f)
+            if (payload.ContainsKey("sortingOrder"))
             {
                 Undo.RecordObject(uiDoc, "Set Sort Order");
-                uiDoc.sortingOrder = sortOrder;
+                uiDoc.sortingOrder = GetFloat(payload, "sortingOrder", 0f);
             }
 
             MarkSceneDirty(go);

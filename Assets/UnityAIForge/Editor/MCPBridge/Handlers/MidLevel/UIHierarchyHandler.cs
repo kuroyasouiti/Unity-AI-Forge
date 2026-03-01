@@ -188,7 +188,7 @@ namespace MCP.Editor.Handlers
         {
             var go = new GameObject(name, typeof(RectTransform));
             var image = go.AddComponent<Image>();
-            var button = go.AddComponent<Button>();
+            go.AddComponent<Button>();
 
             // Set button colors
             if (element.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
@@ -302,7 +302,7 @@ namespace MCP.Editor.Handlers
             textAreaRect.anchorMax = Vector2.one;
             textAreaRect.offsetMin = new Vector2(10, 6);
             textAreaRect.offsetMax = new Vector2(-10, -7);
-            var rectMask = textAreaGo.AddComponent<RectMask2D>();
+            textAreaGo.AddComponent<RectMask2D>();
 
             // Create placeholder
             var placeholderGo = new GameObject("Placeholder", typeof(RectTransform));
@@ -389,6 +389,9 @@ namespace MCP.Editor.Handlers
             scrollRect.content = contentRect;
             scrollRect.horizontal = GetBool(element, "horizontal", false);
             scrollRect.vertical = GetBool(element, "vertical", true);
+
+            createdObjects.Add(BuildGameObjectPath(viewportGo));
+            createdObjects.Add(BuildGameObjectPath(contentGo));
 
             // Process children into Content
             if (element.TryGetValue("children", out var childrenObj) && childrenObj is List<object> children)
@@ -518,9 +521,9 @@ namespace MCP.Editor.Handlers
             slider.fillRect = fillRect;
             slider.handleRect = handleRect;
             slider.targetGraphic = handleImage;
-            slider.minValue = GetFloatFromPayload(element, "minValue", 0f);
-            slider.maxValue = GetFloatFromPayload(element, "maxValue", 1f);
-            slider.value = GetFloatFromPayload(element, "value", 0.5f);
+            slider.minValue = GetFloat(element, "minValue", 0f);
+            slider.maxValue = GetFloat(element, "maxValue", 1f);
+            slider.value = GetFloat(element, "value", 0.5f);
             slider.wholeNumbers = GetBool(element, "wholeNumbers", false);
 
             return go;
@@ -586,8 +589,8 @@ namespace MCP.Editor.Handlers
             if (rect == null) return;
 
             // Size
-            var width = GetFloatFromPayload(element, "width", 0);
-            var height = GetFloatFromPayload(element, "height", 0);
+            var width = GetFloat(element, "width", 0);
+            var height = GetFloat(element, "height", 0);
             if (width > 0 || height > 0)
             {
                 rect.sizeDelta = new Vector2(
@@ -655,6 +658,9 @@ namespace MCP.Editor.Handlers
                 case "grid":
                     gridLayout = go.AddComponent<GridLayoutGroup>();
                     break;
+                default:
+                    Debug.LogWarning($"[UIHierarchy] Unknown layout type: '{layoutType}'. Use 'horizontal', 'vertical', or 'grid'.");
+                    break;
             }
 
             if (layoutGroup != null && layoutConfig != null)
@@ -681,7 +687,7 @@ namespace MCP.Editor.Handlers
             }
 
             // Spacing
-            layout.spacing = GetFloatFromPayload(config, "spacing", 0);
+            layout.spacing = GetFloat(config, "spacing", 0);
 
             // Child control
             layout.childControlWidth = GetBool(config, "childControlWidth", true);
@@ -731,7 +737,7 @@ namespace MCP.Editor.Handlers
             }
             else
             {
-                var spacing = GetFloatFromPayload(config, "spacing", 0);
+                var spacing = GetFloat(config, "spacing", 0);
                 layout.spacing = new Vector2(spacing, spacing);
             }
 
@@ -813,6 +819,9 @@ namespace MCP.Editor.Handlers
                     rect.offsetMin = Vector2.zero;
                     rect.offsetMax = Vector2.zero;
                     break;
+                default:
+                    Debug.LogWarning($"[UIHierarchy] Unknown anchor preset: '{preset}'");
+                    break;
             }
         }
 
@@ -842,6 +851,10 @@ namespace MCP.Editor.Handlers
             {
                 targetParent = source.transform.parent;
             }
+
+            var canvas = targetParent.GetComponentInParent<Canvas>();
+            if (canvas == null)
+                throw new InvalidOperationException($"Target parent must be under a Canvas.");
 
             var clone = UnityEngine.Object.Instantiate(source, targetParent);
             Undo.RegisterCreatedObjectUndo(clone, "Clone UI Hierarchy");
@@ -989,7 +1002,9 @@ namespace MCP.Editor.Handlers
             var target = ResolveGameObject(targetPath);
             var childCount = CountDescendants(target.transform);
 
+            var scene = target.scene;
             Undo.DestroyObjectImmediate(target);
+            EditorSceneManager.MarkSceneDirty(scene);
 
             return new Dictionary<string, object>
             {
@@ -1188,8 +1203,9 @@ namespace MCP.Editor.Handlers
 
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.LogWarning($"[UIHierarchy] TMP component creation failed, falling back to legacy: {ex.Message}");
                 return false;
             }
         }
@@ -1215,24 +1231,6 @@ namespace MCP.Editor.Handlers
                 "lowerright" => TextAnchor.LowerRight,
                 _ => TextAnchor.MiddleCenter
             };
-        }
-
-        private int GetIntFromDict(Dictionary<string, object> dict, string key, int defaultValue)
-        {
-            if (dict.TryGetValue(key, out var value))
-            {
-                return Convert.ToInt32(value);
-            }
-            return defaultValue;
-        }
-
-        private float GetFloatFromPayload(Dictionary<string, object> payload, string key, float defaultValue)
-        {
-            if (payload.TryGetValue(key, out var value))
-            {
-                return Convert.ToSingle(value);
-            }
-            return defaultValue;
         }
 
         #endregion
