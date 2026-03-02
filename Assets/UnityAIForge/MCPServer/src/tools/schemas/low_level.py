@@ -246,7 +246,11 @@ def asset_manage_schema() -> dict[str, Any]:
                         "deleteMultiple",
                         "inspectMultiple",
                     ],
-                    "description": "Asset operation to perform.",
+                    "description": (
+                        "Asset operation to perform. "
+                        "Note: For .cs files, create/update/delete operations automatically wait for "
+                        "Unity compilation to complete — no need to call compilation_await separately."
+                    ),
                 },
                 "assetPath": {
                     "type": "string",

@@ -123,7 +123,15 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_asset_crud",
-            description="Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), update (modify file contents), delete, rename, duplicate, inspect (view properties and content), updateImporter (modify asset import settings), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Essential for managing scripts, textures, audio, data files, and all Unity assets.",
+            description=(
+                "Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), "
+                "update (modify file contents), delete, rename, duplicate, inspect (view properties and content), "
+                "updateImporter (modify asset import settings), and batch operations "
+                "(findMultiple/deleteMultiple/inspectMultiple with pattern matching). "
+                "Essential for managing scripts, textures, audio, data files, and all Unity assets.\n\n"
+                "**Note:** For .cs files, create/update/delete operations automatically wait for Unity compilation "
+                "to complete and return compilation results — no need to call compilation_await separately."
+            ),
             inputSchema=asset_manage_schema(),
         ),
         types.Tool(
@@ -630,7 +638,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- report: Run all integrity checks across multiple scenes (scope: active_scene/build_scenes/all_scenes)\n"
                 "- checkPrefab: Validate a prefab asset for missing scripts, null refs, and broken events\n"
                 "- canvasGroupAudit: Detect CanvasGroup alpha conflicts (parent alpha=0 blocks child) and mismatched references\n"
-                "- referenceSemantics: Detect logical reference issues (references to inactive objects, self-references)\n\n"
+                "- referenceSemantics: Detect logical reference issues (references to inactive objects, self-references)\n"
+                "- requiredFieldAudit: Detect null SerializedFields that are used in code without null guards\n"
+                "- uiOverflowAudit: Detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow)\n"
+                "- nullAssetAudit: Detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
                 "Returns a flat issue list with type, severity (error/warning), gameObjectPath, message, and optional suggestion. "

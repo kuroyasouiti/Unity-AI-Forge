@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace MCP.Editor.Utilities.GraphAnalysis
 {
@@ -484,7 +487,10 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 ["brokenPrefabs"] = 0,
                 ["typeMismatches"] = 0,
                 ["canvasGroupIssues"] = 0,
-                ["semanticRefIssues"] = 0
+                ["semanticRefIssues"] = 0,
+                ["requiredFieldIssues"] = 0,
+                ["uiOverflowIssues"] = 0,
+                ["nullAssetIssues"] = 0
             };
 
             var missingScripts = FindMissingScripts(rootPath);
@@ -515,6 +521,18 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             var semanticRefIssues = FindReferenceSemanticsIssues(rootPath);
             summary["semanticRefIssues"] = semanticRefIssues.Count;
             allIssues.AddRange(semanticRefIssues);
+
+            var requiredFieldIssues = FindRequiredFieldIssues(rootPath);
+            summary["requiredFieldIssues"] = requiredFieldIssues.Count;
+            allIssues.AddRange(requiredFieldIssues);
+
+            var uiOverflowIssues = FindUIOverflowIssues(rootPath);
+            summary["uiOverflowIssues"] = uiOverflowIssues.Count;
+            allIssues.AddRange(uiOverflowIssues);
+
+            var nullAssetIssues = FindNullAssetFieldIssues();
+            summary["nullAssetIssues"] = nullAssetIssues.Count;
+            allIssues.AddRange(nullAssetIssues);
 
             return (allIssues, summary);
         }
@@ -678,6 +696,172 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             return issues;
         }
 
+        /// <summary>
+        /// Find SerializedFields that are null (unset) but used in code without null guards.
+        /// Only checks user scripts (Assembly-CSharp) and skips Unity internal fields.
+        /// </summary>
+        public List<IntegrityIssue> FindRequiredFieldIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+            var sourceCache = new Dictionary<Type, string>();
+
+            foreach (var go in gameObjects)
+            {
+                var components = go.GetComponents<Component>();
+                foreach (var comp in components)
+                {
+                    if (comp == null) continue;
+                    var compType = comp.GetType();
+                    // Skip Unity standard components
+                    if (compType.Namespace != null && compType.Namespace.StartsWith("UnityEngine")) continue;
+                    if (compType.Namespace != null && compType.Namespace.StartsWith("UnityEditor")) continue;
+                    if (compType.Namespace != null && compType.Namespace.StartsWith("TMPro")) continue;
+
+                    try
+                    {
+                        var so = new SerializedObject(comp);
+                        var iter = so.GetIterator();
+                        while (iter.NextVisible(true))
+                        {
+                            if (iter.propertyType != SerializedPropertyType.ObjectReference) continue;
+                            if (iter.name == "m_Script") continue;
+                            // Skip Unity internal fields (m_ prefix on Unity standard components)
+                            if (iter.name.StartsWith("m_") && IsUnityInternalField(compType, iter.name)) continue;
+                            if (iter.objectReferenceValue != null) continue; // Already set
+                            if (iter.objectReferenceInstanceIDValue != 0) continue; // Broken ref, caught by nullReferences
+
+                            var fieldName = iter.propertyPath.Split('.')[0];
+                            var (isUsed, hasNullGuard) = CheckFieldUsageInSource(compType, fieldName, sourceCache);
+
+                            if (isUsed)
+                            {
+                                var fieldTypeName = GetFieldTypeName(compType, fieldName);
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "requiredField",
+                                    Severity = hasNullGuard ? "info" : "warning",
+                                    GameObjectPath = GetGameObjectPath(go),
+                                    ComponentType = compType.Name,
+                                    FieldName = fieldName,
+                                    Message = hasNullGuard
+                                        ? $"{compType.Name}.{fieldName} is null (used with null guard)"
+                                        : $"{compType.Name}.{fieldName} is null but used without null guard",
+                                    Suggestion = $"Set {fieldTypeName} reference in Inspector"
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception) { }
+                }
+            }
+            return issues;
+        }
+
+        /// <summary>
+        /// Find UI layout overflow issues.
+        /// Rule A: LayoutGroup content exceeds parent bounds without ScrollRect.
+        /// Rule B: RectTransform sizeDelta causes overflow on stretch axes.
+        /// </summary>
+        public List<IntegrityIssue> FindUIOverflowIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            foreach (var go in gameObjects)
+            {
+                // Rule A: GridLayoutGroup overflow
+                var grid = go.GetComponent<GridLayoutGroup>();
+                if (grid != null && grid.transform.childCount > 0)
+                {
+                    CheckGridOverflow(go, grid, issues);
+                }
+
+                // Rule A: VerticalLayoutGroup overflow
+                var vLayout = go.GetComponent<VerticalLayoutGroup>();
+                if (vLayout != null && vLayout.transform.childCount > 0)
+                {
+                    CheckVerticalLayoutOverflow(go, vLayout, issues);
+                }
+
+                // Rule A: HorizontalLayoutGroup overflow
+                var hLayout = go.GetComponent<HorizontalLayoutGroup>();
+                if (hLayout != null && hLayout.transform.childCount > 0)
+                {
+                    CheckHorizontalLayoutOverflow(go, hLayout, issues);
+                }
+
+                // Rule B: sizeDelta overflow on stretch anchors
+                var rt = go.GetComponent<RectTransform>();
+                if (rt != null && rt.parent is RectTransform parentRt)
+                {
+                    CheckSizeDeltaOverflow(go, rt, parentRt, issues);
+                }
+            }
+            return issues;
+        }
+
+        /// <summary>
+        /// Find null asset reference fields in ScriptableObject assets.
+        /// Checks Sprite, Texture2D, AudioClip, Material, GameObject, Mesh fields.
+        /// Skips fields with "optional" in their name and Unity built-in SOs.
+        /// </summary>
+        public List<IntegrityIssue> FindNullAssetFieldIssues(string searchPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var folders = new[] { searchPath ?? "Assets" };
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject", folders);
+            var checkedTypes = new HashSet<Type>
+            {
+                typeof(Sprite), typeof(Texture2D), typeof(AudioClip),
+                typeof(Material), typeof(GameObject), typeof(Mesh)
+            };
+
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+                var assetType = asset.GetType();
+                if (assetType.Namespace != null &&
+                    (assetType.Namespace.StartsWith("UnityEngine") || assetType.Namespace.StartsWith("UnityEditor")))
+                    continue;
+
+                try
+                {
+                    var so = new SerializedObject(asset);
+                    var iter = so.GetIterator();
+                    while (iter.NextVisible(true))
+                    {
+                        if (iter.propertyType != SerializedPropertyType.ObjectReference) continue;
+                        if (iter.name == "m_Script") continue;
+                        if (iter.objectReferenceValue != null) continue;
+                        if (iter.objectReferenceInstanceIDValue != 0) continue; // Broken ref, different issue
+                        // Skip fields with "optional" in the name
+                        if (iter.name.IndexOf("optional", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+
+                        var fieldInfo = assetType.GetField(iter.name,
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        if (fieldInfo != null && checkedTypes.Contains(fieldInfo.FieldType))
+                        {
+                            issues.Add(new IntegrityIssue
+                            {
+                                Type = "nullAssetField",
+                                Severity = "warning",
+                                GameObjectPath = path,
+                                ComponentType = assetType.Name,
+                                FieldName = iter.name,
+                                Message = $"{assetType.Name}.{iter.name} ({fieldInfo.FieldType.Name}) is null in '{Path.GetFileName(path)}'",
+                                Suggestion = $"Set {fieldInfo.FieldType.Name} reference in '{path}'"
+                            });
+                        }
+                    }
+                }
+                catch (Exception) { }
+            }
+            return issues;
+        }
+
         #region Private Helpers
 
         private List<GameObject> GetTargetGameObjects(string rootPath)
@@ -752,6 +936,277 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             }
 
             return null;
+        }
+
+        private bool IsUnityInternalField(Type compType, string fieldName)
+        {
+            // If the field is declared on a Unity base type, it's internal
+            var field = compType.GetField(fieldName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (field == null) return true; // Can't find it, treat as internal
+            var declaringType = field.DeclaringType;
+            return declaringType != null && declaringType.Namespace != null &&
+                   (declaringType.Namespace.StartsWith("UnityEngine") || declaringType.Namespace.StartsWith("UnityEditor"));
+        }
+
+        private (bool isUsed, bool hasNullGuard) CheckFieldUsageInSource(
+            Type compType, string fieldName, Dictionary<Type, string> sourceCache)
+        {
+            if (!sourceCache.TryGetValue(compType, out var source))
+            {
+                source = LoadSourceForType(compType);
+                sourceCache[compType] = source;
+            }
+
+            if (string.IsNullOrEmpty(source))
+                return (false, false);
+
+            // Check if field is used in method bodies (not just declared)
+            // Look for usage patterns: fieldName. fieldName) fieldName, fieldName; fieldName[
+            var usagePattern = new Regex($@"(?<![\w.])({Regex.Escape(fieldName)})(?=\s*[.)\],;\[!=><!])");
+            var matches = usagePattern.Matches(source);
+
+            if (matches.Count == 0)
+                return (false, false);
+
+            // Check for null guard patterns
+            var nullGuardPatterns = new[]
+            {
+                $@"{Regex.Escape(fieldName)}\s*!=\s*null",
+                $@"{Regex.Escape(fieldName)}\s*==\s*null",
+                $@"{Regex.Escape(fieldName)}\?\.",
+                $@"{Regex.Escape(fieldName)}\?\[",
+            };
+
+            bool hasNullGuard = false;
+            foreach (var pattern in nullGuardPatterns)
+            {
+                if (Regex.IsMatch(source, pattern))
+                {
+                    hasNullGuard = true;
+                    break;
+                }
+            }
+
+            return (true, hasNullGuard);
+        }
+
+        private string LoadSourceForType(Type compType)
+        {
+            // Find MonoScript for this type
+            var scripts = AssetDatabase.FindAssets($"t:MonoScript {compType.Name}");
+            foreach (var guid in scripts)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var monoScript = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
+                if (monoScript != null && monoScript.GetClass() == compType)
+                {
+                    try
+                    {
+                        var fullPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), path);
+                        return File.ReadAllText(fullPath);
+                    }
+                    catch { }
+                }
+            }
+            return null;
+        }
+
+        private string GetFieldTypeName(Type compType, string fieldName)
+        {
+            var field = compType.GetField(fieldName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return field != null ? field.FieldType.Name : "Object";
+        }
+
+        private bool HasScrollRectAncestor(GameObject go)
+        {
+            var parent = go.transform.parent;
+            while (parent != null)
+            {
+                if (parent.GetComponent<ScrollRect>() != null)
+                    return true;
+                parent = parent.parent;
+            }
+            return false;
+        }
+
+        private int CountActiveChildren(Transform parent)
+        {
+            int count = 0;
+            foreach (Transform child in parent)
+            {
+                if (child.gameObject.activeSelf)
+                    count++;
+            }
+            return count;
+        }
+
+        private void CheckGridOverflow(GameObject go, GridLayoutGroup grid, List<IntegrityIssue> issues)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            if (rt == null) return;
+            if (HasScrollRectAncestor(go)) return;
+
+            int activeChildCount = CountActiveChildren(grid.transform);
+            if (activeChildCount == 0) return;
+
+            var padding = grid.padding;
+            var cellSize = grid.cellSize;
+            var spacing = grid.spacing;
+
+            float requiredWidth, requiredHeight;
+
+            if (grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount && grid.constraintCount > 0)
+            {
+                int cols = grid.constraintCount;
+                int rows = Mathf.CeilToInt((float)activeChildCount / cols);
+                requiredWidth = cols * cellSize.x + (cols - 1) * spacing.x + padding.left + padding.right;
+                requiredHeight = rows * cellSize.y + (rows - 1) * spacing.y + padding.top + padding.bottom;
+            }
+            else if (grid.constraint == GridLayoutGroup.Constraint.FixedRowCount && grid.constraintCount > 0)
+            {
+                int rows = grid.constraintCount;
+                int cols = Mathf.CeilToInt((float)activeChildCount / rows);
+                requiredWidth = cols * cellSize.x + (cols - 1) * spacing.x + padding.left + padding.right;
+                requiredHeight = rows * cellSize.y + (rows - 1) * spacing.y + padding.top + padding.bottom;
+            }
+            else
+            {
+                // Flexible — can't reliably predict layout without forcing a rebuild
+                return;
+            }
+
+            var rect = rt.rect;
+            bool overflowW = requiredWidth > rect.width + 0.5f;
+            bool overflowH = requiredHeight > rect.height + 0.5f;
+
+            if (overflowW || overflowH)
+            {
+                var axis = overflowW && overflowH ? "width and height" : overflowW ? "width" : "height";
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "uiOverflow",
+                    Severity = "warning",
+                    GameObjectPath = GetGameObjectPath(go),
+                    ComponentType = "GridLayoutGroup",
+                    Message = $"GridLayoutGroup content overflows parent {axis} ({activeChildCount} children, " +
+                              $"required: {requiredWidth:F0}x{requiredHeight:F0}, available: {rect.width:F0}x{rect.height:F0})",
+                    Suggestion = "Add a ScrollRect parent or increase the container size"
+                });
+            }
+        }
+
+        private void CheckVerticalLayoutOverflow(GameObject go, VerticalLayoutGroup layout, List<IntegrityIssue> issues)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            if (rt == null) return;
+            if (HasScrollRectAncestor(go)) return;
+
+            int activeChildCount = CountActiveChildren(layout.transform);
+            if (activeChildCount == 0) return;
+
+            // Sum up preferred heights of children
+            float totalHeight = layout.padding.top + layout.padding.bottom;
+            totalHeight += (activeChildCount - 1) * layout.spacing;
+            foreach (Transform child in layout.transform)
+            {
+                if (!child.gameObject.activeSelf) continue;
+                var childRt = child.GetComponent<RectTransform>();
+                if (childRt != null)
+                {
+                    var le = child.GetComponent<LayoutElement>();
+                    if (le != null && le.preferredHeight > 0)
+                        totalHeight += le.preferredHeight;
+                    else
+                        totalHeight += childRt.rect.height > 0 ? childRt.rect.height : childRt.sizeDelta.y;
+                }
+            }
+
+            var rect = rt.rect;
+            if (totalHeight > rect.height + 0.5f)
+            {
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "uiOverflow",
+                    Severity = "warning",
+                    GameObjectPath = GetGameObjectPath(go),
+                    ComponentType = "VerticalLayoutGroup",
+                    Message = $"VerticalLayoutGroup content overflows parent height ({activeChildCount} children, " +
+                              $"required: {totalHeight:F0}, available: {rect.height:F0})",
+                    Suggestion = "Add a ScrollRect parent or increase the container height"
+                });
+            }
+        }
+
+        private void CheckHorizontalLayoutOverflow(GameObject go, HorizontalLayoutGroup layout, List<IntegrityIssue> issues)
+        {
+            var rt = go.GetComponent<RectTransform>();
+            if (rt == null) return;
+            if (HasScrollRectAncestor(go)) return;
+
+            int activeChildCount = CountActiveChildren(layout.transform);
+            if (activeChildCount == 0) return;
+
+            float totalWidth = layout.padding.left + layout.padding.right;
+            totalWidth += (activeChildCount - 1) * layout.spacing;
+            foreach (Transform child in layout.transform)
+            {
+                if (!child.gameObject.activeSelf) continue;
+                var childRt = child.GetComponent<RectTransform>();
+                if (childRt != null)
+                {
+                    var le = child.GetComponent<LayoutElement>();
+                    if (le != null && le.preferredWidth > 0)
+                        totalWidth += le.preferredWidth;
+                    else
+                        totalWidth += childRt.rect.width > 0 ? childRt.rect.width : childRt.sizeDelta.x;
+                }
+            }
+
+            var rect = rt.rect;
+            if (totalWidth > rect.width + 0.5f)
+            {
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "uiOverflow",
+                    Severity = "warning",
+                    GameObjectPath = GetGameObjectPath(go),
+                    ComponentType = "HorizontalLayoutGroup",
+                    Message = $"HorizontalLayoutGroup content overflows parent width ({activeChildCount} children, " +
+                              $"required: {totalWidth:F0}, available: {rect.width:F0})",
+                    Suggestion = "Add a ScrollRect parent or increase the container width"
+                });
+            }
+        }
+
+        private void CheckSizeDeltaOverflow(GameObject go, RectTransform rt, RectTransform parentRt, List<IntegrityIssue> issues)
+        {
+            // Only check stretch axes (anchorMin != anchorMax)
+            bool stretchX = Mathf.Abs(rt.anchorMin.x - rt.anchorMax.x) > 0.001f;
+            bool stretchY = Mathf.Abs(rt.anchorMin.y - rt.anchorMax.y) > 0.001f;
+
+            if (!stretchX && !stretchY) return;
+
+            var parentRect = parentRt.rect;
+            bool overflowX = stretchX && rt.sizeDelta.x > 0.5f &&
+                             (parentRect.width + rt.sizeDelta.x) > parentRect.width + 0.5f;
+            bool overflowY = stretchY && rt.sizeDelta.y > 0.5f &&
+                             (parentRect.height + rt.sizeDelta.y) > parentRect.height + 0.5f;
+
+            if (overflowX || overflowY)
+            {
+                var axis = overflowX && overflowY ? "width and height" : overflowX ? "width" : "height";
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "uiOverflow_sizeDelta",
+                    Severity = "warning",
+                    GameObjectPath = GetGameObjectPath(go),
+                    ComponentType = "RectTransform",
+                    Message = $"RectTransform sizeDelta ({rt.sizeDelta.x:F0}, {rt.sizeDelta.y:F0}) causes overflow on stretch {axis}",
+                    Suggestion = "Set sizeDelta to 0 or negative on stretch axes to fit within parent"
+                });
+            }
         }
 
         private bool HasMethod(UnityEngine.Object target, string methodName)

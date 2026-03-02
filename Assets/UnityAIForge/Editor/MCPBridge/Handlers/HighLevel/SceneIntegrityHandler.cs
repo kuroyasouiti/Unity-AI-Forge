@@ -26,7 +26,10 @@ namespace MCP.Editor.Handlers.HighLevel
             "report",
             "checkPrefab",
             "canvasGroupAudit",
-            "referenceSemantics"
+            "referenceSemantics",
+            "requiredFieldAudit",
+            "uiOverflowAudit",
+            "nullAssetAudit"
         };
 
         public override string Category => "sceneIntegrity";
@@ -53,6 +56,9 @@ namespace MCP.Editor.Handlers.HighLevel
                 "checkPrefab" => HandleCheckPrefab(payload),
                 "canvasGroupAudit" => BuildResponse(operation, analyzer.FindCanvasGroupIssues(rootPath)),
                 "referenceSemantics" => BuildResponse(operation, analyzer.FindReferenceSemanticsIssues(rootPath)),
+                "requiredFieldAudit" => BuildResponse(operation, analyzer.FindRequiredFieldIssues(rootPath)),
+                "uiOverflowAudit" => BuildResponse(operation, analyzer.FindUIOverflowIssues(rootPath)),
+                "nullAssetAudit" => BuildResponse(operation, analyzer.FindNullAssetFieldIssues(GetString(payload, "searchPath"))),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
             };
         }

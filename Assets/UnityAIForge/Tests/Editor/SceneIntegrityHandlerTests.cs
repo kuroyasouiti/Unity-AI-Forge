@@ -147,5 +147,56 @@ namespace MCP.Editor.Tests
             Assert.IsTrue(summary.ContainsKey("canvasGroupIssues"), "Summary should contain 'canvasGroupIssues'");
             Assert.IsTrue(summary.ContainsKey("semanticRefIssues"), "Summary should contain 'semanticRefIssues'");
         }
+
+        [Test]
+        public void SupportedOperations_ContainsAuditOps()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("requiredFieldAudit", ops);
+            Assert.Contains("uiOverflowAudit", ops);
+            Assert.Contains("nullAssetAudit", ops);
+        }
+
+        [Test]
+        public void RequiredFieldAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("requiredFieldAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void UIOverflowAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("uiOverflowAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void NullAssetAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("nullAssetAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void NullAssetAudit_WithSearchPath_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("nullAssetAudit",
+                ("searchPath", "Assets")));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void All_IncludesAuditChecksInSummary()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("all"));
+            TestUtilities.AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var summary = dict["summary"] as Dictionary<string, int>;
+            Assert.IsNotNull(summary, "Summary should be a Dictionary<string, int>");
+            Assert.IsTrue(summary.ContainsKey("requiredFieldIssues"), "Summary should contain 'requiredFieldIssues'");
+            Assert.IsTrue(summary.ContainsKey("uiOverflowIssues"), "Summary should contain 'uiOverflowIssues'");
+            Assert.IsTrue(summary.ContainsKey("nullAssetIssues"), "Summary should contain 'nullAssetIssues'");
+        }
     }
 }

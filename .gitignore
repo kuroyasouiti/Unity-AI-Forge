@@ -114,5 +114,6 @@ docs/
 .mcp_bridge_token
 .mcp_bridge_tokens.json
 nul
-*/GeneratedScriptTracker.asset
+**/GeneratedScriptTracker.asset
+**/GeneratedScriptTracker.asset.meta
 */uv.lock

@@ -443,6 +443,9 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "checkPrefab",
                         "canvasGroupAudit",
                         "referenceSemantics",
+                        "requiredFieldAudit",
+                        "uiOverflowAudit",
+                        "nullAssetAudit",
                     ],
                     "description": (
                         "Integrity check operation. "
@@ -454,7 +457,10 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'all': run all checks and return categorized summary. "
                         "'typeCheck': detect type mismatches in object reference fields. "
                         "'report': run integrity checks across multiple scenes (active/build/all). "
-                        "'checkPrefab': validate a prefab asset for integrity issues."
+                        "'checkPrefab': validate a prefab asset for integrity issues. "
+                        "'requiredFieldAudit': detect null SerializedFields that are used in code without null guards. "
+                        "'uiOverflowAudit': detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow). "
+                        "'nullAssetAudit': detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets."
                     ),
                 },
                 "rootPath": {
@@ -479,6 +485,13 @@ def validate_integrity_schema() -> dict[str, Any]:
                     "description": (
                         "Asset path to a prefab for checkPrefab operation "
                         "(e.g., 'Assets/Prefabs/Player.prefab')."
+                    ),
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": (
+                        "Folder path to limit search scope for nullAssetAudit "
+                        "(e.g., 'Assets/Data'). If omitted, scans the entire 'Assets' folder."
                     ),
                 },
             },
