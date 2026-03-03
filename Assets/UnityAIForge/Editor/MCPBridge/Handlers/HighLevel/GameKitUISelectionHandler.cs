@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using MCP.Editor.Base;
 using MCP.Editor.CodeGen;
+using MCP.Editor.Utilities;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -126,13 +127,10 @@ namespace MCP.Editor.Handlers.HighLevel
 
         private string BuildSelectionUXML(string className, string selectionId, string layout, string selectionType)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("<ui:UXML xmlns:ui=\"UnityEngine.UIElements\" xmlns:uie=\"UnityEditor.UIElements\">");
-            sb.AppendLine($"    <Style src=\"{className}.uss\" />");
-            sb.AppendLine($"    <ui:VisualElement name=\"selection-container\" class=\"selection-container selection-{selectionType.ToLowerInvariant()}\">");
-            sb.AppendLine("    </ui:VisualElement>");
-            sb.AppendLine("</ui:UXML>");
-            return sb.ToString();
+            var builder = new UXMLBuilder();
+            builder.AddStyleSheet($"{className}.uss");
+            builder.AddVisualElement("selection-container", "selection-container", $"selection-{selectionType.ToLowerInvariant()}");
+            return builder.ToString();
         }
 
         private string BuildSelectionUSS(string layout, float spacing, string selectionType)
@@ -424,11 +422,15 @@ namespace MCP.Editor.Handlers.HighLevel
             }
 
             var setItemsMethod = compType.GetMethod("SetItems");
-            if (setItemsMethod != null)
+            if (setItemsMethod == null)
             {
-                Undo.RecordObject(component, "Set UISelection Items");
-                setItemsMethod.Invoke(component, new object[] { items });
+                throw new InvalidOperationException(
+                    $"Method 'SetItems' not found on component type '{compType.Name}'. " +
+                    "Ensure the generated script has been compiled (use unity_compilation_await).");
             }
+
+            Undo.RecordObject(component, "Set UISelection Items");
+            setItemsMethod.Invoke(component, new object[] { items });
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
 
@@ -460,11 +462,15 @@ namespace MCP.Editor.Handlers.HighLevel
             var itemId = itemType.GetField("id")?.GetValue(selectionItem)?.ToString() ?? "";
 
             var addItemMethod = compType.GetMethod("AddItem");
-            if (addItemMethod != null)
+            if (addItemMethod == null)
             {
-                Undo.RecordObject(component, "Add UISelection Item");
-                addItemMethod.Invoke(component, new object[] { selectionItem });
+                throw new InvalidOperationException(
+                    $"Method 'AddItem' not found on component type '{compType.Name}'. " +
+                    "Ensure the generated script has been compiled (use unity_compilation_await).");
             }
+
+            Undo.RecordObject(component, "Add UISelection Item");
+            addItemMethod.Invoke(component, new object[] { selectionItem });
 
             var itemCount = CodeGenHelper.GetPropertyValue<int>(component, "ItemCount");
 

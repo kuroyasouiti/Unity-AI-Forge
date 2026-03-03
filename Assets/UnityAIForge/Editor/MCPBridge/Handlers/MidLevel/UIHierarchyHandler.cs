@@ -72,7 +72,8 @@ namespace MCP.Editor.Handlers
             }
 
             var createdObjects = new List<string>();
-            var rootGo = CreateUIElement(structure, parent.transform, createdObjects);
+            int elementCount = 0;
+            var rootGo = CreateUIElement(structure, parent.transform, createdObjects, 0, ref elementCount);
 
             EditorSceneManager.MarkSceneDirty(rootGo.scene);
 
@@ -85,10 +86,42 @@ namespace MCP.Editor.Handlers
             };
         }
 
-        private GameObject CreateUIElement(Dictionary<string, object> element, Transform parent, List<string> createdObjects)
+        private const int MaxHierarchyDepth = 20;
+        private const int MaxElementCount = 500;
+
+        private static readonly HashSet<string> ValidElementTypes = new HashSet<string>
         {
+            "panel", "button", "text", "image", "inputfield", "scrollview", "toggle", "slider", "dropdown"
+        };
+
+        private GameObject CreateUIElement(Dictionary<string, object> element, Transform parent, List<string> createdObjects, int currentDepth, ref int elementCount)
+        {
+            if (currentDepth > MaxHierarchyDepth)
+            {
+                throw new InvalidOperationException(
+                    $"UI hierarchy depth limit ({MaxHierarchyDepth}) exceeded. This may indicate a circular reference.");
+            }
+
+            elementCount++;
+            if (elementCount > MaxElementCount)
+            {
+                throw new InvalidOperationException(
+                    $"UI hierarchy element count limit ({MaxElementCount}) exceeded.");
+            }
+
             var type = GetString(element, "type")?.ToLowerInvariant() ?? "panel";
+            if (!ValidElementTypes.Contains(type))
+            {
+                throw new InvalidOperationException(
+                    $"Unknown UI element type: '{type}'. Supported types: {string.Join(", ", ValidElementTypes)}.");
+            }
+
             var name = GetString(element, "name") ?? $"UI_{type}_{Guid.NewGuid().ToString().Substring(0, 4)}";
+            if (name.Contains("/"))
+            {
+                throw new InvalidOperationException(
+                    $"UI element name cannot contain path separators: '{name}'.");
+            }
 
             GameObject go;
 
@@ -140,11 +173,19 @@ namespace MCP.Editor.Handlers
             // Process children (skip for scrollview as it handles its own children)
             if (type != "scrollview" && element.TryGetValue("children", out var childrenObj) && childrenObj is List<object> children)
             {
+                var siblingNames = new HashSet<string>();
                 foreach (var childObj in children)
                 {
                     if (childObj is Dictionary<string, object> childElement)
                     {
-                        CreateUIElement(childElement, go.transform, createdObjects);
+                        var childName = GetString(childElement, "name");
+                        if (!string.IsNullOrEmpty(childName) && !siblingNames.Add(childName))
+                        {
+                            throw new InvalidOperationException(
+                                $"Duplicate sibling name '{childName}' under '{name}'.");
+                        }
+
+                        CreateUIElement(childElement, go.transform, createdObjects, currentDepth + 1, ref elementCount);
                     }
                 }
             }

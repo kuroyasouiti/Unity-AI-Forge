@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using MCP.Editor.Base;
 using MCP.Editor.CodeGen;
+using MCP.Editor.Utilities;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -158,16 +159,13 @@ namespace MCP.Editor.Handlers.HighLevel
 
         private string BuildSlotUXML(string className)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("<ui:UXML xmlns:ui=\"UnityEngine.UIElements\" xmlns:uie=\"UnityEditor.UIElements\">");
-            sb.AppendLine($"    <Style src=\"{className}.uss\" />");
-            sb.AppendLine("    <ui:VisualElement name=\"slot\" class=\"slot slot--empty\">");
-            sb.AppendLine("        <ui:VisualElement name=\"icon\" class=\"slot-icon\" />");
-            sb.AppendLine("        <ui:Label name=\"quantity\" class=\"slot-quantity\" text=\"\" />");
-            sb.AppendLine("        <ui:VisualElement name=\"highlight\" class=\"slot-highlight\" />");
-            sb.AppendLine("    </ui:VisualElement>");
-            sb.AppendLine("</ui:UXML>");
-            return sb.ToString();
+            var builder = new UXMLBuilder();
+            builder.AddStyleSheet($"{className}.uss");
+            var slot = builder.AddVisualElement("slot", "slot", "slot--empty");
+            builder.AddVisualElement(slot, "icon", "slot-icon");
+            builder.AddLabel(slot, "quantity", "", "slot-quantity");
+            builder.AddVisualElement(slot, "highlight", "slot-highlight");
+            return builder.ToString();
         }
 
         private string BuildSlotUSS(float width, float height)
@@ -353,16 +351,15 @@ namespace MCP.Editor.Handlers.HighLevel
                 slotDataType.GetField("iconPath")?.SetValue(slotData, iconObj.ToString());
 
             var setItemMethod = component.GetType().GetMethod("SetItem");
-            if (setItemMethod != null)
+            if (setItemMethod == null)
             {
-                Undo.RecordObject(component, "Set UISlot Item");
-                setItemMethod.Invoke(component, new[] { slotData });
+                throw new InvalidOperationException(
+                    "Method 'SetItem' not found on the generated component. " +
+                    "Ensure the script has been compiled (use unity_compilation_await).");
             }
-            else
-            {
-                return CreateSuccessResponse(("slotId", slotId),
-                    ("note", "SetItem requires the generated script to be compiled. Please wait for compilation and try again."));
-            }
+
+            Undo.RecordObject(component, "Set UISlot Item");
+            setItemMethod.Invoke(component, new[] { slotData });
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
             return CreateSuccessResponse(("slotId", slotId), ("itemSet", true));
@@ -375,16 +372,15 @@ namespace MCP.Editor.Handlers.HighLevel
             var slotId = so.FindProperty("slotId").stringValue;
 
             var clearMethod = component.GetType().GetMethod("ClearSlot");
-            if (clearMethod != null)
+            if (clearMethod == null)
             {
-                Undo.RecordObject(component, "Clear UISlot");
-                clearMethod.Invoke(component, null);
+                throw new InvalidOperationException(
+                    "Method 'ClearSlot' not found on the generated component. " +
+                    "Ensure the script has been compiled (use unity_compilation_await).");
             }
-            else
-            {
-                return CreateSuccessResponse(("slotId", slotId),
-                    ("note", "ClearSlot requires the generated script to be compiled. Please wait for compilation and try again."));
-            }
+
+            Undo.RecordObject(component, "Clear UISlot");
+            clearMethod.Invoke(component, null);
 
             EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
             return CreateSuccessResponse(("slotId", slotId), ("cleared", true));
@@ -398,16 +394,15 @@ namespace MCP.Editor.Handlers.HighLevel
             var highlighted = GetBool(payload, "highlighted", false);
 
             var highlightMethod = component.GetType().GetMethod("SetHighlight");
-            if (highlightMethod != null)
+            if (highlightMethod == null)
             {
-                Undo.RecordObject(component, "Set UISlot Highlight");
-                highlightMethod.Invoke(component, new object[] { highlighted });
+                throw new InvalidOperationException(
+                    "Method 'SetHighlight' not found on the generated component. " +
+                    "Ensure the script has been compiled (use unity_compilation_await).");
             }
-            else
-            {
-                return CreateSuccessResponse(("slotId", slotId),
-                    ("note", "SetHighlight requires the generated script to be compiled. Please wait for compilation and try again."));
-            }
+
+            Undo.RecordObject(component, "Set UISlot Highlight");
+            highlightMethod.Invoke(component, new object[] { highlighted });
 
             return CreateSuccessResponse(("slotId", slotId), ("highlighted", highlighted));
         }
@@ -451,12 +446,9 @@ namespace MCP.Editor.Handlers.HighLevel
 
             var variables = new Dictionary<string, object>
             {
-                { "SLOT_ID", barId },
-                { "SLOT_INDEX", 0 },
-                { "SLOT_TYPE", "Storage" },
-                { "EQUIP_SLOT_NAME", "" },
+                { "BAR_ID", barId },
+                { "SLOT_COUNT", slotCount },
                 { "INVENTORY_ID", GetString(payload, "inventoryId") ?? "" },
-                { "DRAG_DROP_ENABLED", true },
                 { "UXML_PATH", uxmlPath },
                 { "USS_PATH", ussPath }
             };
@@ -464,7 +456,7 @@ namespace MCP.Editor.Handlers.HighLevel
             var outputDir = GetString(payload, "outputPath");
 
             var result = CodeGenHelper.GenerateAndAttach(
-                barGo, "UISlot", barId, className, variables, outputDir);
+                barGo, "UISlotBar", barId, className, variables, outputDir);
 
             if (result.TryGetValue("success", out var success) && !(bool)success)
                 throw new InvalidOperationException(result.TryGetValue("error", out var err)
@@ -483,23 +475,19 @@ namespace MCP.Editor.Handlers.HighLevel
 
         private string BuildSlotBarUXML(string className, int slotCount)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("<ui:UXML xmlns:ui=\"UnityEngine.UIElements\" xmlns:uie=\"UnityEditor.UIElements\">");
-            sb.AppendLine($"    <Style src=\"{className}.uss\" />");
-            sb.AppendLine("    <ui:VisualElement name=\"slot-bar\" class=\"slot-bar\">");
+            var builder = new UXMLBuilder();
+            builder.AddStyleSheet($"{className}.uss");
+            var bar = builder.AddVisualElement("slot-bar", "slot-bar");
 
             for (int i = 0; i < slotCount; i++)
             {
-                sb.AppendLine($"        <ui:VisualElement name=\"slot-{i}\" class=\"slot slot--empty\">");
-                sb.AppendLine($"            <ui:VisualElement name=\"icon-{i}\" class=\"slot-icon\" />");
-                sb.AppendLine($"            <ui:Label name=\"quantity-{i}\" class=\"slot-quantity\" text=\"\" />");
-                sb.AppendLine($"            <ui:VisualElement name=\"highlight-{i}\" class=\"slot-highlight\" />");
-                sb.AppendLine("        </ui:VisualElement>");
+                var slot = builder.AddVisualElement(bar, $"slot-{i}", "slot", "slot--empty");
+                builder.AddVisualElement(slot, $"icon-{i}", "slot-icon");
+                builder.AddLabel(slot, $"quantity-{i}", "", "slot-quantity");
+                builder.AddVisualElement(slot, $"highlight-{i}", "slot-highlight");
             }
 
-            sb.AppendLine("    </ui:VisualElement>");
-            sb.AppendLine("</ui:UXML>");
-            return sb.ToString();
+            return builder.ToString();
         }
 
         private string BuildSlotBarUSS(string layout, float spacing, float slotW, float slotH)

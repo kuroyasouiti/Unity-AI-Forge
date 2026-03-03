@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Base;
+using MCP.Editor.Utilities;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -120,11 +121,9 @@ namespace MCP.Editor.Handlers
                 }
             }
 
-            // Store state in EditorPrefs (JSON serialized)
-            var stateKey = GetStateKey(rootPath, stateName);
+            // Store state as file (replaces EditorPrefs to avoid 32KB limit)
             var json = JsonUtility.ToJson(stateData);
-            EditorPrefs.SetString(stateKey, json);
-            AddToRegistry(rootPath, stateName);
+            UIStatePersistence.SaveState(rootPath, stateName, json);
 
             return new Dictionary<string, object>
             {
@@ -155,14 +154,13 @@ namespace MCP.Editor.Handlers
             }
 
             var rootGo = ResolveGameObject(rootPath);
-            var stateKey = GetStateKey(rootPath, stateName);
 
-            if (!EditorPrefs.HasKey(stateKey))
+            if (!UIStatePersistence.HasState(rootPath, stateName))
             {
                 throw new InvalidOperationException($"State '{stateName}' not found for root '{rootPath}'.");
             }
 
-            var json = EditorPrefs.GetString(stateKey);
+            var json = UIStatePersistence.LoadState(rootPath, stateName);
             var stateData = JsonUtility.FromJson<UIStateData>(json);
 
             var appliedCount = 0;
@@ -234,7 +232,7 @@ namespace MCP.Editor.Handlers
             EditorSceneManager.MarkSceneDirty(rootGo.scene);
 
             // Store active state
-            SetActiveStateName(rootPath, stateName);
+            UIStatePersistence.SetActiveState(rootPath, stateName);
 
             return new Dictionary<string, object>
             {
@@ -278,11 +276,9 @@ namespace MCP.Editor.Handlers
             // Capture current state
             CaptureElementState(rootGo, rootPath, "", stateData.Elements, includeChildren, maxDepth, 0);
 
-            // Store state
-            var stateKey = GetStateKey(rootPath, stateName);
+            // Store state as file
             var json = JsonUtility.ToJson(stateData);
-            EditorPrefs.SetString(stateKey, json);
-            AddToRegistry(rootPath, stateName);
+            UIStatePersistence.SaveState(rootPath, stateName, json);
 
             return new Dictionary<string, object>
             {
@@ -349,14 +345,12 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("rootPath is required for loadState operation.");
             }
 
-            var stateKey = GetStateKey(rootPath, stateName);
-
-            if (!EditorPrefs.HasKey(stateKey))
+            if (!UIStatePersistence.HasState(rootPath, stateName))
             {
                 throw new InvalidOperationException($"State '{stateName}' not found for root '{rootPath}'.");
             }
 
-            var json = EditorPrefs.GetString(stateKey);
+            var json = UIStatePersistence.LoadState(rootPath, stateName);
             var stateData = JsonUtility.FromJson<UIStateData>(json);
 
             var elementsInfo = stateData.Elements.Select(e => new Dictionary<string, object>
@@ -389,25 +383,14 @@ namespace MCP.Editor.Handlers
         private object ListStates(Dictionary<string, object> payload)
         {
             var rootPath = GetString(payload, "rootPath");
-            var prefix = string.IsNullOrEmpty(rootPath)
-                ? "UIState_"
-                : $"UIState_{rootPath.Replace("/", "_")}_";
-
             var states = new List<Dictionary<string, object>>();
 
-            // EditorPrefs doesn't have a way to enumerate keys, so we use a registry key
-            var registryKey = $"UIStateRegistry_{(string.IsNullOrEmpty(rootPath) ? "all" : rootPath.Replace("/", "_"))}";
-            var registry = EditorPrefs.GetString(registryKey, "");
-            var stateNames = string.IsNullOrEmpty(registry)
-                ? new string[0]
-                : registry.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
+            var stateNames = UIStatePersistence.ListStateNames(rootPath);
             foreach (var stateName in stateNames)
             {
-                var stateKey = GetStateKey(rootPath, stateName);
-                if (EditorPrefs.HasKey(stateKey))
+                var json = UIStatePersistence.LoadState(rootPath, stateName);
+                if (json != null)
                 {
-                    var json = EditorPrefs.GetString(stateKey);
                     var stateData = JsonUtility.FromJson<UIStateData>(json);
                     states.Add(new Dictionary<string, object>
                     {
@@ -418,7 +401,7 @@ namespace MCP.Editor.Handlers
                 }
             }
 
-            var activeState = GetActiveStateName(rootPath);
+            var activeState = UIStatePersistence.GetActiveState(rootPath);
 
             return new Dictionary<string, object>
             {
@@ -448,15 +431,12 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("rootPath is required for deleteState operation.");
             }
 
-            var stateKey = GetStateKey(rootPath, stateName);
-
-            if (!EditorPrefs.HasKey(stateKey))
+            if (!UIStatePersistence.HasState(rootPath, stateName))
             {
                 throw new InvalidOperationException($"State '{stateName}' not found for root '{rootPath}'.");
             }
 
-            EditorPrefs.DeleteKey(stateKey);
-            RemoveFromRegistry(rootPath, stateName);
+            UIStatePersistence.DeleteState(rootPath, stateName);
 
             return new Dictionary<string, object>
             {
@@ -501,9 +481,8 @@ namespace MCP.Editor.Handlers
                 DefaultState = defaultState
             };
 
-            var groupKey = $"UIStateGroup_{rootPath.Replace("/", "_")}_{groupName}";
             var json = JsonUtility.ToJson(groupData);
-            EditorPrefs.SetString(groupKey, json);
+            UIStatePersistence.SaveGroup(rootPath, groupName, json);
 
             return new Dictionary<string, object>
             {
@@ -563,70 +542,16 @@ namespace MCP.Editor.Handlers
                 throw new InvalidOperationException("rootPath is required for getActiveState operation.");
             }
 
-            var activeState = GetActiveStateName(rootPath);
+            var activeState = UIStatePersistence.GetActiveState(rootPath);
 
             return new Dictionary<string, object>
             {
                 ["success"] = true,
                 ["rootPath"] = rootPath,
-                ["activeState"] = activeState ?? "none",
+                ["activeState"] = string.IsNullOrEmpty(activeState) ? "none" : activeState,
                 ["hasActiveState"] = !string.IsNullOrEmpty(activeState)
             };
         }
-
-        #endregion
-
-        #region Helper Methods
-
-        private string GetStateKey(string rootPath, string stateName)
-        {
-            var safePath = string.IsNullOrEmpty(rootPath) ? "root" : rootPath.Replace("/", "_");
-            return $"UIState_{safePath}_{stateName}";
-        }
-
-        private void AddToRegistry(string rootPath, string stateName)
-        {
-            var registryKey = $"UIStateRegistry_{(string.IsNullOrEmpty(rootPath) ? "all" : rootPath.Replace("/", "_"))}";
-            var registry = EditorPrefs.GetString(registryKey, "");
-            var stateNames = string.IsNullOrEmpty(registry)
-                ? new List<string>()
-                : registry.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-
-            if (!stateNames.Contains(stateName))
-            {
-                stateNames.Add(stateName);
-                EditorPrefs.SetString(registryKey, string.Join(",", stateNames));
-            }
-        }
-
-        private void RemoveFromRegistry(string rootPath, string stateName)
-        {
-            var registryKey = $"UIStateRegistry_{(string.IsNullOrEmpty(rootPath) ? "all" : rootPath.Replace("/", "_"))}";
-            var registry = EditorPrefs.GetString(registryKey, "");
-            var stateNames = string.IsNullOrEmpty(registry)
-                ? new List<string>()
-                : registry.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-
-            stateNames.Remove(stateName);
-            EditorPrefs.SetString(registryKey, string.Join(",", stateNames));
-        }
-
-        private void SetActiveStateName(string rootPath, string stateName)
-        {
-            var activeKey = $"UIStateActive_{(string.IsNullOrEmpty(rootPath) ? "root" : rootPath.Replace("/", "_"))}";
-            EditorPrefs.SetString(activeKey, stateName);
-        }
-
-        private string GetActiveStateName(string rootPath)
-        {
-            var activeKey = $"UIStateActive_{(string.IsNullOrEmpty(rootPath) ? "root" : rootPath.Replace("/", "_"))}";
-            return EditorPrefs.GetString(activeKey, "");
-        }
-
-        // BuildGameObjectPath is inherited from BaseCommandHandler
-        // GetBool (GetBoolOrDefault) is inherited from BaseCommandHandler
-        // GetFloat (GetFloatOrDefault) is inherited from BaseCommandHandler
-        // GetInt (GetIntOrDefault) is inherited from BaseCommandHandler
 
         #endregion
 

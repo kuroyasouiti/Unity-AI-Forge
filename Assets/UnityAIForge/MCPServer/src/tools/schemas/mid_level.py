@@ -295,7 +295,10 @@ def camera_bundle_schema() -> dict[str, Any]:
                     },
                     "description": "Euler rotation.",
                 },
-                "fieldOfView": {"type": "number", "description": "Camera field of view (perspective mode)."},
+                "fieldOfView": {
+                    "type": "number",
+                    "description": "Camera field of view (perspective mode).",
+                },
                 "orthographic": {"type": "boolean", "description": "Use orthographic projection."},
                 "orthographicSize": {"type": "number", "description": "Orthographic camera size."},
                 "clearFlags": {
@@ -572,7 +575,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                 "templateType": {
                     "type": "string",
                     "enum": ["dialog", "hud", "menu", "statusBar", "inventoryGrid"],
-                    "description": "UI template type for createFromTemplate operation.",
+                    "description": "UGUI template type for createFromTemplate operation. Note: these are UGUI-specific templates. For UI Toolkit templates, use unity_uitk_asset with templateName instead.",
                 },
                 "title": {
                     "type": "string",
@@ -1204,7 +1207,7 @@ def uitk_asset_schema() -> dict[str, Any]:
                 "templateName": {
                     "type": "string",
                     "enum": ["menu", "dialog", "hud", "settings", "inventory"],
-                    "description": "Template name for createFromTemplate.",
+                    "description": "UI Toolkit template name for createFromTemplate. Note: these are UI Toolkit-specific templates (UXML/USS). For UGUI templates, use unity_ui_foundation with templateType instead.",
                 },
                 "outputDir": {
                     "type": "string",

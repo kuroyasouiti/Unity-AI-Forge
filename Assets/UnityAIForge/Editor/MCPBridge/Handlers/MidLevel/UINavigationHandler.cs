@@ -363,10 +363,43 @@ namespace MCP.Editor.Handlers
         {
             if (selectables.Count <= 1) return 1;
 
-            // Detect columns by counting items with same Y position
-            var firstY = selectables[0].transform.position.y;
-            var tolerance = 10f; // pixels
-            var columnsInFirstRow = selectables.TakeWhile(s => Mathf.Abs(s.transform.position.y - firstY) < tolerance).Count();
+            // Use local coordinates relative to root to normalize for canvas scaling.
+            // Calculate dynamic tolerance from the minimum non-zero Y gap between elements.
+            var rootRect = selectables[0].GetComponentInParent<RectTransform>();
+            var yPositions = selectables
+                .Select(s => rootRect != null
+                    ? ((Vector2)rootRect.InverseTransformPoint(s.transform.position)).y
+                    : s.transform.position.y)
+                .ToList();
+
+            // Find the minimum non-zero Y gap to determine a sensible tolerance
+            var distinctY = yPositions.Distinct().OrderByDescending(y => y).ToList();
+            float tolerance;
+            if (distinctY.Count <= 1)
+            {
+                // All on same row
+                return selectables.Count;
+            }
+            else
+            {
+                var minGap = float.MaxValue;
+                for (int i = 0; i < distinctY.Count - 1; i++)
+                {
+                    var gap = Mathf.Abs(distinctY[i] - distinctY[i + 1]);
+                    if (gap > 0.01f && gap < minGap) minGap = gap;
+                }
+                tolerance = minGap * 0.3f;
+            }
+
+            var firstY = yPositions[0];
+            var columnsInFirstRow = 0;
+            for (int i = 0; i < yPositions.Count; i++)
+            {
+                if (Mathf.Abs(yPositions[i] - firstY) < tolerance)
+                    columnsInFirstRow++;
+                else
+                    break;
+            }
 
             return Math.Max(1, columnsInFirstRow);
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using MCP.Editor.Base;
 using MCP.Editor.CodeGen;
+using MCP.Editor.Utilities;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -123,19 +124,16 @@ namespace MCP.Editor.Handlers.HighLevel
 
         private string BuildCommandPanelUXML(string className, string panelId, List<(string name, string label, string commandType)> commands, string layout)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("<ui:UXML xmlns:ui=\"UnityEngine.UIElements\" xmlns:uie=\"UnityEditor.UIElements\">");
-            sb.AppendLine($"    <Style src=\"{className}.uss\" />");
-            sb.AppendLine($"    <ui:VisualElement name=\"command-panel\" class=\"command-panel\">");
+            var builder = new UXMLBuilder();
+            builder.AddStyleSheet($"{className}.uss");
+            var panel = builder.AddVisualElement("command-panel", "command-panel");
 
             foreach (var (name, label, _) in commands)
             {
-                sb.AppendLine($"        <ui:Button name=\"{name}\" text=\"{EscapeXml(label)}\" class=\"command-button\" />");
+                builder.AddButton(panel, name, label, "command-button");
             }
 
-            sb.AppendLine("    </ui:VisualElement>");
-            sb.AppendLine("</ui:UXML>");
-            return sb.ToString();
+            return builder.ToString();
         }
 
         private string BuildCommandPanelUSS(string layout)
@@ -374,7 +372,7 @@ namespace MCP.Editor.Handlers.HighLevel
         private static string EscapeXml(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
-            return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+            return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;").Replace("'", "&apos;");
         }
 
         #endregion

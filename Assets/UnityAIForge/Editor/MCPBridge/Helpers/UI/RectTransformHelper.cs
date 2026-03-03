@@ -265,23 +265,31 @@ namespace MCP.Editor.Helpers.UI
             {
                 return;
             }
-            
-            // Convert world corners to parent local space
-            // corners[0] = bottom-left, corners[2] = top-right
-            Vector2 localCornerMin = parentRect.InverseTransformPoint(corners[0]);
-            Vector2 localCornerMax = parentRect.InverseTransformPoint(corners[2]);
-            
+
+            // Convert all 4 world corners to parent local space and compute bounding box.
+            // This correctly handles rotated parents where corners[0]/[2] may not be min/max.
+            Vector2 localMin = new Vector2(float.MaxValue, float.MaxValue);
+            Vector2 localMax = new Vector2(float.MinValue, float.MinValue);
+            for (int i = 0; i < 4; i++)
+            {
+                Vector2 local = parentRect.InverseTransformPoint(corners[i]);
+                if (local.x < localMin.x) localMin.x = local.x;
+                if (local.y < localMin.y) localMin.y = local.y;
+                if (local.x > localMax.x) localMax.x = local.x;
+                if (local.y > localMax.y) localMax.y = local.y;
+            }
+
             // Calculate anchor positions in parent space
             Vector2 parentSize = parentRect.rect.size;
             Vector2 anchorMin = rectTransform.anchorMin;
             Vector2 anchorMax = rectTransform.anchorMax;
-            
+
             Vector2 anchorPosMin = new Vector2(anchorMin.x * parentSize.x, anchorMin.y * parentSize.y);
             Vector2 anchorPosMax = new Vector2(anchorMax.x * parentSize.x, anchorMax.y * parentSize.y);
-            
+
             // Set offsetMin and offsetMax to restore world corners
-            rectTransform.offsetMin = localCornerMin - anchorPosMin;
-            rectTransform.offsetMax = localCornerMax - anchorPosMax;
+            rectTransform.offsetMin = localMin - anchorPosMin;
+            rectTransform.offsetMax = localMax - anchorPosMax;
         }
         
         #endregion
