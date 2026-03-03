@@ -382,7 +382,7 @@ unity_sprite2d_bundle({
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
 | **High-Level GameKit** | UI Pillar (5), Logic Pillar (7), Systems (2) | Game systems, analysis, validation |
-| **Mid-Level Batch** | transform_batch, camera_rig, ui_hierarchy, etc. (18) | Batch operations, presets |
+| **Mid-Level Batch** | transform_batch, camera_bundle, ui_hierarchy, etc. (18) | Batch operations, presets |
 | **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
 | **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |
 

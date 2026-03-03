@@ -159,7 +159,7 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 | `unity_transform_batch` | Transformバッチ操作（配置、リネーム） |
 | `unity_rectTransform_batch` | RectTransformバッチ（アンカー、整列、分配） |
 | `unity_physics_bundle` | 物理バンドル（2D/3Dプリセット） |
-| `unity_camera_rig` | カメラリグ（follow, orbit, splitScreen, fixed, dolly） |
+| `unity_camera_bundle` | カメラCRUD+プリセット（default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreen, minimap, uiCamera） |
 | `unity_ui_foundation` | UI基礎（Canvas, Button, Text, Image, etc.） |
 | `unity_ui_hierarchy` | 宣言的UIヒエラルキー |
 | `unity_ui_state` | UI状態管理 |
@@ -251,17 +251,15 @@ unity_gamekit_ui_command({
 unity_compilation_await({})
 ```
 
-### 例2: Mid-Levelツール - カメラリグとUI
+### 例2: Mid-Levelツール - カメラとUI
 
 ```python
-# フォローカメラリグを作成
-unity_camera_rig({
-    "operation": "createRig",
-    "rigType": "follow",
-    "cameraName": "MainCamera",
-    "targetPath": "Player",
-    "offset": {"x": 0, "y": 5, "z": -10},
-    "smoothSpeed": 5.0
+# カメラを作成（thirdPersonプリセット）
+unity_camera_bundle({
+    "operation": "create",
+    "name": "MainCamera",
+    "preset": "thirdPerson",
+    "position": {"x": 0, "y": 5, "z": -10}
 })
 
 # UIキャンバスとボタンを作成

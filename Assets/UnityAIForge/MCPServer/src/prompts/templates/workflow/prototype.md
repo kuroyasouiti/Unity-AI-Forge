@@ -141,25 +141,19 @@ unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'],
 ### Step 4: カメラをプレイヤー追従に設定
 
 ```python
-# followリグを即座に設定
-unity_camera_rig(operation='createRig', rigType='follow',
-    rigName='MainCam',
-    targetPath='Player',
-    offset={'x': 0, 'y': 5, 'z': -10},
-    smoothTime=0.3)
+# thirdPersonプリセットでカメラ作成
+unity_camera_bundle(operation='create', name='MainCam',
+    preset='thirdPerson',
+    position={'x': 0, 'y': 5, 'z': -10})
 
 # 2D見下ろし型の場合
-unity_camera_rig(operation='createRig', rigType='follow',
-    rigName='MainCam',
-    targetPath='Player',
-    offset={'x': 0, 'y': 10, 'z': 0})
+unity_camera_bundle(operation='create', name='MainCam',
+    preset='orthographic2D',
+    position={'x': 0, 'y': 10, 'z': 0})
 
-# orbit カメラ（TPSプロトタイプ向け）
-unity_camera_rig(operation='createRig', rigType='orbit',
-    rigName='MainCam',
-    targetPath='Player',
-    orbitDistance=8.0,
-    orbitSpeed=90.0)
+# topDownカメラ
+unity_camera_bundle(operation='create', name='MainCam',
+    preset='topDown')
 ```
 
 ### Step 5: 入力プロファイルの接続
@@ -380,7 +374,7 @@ staticプリセットはColliderのみ追加し、Rigidbodyを追加しません
 | `unity_gameobject_crud` | プリミティブ配置 (template='Cube'等)・階層構築 |
 | `unity_component_crud` | Transform設定・コンポーネントのアタッチ |
 | `unity_physics_bundle` | applyPreset3D/applyPreset2D でプリセット即時適用 |
-| `unity_camera_rig` | followカメラの即時セットアップ |
+| `unity_camera_bundle` | カメラの即時セットアップ |
 | `unity_input_profile` | createInputActions / createPlayerInput |
 | `unity_asset_crud` | プロトタイプスクリプト生成 |
 | `unity_prefab_crud` | 繰り返し要素のPrefab化・複製 |

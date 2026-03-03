@@ -30,7 +30,7 @@ AI駆動型Unity開発ツールキット。47ツール、3層構造（Low/Mid/Hi
 | カテゴリ | ツール |
 |---------|-------|
 | Transform | unity_transform_batch, unity_rectTransform_batch |
-| Camera | unity_camera_rig |
+| Camera | unity_camera_bundle |
 | Physics | unity_physics_bundle, unity_navmesh_bundle |
 | UI (UGUI) | unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
@@ -167,8 +167,8 @@ unity_component_crud(operation='add', gameObjectPath='Player', componentType='Ri
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='BoxCollider2D',
     propertyChanges={'size':{'x':1,'y':1}})
 
-# カメラリグ (rigType: follow|orbit|splitScreen|fixed|dolly)
-unity_camera_rig(operation='createRig', rigType='follow', rigName='MainCam', targetPath='Player', offset={'x':0,'y':5,'z':-10})
+# カメラバンドル (preset: default|orthographic2D|firstPerson|thirdPerson|topDown|splitScreenLeft/Right/Top/Bottom|minimap|uiCamera)
+unity_camera_bundle(operation='create', name='MainCam', preset='thirdPerson', position={'x':0,'y':5,'z':-10})
 
 # UI Foundation (UGUI)
 unity_ui_foundation(operation='createCanvas', name='GameUI')

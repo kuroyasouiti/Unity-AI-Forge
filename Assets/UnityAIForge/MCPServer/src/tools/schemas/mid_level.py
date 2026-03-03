@@ -231,52 +231,103 @@ def rect_transform_batch_schema() -> dict[str, Any]:
     )
 
 
-def camera_rig_schema() -> dict[str, Any]:
-    """Schema for the unity_camera_rig MCP tool."""
+def camera_bundle_schema() -> dict[str, Any]:
+    """Schema for the unity_camera_bundle MCP tool."""
     return schema_with_required(
         {
             "type": "object",
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["createRig", "updateRig", "inspect"],
+                    "enum": [
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        "applyPreset",
+                        "listPresets",
+                    ],
                 },
-                "rigType": {
+                "gameObjectPath": {
                     "type": "string",
-                    "enum": ["follow", "orbit", "splitScreen", "fixed", "dolly"],
-                    "description": "Camera rig preset type.",
+                    "description": "Target GameObject path (required for update/inspect/delete/applyPreset). For create, used as the name of the new Camera GameObject.",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the new Camera GameObject (create only). Falls back to gameObjectPath if omitted.",
                 },
                 "parentPath": {
                     "type": "string",
-                    "description": "Parent GameObject path for the rig.",
+                    "description": "Parent GameObject path (create only).",
                 },
-                "rigName": {"type": "string", "description": "Name for the camera rig."},
-                "targetPath": {
+                "preset": {
                     "type": "string",
-                    "description": "Target GameObject to follow/orbit.",
+                    "enum": [
+                        "default",
+                        "orthographic2D",
+                        "firstPerson",
+                        "thirdPerson",
+                        "topDown",
+                        "splitScreenLeft",
+                        "splitScreenRight",
+                        "splitScreenTop",
+                        "splitScreenBottom",
+                        "minimap",
+                        "uiCamera",
+                    ],
+                    "description": "Camera preset to apply.",
                 },
-                "offset": {
+                "position": {
                     "type": "object",
                     "properties": {
                         "x": {"type": "number"},
                         "y": {"type": "number"},
                         "z": {"type": "number"},
                     },
-                    "description": "Camera offset from target.",
+                    "description": "World position.",
                 },
-                "distance": {"type": "number", "description": "Distance from target (for orbit)."},
-                "followSpeed": {"type": "number", "description": "Follow smoothing speed."},
-                "lookAtTarget": {
-                    "type": "boolean",
-                    "description": "Whether camera should look at target.",
+                "rotation": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "Euler rotation.",
                 },
-                "fieldOfView": {"type": "number", "description": "Camera field of view."},
+                "fieldOfView": {"type": "number", "description": "Camera field of view (perspective mode)."},
                 "orthographic": {"type": "boolean", "description": "Use orthographic projection."},
                 "orthographicSize": {"type": "number", "description": "Orthographic camera size."},
-                "splitScreenIndex": {
-                    "type": "integer",
-                    "description": "Split screen viewport index (0-3).",
+                "clearFlags": {
+                    "type": "string",
+                    "enum": ["skybox", "solidColor", "depth", "nothing"],
+                    "description": "Camera clear flags.",
                 },
+                "backgroundColor": {
+                    "description": "Background color (hex string or {r,g,b,a} object).",
+                },
+                "cullingMask": {"type": "integer", "description": "Culling mask (layer bitmask)."},
+                "depth": {"type": "number", "description": "Camera depth (render order)."},
+                "nearClipPlane": {"type": "number", "description": "Near clip plane distance."},
+                "farClipPlane": {"type": "number", "description": "Far clip plane distance."},
+                "rect": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "width": {"type": "number"},
+                        "height": {"type": "number"},
+                    },
+                    "description": "Viewport rect (0-1 normalized).",
+                },
+                "targetDisplay": {"type": "integer", "description": "Target display index."},
+                "renderingPath": {
+                    "type": "string",
+                    "enum": ["usePlayerSettings", "forward", "deferred", "vertexLit"],
+                    "description": "Rendering path.",
+                },
+                "allowHDR": {"type": "boolean", "description": "Allow HDR rendering."},
+                "allowMSAA": {"type": "boolean", "description": "Allow MSAA."},
             },
         },
         ["operation"],

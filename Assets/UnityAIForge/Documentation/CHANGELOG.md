@@ -1499,9 +1499,9 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - プリセット: dynamic、kinematic、static、character、platformer、topDown、vehicle、projectile
   - 個別の物理プロパティ更新
   
-- **Camera Rig** (`unity_camera_rig`)
-  - カメラリグプリセット: follow、orbit、split-screen、fixed、dolly
-  - ターゲット追跡とスムーズな移動
+- **Camera Bundle** (`unity_camera_bundle`)
+  - カメラCRUD+プリセット: default、orthographic2D、firstPerson、thirdPerson、topDown、splitScreen、minimap、uiCamera
+  - 全Cameraプロパティの直接操作
   - ビューポート設定
   
 - **UI Foundation** (`unity_ui_foundation`)

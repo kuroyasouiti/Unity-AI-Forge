@@ -161,17 +161,20 @@ UI RectTransformバッチ操作。
 
 ---
 
-### `unity_camera_rig`
-カメラリグ作成。
+### `unity_camera_bundle`
+カメラCRUD+プリセット。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|
-| operation | string | `createRig`, `updateRig`, `inspect` |
-| rigType | string | `follow`, `orbit`, `splitScreen`, `fixed`, `dolly` |
-| targetPath | string | 追跡対象 |
-| offset | object | オフセット位置 |
+| operation | string | `create`, `update`, `inspect`, `delete`, `applyPreset`, `listPresets` |
+| gameObjectPath | string | 対象GameObjectパス |
+| name | string | 新規カメラ名（create時） |
+| preset | string | `default`, `orthographic2D`, `firstPerson`, `thirdPerson`, `topDown`, `splitScreenLeft/Right/Top/Bottom`, `minimap`, `uiCamera` |
 | fieldOfView | number | 視野角 |
 | orthographic | boolean | 正投影モード |
+| clearFlags | string | `skybox`, `solidColor`, `depth`, `nothing` |
+| depth | number | カメラ深度（描画順） |
+| rect | object | ビューポート矩形（0-1） |
 
 ---
 

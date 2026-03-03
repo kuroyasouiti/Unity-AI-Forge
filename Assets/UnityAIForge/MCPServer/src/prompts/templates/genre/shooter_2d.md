@@ -262,7 +262,8 @@ unity_compilation_await(operation='await')
 
 ```python
 # カメラ（固定）
-unity_camera_rig(operation='createRig', rigType='fixed', rigName='MainCam',
+unity_camera_bundle(operation='create', name='MainCam',
+    preset='orthographic2D',
     position={'x': 0, 'y': 0, 'z': -10})
 
 # ビルドシーン登録
@@ -322,7 +323,7 @@ unity_validate_integrity(operation='all')
 | プレハブ | `unity_prefab_crud` | 弾・敵・パワーアップのプレハブ化 |
 | 物理 | `unity_physics_bundle` | kinematic 設定 |
 | スプライト | `unity_sprite2d_bundle` | スプライト設定 |
-| カメラ | `unity_camera_rig` | 固定カメラ |
+| カメラ | `unity_camera_bundle` | カメラ設定 |
 | 入力 | `unity_input_profile` | 移動・射撃・ボム入力 |
 | UI | `unity_gamekit_ui_binding` | スコア・コンボ・HP 表示 |
 | UI | `unity_gamekit_ui_command` | ポーズ・リトライ |

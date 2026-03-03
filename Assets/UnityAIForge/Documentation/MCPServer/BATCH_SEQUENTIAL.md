@@ -200,8 +200,8 @@ unity_batch_sequential_execute({
         {"tool": "unity_physics_bundle", "arguments": {"operation": "applyPreset2D", "gameObjectPath": "Ground", "preset": "static"}},
         # 4. プレイヤー作成
         {"tool": "unity_gamekit_actor", "arguments": {"operation": "create", "actorId": "player", "behaviorProfile": "2dPhysics"}},
-        # 5. カメラリグ作成
-        {"tool": "unity_camera_rig", "arguments": {"operation": "createRig", "rigType": "follow", "targetPath": "player"}}
+        # 5. カメラ作成
+        {"tool": "unity_camera_bundle", "arguments": {"operation": "create", "name": "MainCam", "preset": "thirdPerson"}}
     ]
 })
 ```

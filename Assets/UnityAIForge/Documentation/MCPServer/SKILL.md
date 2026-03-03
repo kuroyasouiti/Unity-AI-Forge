@@ -359,18 +359,17 @@ unity_transform_batch({
 })
 ```
 
-### Camera Rig
+### Camera Bundle
 
 ```python
-# Create follow camera
-unity_camera_rig({
-    "operation": "createRig",
-    "rigType": "follow",
-    "rigName": "MainCamera",
-    "targetPath": "Player",
-    "offset": {"x": 0, "y": 5, "z": -10}
+# Create camera with preset
+unity_camera_bundle({
+    "operation": "create",
+    "name": "MainCamera",
+    "preset": "thirdPerson",
+    "position": {"x": 0, "y": 5, "z": -10}
 })
-# rigType: follow, orbit, splitScreen, fixed, dolly
+# preset: default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreenLeft/Right/Top/Bottom, minimap, uiCamera
 ```
 
 ### Material, Light & Particle Bundles
@@ -747,7 +746,7 @@ unity_batch_sequential_execute({"operations": [...]})
 |------|-------------|
 | `unity_transform_batch` | Batch arrange, rename patterns |
 | `unity_rectTransform_batch` | UI anchors, alignment, distribution |
-| `unity_camera_rig` | Camera rig presets (follow, orbit, etc.) |
+| `unity_camera_bundle` | Camera CRUD with presets (default, orthographic2D, etc.) |
 | `unity_ui_foundation` | UGUI element creation (Canvas, Button, Text, etc.) |
 | `unity_ui_hierarchy` | Declarative UI hierarchy from JSON |
 | `unity_ui_state` | UI state management |

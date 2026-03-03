@@ -8,7 +8,7 @@
 ゲームプレイを形作る多くの要素が含まれます。
 
 Unity-AI-Forge では `unity_tilemap_bundle` でタイルマップ構築、
-`unity_transform_batch` で大量オブジェクトの一括配置、`unity_camera_rig` でカメラ設定、
+`unity_transform_batch` で大量オブジェクトの一括配置、`unity_camera_bundle` でカメラ設定、
 `unity_asset_crud` でギミック・トリガーのカスタムスクリプトを作成できます。
 
 ---
@@ -190,10 +190,10 @@ unity_gameobject_crud(
 
 ```python
 # プレイヤー追従カメラ
-unity_camera_rig(
-    operation="createRig",
-    targetPath="MainCamera",
-    preset="follow"
+unity_camera_bundle(
+    operation="create",
+    name="MainCamera",
+    preset="thirdPerson"
 )
 
 # ボス戦エリアの固定カメラ用ゾーンオブジェクト
@@ -412,7 +412,7 @@ public class LevelConfig : ScriptableObject {
 | `unity_asset_crud` | ギミック・トリガーの C# スクリプト作成 |
 | `unity_transform_batch` | 大量オブジェクトの一括整列・配置 |
 | `unity_physics_bundle` | ギミックの物理設定 |
-| `unity_camera_rig` | フォロー・固定カメラ設定 |
+| `unity_camera_bundle` | カメラ設定 |
 | `unity_prefab_crud` | レベルオブジェクトのプレハブ化 |
 | `unity_sprite2d_bundle` | 2D スプライトの管理・設定 |
 | `unity_projectSettings_crud` | ビルドシーンの追加・レイヤー設定 |

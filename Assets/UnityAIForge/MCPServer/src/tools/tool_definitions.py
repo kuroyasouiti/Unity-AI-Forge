@@ -14,7 +14,7 @@ from tools.schemas import (
     animation2d_bundle_schema,
     animation3d_bundle_schema,
     asset_manage_schema,
-    camera_rig_schema,
+    camera_bundle_schema,
     class_catalog_schema,
     class_dependency_graph_schema,
     compilation_await_schema,
@@ -161,9 +161,9 @@ def get_tool_definitions() -> list[types.Tool]:
             inputSchema=rect_transform_batch_schema(),
         ),
         types.Tool(
-            name="unity_camera_rig",
-            description="Mid-level camera rig creation: create complete camera systems with single commands (follow: smooth following camera, orbit: rotate around target, splitScreen: multiplayer viewports, fixed: static camera, dolly: cinematic rail camera). Automatically configures Camera component, target tracking, follow smoothing, orbit distance, field of view, orthographic/perspective mode, and split-screen viewports. Perfect for quickly setting up player cameras, cinematic cameras, or multiplayer camera systems without manual rigging.",
-            inputSchema=camera_rig_schema(),
+            name="unity_camera_bundle",
+            description="Mid-level Camera CRUD with presets: create/update/inspect/delete Camera components, apply presets (default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreenLeft/Right/Top/Bottom, minimap, uiCamera). Full Camera property control: fieldOfView, orthographic, orthographicSize, clearFlags, backgroundColor, cullingMask, depth, nearClipPlane, farClipPlane, rect (viewport), targetDisplay, renderingPath, allowHDR, allowMSAA. Supports position/rotation. Use for rapid camera setup, split-screen viewports, minimap overlays, and dedicated UI cameras.",
+            inputSchema=camera_bundle_schema(),
         ),
         types.Tool(
             name="unity_ui_foundation",

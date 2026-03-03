@@ -52,7 +52,7 @@ from tools.schemas.low_level import (
     vector_sprite_convert_schema,
 )
 from tools.schemas.mid_level import (
-    camera_rig_schema,
+    camera_bundle_schema,
     input_profile_schema,
     navmesh_bundle_schema,
     physics_bundle_schema,
@@ -112,7 +112,7 @@ __all__ = [
     # mid_level
     "transform_batch_schema",
     "rect_transform_batch_schema",
-    "camera_rig_schema",
+    "camera_bundle_schema",
     "ui_foundation_schema",
     "ui_hierarchy_schema",
     "ui_state_schema",

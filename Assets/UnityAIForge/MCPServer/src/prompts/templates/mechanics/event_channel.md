@@ -311,7 +311,7 @@ PlayerHealth.TakeDamage() → OnPlayerHealthChanged.Raise(currentHP / maxHP)
   → HPBar (FloatEventListener): バー更新
   → PostProcess (FloatEventListener): 低HP時に赤フィルター
   → AudioManager (FloatEventListener): 心拍音再生
-  → CameraRig (FloatEventListener): 低HP時に画面揺れ
+  → Camera (FloatEventListener): 低HP時に画面揺れ
 ```
 
 ### パターン 3: デバッグ用イベントロガー

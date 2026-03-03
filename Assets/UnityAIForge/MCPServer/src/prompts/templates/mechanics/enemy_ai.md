@@ -239,11 +239,11 @@ unity_prefab_crud(
     prefabPath="Assets/Prefabs/Enemies/Slime.prefab"
 )
 
-# ボス戦カメラリグ
-unity_camera_rig(
-    operation="createRig",
-    targetPath="MainCamera",
-    preset="follow"
+# ボス戦カメラ
+unity_camera_bundle(
+    operation="create",
+    name="BossCamera",
+    preset="default"
 )
 
 # 整合性チェック
@@ -446,7 +446,7 @@ unity_projectSettings_crud(
 | `unity_physics_bundle` | コライダー・Rigidbody の物理設定 |
 | `unity_transform_batch` | ウェイポイントの一括配置 |
 | `unity_prefab_crud` | 敵プレハブの作成・管理 |
-| `unity_camera_rig` | ボス戦・ロックオンカメラ |
+| `unity_camera_bundle` | ボス戦・ロックオンカメラ |
 | `unity_projectSettings_crud` | Enemy レイヤーの追加 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |
 | `unity_validate_integrity` | シーン整合性チェック |

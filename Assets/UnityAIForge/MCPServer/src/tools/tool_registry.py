@@ -26,7 +26,7 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     # ── Mid-Level Batch ──────────────────────────────────────
     "unity_transform_batch": "transformBatch",
     "unity_rectTransform_batch": "rectTransformBatch",
-    "unity_camera_rig": "cameraRig",
+    "unity_camera_bundle": "cameraBundle",
     "unity_ui_foundation": "uiFoundation",
     "unity_ui_hierarchy": "uiHierarchy",
     "unity_ui_state": "uiState",

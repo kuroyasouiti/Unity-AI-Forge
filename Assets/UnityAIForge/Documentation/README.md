@@ -208,7 +208,7 @@ Unity Test Frameworkによる包括的なテストスイート:
 - **Transform Batch** (`unity_transform_batch`) - 円/線でのオブジェクト配置、連続/リストベースの名前変更、メニュー階層の自動生成
 - **RectTransform Batch** (`unity_rectTransform_batch`) - アンカー/ピボット/サイズ/位置の設定、親プリセットへの整列、水平/垂直分散、ソースからのサイズマッチング
 - **Physics Bundle** (`unity_physics_bundle`) - 2D/3D Rigidbody + Colliderプリセット（dynamic、kinematic、static、character、platformer、topDown、vehicle、projectile）の適用、個別の物理プロパティ更新、物理コンポーネントの検査
-- **Camera Rig** (`unity_camera_rig`) - ターゲット追跡、スムーズな移動、ビューポート設定を備えたカメラリグ（follow、orbit、split-screen、fixed、dolly）の作成
+- **Camera Bundle** (`unity_camera_bundle`) - Camera CRUD+プリセット（default、orthographic2D、firstPerson、thirdPerson、topDown、splitScreen、minimap、uiCamera）によるカメラの作成・更新・削除
 - **UI Foundation** (`unity_ui_foundation`) - アンカープリセット、TextMeshProサポート、自動レイアウトを備えたUI要素（Canvas、Panel、Button、Text、Image、InputField）の作成
 - **Audio Source Bundle** (`unity_audio_source_bundle`) - プリセット（music、sfx、ambient、voice、ui）、2D/3D空間オーディオ、ミキサーグループ統合によるAudioSourceの作成と設定
 - **Input Profile** (`unity_input_profile`) - 新Input SystemでのPlayerInput作成、アクションマップの設定、通知動作の設定、InputActionsアセットの作成
