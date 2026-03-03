@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 47 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI system, and GameKit Systems (Pool, Data). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 42 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI (unified), and GameKit Data (unified). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Requirements
 
@@ -118,7 +118,7 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `PhysicsBundleHandler.cs` - Physics presets, collision matrix, physics materials
 - `NavMeshBundleHandler.cs` - NavMesh baking, agents, obstacles, links, modifiers
 
-**HighLevel/** (14 handlers) - Analysis, integrity, GameKit UI & Systems:
+**HighLevel/** (9 registered + 6 internal handlers) - Analysis, integrity, GameKit UI & Data:
 - Logic: `SceneIntegrityHandler.cs` - Scene integrity validation (missing scripts, null refs, broken events/prefabs, CanvasGroup audit, reference semantics)
 - Logic: `ClassCatalogHandler.cs` - Type enumeration and inspection (classes, MonoBehaviours, enums)
 - Logic: `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
@@ -126,8 +126,8 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - Logic: `SceneRelationshipGraphHandler.cs` - Scene transition and relationship analysis
 - Logic: `SceneDependencyHandler.cs` - Scene asset dependency analysis (AssetDatabase-based)
 - Logic: `ScriptSyntaxHandler.cs` - C# source code structure analysis with line numbers, event coverage, FSM reachability
-- GameKit UI: `GameKitUICommandHandler.cs`, `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`
-- GameKit Systems: `GameKitPoolHandler.cs` (object pooling), `GameKitDataHandler.cs` (event channels, data containers, runtime sets)
+- GameKit UI: `GameKitUIHandler.cs` (unified dispatcher) → 5 internal sub-handlers: `GameKitUICommandHandler.cs`, `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`
+- GameKit Data: `GameKitDataHandler.cs` (unified: pool + eventChannel + dataContainer + runtimeSet) → internal delegate: `GameKitPoolHandler.cs`
 
 **Utility/** (5 handlers) - Helper tools:
 - `PingHandler.cs` - Bridge connectivity check
@@ -147,8 +147,8 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `version.py` - Package version info
 - `logger.py` - Logging configuration
 - `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 43 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
-- `tools/tool_registry.py` - Single source of truth for 46 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
-- `tools/tool_definitions.py` - All 47 `types.Tool` definitions with descriptions and schema references.
+- `tools/tool_registry.py` - Single source of truth for 41 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
+- `tools/tool_definitions.py` - All 42 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
 - `tools/schemas/` - JSON Schema definitions split into 7 category files:
   - `common.py` - Shared type helpers (Vector3, Color, etc.)

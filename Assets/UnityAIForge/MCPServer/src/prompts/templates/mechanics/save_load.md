@@ -7,7 +7,7 @@
 設計判断がゲームの品質に直結します。
 
 Unity-AI-Forge では `unity_asset_crud` でセーブ管理の C# スクリプトを作成し、
-`unity_gamekit_ui_list` でセーブスロット選択 UI、`unity_event_wiring` で
+`unity_gamekit_ui(widgetType='list')` でセーブスロット選択 UI、`unity_event_wiring` で
 ボタンとセーブ処理の接続を行います。
 
 ---
@@ -190,7 +190,7 @@ unity_ui_foundation(
 )
 
 # タブ（セーブ/ロード切り替え）
-unity_gamekit_ui_selection(
+unity_gamekit_ui(widgetType='selection',
     operation="create",
     parentPath="SaveLoadCanvas/SaveLoadPanel",
     selectionId="save_load_tabs",
@@ -204,7 +204,7 @@ unity_gamekit_ui_selection(
 )
 
 # セーブスロット一覧を UIList で実装
-unity_gamekit_ui_list(
+unity_gamekit_ui(widgetType='list',
     operation="create",
     parentPath="SaveLoadCanvas/SaveLoadPanel",
     listId="save_slot_list",
@@ -276,7 +276,7 @@ unity_input_profile(
 
 ```python
 # オートセーブアイコン表示用の UICommand
-unity_gamekit_ui_command(
+unity_gamekit_ui(widgetType='command',
     operation="createCommandPanel",
     panelId="autosave_indicator",
     parentPath="SaveLoadCanvas",
@@ -366,7 +366,7 @@ ISaveBackend
 ## 注意点・落とし穴
 
 1. **コード生成後のコンパイル待ち**
-   `unity_asset_crud` でスクリプト作成後、`unity_gamekit_ui_list` 等のコード生成ツール
+   `unity_asset_crud` でスクリプト作成後、`unity_gamekit_ui(widgetType='list')` 等のコード生成ツール
    実行後は、必ず `unity_compilation_await` を呼ぶこと。
 
 2. **Application.persistentDataPath の使用**
@@ -400,9 +400,9 @@ ISaveBackend
 | `unity_scriptableObject_crud` | セーブ設定の ScriptableObject 作成 |
 | `unity_gameobject_crud` | SaveManager・チェックポイントの GameObject 作成 |
 | `unity_component_crud` | コンポーネントの追加・プロパティ設定 |
-| `unity_gamekit_ui_list` | セーブスロット一覧 UI |
-| `unity_gamekit_ui_selection` | セーブ/ロードタブの切り替え |
-| `unity_gamekit_ui_command` | オートセーブ通知 UI |
+| `unity_gamekit_ui(widgetType='list')` | セーブスロット一覧 UI |
+| `unity_gamekit_ui(widgetType='selection')` | セーブ/ロードタブの切り替え |
+| `unity_gamekit_ui(widgetType='command')` | オートセーブ通知 UI |
 | `unity_ui_foundation` | セーブ/ロード画面の UI 基盤 |
 | `unity_ui_hierarchy` | 確認ダイアログの階層構造 |
 | `unity_event_wiring` | ボタンとセーブ処理の接続 |

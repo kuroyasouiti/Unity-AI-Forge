@@ -53,11 +53,11 @@ Assets/
       UndoManager.cs         # 手動作成: Command パターン
       ClearCondition.cs      # 手動作成: クリア条件判定
     UI/
-      HUDCommand.cs          # 生成: unity_gamekit_ui_command
-      ScoreBinding.cs        # 生成: unity_gamekit_ui_binding
-      MoveBinding.cs         # 生成: unity_gamekit_ui_binding
-      StageSelectList.cs     # 生成: unity_gamekit_ui_list
-      DifficultyTabs.cs      # 生成: unity_gamekit_ui_selection
+      HUDCommand.cs          # 生成: unity_gamekit_ui (widgetType=command)
+      ScoreBinding.cs        # 生成: unity_gamekit_ui (widgetType=binding)
+      MoveBinding.cs         # 生成: unity_gamekit_ui (widgetType=binding)
+      StageSelectList.cs     # 生成: unity_gamekit_ui (widgetType=list)
+      DifficultyTabs.cs      # 生成: unity_gamekit_ui (widgetType=selection)
   Data/
     Stages/
       Stage_001.asset        # ScriptableObject: ステージデータ
@@ -162,7 +162,7 @@ unity_ui_foundation(operation='createCanvas', canvasName='Canvas_HUD',
     renderMode='ScreenSpaceOverlay')
 
 # Undo/Redo ボタン コマンドパネル
-unity_gamekit_ui_command(operation='createCommandPanel',
+unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='undo_cmd',
     canvasPath='Canvas_HUD',
     commands=[
@@ -182,7 +182,7 @@ unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
     textName='MoveCounter', text='手数: 0/30',
     position={'x': -300, 'y': 250})
 
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/MoveCounter',
     bindingId='move_count', uiType='text', format='formatted')
 unity_compilation_await(operation='await')
@@ -192,7 +192,7 @@ unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
     textName='TimerDisplay', text='2:00',
     position={'x': 0, 'y': 250})
 
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/TimerDisplay',
     bindingId='timer_display', uiType='text', format='formatted')
 unity_compilation_await(operation='await')
@@ -202,7 +202,7 @@ unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
     textName='ScoreDisplay', text='Score: 0',
     position={'x': 300, 'y': 250})
 
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/ScoreDisplay',
     bindingId='score_display', uiType='text', format='formatted')
 unity_compilation_await(operation='await')
@@ -212,13 +212,13 @@ unity_compilation_await(operation='await')
 
 ```python
 # 難易度タブ（Easy / Normal / Hard）
-unity_gamekit_ui_selection(operation='create',
+unity_gamekit_ui(widgetType='selection',operation='create',
     targetPath='Canvas_StageSelect/DifficultyTabs',
     selectionId='difficulty_sel',
     selectionMode='radio')
 unity_compilation_await(operation='await')
 
-unity_gamekit_ui_selection(operation='setItems',
+unity_gamekit_ui(widgetType='selection',operation='setItems',
     selectionId='difficulty_sel',
     items=[
         {'id': 'easy',   'label': 'かんたん'},
@@ -227,7 +227,7 @@ unity_gamekit_ui_selection(operation='setItems',
     ])
 
 # ステージリスト
-unity_gamekit_ui_list(operation='create',
+unity_gamekit_ui(widgetType='list',operation='create',
     targetPath='Canvas_StageSelect/StageList',
     listId='stage_list',
     layout='grid', gridColumns=5)
@@ -268,7 +268,7 @@ UndoManager で状態を管理し、`ui_command` の Undo ボタンで
 ### コンボシステム
 
 スコアやコンボ数はカスタムスクリプトで int/float として管理し、
-`unity_gamekit_ui_binding` で UI 表示に連動させる。
+`unity_gamekit_ui(widgetType='binding')` で UI 表示に連動させる。
 一定時間内の連続クリアでコンボが増加する仕組みにする。
 
 ### 難易度スケーリング
@@ -303,10 +303,10 @@ A/B テストや QA フィードバックを素早く反映できる。
 | コンポーネント | `unity_component_crud` | Collider・SpriteRenderer 一括追加 |
 | アセット | `unity_asset_crud` | ゲームロジックスクリプト作成 |
 | 配置 | `unity_transform_batch` | セルの均等配置 |
-| UI | `unity_gamekit_ui_command` | Undo・リセットボタン |
-| UI | `unity_gamekit_ui_binding` | 手数・タイマー・スコア表示 |
-| UI | `unity_gamekit_ui_list` | ステージ選択リスト |
-| UI | `unity_gamekit_ui_selection` | 難易度タブ |
+| UI | `unity_gamekit_ui(widgetType='command')` | Undo・リセットボタン |
+| UI | `unity_gamekit_ui(widgetType='binding')` | 手数・タイマー・スコア表示 |
+| UI | `unity_gamekit_ui(widgetType='list')` | ステージ選択リスト |
+| UI | `unity_gamekit_ui(widgetType='selection')` | 難易度タブ |
 | UI基盤 | `unity_ui_foundation` | Canvas・Text 作成 |
 | イベント | `unity_event_wiring` | ボタン→スクリプト接続 |
 | 設定 | `unity_projectSettings_crud` | ビルドシーン管理 |

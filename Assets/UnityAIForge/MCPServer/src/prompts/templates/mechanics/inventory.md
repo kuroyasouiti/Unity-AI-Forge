@@ -6,7 +6,7 @@
 グリッド型のアイテム一覧、装備スロット、消耗品スタック管理など、RPGやアクションゲームで
 広く使われるパターンを Unity-AI-Forge のツール群で効率的に構築できます。
 
-`unity_gamekit_ui_list` と `unity_gamekit_ui_slot` を組み合わせることで動的に更新される
+`unity_gamekit_ui(widgetType='list')` と `unity_gamekit_ui(widgetType='slot')` を組み合わせることで動的に更新される
 グリッド UI を素早く生成し、`unity_asset_crud` でインベントリ管理ロジックの
 C# スクリプトを作成、`unity_event_wiring` でワールド内のアイテムピックアップイベントを接続できます。
 
@@ -174,7 +174,7 @@ unity_ui_foundation(
 )
 
 # UIList でグリッドアイテム一覧を生成
-unity_gamekit_ui_list(
+unity_gamekit_ui(widgetType='list',
     operation="create",
     parentPath="InventoryCanvas/InventoryPanel",
     listId="inventory_list",
@@ -192,7 +192,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 
 ```python
 # 装備スロットバーを作成（6スロット: 頭/胴/腕/脚/武器/盾）
-unity_gamekit_ui_slot(
+unity_gamekit_ui(widgetType='slot',
     operation="createSlotBar",
     barId="equipment_bar",
     parentPath="InventoryCanvas",
@@ -247,7 +247,7 @@ unity_gameobject_crud(
 
 ```python
 # UISelection で選択状態の管理
-unity_gamekit_ui_selection(
+unity_gamekit_ui(widgetType='selection',
     operation="create",
     parentPath="InventoryCanvas/InventoryPanel",
     selectionId="inventory_selection",
@@ -275,7 +275,7 @@ unity_ui_navigation(
 スロット選択時に「使用/装備/捨てる/詳細」のコンテキストメニューを表示。
 
 ```python
-unity_gamekit_ui_command(
+unity_gamekit_ui(widgetType='command',
     operation="createCommandPanel",
     panelId="item_context_menu",
     parentPath="InventoryCanvas/InventoryPanel",
@@ -293,7 +293,7 @@ unity_gamekit_ui_command(
 
 ```python
 # 画面下部にクイックスロットバー（8スロット）
-unity_gamekit_ui_slot(
+unity_gamekit_ui(widgetType='slot',
     operation="createSlotBar",
     barId="quickslot_bar",
     parentPath="InventoryCanvas",
@@ -328,7 +328,7 @@ unity_ui_state(
 ## 注意点・落とし穴
 
 1. **コード生成後のコンパイル待ち**
-   `unity_asset_crud` でスクリプト作成後、`unity_gamekit_ui_list`、`unity_gamekit_ui_slot` 等の
+   `unity_asset_crud` でスクリプト作成後、`unity_gamekit_ui(widgetType='list')`、`unity_gamekit_ui(widgetType='slot')` 等の
    コード生成ツール実行後は、必ず `unity_compilation_await` を呼ぶこと。
 
 2. **スタック上限の境界値**
@@ -355,10 +355,10 @@ unity_ui_state(
 |---|---|
 | `unity_asset_crud` | インベントリ管理・アイテムデータの C# スクリプト作成 |
 | `unity_scriptableObject_crud` | アイテムデータ (ScriptableObject) の作成・管理 |
-| `unity_gamekit_ui_list` | アイテムグリッド一覧の動的生成 |
-| `unity_gamekit_ui_slot` | スロットバー・装備スロットの作成 |
-| `unity_gamekit_ui_selection` | スロット選択状態の管理 |
-| `unity_gamekit_ui_command` | アイテムコンテキストメニュー |
+| `unity_gamekit_ui(widgetType='list')` | アイテムグリッド一覧の動的生成 |
+| `unity_gamekit_ui(widgetType='slot')` | スロットバー・装備スロットの作成 |
+| `unity_gamekit_ui(widgetType='selection')` | スロット選択状態の管理 |
+| `unity_gamekit_ui(widgetType='command')` | アイテムコンテキストメニュー |
 | `unity_gameobject_crud` | ワールドアイテム GameObject の作成 |
 | `unity_component_crud` | コンポーネントの追加・プロパティ設定 |
 | `unity_ui_foundation` | インベントリ UI パネルの基盤構築 |

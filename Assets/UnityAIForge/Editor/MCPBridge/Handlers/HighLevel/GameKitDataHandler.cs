@@ -9,39 +9,83 @@ using UnityEngine;
 namespace MCP.Editor.Handlers.HighLevel
 {
     /// <summary>
-    /// GameKit Data Architecture handler: generate ScriptableObject-based data patterns.
-    /// Creates Event Channels, Data Containers, and Runtime Sets via code generation.
+    /// Unified GameKit Data handler: routes by <c>dataType</c> (pool / eventChannel / dataContainer / runtimeSet).
+    /// Pool operations are delegated to <see cref="GameKitPoolHandler"/>.
     /// </summary>
     public class GameKitDataHandler : BaseCommandHandler
     {
         private static readonly string[] Operations =
         {
-            "createEventChannel", "createDataContainer", "createRuntimeSet",
-            "inspect", "delete", "findByDataId"
+            "create", "update", "inspect", "delete", "find"
         };
+
+        private readonly GameKitPoolHandler _poolHandler = new();
 
         public override string Category => "gamekitData";
 
         public override IEnumerable<string> SupportedOperations => Operations;
 
         protected override bool RequiresCompilationWait(string operation) =>
-            operation == "createEventChannel" || operation == "createDataContainer" || operation == "createRuntimeSet";
+            operation == "create";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
-            return operation switch
+            var dataType = GetString(payload, "dataType");
+            if (string.IsNullOrEmpty(dataType))
+                return CreateFailureResponse("'dataType' is required. Use: pool, eventChannel, dataContainer, runtimeSet");
+
+            return dataType switch
             {
-                "createEventChannel" => CreateEventChannel(payload),
-                "createDataContainer" => CreateDataContainer(payload),
-                "createRuntimeSet" => CreateRuntimeSet(payload),
-                "inspect" => InspectData(payload),
-                "delete" => DeleteData(payload),
-                "findByDataId" => FindByDataId(payload),
-                _ => throw new InvalidOperationException($"Unsupported GameKit Data operation: {operation}")
+                "pool" => DispatchPool(operation, payload),
+                "eventChannel" => DispatchEventChannel(operation, payload),
+                "dataContainer" => DispatchDataContainer(operation, payload),
+                "runtimeSet" => DispatchRuntimeSet(operation, payload),
+                _ => CreateFailureResponse(
+                    $"Unknown dataType '{dataType}'. Use: pool, eventChannel, dataContainer, runtimeSet")
             };
         }
 
+        #region Pool Dispatch
+
+        private object DispatchPool(string operation, Dictionary<string, object> payload)
+        {
+            // Map normalized operations to pool handler's operation names
+            var poolOp = operation switch
+            {
+                "create" => "create",
+                "update" => "update",
+                "inspect" => "inspect",
+                "delete" => "delete",
+                "find" => "findByPoolId",
+                _ => null
+            };
+
+            if (poolOp == null)
+                return CreateFailureResponse(
+                    $"Operation '{operation}' is not supported for dataType 'pool'. " +
+                    "Supported: create, update, inspect, delete, find");
+
+            payload["operation"] = poolOp;
+            return _poolHandler.InvokeOperation(poolOp, payload);
+        }
+
+        #endregion
+
         #region Event Channel
+
+        private object DispatchEventChannel(string operation, Dictionary<string, object> payload)
+        {
+            return operation switch
+            {
+                "create" => CreateEventChannel(payload),
+                "inspect" => InspectData(payload),
+                "delete" => DeleteData(payload),
+                "find" => FindByDataId(payload),
+                _ => CreateFailureResponse(
+                    $"Operation '{operation}' is not supported for dataType 'eventChannel'. " +
+                    "Supported: create, inspect, delete, find")
+            };
+        }
 
         private object CreateEventChannel(Dictionary<string, object> payload)
         {
@@ -135,6 +179,20 @@ namespace MCP.Editor.Handlers.HighLevel
         #endregion
 
         #region Data Container
+
+        private object DispatchDataContainer(string operation, Dictionary<string, object> payload)
+        {
+            return operation switch
+            {
+                "create" => CreateDataContainer(payload),
+                "inspect" => InspectData(payload),
+                "delete" => DeleteData(payload),
+                "find" => FindByDataId(payload),
+                _ => CreateFailureResponse(
+                    $"Operation '{operation}' is not supported for dataType 'dataContainer'. " +
+                    "Supported: create, inspect, delete, find")
+            };
+        }
 
         private object CreateDataContainer(Dictionary<string, object> payload)
         {
@@ -241,6 +299,20 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #region Runtime Set
 
+        private object DispatchRuntimeSet(string operation, Dictionary<string, object> payload)
+        {
+            return operation switch
+            {
+                "create" => CreateRuntimeSet(payload),
+                "inspect" => InspectData(payload),
+                "delete" => DeleteData(payload),
+                "find" => FindByDataId(payload),
+                _ => CreateFailureResponse(
+                    $"Operation '{operation}' is not supported for dataType 'runtimeSet'. " +
+                    "Supported: create, inspect, delete, find")
+            };
+        }
+
         private object CreateRuntimeSet(Dictionary<string, object> payload)
         {
             var dataId = GetString(payload, "dataId");
@@ -284,7 +356,7 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #endregion
 
-        #region Inspect
+        #region Shared: Inspect / Delete / Find
 
         private object InspectData(Dictionary<string, object> payload)
         {
@@ -312,10 +384,6 @@ namespace MCP.Editor.Handlers.HighLevel
             );
         }
 
-        #endregion
-
-        #region Delete
-
         private object DeleteData(Dictionary<string, object> payload)
         {
             var dataId = GetString(payload, "dataId");
@@ -334,15 +402,11 @@ namespace MCP.Editor.Handlers.HighLevel
             );
         }
 
-        #endregion
-
-        #region Find
-
         private object FindByDataId(Dictionary<string, object> payload)
         {
             var dataId = GetString(payload, "dataId");
             if (string.IsNullOrEmpty(dataId))
-                throw new InvalidOperationException("dataId is required for findByDataId.");
+                throw new InvalidOperationException("dataId is required for find operation.");
 
             // Search ScriptableObject assets by dataId field
             var guids = AssetDatabase.FindAssets("t:ScriptableObject");

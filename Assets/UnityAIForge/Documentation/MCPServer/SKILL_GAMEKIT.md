@@ -26,9 +26,9 @@ GameKit is organized into pillars:
 
 | Pillar | Tools | Purpose |
 |--------|-------|---------|
-| **UI** | 5 tools | Generate UI Toolkit-based components (UXML/USS + C#) |
+| **UI** | 1 tool | `unity_gamekit_ui` (widgetType: command/binding/list/slot/selection) |
 | **Logic** | 7 tools | Scene/code analysis and integrity validation |
-| **Systems** | 2 tools | Object pooling and data management (event channels, containers, runtime sets) |
+| **Data** | 1 tool | `unity_gamekit_data` (dataType: pool/eventChannel/dataContainer/runtimeSet) |
 
 All UI pillar tools use **code generation**:
 - Templates in `Assets/UnityAIForge/Editor/CodeGen/Templates/`
@@ -42,7 +42,7 @@ All UI pillar tools use **code generation**:
 
 ### UICommand
 
-**MCP Tool:** `unity_gamekit_ui_command`
+**MCP Tool:** `unity_gamekit_ui(widgetType='command')`
 
 Creates button command panels using UI Toolkit. Generates UXML, USS, and a C# script with UnityEvent bindings.
 
@@ -80,7 +80,7 @@ Creates button command panels using UI Toolkit. Generates UXML, USS, and a C# sc
 
 ```python
 # Create a mobile game control panel
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "createCommandPanel",
     "panelId": "mobileControls",
     "layout": "grid",
@@ -105,7 +105,7 @@ unity_compilation_await()
 
 ### UIBinding
 
-**MCP Tool:** `unity_gamekit_ui_binding`
+**MCP Tool:** `unity_gamekit_ui(widgetType='binding')`
 
 Declarative data binding from game state to UI elements. Supports ProgressBar, Label, Slider, and other UI Toolkit elements.
 
@@ -142,7 +142,7 @@ Declarative data binding from game state to UI elements. Supports ProgressBar, L
 
 ```python
 # Bind health bar to health component
-unity_gamekit_ui_binding({
+unity_gamekit_ui(widgetType='binding', {
     "operation": "create",
     "bindingId": "playerHP",
     "sourceType": "health",
@@ -158,7 +158,7 @@ unity_gamekit_ui_binding({
 unity_compilation_await()
 
 # Bind gold counter to economy manager
-unity_gamekit_ui_binding({
+unity_gamekit_ui(widgetType='binding', {
     "operation": "create",
     "bindingId": "goldDisplay",
     "sourceType": "economy",
@@ -175,7 +175,7 @@ unity_compilation_await()
 
 ### UIList
 
-**MCP Tool:** `unity_gamekit_ui_list`
+**MCP Tool:** `unity_gamekit_ui(widgetType='list')`
 
 Dynamic ScrollView-based list/grid for displaying item collections with selection support.
 
@@ -226,7 +226,7 @@ Dynamic ScrollView-based list/grid for displaying item collections with selectio
 
 ```python
 # Create inventory grid
-unity_gamekit_ui_list({
+unity_gamekit_ui(widgetType='list', {
     "operation": "create",
     "listId": "inventory",
     "layout": "grid",
@@ -239,7 +239,7 @@ unity_gamekit_ui_list({
 unity_compilation_await()
 
 # Populate with items
-unity_gamekit_ui_list({
+unity_gamekit_ui(widgetType='list', {
     "operation": "setItems",
     "listId": "inventory",
     "items": [
@@ -257,7 +257,7 @@ unity_gamekit_ui_list({
 
 ### UISlot
 
-**MCP Tool:** `unity_gamekit_ui_slot`
+**MCP Tool:** `unity_gamekit_ui(widgetType='slot')`
 
 Slot-based UI for equipment, quickslots, and inventory management. Supports both individual slots and slot bars (grouped slots).
 
@@ -297,7 +297,7 @@ Slot-based UI for equipment, quickslots, and inventory management. Supports both
 
 ```python
 # Create equipment slots
-unity_gamekit_ui_slot({
+unity_gamekit_ui(widgetType='slot', {
     "operation": "create",
     "slotId": "helmet_slot",
     "slotType": "equipment",
@@ -307,7 +307,7 @@ unity_gamekit_ui_slot({
 unity_compilation_await()
 
 # Create quickslot bar
-unity_gamekit_ui_slot({
+unity_gamekit_ui(widgetType='slot', {
     "operation": "createSlotBar",
     "barId": "quickslots",
     "slotCount": 8,
@@ -318,7 +318,7 @@ unity_gamekit_ui_slot({
 unity_compilation_await()
 
 # Place item in slot
-unity_gamekit_ui_slot({
+unity_gamekit_ui(widgetType='slot', {
     "operation": "setItem",
     "slotId": "quickslots_slot_0",
     "itemId": "potion_hp",
@@ -332,7 +332,7 @@ unity_gamekit_ui_slot({
 
 ### UISelection
 
-**MCP Tool:** `unity_gamekit_ui_selection`
+**MCP Tool:** `unity_gamekit_ui(widgetType='selection')`
 
 Selection groups for radio buttons, toggles, checkboxes, and tabs. Supports SelectionActions to control panel visibility based on selection.
 
@@ -391,7 +391,7 @@ Selection groups for radio buttons, toggles, checkboxes, and tabs. Supports Sele
 
 ```python
 # Create difficulty selection (radio)
-unity_gamekit_ui_selection({
+unity_gamekit_ui(widgetType='selection', {
     "operation": "create",
     "selectionId": "difficulty",
     "selectionType": "radio",
@@ -405,7 +405,7 @@ unity_gamekit_ui_selection({
 unity_compilation_await()
 
 # Create tab navigation with panel switching
-unity_gamekit_ui_selection({
+unity_gamekit_ui(widgetType='selection', {
     "operation": "create",
     "selectionId": "menuTabs",
     "selectionType": "tab",
@@ -418,7 +418,7 @@ unity_gamekit_ui_selection({
 })
 unity_compilation_await()
 
-unity_gamekit_ui_selection({
+unity_gamekit_ui(widgetType='selection', {
     "operation": "setSelectionActions",
     "selectionId": "menuTabs",
     "actions": [
@@ -522,7 +522,7 @@ var inventory = InventoryList.FindById("inventory");
 # === Step 1: Create UI ===
 
 # Tab navigation
-unity_gamekit_ui_selection({
+unity_gamekit_ui(widgetType='selection', {
     "operation": "create",
     "selectionId": "gameTabs",
     "selectionType": "tab",
@@ -535,7 +535,7 @@ unity_gamekit_ui_selection({
 unity_compilation_await()
 
 # HP bar binding
-unity_gamekit_ui_binding({
+unity_gamekit_ui(widgetType='binding', {
     "operation": "create",
     "bindingId": "hpBar",
     "sourceType": "health",
@@ -549,7 +549,7 @@ unity_gamekit_ui_binding({
 unity_compilation_await()
 
 # Quickslot bar
-unity_gamekit_ui_slot({
+unity_gamekit_ui(widgetType='slot', {
     "operation": "createSlotBar",
     "barId": "quickbar",
     "slotCount": 6,
@@ -572,7 +572,7 @@ Minimize compilation waits by creating multiple components before awaiting:
 
 ```python
 # Create multiple components
-unity_gamekit_ui_command({"operation": "createCommandPanel", ...})
+unity_gamekit_ui(widgetType='command', {"operation": "createCommandPanel", ...})
 # Don't await yet - create more components first if they don't depend on each other
 
 # Await once for all
@@ -598,7 +598,7 @@ var hpBar = PlayerHPBinding.FindById("playerHP");
 
 Always inspect existing components before making changes:
 ```python
-unity_gamekit_ui_list({"operation": "inspect", "listId": "inventory"})
+unity_gamekit_ui(widgetType='list', {"operation": "inspect", "listId": "inventory"})
 ```
 
 ### 5. Verify After Major Changes

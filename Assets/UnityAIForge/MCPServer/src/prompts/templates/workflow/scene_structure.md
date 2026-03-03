@@ -203,7 +203,7 @@ unity_ui_hierarchy(operation='create',
     })
 
 # HP バインディング
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='HUDCanvas/HUD/HPBarFill',
     bindingId='hud_hp',
     sourceType='health',
@@ -450,7 +450,7 @@ _Lighting
 | `unity_ui_foundation` | 各シーンのCanvas作成 |
 | `unity_ui_hierarchy` | HUD・メニューの宣言的構築 |
 | `unity_ui_navigation` | メニューのキーボードナビゲーション |
-| `unity_gamekit_ui_binding` | HUDデータバインディング |
+| `unity_gamekit_ui(widgetType='binding')` | HUDデータバインディング |
 | `unity_light_bundle` | Level シーンのライティング |
 | `unity_tilemap_bundle` | Level シーンの地形構築 |
 | `unity_scene_relationship_graph` | analyzeAll / validateBuildSettings / findTransitionsTo |

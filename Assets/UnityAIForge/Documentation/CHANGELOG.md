@@ -71,7 +71,7 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - `addLink` / `addModifier`: NavMeshLink/Modifier追加（リフレクション経由、パッケージ任意）
   - `inspect` / `clearNavMesh`: NavMeshコンポーネント確認・ベイクデータクリア
 
-- **`unity_gamekit_pool` (GameKit Systems)**: オブジェクトプーリング（コード生成）
+- **`unity_gamekit_data(dataType='pool')` (GameKit Systems)**: オブジェクトプーリング（コード生成）
   - `create`: `UnityEngine.Pool.ObjectPool<T>` を使用したプールMonoBehaviourを生成
   - `update` / `inspect` / `delete` / `findByPoolId`: 標準CRUD操作
 
@@ -1470,7 +1470,7 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
   - 宣言的アクション: spawn prefab、destroy object、play sound、send message、change scene
   - 条件: tag、layer、distance、custom
   
-- **GameKit UI Command** (`unity_gamekit_ui_command`)
+- **GameKit UI Command** (`unity_gamekit_ui(widgetType='command')`)
   - ボタンレイアウト（水平、垂直、グリッド）付きコマンドパネル
   - Actorコマンドディスパッチ
   - アイコンとラベルのサポート

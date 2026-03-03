@@ -157,7 +157,23 @@ namespace MCP.Editor.Base
         protected abstract object ExecuteOperation(string operation, Dictionary<string, object> payload);
         
         #endregion
-        
+
+        #region Internal Delegation
+
+        /// <summary>
+        /// Allows dispatcher handlers to invoke a sub-handler's ExecuteOperation directly.
+        /// </summary>
+        internal object InvokeOperation(string operation, Dictionary<string, object> payload)
+            => ExecuteOperation(operation, payload);
+
+        /// <summary>
+        /// Allows dispatcher handlers to check a sub-handler's RequiresCompilationWait.
+        /// </summary>
+        internal bool CheckCompilationWait(string operation)
+            => RequiresCompilationWait(operation);
+
+        #endregion
+
         #region Virtual Methods
         
         /// <summary>

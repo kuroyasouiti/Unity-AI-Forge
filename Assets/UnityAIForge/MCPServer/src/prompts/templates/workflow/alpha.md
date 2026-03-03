@@ -204,7 +204,7 @@ unity_component_crud(operation='add',
 
 ```python
 # HPバーにヘルスバインディング（プロトタイプのHPTextを活用）
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='GameUI/HUD/HPText',
     bindingId='hp_display',
     sourceType='health',
@@ -212,7 +212,7 @@ unity_gamekit_ui_binding(operation='create',
     format='ratio')
 
 # スコア表示にカスタムバインディング
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='GameUI/HUD/ScoreText',
     bindingId='score_display',
     sourceType='custom',
@@ -221,7 +221,7 @@ unity_gamekit_ui_binding(operation='create',
     formatString='Score: {0:D6}')
 
 # タイマー表示
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='GameUI/HUD/TimerText',
     bindingId='timer_display',
     sourceType='timer',
@@ -238,7 +238,7 @@ unity_compilation_await(operation='await', timeoutSeconds=30)
 
 ```python
 # ポーズメニューのボタンをコマンドとして接続
-unity_gamekit_ui_command(operation='createCommandPanel',
+unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='pause_commands',
     canvasPath='GameUI/PauseMenu',
     commands=[
@@ -421,8 +421,8 @@ unity_prefab_crud(operation='applyOverrides', gameObjectPath='Player')
 - [ ] プレイヤー・敵の状態遷移が動作する
 
 ### UIバインディング
-- [ ] gamekit_ui_binding でHP表示をデータ連動にした
-- [ ] gamekit_ui_binding でスコア表示をデータ連動にした
+- [ ] gamekit_ui(widgetType='binding') でHP表示をデータ連動にした
+- [ ] gamekit_ui(widgetType='binding') でスコア表示をデータ連動にした
 - [ ] ui_state でゲーム状態に応じたUI切替を定義した
 
 ### イベント接続
@@ -483,8 +483,8 @@ apply ではなく applyOverrides を使用してください。
 |--------|----------------|
 | `unity_scriptableObject_crud` | create でSOインスタンス作成 |
 | `unity_asset_crud` | create でスクリプト生成 |
-| `unity_gamekit_ui_binding` | データバインディング設定 |
-| `unity_gamekit_ui_command` | ボタン→ロジック接続 |
+| `unity_gamekit_ui(widgetType='binding')` | データバインディング設定 |
+| `unity_gamekit_ui(widgetType='command')` | ボタン→ロジック接続 |
 | `unity_ui_state` | ゲーム状態に応じたUI切替 |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
 | `unity_event_wiring` | wire / wireMultiple でUnityEvent接続 |

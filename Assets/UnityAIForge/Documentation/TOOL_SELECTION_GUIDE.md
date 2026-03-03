@@ -8,11 +8,11 @@ This guide helps you choose the right tool for your Unity development tasks.
 
 | Use Case | Recommended Tool |
 |----------|-----------------|
-| Game action buttons (move/jump/attack) | `unity_gamekit_ui_command` |
-| Auto-sync UI with game data | `unity_gamekit_ui_binding` |
-| Scrollable lists / inventory grids | `unity_gamekit_ui_list` |
-| Equipment / quickbar slots | `unity_gamekit_ui_slot` |
-| Radio / toggle / tab groups | `unity_gamekit_ui_selection` |
+| Game action buttons (move/jump/attack) | `unity_gamekit_ui(widgetType='command')` |
+| Auto-sync UI with game data | `unity_gamekit_ui(widgetType='binding')` |
+| Scrollable lists / inventory grids | `unity_gamekit_ui(widgetType='list')` |
+| Equipment / quickbar slots | `unity_gamekit_ui(widgetType='slot')` |
+| Radio / toggle / tab groups | `unity_gamekit_ui(widgetType='selection')` |
 | Build UI menu from JSON | `unity_ui_hierarchy` |
 | Configure keyboard/gamepad navigation | `unity_ui_navigation` |
 | Manage UI visibility states | `unity_ui_state` |
@@ -30,7 +30,7 @@ This guide helps you choose the right tool for your Unity development tasks.
 
 All GameKit UI tools generate standalone C# scripts via code generation. After `create` operations, call `unity_compilation_await({"operation": "await"})`.
 
-### When to use `unity_gamekit_ui_command`
+### When to use `unity_gamekit_ui(widgetType='command')`
 
 **Best for:** Button-based game actions
 
@@ -40,7 +40,7 @@ All GameKit UI tools generate standalone C# scripts via code generation. After `
 - Shop/menu action panels
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command',{
     "operation": "createCommandPanel",
     "panelId": "controls",
     "layout": "horizontal",
@@ -50,7 +50,7 @@ unity_gamekit_ui_command({
 })
 ```
 
-### When to use `unity_gamekit_ui_binding`
+### When to use `unity_gamekit_ui(widgetType='binding')`
 
 **Best for:** Auto-sync UI with game data
 
@@ -60,7 +60,7 @@ unity_gamekit_ui_command({
 - Resource counters with smooth transitions
 
 ```python
-unity_gamekit_ui_binding({
+unity_gamekit_ui(widgetType='binding',{
     "operation": "create",
     "bindingId": "hpBar",
     "sourceType": "health",
@@ -70,7 +70,7 @@ unity_gamekit_ui_binding({
 })
 ```
 
-### When to use `unity_gamekit_ui_list` / `ui_slot` / `ui_selection`
+### When to use `unity_gamekit_ui(widgetType='list')` / `ui_slot` / `ui_selection`
 
 | Tool | Best For | Example |
 |------|----------|---------|
@@ -381,7 +381,7 @@ unity_sprite2d_bundle({
 
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
-| **High-Level GameKit** | UI Pillar (5), Logic Pillar (7), Systems (2) | Game systems, analysis, validation |
+| **High-Level GameKit** | GameKit UI (1), Logic Pillar (7), GameKit Data (1) | Game systems, analysis, validation |
 | **Mid-Level Batch** | transform_batch, camera_bundle, ui_hierarchy, etc. (18) | Batch operations, presets |
 | **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
 | **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |

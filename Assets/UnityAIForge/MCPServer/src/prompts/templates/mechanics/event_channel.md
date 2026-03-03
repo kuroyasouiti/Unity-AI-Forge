@@ -272,10 +272,10 @@ unity_event_wiring(operation="wire",
 # UIBinding でも同様のデータバインドが可能
 # イベントチャネルは「多対多の通知」、UIBinding は「1対1の表示更新」
 # 使い分け:
-#   - HP バーの表示更新 → unity_gamekit_ui_binding (シンプル)
+#   - HP バーの表示更新 → unity_gamekit_ui(widgetType='binding') (シンプル)
 #   - HP 変化で複数システムに通知 → EventChannel (柔軟)
 
-unity_gamekit_ui_binding(operation="create",
+unity_gamekit_ui(widgetType='binding',operation="create",
     targetPath="Canvas_HUD/HPBar",
     bindingId="player_hp",
     sourceType="health", sourceId="player_hp",
@@ -391,8 +391,8 @@ public class EventLogger : MonoBehaviour
 | `unity_scriptableObject_crud` | チャネルアセットの作成 |
 | `unity_component_crud` | Listener コンポーネントの追加・設定 |
 | `unity_event_wiring` | UnityEvent レスポンスの接続 |
-| `unity_gamekit_ui_binding` | 1対1 UI データバインド（チャネルとの使い分け） |
-| `unity_gamekit_ui_command` | UI コマンドパネル（イベント駆動 UI） |
+| `unity_gamekit_ui(widgetType='binding')` | 1対1 UI データバインド（チャネルとの使い分け） |
+| `unity_gamekit_ui(widgetType='command')` | UI コマンドパネル（イベント駆動 UI） |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |
 | `unity_class_dependency_graph` | イベント経由の依存関係可視化 |
 | `unity_scene_reference_graph` | SO チャネル参照の確認 |

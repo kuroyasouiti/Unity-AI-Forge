@@ -1,4 +1,4 @@
-"""Schema definitions for High-Level GameKit MCP tools (UI + Systems)."""
+"""Schema definitions for High-Level GameKit MCP tools (UI + Data)."""
 
 from __future__ import annotations
 
@@ -7,25 +7,90 @@ from typing import Any
 from tools.schemas.common import schema_with_required
 
 
-def gamekit_ui_command_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_ui_command MCP tool."""
+def gamekit_ui_schema() -> dict[str, Any]:
+    """Schema for the unified unity_gamekit_ui MCP tool.
+
+    Consolidates 5 widget types (command, binding, list, slot, selection)
+    behind a single tool with a ``widgetType`` discriminator.
+    """
     return schema_with_required(
         {
             "type": "object",
             "properties": {
+                # ── discriminator ──────────────────────────────────────
+                "widgetType": {
+                    "type": "string",
+                    "enum": ["command", "binding", "list", "slot", "selection"],
+                    "description": "Widget type to operate on.",
+                },
                 "operation": {
                     "type": "string",
-                    "enum": ["createCommandPanel", "addCommand", "inspect", "delete"],
+                    "enum": [
+                        # common CRUD
+                        "create",
+                        "update",
+                        "inspect",
+                        "delete",
+                        # command-specific
+                        "createCommandPanel",
+                        "addCommand",
+                        # binding-specific
+                        "setRange",
+                        "refresh",
+                        "findByBindingId",
+                        # list-specific
+                        "setItems",
+                        "addItem",
+                        "removeItem",
+                        "clear",
+                        "selectItem",
+                        "deselectItem",
+                        "clearSelection",
+                        "refreshFromSource",
+                        "findByListId",
+                        # slot-specific
+                        "setItem",
+                        "clearSlot",
+                        "setHighlight",
+                        "createSlotBar",
+                        "updateSlotBar",
+                        "inspectSlotBar",
+                        "deleteSlotBar",
+                        "useSlot",
+                        "refreshFromInventory",
+                        "findBySlotId",
+                        "findByBarId",
+                        # selection-specific
+                        "selectItemById",
+                        "setSelectionActions",
+                        "setItemEnabled",
+                        "findBySelectionId",
+                    ],
+                    "description": "Operation to perform. Available operations depend on widgetType.",
                 },
-                "panelId": {"type": "string", "description": "Unique command panel identifier."},
+                # ── shared identifiers ─────────────────────────────────
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject path.",
+                },
                 "parentPath": {
                     "type": "string",
-                    "description": "Parent GameObject path for the UIDocument (optional, creates at scene root if omitted).",
+                    "description": "Parent GameObject path (auto-creates UIDocument with UXML/USS).",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the created GameObject when using parentPath.",
                 },
                 "uiOutputDir": {
                     "type": "string",
                     "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
                 },
+                "className": {
+                    "type": "string",
+                    "description": "Custom class name for generated script.",
+                },
+                # ── command properties ─────────────────────────────────
+                "panelId": {"type": "string", "description": "Unique command panel identifier."},
                 "targetType": {
                     "type": "string",
                     "enum": ["actor", "manager"],
@@ -90,41 +155,8 @@ def gamekit_ui_command_schema() -> dict[str, Any]:
                     },
                     "description": "List of commands to create as buttons in UXML.",
                 },
-                "layout": {
-                    "type": "string",
-                    "enum": ["horizontal", "vertical", "grid"],
-                    "description": "Button layout style (maps to USS flex-direction).",
-                },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_ui_binding_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_ui_binding MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "setRange",
-                        "refresh",
-                        "findByBindingId",
-                    ],
-                    "description": "UI binding operation.",
-                },
+                # ── binding properties ─────────────────────────────────
                 "bindingId": {"type": "string", "description": "Unique binding identifier."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject path with UIDocument (e.g., 'GameUI/HPBar').",
-                },
                 "elementName": {
                     "type": "string",
                     "description": "VisualElement name to bind to within the UIDocument (e.g., 'hp-bar'). Queried via rootVisualElement.Q(name).",
@@ -165,58 +197,12 @@ def gamekit_ui_binding_schema() -> dict[str, Any]:
                     "type": "number",
                     "description": "Smooth transition speed (default: 5.0).",
                 },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_ui_list_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_ui_list MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "setItems",
-                        "addItem",
-                        "removeItem",
-                        "clear",
-                        "selectItem",
-                        "deselectItem",
-                        "clearSelection",
-                        "refreshFromSource",
-                        "findByListId",
-                    ],
-                    "description": "UI list operation.",
-                },
+                # ── list properties ────────────────────────────────────
                 "listId": {"type": "string", "description": "Unique list identifier."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject path for list component (use existing GameObject).",
-                },
-                "parentPath": {
-                    "type": "string",
-                    "description": "Parent GameObject path to create new UI list under (auto-creates UIDocument with UXML/USS).",
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name for the created GameObject when using parentPath.",
-                },
-                "uiOutputDir": {
-                    "type": "string",
-                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
-                },
                 "layout": {
                     "type": "string",
-                    "enum": ["vertical", "horizontal", "grid"],
-                    "description": "Layout type: 'vertical', 'horizontal', or 'grid'.",
+                    "enum": ["horizontal", "vertical", "grid"],
+                    "description": "Layout type.",
                 },
                 "columns": {
                     "type": "integer",
@@ -230,16 +216,12 @@ def gamekit_ui_list_schema() -> dict[str, Any]:
                 "spacing": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
-                    "description": "Spacing between items.",
+                    "description": "Spacing between items (object for list, number for slot/selection).",
                 },
                 "dataSource": {
                     "type": "string",
                     "enum": ["custom", "inventory", "equipment"],
                     "description": "Data source type: 'custom' (manual), 'inventory' (GameKitInventory), 'equipment' (equipped items).",
-                },
-                "sourceId": {
-                    "type": "string",
-                    "description": "Source ID for inventory/equipment data source.",
                 },
                 "selectable": {
                     "type": "boolean",
@@ -256,23 +238,35 @@ def gamekit_ui_list_schema() -> dict[str, Any]:
                         "properties": {
                             "id": {"type": "string", "description": "Item unique ID."},
                             "name": {"type": "string", "description": "Item display name."},
+                            "label": {"type": "string", "description": "Item display label."},
                             "description": {"type": "string", "description": "Item description."},
                             "iconPath": {"type": "string", "description": "Path to icon asset."},
                             "quantity": {"type": "integer", "description": "Item quantity."},
                             "enabled": {"type": "boolean", "description": "Item enabled state."},
+                            "defaultSelected": {
+                                "type": "boolean",
+                                "description": "Default selected.",
+                            },
+                            "associatedPanelPath": {
+                                "type": "string",
+                                "description": "GameObject path of associated panel for tab type.",
+                            },
                         },
                     },
-                    "description": "List items for setItems operation.",
+                    "description": "Items for setItems operation.",
                 },
                 "item": {
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
                         "name": {"type": "string"},
+                        "label": {"type": "string"},
                         "description": {"type": "string"},
                         "iconPath": {"type": "string"},
                         "quantity": {"type": "integer"},
                         "enabled": {"type": "boolean"},
+                        "defaultSelected": {"type": "boolean"},
+                        "associatedPanelPath": {"type": "string"},
                     },
                     "description": "Item data for addItem operation.",
                 },
@@ -284,57 +278,9 @@ def gamekit_ui_list_schema() -> dict[str, Any]:
                     "type": "string",
                     "description": "Item ID for selection/removal by ID.",
                 },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_ui_slot_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_ui_slot MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "setItem",
-                        "clearSlot",
-                        "setHighlight",
-                        "createSlotBar",
-                        "updateSlotBar",
-                        "inspectSlotBar",
-                        "deleteSlotBar",
-                        "useSlot",
-                        "refreshFromInventory",
-                        "findBySlotId",
-                        "findByBarId",
-                    ],
-                    "description": "UI slot operation.",
-                },
+                # ── slot properties ────────────────────────────────────
                 "slotId": {"type": "string", "description": "Unique slot identifier."},
                 "barId": {"type": "string", "description": "Unique slot bar identifier."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject path (use existing GameObject).",
-                },
-                "parentPath": {
-                    "type": "string",
-                    "description": "Parent GameObject path to create new UI slot under (auto-creates UIDocument with UXML/USS).",
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name for the created GameObject when using parentPath.",
-                },
-                "uiOutputDir": {
-                    "type": "string",
-                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
-                },
                 "size": {
                     "type": "number",
                     "description": "Slot size (width and height) when using parentPath (default: 64).",
@@ -369,15 +315,6 @@ def gamekit_ui_slot_schema() -> dict[str, Any]:
                     "type": "integer",
                     "description": "Number of slots for createSlotBar.",
                 },
-                "layout": {
-                    "type": "string",
-                    "enum": ["horizontal", "vertical", "grid"],
-                    "description": "Layout type for slot bar.",
-                },
-                "spacing": {
-                    "type": "number",
-                    "description": "Spacing between slots.",
-                },
                 "slotSize": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
@@ -391,68 +328,22 @@ def gamekit_ui_slot_schema() -> dict[str, Any]:
                     "type": "integer",
                     "description": "Starting inventory slot index.",
                 },
-                "itemId": {"type": "string", "description": "Item ID for setItem."},
-                "quantity": {
-                    "type": "integer",
-                    "description": "Item quantity for setItem.",
-                },
                 "iconPath": {
                     "type": "string",
                     "description": "Icon asset path for setItem.",
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "Item quantity for setItem.",
                 },
                 "highlighted": {
                     "type": "boolean",
                     "description": "Highlight state for setHighlight.",
                 },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_ui_selection_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_ui_selection MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
+                # ── selection properties ───────────────────────────────
+                "selectionId": {
                     "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "setItems",
-                        "addItem",
-                        "removeItem",
-                        "clear",
-                        "selectItem",
-                        "selectItemById",
-                        "deselectItem",
-                        "clearSelection",
-                        "setSelectionActions",
-                        "setItemEnabled",
-                        "findBySelectionId",
-                    ],
-                    "description": "UI selection operation.",
-                },
-                "selectionId": {"type": "string", "description": "Unique selection group identifier."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject path (use existing GameObject).",
-                },
-                "parentPath": {
-                    "type": "string",
-                    "description": "Parent GameObject path to create new UI selection under (auto-creates UIDocument with UXML/USS).",
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name for the created GameObject when using parentPath.",
-                },
-                "uiOutputDir": {
-                    "type": "string",
-                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
+                    "description": "Unique selection group identifier.",
                 },
                 "selectionType": {
                     "type": "string",
@@ -467,50 +358,6 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                     "type": "integer",
                     "description": "Default selected index.",
                 },
-                "layout": {
-                    "type": "string",
-                    "enum": ["horizontal", "vertical", "grid"],
-                    "description": "Layout type.",
-                },
-                "spacing": {
-                    "type": "number",
-                    "description": "Spacing between items.",
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string", "description": "Item ID."},
-                            "label": {"type": "string", "description": "Item display label."},
-                            "iconPath": {"type": "string", "description": "Icon asset path."},
-                            "enabled": {"type": "boolean", "description": "Item enabled state."},
-                            "defaultSelected": {"type": "boolean", "description": "Default selected."},
-                            "associatedPanelPath": {"type": "string", "description": "GameObject path of associated panel for tab type."},
-                        },
-                    },
-                    "description": "Selection items for setItems.",
-                },
-                "item": {
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": "string"},
-                        "label": {"type": "string"},
-                        "iconPath": {"type": "string"},
-                        "enabled": {"type": "boolean"},
-                        "defaultSelected": {"type": "boolean"},
-                        "associatedPanelPath": {"type": "string"},
-                    },
-                    "description": "Item data for addItem.",
-                },
-                "index": {
-                    "type": "integer",
-                    "description": "Item index.",
-                },
-                "itemId": {
-                    "type": "string",
-                    "description": "Item ID.",
-                },
                 "fireEvents": {
                     "type": "boolean",
                     "description": "Fire selection events (default: true).",
@@ -524,7 +371,10 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "selectedId": {"type": "string", "description": "Selection ID that triggers this action."},
+                            "selectedId": {
+                                "type": "string",
+                                "description": "Selection ID that triggers this action.",
+                            },
                             "showPaths": {
                                 "type": "array",
                                 "items": {"type": "string"},
@@ -541,31 +391,37 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
                 },
             },
         },
-        ["operation"],
+        ["widgetType", "operation"],
     )
 
 
-def gamekit_pool_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_pool MCP tool."""
+def gamekit_data_schema() -> dict[str, Any]:
+    """Schema for the unified unity_gamekit_data MCP tool.
+
+    Consolidates pool + data (eventChannel, dataContainer, runtimeSet)
+    behind a single tool with a ``dataType`` discriminator.
+    """
     return schema_with_required(
         {
             "type": "object",
             "properties": {
+                # ── discriminator ──────────────────────────────────────
+                "dataType": {
+                    "type": "string",
+                    "enum": ["pool", "eventChannel", "dataContainer", "runtimeSet"],
+                    "description": "Data type to operate on.",
+                },
                 "operation": {
                     "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "findByPoolId",
-                    ],
-                    "description": "Object pool operation to perform.",
+                    "enum": ["create", "update", "inspect", "delete", "find"],
+                    "description": "Operation to perform.",
                 },
+                # ── shared ─────────────────────────────────────────────
                 "targetPath": {
                     "type": "string",
                     "description": "Target GameObject hierarchy path.",
                 },
+                # ── pool properties ────────────────────────────────────
                 "poolId": {
                     "type": "string",
                     "description": "Unique object pool identifier.",
@@ -592,34 +448,7 @@ def gamekit_pool_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Enable double-release detection (default: true).",
                 },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_data_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_data MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "createEventChannel",
-                        "createDataContainer",
-                        "createRuntimeSet",
-                        "inspect",
-                        "delete",
-                        "findByDataId",
-                    ],
-                    "description": "Data architecture operation to perform.",
-                },
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject hierarchy path (for listener attachment).",
-                },
+                # ── data properties (eventChannel/dataContainer/runtimeSet) ──
                 "dataId": {
                     "type": "string",
                     "description": "Unique data asset identifier.",
@@ -680,5 +509,5 @@ def gamekit_data_schema() -> dict[str, Any]:
                 },
             },
         },
-        ["operation"],
+        ["dataType", "operation"],
     )

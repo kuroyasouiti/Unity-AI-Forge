@@ -16,7 +16,7 @@ All three files are generated from templates and placed in the user's `Assets/` 
 
 ## MCP Tool
 
-**Tool name:** `unity_gamekit_ui_command`
+**Tool name:** `unity_gamekit_ui(widgetType='command')`
 **Bridge name:** `gamekitUICommand`
 
 ## Operations
@@ -43,7 +43,7 @@ All three files are generated from templates and placed in the user's `Assets/` 
 ### Create a Command Panel
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "createCommandPanel",
     "panelId": "playerControls",
     "layout": "horizontal",
@@ -81,7 +81,7 @@ unity_compilation_await()
 ### Add a Command
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "addCommand",
     "panelId": "playerControls",
     "command": {
@@ -96,7 +96,7 @@ unity_gamekit_ui_command({
 ### Inspect
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "inspect",
     "panelId": "playerControls"
 })
@@ -105,7 +105,7 @@ unity_gamekit_ui_command({
 ### Delete
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "delete",
     "panelId": "playerControls"
 })
@@ -177,7 +177,7 @@ controls.ExecuteCommand("attack");
 ### Mobile D-Pad
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "createCommandPanel",
     "panelId": "dpad",
     "layout": "grid",
@@ -197,7 +197,7 @@ unity_gamekit_ui_command({
 ### Action Button Bar
 
 ```python
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "createCommandPanel",
     "panelId": "actionBar",
     "layout": "horizontal",

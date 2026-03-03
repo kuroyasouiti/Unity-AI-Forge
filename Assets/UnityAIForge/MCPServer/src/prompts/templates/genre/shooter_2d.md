@@ -61,10 +61,10 @@ Assets/
     Score/
       ScoreManager.cs        # 手動作成: スコア・コンボ管理
     UI/
-      HUDCommand.cs          # 生成: unity_gamekit_ui_command
-      ScoreBinding.cs        # 生成: unity_gamekit_ui_binding
-      ComboBinding.cs        # 生成: unity_gamekit_ui_binding
-      HPBinding.cs           # 生成: unity_gamekit_ui_binding
+      HUDCommand.cs          # 生成: unity_gamekit_ui (widgetType=command)
+      ScoreBinding.cs        # 生成: unity_gamekit_ui (widgetType=binding)
+      ComboBinding.cs        # 生成: unity_gamekit_ui (widgetType=binding)
+      HPBinding.cs           # 生成: unity_gamekit_ui (widgetType=binding)
   Data/
     Waves/
       Wave_Stage1.asset      # ScriptableObject: ウェーブ定義
@@ -222,7 +222,7 @@ unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
     textName='ScoreText', text='Score: 0',
     position={'x': 300, 'y': 260})
 
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/ScoreText',
     bindingId='score_display', uiType='text', format='formatted')
 unity_compilation_await(operation='await')
@@ -232,7 +232,7 @@ unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
     textName='ComboText', text='Combo: 0',
     position={'x': 300, 'y': 230})
 
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/ComboText',
     bindingId='combo_display', uiType='text', format='formatted')
 unity_compilation_await(operation='await')
@@ -242,13 +242,13 @@ unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
     textName='HPText', text='HP: 3',
     position={'x': -350, 'y': 260})
 
-unity_gamekit_ui_binding(operation='create',
+unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/HPText',
     bindingId='hp_display', uiType='text', format='formatted')
 unity_compilation_await(operation='await')
 
 # ポーズ・リトライコマンド
-unity_gamekit_ui_command(operation='createCommandPanel',
+unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='pause_cmd',
     canvasPath='Canvas_HUD',
     commands=[
@@ -288,13 +288,13 @@ unity_validate_integrity(operation='all')
 ### コンボタイマーによるリセット
 
 スコアマネージャのカスタムスクリプトで、敵撃破時にコンボカウンタを加算し、
-一定時間撃破がなければコンボをリセットする。`unity_gamekit_ui_binding` で
+一定時間撃破がなければコンボをリセットする。`unity_gamekit_ui(widgetType='binding')` で
 コンボ数を UI にリアルタイム反映させる。
 
 ### ランキングシステム
 
 ローカルランキングは PlayerPrefs またはカスタムスクリプトで JSON 保存し、
-`unity_gamekit_ui_list` でランキング画面に表示する。
+`unity_gamekit_ui(widgetType='list')` でランキング画面に表示する。
 
 ---
 
@@ -325,9 +325,7 @@ unity_validate_integrity(operation='all')
 | スプライト | `unity_sprite2d_bundle` | スプライト設定 |
 | カメラ | `unity_camera_bundle` | カメラ設定 |
 | 入力 | `unity_input_profile` | 移動・射撃・ボム入力 |
-| UI | `unity_gamekit_ui_binding` | スコア・コンボ・HP 表示 |
-| UI | `unity_gamekit_ui_command` | ポーズ・リトライ |
-| UI | `unity_gamekit_ui_list` | ランキング表示 |
+| UI | `unity_gamekit_ui` | スコア・コンボ・HP 表示 (binding) / ポーズ・リトライ (command) / ランキング表示 (list) |
 | UI基盤 | `unity_ui_foundation` | Canvas・Text 作成 |
 | イベント | `unity_event_wiring` | UnityEvent 接続 |
 | 設定 | `unity_projectSettings_crud` | 物理・レイヤー設定 |

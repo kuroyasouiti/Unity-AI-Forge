@@ -241,7 +241,7 @@ unity_batch_sequential_execute({"resume": true})
 unity_batch_sequential_execute({
     "operations": [
         {"tool": "unity_gamekit_interaction", "arguments": {...}},
-        {"tool": "unity_gamekit_ui_command", "arguments": {...}}
+        {"tool": "unity_gamekit_ui(widgetType='command')", "arguments": {...}}
     ]
 })
 ```

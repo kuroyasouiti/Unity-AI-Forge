@@ -28,11 +28,11 @@ Unity-AI-Forge を使いこなすための完全ガイド
 
 | コンポーネント | 用途 | MCP ツール |
 |:---|:---|:---|
-| [**UICommand**](GameKit/GameKitUICommand.README.md) | ボタンコマンドパネル | `unity_gamekit_ui_command` |
-| **UIBinding** | データバインディング | `unity_gamekit_ui_binding` |
-| **UIList** | リスト/グリッド | `unity_gamekit_ui_list` |
-| **UISlot** | スロット（インベントリ等） | `unity_gamekit_ui_slot` |
-| **UISelection** | 選択グループ（ラジオ/タブ等） | `unity_gamekit_ui_selection` |
+| [**UICommand**](GameKit/GameKitUICommand.README.md) | ボタンコマンドパネル | `unity_gamekit_ui(widgetType='command')` |
+| **UIBinding** | データバインディング | `unity_gamekit_ui(widgetType='binding')` |
+| **UIList** | リスト/グリッド | `unity_gamekit_ui(widgetType='list')` |
+| **UISlot** | スロット（インベントリ等） | `unity_gamekit_ui(widgetType='slot')` |
+| **UISelection** | 選択グループ（ラジオ/タブ等） | `unity_gamekit_ui(widgetType='selection')` |
 
 #### ロジックピラー
 
@@ -49,7 +49,7 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | ドキュメント | 内容 |
 |:---|:---|
 | [**MCP Server**](MCPServer/README.md) | MCP サーバーセットアップ |
-| [**47 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
+| [**42 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
 | [**Batch Sequential**](MCPServer/BATCH_SEQUENTIAL.md) | バッチ逐次処理（レジューム対応） |
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
 
@@ -71,7 +71,7 @@ Documentation/
 │
 ├── MCPServer/
 │   ├── README.md ────────────── MCP サーバー概要
-│   ├── SKILL.md ─────────────── 全47ツール解説
+│   ├── SKILL.md ─────────────── 全42ツール解説
 │   ├── BATCH_SEQUENTIAL.md ──── バッチ逐次処理
 │   └── SKILL_GAMEKIT.md ─────── GameKit 完全ガイド
 │
@@ -113,7 +113,7 @@ Documentation/
 
 ### Level 3: 高度な機能 (4-8時間)
 
-7. [全47ツール](MCPServer/SKILL.md) - Low/Mid/High レベルツール
+7. [全42ツール](MCPServer/SKILL.md) - Low/Mid/High レベルツール
 8. [03. ゲームレベル](Examples/03-game-level.md) - レベル構築
 9. [05. デザインパターン](Examples/05-design-patterns.md) - 設計
 
@@ -167,7 +167,7 @@ Documentation/
 <summary><b>MCP & AI Integration</b></summary>
 
 - [MCP Server Overview](MCPServer/README.md)
-- [All 47 Tools Reference](MCPServer/SKILL.md)
+- [All 42 Tools Reference](MCPServer/SKILL.md)
 - [Batch Sequential Tool](MCPServer/BATCH_SEQUENTIAL.md)
 - [GameKit Complete Guide](MCPServer/SKILL_GAMEKIT.md)
 
@@ -228,7 +228,7 @@ Documentation/
 |:---|:---:|:---|
 | Getting Started | 完成 | 2025-12-09 |
 | GameKit Guide | 完成 | 2026-02-20 |
-| MCP Tools (47) | 完成 | 2026-02-20 |
+| MCP Tools (42) | 完成 | 2026-02-20 |
 | Examples | 完成 | 2025-12-03 |
 | GameKit Roadmap | 計画中 | 2025-12-29 |
 | API Reference | 作成中 | - |

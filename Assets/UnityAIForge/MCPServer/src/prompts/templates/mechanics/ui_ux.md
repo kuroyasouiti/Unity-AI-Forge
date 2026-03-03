@@ -3,8 +3,8 @@
 ## 概要
 
 優れた UI/UX はゲームの操作性とユーザー体験を大きく左右します。
-Unity-AI-Forge の UI Pillar（`unity_gamekit_ui_command`、`unity_gamekit_ui_binding`、
-`unity_gamekit_ui_list`、`unity_gamekit_ui_slot`、`unity_gamekit_ui_selection`）を
+Unity-AI-Forge の UI Pillar（`unity_gamekit_ui(widgetType='command')`、`unity_gamekit_ui(widgetType='binding')`、
+`unity_gamekit_ui(widgetType='list')`、`unity_gamekit_ui(widgetType='slot')`、`unity_gamekit_ui(widgetType='selection')`）を
 `unity_ui_foundation`、`unity_ui_hierarchy`、`unity_ui_state`、`unity_ui_navigation` と
 組み合わせることで、コントローラー対応・レスポンシブなゲーム UI を素早く構築できます。
 
@@ -155,7 +155,7 @@ unity_ui_hierarchy(
 
 ```python
 # UIBinding で HP データを UI に自動反映
-unity_gamekit_ui_binding(
+unity_gamekit_ui(widgetType='binding',
     operation="create",
     targetPath="GameCanvas/UIRoot/HUD",
     bindingId="hud_hp_binding",
@@ -210,7 +210,7 @@ unity_ui_foundation(
 
 ```python
 # 画面遷移コマンドをまとめて定義
-unity_gamekit_ui_command(
+unity_gamekit_ui(widgetType='command',
     operation="createCommandPanel",
     panelId="screen_navigator",
     parentPath="GameCanvas",
@@ -325,7 +325,7 @@ unity_input_profile(
 
 ```python
 # スキル一覧を UIList で実装
-unity_gamekit_ui_list(
+unity_gamekit_ui(widgetType='list',
     operation="create",
     parentPath="GameCanvas/UIRoot/Screens",
     listId="skill_list",
@@ -337,7 +337,7 @@ unity_gamekit_ui_list(
 )
 
 # UISelection で選択状態の管理
-unity_gamekit_ui_selection(
+unity_gamekit_ui(widgetType='selection',
     operation="create",
     parentPath="GameCanvas/UIRoot/Screens/SkillPanel",
     selectionId="skill_selection",
@@ -357,7 +357,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 ### パターン 1: 設定画面のタブ切り替え
 
 ```python
-unity_gamekit_ui_selection(
+unity_gamekit_ui(widgetType='selection',
     operation="create",
     parentPath="GameCanvas/UIRoot/Screens/SettingsPanel",
     selectionId="settings_tabs",
@@ -471,7 +471,7 @@ View (MonoBehaviour on UI)
 ```
 
 **使い分け:**
-- **HUD (HP, Score, Timer)** → `unity_gamekit_ui_binding` で十分（1対1バインド）
+- **HUD (HP, Score, Timer)** → `unity_gamekit_ui(widgetType='binding')` で十分（1対1バインド）
 - **インベントリ画面** → MVP が有効（複数要素の連動、フィルタ、ソート等）
 - **設定画面** → MVP が有効（設定値の読み書き、適用/リセットのロジック）
 
@@ -573,19 +573,19 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 
 | 場面 | 推奨 | 理由 |
 |------|------|------|
-| HP/スコア等のシンプルな数値表示 | `unity_gamekit_ui_binding` | 1行で完結、ロジック不要 |
+| HP/スコア等のシンプルな数値表示 | `unity_gamekit_ui(widgetType='binding')` | 1行で完結、ロジック不要 |
 | データの読み書き双方向 | MVP | Slider/Toggle の入力→Model 更新が必要 |
-| フィルタ/ソートのあるリスト | MVP + `unity_gamekit_ui_list` | Presenter でデータ変換 |
+| フィルタ/ソートのあるリスト | MVP + `unity_gamekit_ui(widgetType='list')` | Presenter でデータ変換 |
 | 複数画面の連動 | MVP + Event Channel | 画面間のデータ受け渡し |
-| プロトタイプ段階 | `unity_gamekit_ui_binding` | 速度優先 |
+| プロトタイプ段階 | `unity_gamekit_ui(widgetType='binding')` | 速度優先 |
 
 ---
 
 ## 注意点・落とし穴
 
 1. **コード生成後のコンパイル待ち**
-   `unity_gamekit_ui_binding`、`unity_gamekit_ui_command`、`unity_gamekit_ui_list`、
-   `unity_gamekit_ui_slot`、`unity_gamekit_ui_selection` はコードを生成するため、
+   `unity_gamekit_ui(widgetType='binding')`、`unity_gamekit_ui(widgetType='command')`、`unity_gamekit_ui(widgetType='list')`、
+   `unity_gamekit_ui(widgetType='slot')`、`unity_gamekit_ui(widgetType='selection')` はコードを生成するため、
    実行後は必ず `unity_compilation_await` を呼ぶこと。
 
 2. **EventSystem の重複**
@@ -618,11 +618,11 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 | `unity_ui_hierarchy` | 宣言的な UI 階層の一括構築 |
 | `unity_ui_state` | 画面状態の定義・管理・遷移 |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
-| `unity_gamekit_ui_command` | ボタンアクション・画面切り替えコマンド |
-| `unity_gamekit_ui_binding` | データから UI への自動バインディング |
-| `unity_gamekit_ui_list` | 動的リスト・グリッド表示 |
-| `unity_gamekit_ui_slot` | スロットバー・装備スロット |
-| `unity_gamekit_ui_selection` | 選択状態の管理・タブ切り替え |
+| `unity_gamekit_ui(widgetType='command')` | ボタンアクション・画面切り替えコマンド |
+| `unity_gamekit_ui(widgetType='binding')` | データから UI への自動バインディング |
+| `unity_gamekit_ui(widgetType='list')` | 動的リスト・グリッド表示 |
+| `unity_gamekit_ui(widgetType='slot')` | スロットバー・装備スロット |
+| `unity_gamekit_ui(widgetType='selection')` | 選択状態の管理・タブ切り替え |
 | `unity_event_wiring` | ボタンと処理の接続 |
 | `unity_input_profile` | ポーズ・インベントリ等の入力設定 |
 | `unity_uitk_document` | UI Toolkit UIDocument の管理 |

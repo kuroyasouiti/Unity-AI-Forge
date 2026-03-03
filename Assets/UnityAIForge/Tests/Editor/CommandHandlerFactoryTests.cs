@@ -147,17 +147,17 @@ namespace MCP.Editor.Tests
             Assert.Contains("gameObjectManage", names, "LowLevel handler missing");
             Assert.Contains("componentManage", names, "LowLevel handler missing");
             Assert.Contains("transformBatch", names, "MidLevel handler missing");
-            Assert.Contains("gamekitUICommand", names, "GameKit handler missing");
+            Assert.Contains("gamekitUI", names, "GameKit handler missing");
             Assert.Contains("classDependencyGraph", names, "HighLevel handler missing");
         }
 
         [Test]
-        public void Initialize_Registers47Handlers()
+        public void Initialize_Registers41Handlers()
         {
             CommandHandlerFactory.Initialize();
             var stats = CommandHandlerFactory.GetStatistics();
-            Assert.AreEqual(47, stats["totalHandlers"],
-                $"Expected 47 handlers but got {stats["totalHandlers"]}. " +
+            Assert.AreEqual(41, stats["totalHandlers"],
+                $"Expected 41 handlers but got {stats["totalHandlers"]}. " +
                 $"Registered: {string.Join(", ", CommandHandlerFactory.GetRegisteredToolNames())}");
         }
     }

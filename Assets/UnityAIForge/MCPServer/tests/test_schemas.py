@@ -21,12 +21,7 @@ from tools.schemas import (
     event_wiring_schema,
     game_object_manage_schema,
     gamekit_data_schema,
-    gamekit_pool_schema,
-    gamekit_ui_binding_schema,
-    gamekit_ui_command_schema,
-    gamekit_ui_list_schema,
-    gamekit_ui_selection_schema,
-    gamekit_ui_slot_schema,
+    gamekit_ui_schema,
     input_profile_schema,
     light_bundle_schema,
     material_bundle_schema,
@@ -92,12 +87,7 @@ ALL_SCHEMA_FUNCTIONS = [
     ("event_wiring", event_wiring_schema),
     ("physics_bundle", physics_bundle_schema),
     ("navmesh_bundle", navmesh_bundle_schema),
-    ("gamekit_ui_command", gamekit_ui_command_schema),
-    ("gamekit_ui_binding", gamekit_ui_binding_schema),
-    ("gamekit_ui_list", gamekit_ui_list_schema),
-    ("gamekit_ui_slot", gamekit_ui_slot_schema),
-    ("gamekit_ui_selection", gamekit_ui_selection_schema),
-    ("gamekit_pool", gamekit_pool_schema),
+    ("gamekit_ui", gamekit_ui_schema),
     ("gamekit_data", gamekit_data_schema),
     ("class_catalog", class_catalog_schema),
     ("class_dependency_graph", class_dependency_graph_schema),
@@ -178,6 +168,6 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 46, (
-            f"Expected 46 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 41, (
+            f"Expected 41 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )

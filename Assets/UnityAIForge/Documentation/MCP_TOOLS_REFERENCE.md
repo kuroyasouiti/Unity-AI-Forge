@@ -9,9 +9,9 @@
 | Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
 | Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
 | Mid-Level Batch | 22 | バッチ操作・プリセット・UI・ビジュアル制御・物理・NavMesh |
-| High-Level GameKit | 14 | GameKit UI + Logic + Systems |
+| High-Level GameKit | 9 | GameKit UI (1) + Logic (7) + GameKit Data (1) |
 
-**合計: 47 ツール** (+ batch_sequential 1 = 合計47 MCP定義)
+**合計: 42 ツール** (+ batch_sequential 1 = 合計42 MCP定義)
 
 ---
 
@@ -400,11 +400,11 @@ UI Toolkitアセット作成（UXML、USS、PanelSettings）。
 
 ---
 
-## 8. GameKit - UIピラー (5ツール)
+## 8. GameKit - GameKit UI (1ツール)
 
 コード生成によりスタンドアロンC#スクリプトを生成。`create`後は`unity_compilation_await`が必要。
 
-### `unity_gamekit_ui_command`
+### `unity_gamekit_ui` (widgetType='command')
 UIコマンドパネル作成（UXML/USS + C#）。
 
 | パラメータ | 型 | 説明 |
@@ -419,7 +419,7 @@ UIコマンドパネル作成（UXML/USS + C#）。
 
 ---
 
-### `unity_gamekit_ui_binding`
+### `unity_gamekit_ui` (widgetType='binding')
 宣言的UIデータバインディング。
 
 | パラメータ | 型 | 説明 |
@@ -432,7 +432,7 @@ UIコマンドパネル作成（UXML/USS + C#）。
 
 ---
 
-### `unity_gamekit_ui_list`
+### `unity_gamekit_ui` (widgetType='list')
 動的ScrollViewリスト/グリッド。
 
 | パラメータ | 型 | 説明 |
@@ -445,7 +445,7 @@ UIコマンドパネル作成（UXML/USS + C#）。
 
 ---
 
-### `unity_gamekit_ui_slot`
+### `unity_gamekit_ui` (widgetType='slot')
 装備/クイックスロットUI。
 
 | パラメータ | 型 | 説明 |
@@ -457,7 +457,7 @@ UIコマンドパネル作成（UXML/USS + C#）。
 
 ---
 
-### `unity_gamekit_ui_selection`
+### `unity_gamekit_ui` (widgetType='selection')
 ラジオ/トグル/チェックボックス/タブグループ。
 
 | パラメータ | 型 | 説明 |
@@ -658,7 +658,7 @@ unity_component_crud({
 })
 
 # UIコマンドパネルで操作ボタン作成
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "createCommandPanel",
     "panelId": "playerControls",
     "layout": "horizontal",

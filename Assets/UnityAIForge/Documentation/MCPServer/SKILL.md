@@ -19,10 +19,10 @@ Before using these tools, ensure:
 
 ## 3-Layer Architecture
 
-Unity-AI-Forge provides **47 tools** organized in 3 layers. Always prefer higher-level tools first:
+Unity-AI-Forge provides **42 tools** organized in 3 layers. Always prefer higher-level tools first:
 
 ```
-High-Level GameKit (14 tools)  ← Game systems & analysis (use first)
+High-Level GameKit (9 tools)   ← Game systems & analysis (use first)
 Mid-Level Batch   (22 tools)  ← Batch operations & presets
 Low-Level CRUD     (8 tools)  ← Individual object operations
 Utility            (2 tools)  ← Helpers & diagnostics
@@ -31,7 +31,7 @@ Batch Operations   (1 tool)   ← Sequential execution
 
 | Purpose | Recommended Layer | Example |
 |---------|------------------|---------|
-| Game systems (UI, pooling, data) | High-Level GameKit | `unity_gamekit_ui_command`, `unity_gamekit_pool` |
+| Game systems (UI, pooling, data) | High-Level GameKit | `unity_gamekit_ui`, `unity_gamekit_data` |
 | Scene/code analysis | High-Level Analysis | `unity_scene_reference_graph`, `unity_class_catalog` |
 | Batch operations & presets | Mid-Level Batch | `unity_transform_batch`, `unity_material_bundle` |
 | Individual object control | Low-Level CRUD | `unity_gameobject_crud`, `unity_component_crud` |
@@ -44,9 +44,9 @@ GameKit uses **code generation** to produce standalone C# scripts from templates
 
 | Pillar | Tools | Purpose |
 |--------|-------|---------|
-| **UI** (5 tools) | Command, Binding, List, Slot, Selection | UI Toolkit-based components (UXML/USS + C#) |
+| **UI** (1 tool) | `unity_gamekit_ui` (widgetType: command/binding/list/slot/selection) | UI Toolkit-based components (UXML/USS + C#) |
 | **Logic** (7 tools) | Integrity, Catalog, Dependencies, References, Relationships, SceneDependency, ScriptSyntax | Scene/code analysis and validation |
-| **Systems** (2 tools) | Pool, Data | Object pooling and data management (event channels, containers, runtime sets) |
+| **Data** (1 tool) | `unity_gamekit_data` (dataType: pool/eventChannel/dataContainer/runtimeSet) | Object pooling and data management |
 
 After `create` operations, call `unity_compilation_await` to wait for Unity to compile the generated scripts.
 
@@ -56,7 +56,7 @@ After `create` operations, call `unity_compilation_await` to wait for Unity to c
 
 ```python
 # Create a mobile control panel (UI Pillar)
-unity_gamekit_ui_command({
+unity_gamekit_ui(widgetType='command', {
     "operation": "createCommandPanel",
     "panelId": "mobileControls",
     "layout": "grid",
@@ -543,7 +543,7 @@ unity_class_catalog({"operation": "listTypes", "typeKind": "MonoBehaviour"})
 
 ```python
 # High-Level: Game systems
-unity_gamekit_ui_command({"operation": "createCommandPanel", ...})
+unity_gamekit_ui(widgetType='command', {"operation": "createCommandPanel", ...})
 
 # Mid-Level: Batch operations
 unity_transform_batch({"operation": "arrangeCircle", "gameObjectPaths": ["Obj1", "Obj2"], "radius": 5.0})
@@ -709,17 +709,13 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-## Complete Tool Reference (47 Tools)
+## Complete Tool Reference (42 Tools)
 
-### High-Level GameKit - UI Pillar (5 tools)
+### High-Level GameKit - GameKit UI (1 tool)
 
 | Tool | Description |
 |------|-------------|
-| `unity_gamekit_ui_command` | Button command panels (UXML/USS + C#) |
-| `unity_gamekit_ui_binding` | Declarative UI data binding |
-| `unity_gamekit_ui_list` | Dynamic ScrollView list/grid |
-| `unity_gamekit_ui_slot` | Equipment/quickslot UI |
-| `unity_gamekit_ui_selection` | Radio/toggle/checkbox/tab groups |
+| `unity_gamekit_ui` | UI Toolkit components (widgetType: command/binding/list/slot/selection) |
 
 ### High-Level GameKit - Logic Pillar (7 tools)
 
@@ -733,12 +729,11 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_scene_dependency` | Scene asset dependency analysis (AssetDatabase) |
 | `unity_script_syntax` | C# source code structure analysis with line numbers |
 
-### High-Level GameKit - Systems (2 tools)
+### High-Level GameKit - GameKit Data (1 tool)
 
 | Tool | Description |
 |------|-------------|
-| `unity_gamekit_pool` | Object pooling (UnityEngine.Pool) with code generation |
-| `unity_gamekit_data` | Event channels, data containers, runtime sets (ScriptableObject) |
+| `unity_gamekit_data` | Object pooling, event channels, data containers, runtime sets (dataType: pool/eventChannel/dataContainer/runtimeSet) |
 
 ### Mid-Level Batch (22 tools)
 
@@ -802,4 +797,4 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-**You now have complete control over Unity Editor with 47 tools across 3 layers. Build amazing projects!**
+**You now have complete control over Unity Editor with 42 tools across 3 layers. Build amazing projects!**

@@ -161,15 +161,10 @@ namespace MCP.Editor.Base
         /// </summary>
         private static void RegisterHighLevelHandlers()
         {
-            // GameKit UI
-            CommandHandlerFactory.Register("gamekitUICommand", new Handlers.HighLevel.GameKitUICommandHandler());
-            CommandHandlerFactory.Register("gamekitUIBinding", new Handlers.HighLevel.GameKitUIBindingHandler());
-            CommandHandlerFactory.Register("gamekitUIList", new Handlers.HighLevel.GameKitUIListHandler());
-            CommandHandlerFactory.Register("gamekitUISlot", new Handlers.HighLevel.GameKitUISlotHandler());
-            CommandHandlerFactory.Register("gamekitUISelection", new Handlers.HighLevel.GameKitUISelectionHandler());
+            // GameKit UI (unified dispatcher → 5 internal sub-handlers)
+            CommandHandlerFactory.Register("gamekitUI", new Handlers.HighLevel.GameKitUIHandler());
 
-            // GameKit Systems (Pool & Data)
-            CommandHandlerFactory.Register("gamekitPool", new Handlers.HighLevel.GameKitPoolHandler());
+            // GameKit Data (unified: pool + eventChannel + dataContainer + runtimeSet)
             CommandHandlerFactory.Register("gamekitData", new Handlers.HighLevel.GameKitDataHandler());
 
             // Logic — 整合性検証・依存関係/参照解析・型カタログ

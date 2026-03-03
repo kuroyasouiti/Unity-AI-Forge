@@ -157,7 +157,7 @@ unity_input_profile(
 unity_gameobject_crud(operation="create", name="GameFlowManager")
 
 # UICommand で各状態の UI パネルを制御
-unity_gamekit_ui_command(
+unity_gamekit_ui(widgetType='command',
     operation="createCommandPanel",
     panelId="gameflow_ui_cmd",
     parentPath="GameFlowManager",
@@ -271,7 +271,7 @@ BossDeathState              -> 死亡演出
 | `unity_gameobject_crud` | ステートマシンホスト GameObject の作成 |
 | `unity_component_crud` | カスタムコンポーネントの追加・設定 |
 | `unity_scriptableObject_crud` | 状態設定データの ScriptableObject 作成 |
-| `unity_gamekit_ui_command` | 状態に応じた UI パネルの表示/非表示 |
+| `unity_gamekit_ui(widgetType='command')` | 状態に応じた UI パネルの表示/非表示 |
 | `unity_input_profile` | 入力アクションの定義（遷移トリガー） |
 | `unity_component_crud` (CharacterController) | プレイヤー移動の物理基盤 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |

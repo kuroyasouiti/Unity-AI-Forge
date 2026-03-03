@@ -1,4 +1,4 @@
-"""Tool definitions for all 47 MCP tools (46 registry + 1 batch_sequential).
+"""Tool definitions for all 42 MCP tools (41 registry + 1 batch_sequential).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -23,12 +23,7 @@ from tools.schemas import (
     event_wiring_schema,
     game_object_manage_schema,
     gamekit_data_schema,
-    gamekit_pool_schema,
-    gamekit_ui_binding_schema,
-    gamekit_ui_command_schema,
-    gamekit_ui_list_schema,
-    gamekit_ui_selection_schema,
-    gamekit_ui_slot_schema,
+    gamekit_ui_schema,
     input_profile_schema,
     light_bundle_schema,
     material_bundle_schema,
@@ -61,7 +56,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 47 MCP tool definitions."""
+    """Return the list of all 42 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -438,111 +433,56 @@ def get_tool_definitions() -> list[types.Tool]:
             ),
             inputSchema=navmesh_bundle_schema(),
         ),
-        # ── GameKit – UI Pillar ────────────────────────────────────
+        # ── GameKit – UI ──────────────────────────────────────────
         types.Tool(
-            name="unity_gamekit_ui_command",
+            name="unity_gamekit_ui",
             description=(
-                "High-level GameKit UI Command: create command panels using UI Toolkit (UXML/USS) with buttons that send commands to GameKitActors or GameKitManagers.\n\n"
-                "**Operations:**\n"
-                "- createCommandPanel: Generate UXML/USS and UIDocument with command buttons\n"
-                "- addCommand: Add a command button to existing panel (updates UXML)\n"
-                "- inspect: View panel configuration and UXML/USS paths\n"
-                "- delete: Remove command panel and generated UXML/USS files\n\n"
-                "**Actor Commands:** move, jump, action, look, custom\n"
-                "**Manager Commands:** addResource, setResource, consumeResource, changeState, nextTurn, triggerScene"
+                "High-level GameKit UI: unified UI widget system using UI Toolkit (UXML/USS).\n\n"
+                "**widgetType** selects the widget category:\n\n"
+                "**command** — Command panels with buttons that send commands to GameKitActors/Managers.\n"
+                "  Operations: createCommandPanel, addCommand, inspect, delete\n"
+                "  Actor Commands: move, jump, action, look, custom\n"
+                "  Manager Commands: addResource, setResource, consumeResource, changeState, nextTurn, triggerScene\n\n"
+                "**binding** — Declarative UI data binding.\n"
+                "  Operations: create, update, inspect, delete, setRange, refresh, findByBindingId\n"
+                "  Source Types: health, economy, timer, custom | Formats: raw, percent, ratio, formatted\n\n"
+                "**list** — Dynamic list/grid for displaying collections.\n"
+                "  Operations: create, update, inspect, delete, setItems, addItem, removeItem, clear,\n"
+                "    selectItem, deselectItem, clearSelection, refreshFromSource, findByListId\n"
+                "  Layout: vertical, horizontal, grid | Data Sources: custom, inventory, equipment\n\n"
+                "**slot** — Slot-based UI for equipment/quickslots/item management.\n"
+                "  Slot: create, update, inspect, delete, setItem, clearSlot, setHighlight, findBySlotId\n"
+                "  Bar: createSlotBar, updateSlotBar, inspectSlotBar, deleteSlotBar, useSlot, refreshFromInventory, findByBarId\n"
+                "  Slot Types: storage, equipment, quickslot, trash\n\n"
+                "**selection** — Selection groups (toggles, radios, checkboxes, tabs).\n"
+                "  Operations: create, update, inspect, delete, setItems, addItem, removeItem, clear,\n"
+                "    selectItem, selectItemById, deselectItem, clearSelection, setSelectionActions, setItemEnabled, findBySelectionId\n"
+                "  Selection Types: radio, toggle, checkbox, tab\n\n"
+                "All generated scripts are standalone — no dependency on Unity-AI-Forge package."
             ),
-            inputSchema=gamekit_ui_command_schema(),
+            inputSchema=gamekit_ui_schema(),
         ),
-        types.Tool(
-            name="unity_gamekit_ui_binding",
-            description=(
-                "High-level GameKit UI Binding: declarative UI data binding system using UI Toolkit.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Binding CRUD\n"
-                "- setRange: Set min/max value range\n"
-                "- refresh: Force refresh from source\n"
-                "- findByBindingId: Find binding by ID\n\n"
-                "**Source Types:** health (GameKitHealth), economy (GameKitManager resource), timer (GameKitTimer), custom\n"
-                "**Value Formats:** raw, percent, ratio, formatted\n\n"
-                "**Auto-detected UI Elements:** ProgressBar, Label, Slider, SliderInt, TextElement (queried from UIDocument)"
-            ),
-            inputSchema=gamekit_ui_binding_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_ui_list",
-            description=(
-                "High-level GameKit UI List: dynamic list/grid using UI Toolkit (UXML/USS) for displaying collections.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: List CRUD (generates UIDocument with ScrollView UXML/USS)\n"
-                "- setItems/addItem/removeItem/clear: Item management (items rendered as VisualElements)\n"
-                "- selectItem/deselectItem/clearSelection: Selection with USS class toggling\n"
-                "- refreshFromSource: Refresh from data source\n"
-                "- findByListId: Lookup\n\n"
-                "**Layout Types:** vertical, horizontal, grid\n"
-                "**Data Sources:** custom, inventory, equipment"
-            ),
-            inputSchema=gamekit_ui_list_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_ui_slot",
-            description=(
-                "High-level GameKit UI Slot: slot-based UI using UI Toolkit (UXML/USS) for equipment, quickslots, and item management.\n\n"
-                "**Slot Operations:** create/update/inspect/delete, setItem/clearSlot/setHighlight\n"
-                "**Slot Bar Operations:** createSlotBar/updateSlotBar/inspectSlotBar/deleteSlotBar, useSlot/refreshFromInventory\n"
-                "**Find Operations:** findBySlotId/findByBarId\n\n"
-                "**Slot Types:** storage, equipment, quickslot, trash\n\n"
-                "**Features:** Click handling via UITK events, category filtering, inventory binding, USS class toggling for visual states"
-            ),
-            inputSchema=gamekit_ui_slot_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_ui_selection",
-            description=(
-                "High-level GameKit UI Selection: selection group management using UI Toolkit (UXML/USS) for toggles, radios, checkboxes, and tabs.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Selection group CRUD (generates UIDocument with UXML/USS)\n"
-                "- setItems/addItem/removeItem/clear: Item management (items rendered as VisualElements)\n"
-                "- selectItem/selectItemById/deselectItem/clearSelection: Selection control with USS class toggling\n"
-                "- setSelectionActions/setItemEnabled: Configuration\n"
-                "- findBySelectionId: Lookup\n\n"
-                "**Selection Types:** radio, toggle, checkbox, tab\n\n"
-                "**Features:** USS-based visual state management, associated panels for tab mode, default selection support"
-            ),
-            inputSchema=gamekit_ui_selection_schema(),
-        ),
-        # ── GameKit – Systems ──────────────────────────────────────
-        types.Tool(
-            name="unity_gamekit_pool",
-            description=(
-                "High-level GameKit Object Pool: generate standalone object pooling MonoBehaviour using UnityEngine.Pool.\n\n"
-                "**Operations:**\n"
-                "- create: Generate ObjectPool script and attach to GameObject (requires compilation wait)\n"
-                "- update: Update pool settings (prefab, initialSize, maxSize, parent)\n"
-                "- inspect: View pool configuration\n"
-                "- delete: Remove pool component and generated script\n"
-                "- findByPoolId: Find pool by ID in scene\n\n"
-                "**Features:** Uses Unity's built-in ObjectPool<T> (2021+), configurable initial/max size, "
-                "collection checks, default parent transform, warmup and stats support.\n\n"
-                "Generated scripts are standalone — no dependency on Unity-AI-Forge package."
-            ),
-            inputSchema=gamekit_pool_schema(),
-        ),
+        # ── GameKit – Data ────────────────────────────────────────
         types.Tool(
             name="unity_gamekit_data",
             description=(
-                "High-level GameKit Data Architecture: generate ScriptableObject-based data patterns (Event Channels, Data Containers, Runtime Sets).\n\n"
-                "**Operations:**\n"
-                "- createEventChannel: Generate typed EventChannel ScriptableObject + optional EventListener MonoBehaviour\n"
-                "- createDataContainer: Generate DataContainer ScriptableObject with custom fields and reset-on-play\n"
-                "- createRuntimeSet: Generate RuntimeSet ScriptableObject for auto-register/unregister patterns\n"
-                "- inspect: View generated data asset configuration\n"
-                "- delete: Remove generated scripts and assets\n"
-                "- findByDataId: Find data asset by ID\n\n"
-                "**Event Types:** void, int, float, string, Vector3, GameObject\n"
-                "**Data Field Types:** int, float, string, bool, Vector2, Vector3, Color\n\n"
-                "Implements Unity best practices: ScriptableObject event channels for decoupled communication, "
-                "data containers for shared game state, runtime sets for dynamic object tracking. "
-                "All generated scripts are standalone."
+                "High-level GameKit Data: unified data architecture for pools, events, containers, and runtime sets.\n\n"
+                "**dataType** selects the data category:\n\n"
+                "**pool** — Object pooling using UnityEngine.Pool.\n"
+                "  Operations: create, update, inspect, delete, find\n"
+                "  Configurable: prefab, initialSize, maxSize, collectionCheck, defaultParent\n\n"
+                "**eventChannel** — ScriptableObject-based typed event channels.\n"
+                "  Operations: create, inspect, delete, find\n"
+                "  Event Types: void, int, float, string, Vector3, GameObject\n"
+                "  Optional: createListener (EventListener MonoBehaviour on targetPath)\n\n"
+                "**dataContainer** — ScriptableObject data containers with custom fields.\n"
+                "  Operations: create, inspect, delete, find\n"
+                "  Field Types: int, float, string, bool, Vector2, Vector3, Color\n"
+                "  Optional: resetOnPlay (reset values on play mode entry)\n\n"
+                "**runtimeSet** — ScriptableObject runtime sets for auto-register/unregister patterns.\n"
+                "  Operations: create, inspect, delete, find\n"
+                "  Configurable: elementType (default: GameObject)\n\n"
+                "All generated scripts are standalone — no dependency on Unity-AI-Forge package."
             ),
             inputSchema=gamekit_data_schema(),
         ),

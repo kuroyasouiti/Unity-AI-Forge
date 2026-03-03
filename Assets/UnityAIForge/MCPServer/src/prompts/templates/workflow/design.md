@@ -99,7 +99,7 @@ EventListener (MonoBehaviour)
 
 **使い分け:**
 - 同一 GameObject 内 → C# `event`
-- 1対1のUI表示更新 → `unity_gamekit_ui_binding`
+- 1対1のUI表示更新 → `unity_gamekit_ui(widgetType='binding')`
 - 多対多のシステム間通知 → **SO Event Channel**
 - Inspector で非プログラマーが接続 → **SO Event Channel** or `UnityEvent`
 
@@ -162,7 +162,7 @@ View (UGUI/UI Toolkit) ← 表示のみ
 ```
 
 **使いどころ**: HUD, インベントリ画面, ショップ画面
-**MCPツール**: `unity_gamekit_ui_binding` がModel→View方向のバインディングを提供。
+**MCPツール**: `unity_gamekit_ui(widgetType='binding')` がModel→View方向のバインディングを提供。
 
 ---
 

@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。47ツール、3層構造（Low/Mid/High-Level）。
+AI駆動型Unity開発ツールキット。42ツール、3層構造（Low/Mid/High-Level）。
 
 ## 🔴 Critical Rules
 
@@ -15,15 +15,15 @@ AI駆動型Unity開発ツールキット。47ツール、3層構造（Low/Mid/Hi
 
 ---
 
-## 📋 ツール一覧 (47ツール)
+## 📋 ツール一覧 (42ツール)
 
-### High-Level (14) - 解析・検証 + GameKit UI + Systems
+### High-Level (9) - 解析・検証 + GameKit UI + Data
 
 | カテゴリ | ツール |
 |---------|-------|
 | **Logic (7)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph, unity_scene_dependency, unity_script_syntax |
-| **GameKit UI (5)** UIシステム | unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection |
-| **GameKit Systems (2)** データ・プール | unity_gamekit_pool, unity_gamekit_data |
+| **GameKit UI (1)** UIシステム | unity_gamekit_ui (widgetType: command, binding, list, slot, selection) |
+| **GameKit Data (1)** データ・プール | unity_gamekit_data (dataType: pool, eventChannel, dataContainer, runtimeSet) |
 
 ### Mid-Level (22) - バッチ操作・プリセット
 
@@ -106,47 +106,47 @@ unity_script_syntax(operation='analyzeMetrics', searchPath='Assets/Scripts')
 
 ```python
 # UIコマンドパネル（ボタン→Actor/Manager連携）
-unity_gamekit_ui_command(operation='createCommandPanel', panelId='cmd', canvasPath='Canvas',
+unity_gamekit_ui(widgetType='command', operation='createCommandPanel', panelId='cmd', canvasPath='Canvas',
     commands=[{'name': 'Attack', 'commandType': 'action', 'label': '攻撃'}], targetType='actor', targetActorId='player')
 
 # データバインディング（sourceType: health|economy|timer|custom, format: raw|percent|ratio|formatted）
-unity_gamekit_ui_binding(operation='create', targetPath='Canvas/HPBar', bindingId='hp', sourceType='health', sourceId='player_hp', format='percent')
+unity_gamekit_ui(widgetType='binding', operation='create', targetPath='Canvas/HPBar', bindingId='hp', sourceType='health', sourceId='player_hp', format='percent')
 
 # 動的リスト/グリッド（layout: vertical|horizontal|grid）
-unity_gamekit_ui_list(operation='create', targetPath='Canvas/Inventory', listId='inv', layout='grid', gridColumns=4)
-unity_gamekit_ui_list(operation='addItem', listId='inv', itemData={'id': 'sword', 'name': '剣'})
+unity_gamekit_ui(widgetType='list', operation='create', targetPath='Canvas/Inventory', listId='inv', layout='grid', gridColumns=4)
+unity_gamekit_ui(widgetType='list', operation='addItem', listId='inv', itemData={'id': 'sword', 'name': '剣'})
 
 # スロット（slotType: storage|equipment|quickslot|trash）
-unity_gamekit_ui_slot(operation='create', targetPath='Canvas/WeaponSlot', slotId='weapon', slotType='equipment', acceptTags=['weapon'])
-unity_gamekit_ui_slot(operation='createSlotBar', barId='quickbar', targetPath='Canvas/QuickBar', slotCount=8, slotType='quickslot')
+unity_gamekit_ui(widgetType='slot', operation='create', targetPath='Canvas/WeaponSlot', slotId='weapon', slotType='equipment', acceptTags=['weapon'])
+unity_gamekit_ui(widgetType='slot', operation='createSlotBar', barId='quickbar', targetPath='Canvas/QuickBar', slotCount=8, slotType='quickslot')
 
 # 選択グループ（selectionMode: radio|toggle|checkbox|tab）
-unity_gamekit_ui_selection(operation='create', targetPath='Canvas/Tabs', selectionId='tabs', selectionMode='tab')
+unity_gamekit_ui(widgetType='selection', operation='create', targetPath='Canvas/Tabs', selectionId='tabs', selectionMode='tab')
 ```
 
 ---
 
-## 🏗️ GameKit Systems - プール・データアーキテクチャ
+## 🏗️ GameKit Data - プール・データアーキテクチャ
 
 ```python
 # オブジェクトプール（UnityEngine.Pool使用）
-unity_gamekit_pool(operation='create', targetPath='PoolManager', poolId='bullets', prefabPath='Assets/Prefabs/Bullet.prefab', initialSize=20, maxSize=100)
-unity_gamekit_pool(operation='update', poolId='bullets', maxSize=200)
-unity_gamekit_pool(operation='inspect', poolId='bullets')
+unity_gamekit_data(dataType='pool', operation='create', targetPath='PoolManager', poolId='bullets', prefabPath='Assets/Prefabs/Bullet.prefab', initialSize=20, maxSize=100)
+unity_gamekit_data(dataType='pool', operation='update', poolId='bullets', maxSize=200)
+unity_gamekit_data(dataType='pool', operation='inspect', poolId='bullets')
 
 # イベントチャンネル（ScriptableObject型、eventType: void|int|float|string|Vector3|GameObject）
-unity_gamekit_data(operation='createEventChannel', dataId='OnPlayerDeath', eventType='void', createListener=True, targetPath='GameManager')
-unity_gamekit_data(operation='createEventChannel', dataId='OnDamage', eventType='float', assetPath='Assets/Data/OnDamage.asset')
+unity_gamekit_data(dataType='eventChannel', operation='create', dataId='OnPlayerDeath', eventType='void', createListener=True, targetPath='GameManager')
+unity_gamekit_data(dataType='eventChannel', operation='create', dataId='OnDamage', eventType='float', assetPath='Assets/Data/OnDamage.asset')
 
 # データコンテナ（ScriptableObject、リセット対応）
-unity_gamekit_data(operation='createDataContainer', dataId='PlayerStats', fields=[
+unity_gamekit_data(dataType='dataContainer', operation='create', dataId='PlayerStats', fields=[
     {'name': 'health', 'fieldType': 'int', 'defaultValue': 100},
     {'name': 'speed', 'fieldType': 'float', 'defaultValue': 5.0},
     {'name': 'playerName', 'fieldType': 'string', 'defaultValue': 'Player'}
 ], resetOnPlay=True)
 
 # ランタイムセット（自動登録/解除パターン）
-unity_gamekit_data(operation='createRuntimeSet', dataId='ActiveEnemies', elementType='GameObject')
+unity_gamekit_data(dataType='runtimeSet', operation='create', dataId='ActiveEnemies', elementType='GameObject')
 ```
 
 ---
@@ -344,8 +344,8 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 
 ### オブジェクトプーリング
 - **頻繁な生成/破棄を避ける**: 弾丸、エフェクト、敵スポーンには `ObjectPool<T>` を使用
-- **GameKit Pool**: `gamekit_pool` で生成。`game_mechanics_guide(mechanic='object_pooling')` 参照
+- **GameKit Pool**: `gamekit_data(dataType='pool')` で生成。`game_mechanics_guide(mechanic='object_pooling')` 参照
 
 ---
 
-Unity-AI-Forge v{VERSION} - 47 Tools, 3-Layer Architecture
+Unity-AI-Forge v{VERSION} - 42 Tools, 3-Layer Architecture

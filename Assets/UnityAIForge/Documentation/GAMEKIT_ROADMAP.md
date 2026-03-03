@@ -9,11 +9,11 @@ This document outlines the planned MCP tools for future GameKit development. The
 v2.9.0でコード生成アーキテクチャに移行。ランタイムMonoBehaviourからテンプレートベースのスタンドアロンC#スクリプト生成に変更。
 
 **UI Pillar (5):**
-- `unity_gamekit_ui_command` - UIボタンとコマンドのバインディング
-- `unity_gamekit_ui_binding` - UIデータバインディング
-- `unity_gamekit_ui_list` - 動的リスト/グリッド
-- `unity_gamekit_ui_slot` - アイテムスロット
-- `unity_gamekit_ui_selection` - 選択グループ
+- `unity_gamekit_ui(widgetType='command')` - UIボタンとコマンドのバインディング
+- `unity_gamekit_ui(widgetType='binding')` - UIデータバインディング
+- `unity_gamekit_ui(widgetType='list')` - 動的リスト/グリッド
+- `unity_gamekit_ui(widgetType='slot')` - アイテムスロット
+- `unity_gamekit_ui(widgetType='selection')` - 選択グループ
 
 ~~**Presentation Pillar (5):** (Removed in v2.14)~~
 ~~- `unity_gamekit_animation_sync` - アニメーション同期~~
