@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 52 tools for AI-driven game development, including a GameKit framework with 3-pillar architecture (UI, Logic, Presentation) plus a Systems pillar (Pool, Data). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 47 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI system, and GameKit Systems (Pool, Data). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Requirements
 
@@ -118,14 +118,16 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `PhysicsBundleHandler.cs` - Physics presets, collision matrix, physics materials
 - `NavMeshBundleHandler.cs` - NavMesh baking, agents, obstacles, links, modifiers
 
-**HighLevel/** (7 handlers) - Analysis and integrity tools (registered as GameKit Logic Pillar):
-- `SceneIntegrityHandler.cs` - Scene integrity validation (missing scripts, null refs, broken events/prefabs, CanvasGroup audit, reference semantics)
-- `ClassCatalogHandler.cs` - Type enumeration and inspection (classes, MonoBehaviours, enums)
-- `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
-- `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
-- `SceneRelationshipGraphHandler.cs` - Scene transition and relationship analysis
-- `SceneDependencyHandler.cs` - Scene asset dependency analysis (AssetDatabase-based)
-- `ScriptSyntaxHandler.cs` - C# source code structure analysis with line numbers, event coverage, FSM reachability
+**HighLevel/** (14 handlers) - Analysis, integrity, GameKit UI & Systems:
+- Logic: `SceneIntegrityHandler.cs` - Scene integrity validation (missing scripts, null refs, broken events/prefabs, CanvasGroup audit, reference semantics)
+- Logic: `ClassCatalogHandler.cs` - Type enumeration and inspection (classes, MonoBehaviours, enums)
+- Logic: `ClassDependencyGraphHandler.cs` - Analyzes class dependencies in C# scripts
+- Logic: `SceneReferenceGraphHandler.cs` - Analyzes references between GameObjects in scene
+- Logic: `SceneRelationshipGraphHandler.cs` - Scene transition and relationship analysis
+- Logic: `SceneDependencyHandler.cs` - Scene asset dependency analysis (AssetDatabase-based)
+- Logic: `ScriptSyntaxHandler.cs` - C# source code structure analysis with line numbers, event coverage, FSM reachability
+- GameKit UI: `GameKitUICommandHandler.cs`, `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`
+- GameKit Systems: `GameKitPoolHandler.cs` (object pooling), `GameKitDataHandler.cs` (event channels, data containers, runtime sets)
 
 **Utility/** (5 handlers) - Helper tools:
 - `PingHandler.cs` - Bridge connectivity check
@@ -133,11 +135,6 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `ConsoleLogHandler.cs` - Console log retrieval and filtering
 - `PlayModeControlHandler.cs` - Play mode control (play/pause/stop/step/validateState)
 - `EventWiringHandler.cs` - UnityEvent wiring (Button.onClick, Slider.onValueChanged, etc.)
-
-**GameKit/** (12 handlers) - Game systems (3-Pillar Architecture, code generation):
-- UI Pillar: `GameKitUICommandHandler.cs`, `GameKitUIBindingHandler.cs`, `GameKitUIListHandler.cs`, `GameKitUISlotHandler.cs`, `GameKitUISelectionHandler.cs`
-- Presentation Pillar: `GameKitAnimationSyncHandler.cs`, `GameKitEffectHandler.cs`, `GameKitFeedbackHandler.cs`, `GameKitVFXHandler.cs`, `GameKitAudioHandler.cs`
-- Systems: `GameKitPoolHandler.cs` (object pooling), `GameKitDataHandler.cs` (event channels, data containers, runtime sets)
 
 **Settings/** (1 handler):
 - `ProjectSettingsManageHandler.cs` - Project settings management (player, quality, physics, tags/layers, build settings)
@@ -149,14 +146,14 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `main.py` - Entry point, sys.path setup and server launch
 - `version.py` - Package version info
 - `logger.py` - Logging configuration
-- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 48 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
-- `tools/tool_registry.py` - Single source of truth for 52 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
-- `tools/tool_definitions.py` - All 52 `types.Tool` definitions with descriptions and schema references.
+- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 43 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
+- `tools/tool_registry.py` - Single source of truth for 46 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
+- `tools/tool_definitions.py` - All 47 `types.Tool` definitions with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
-- `tools/schemas/` - JSON Schema definitions split into 8 category files:
+- `tools/schemas/` - JSON Schema definitions split into 7 category files:
   - `common.py` - Shared type helpers (Vector3, Color, etc.)
   - `utility.py`, `low_level.py`, `mid_level.py`, `visual.py`
-  - `gamekit_core.py`, `gamekit_systems.py`, `gamekit_pillar.py`, `graph.py`
+  - `high_level_gamekit.py`, `graph.py`
 - `bridge/bridge_connector.py` - WebSocket connection to Unity Bridge
 - `bridge/bridge_manager.py` - Bridge lifecycle, heartbeat, and compilation await
 - `bridge/messages.py` - Bridge message serialization
@@ -186,9 +183,8 @@ Located in `Assets/UnityAIForge/Editor/MCPServerManager/`, provides Unity Editor
 
 GameKit handlers generate standalone C# scripts from templates instead of using runtime MonoBehaviours. Generated scripts have zero dependency on the Unity-AI-Forge package.
 
-- **Templates** (16 files, 11 UI/Presentation + 5 Systems): `Assets/UnityAIForge/Editor/CodeGen/Templates/*.cs.txt`
-  - UI Pillar: `UICommand.cs.txt`, `UIBinding.cs.txt`, `UIList.cs.txt`, `UISlot.cs.txt`, `UISelection.cs.txt`
-  - Presentation Pillar: `AnimationSync.cs.txt`, `Effect.cs.txt`, `EffectManager.cs.txt`, `Feedback.cs.txt`, `VFX.cs.txt`, `Audio.cs.txt`
+- **Templates** (10 files, 5 UI + 5 Systems): `Assets/UnityAIForge/Editor/CodeGen/Templates/*.cs.txt`
+  - UI: `UICommand.cs.txt`, `UIBinding.cs.txt`, `UIList.cs.txt`, `UISlot.cs.txt`, `UISelection.cs.txt`
   - Systems: `ObjectPool.cs.txt`, `EventChannel.cs.txt`, `EventListener.cs.txt`, `DataContainer.cs.txt`, `RuntimeSet.cs.txt`
 - **Infrastructure**: `Assets/UnityAIForge/Editor/CodeGen/`
   - `CodeGenHelper.cs` - Entry point: `CodeGenHelper.GenerateAndAttach(go, templateName, componentId, className, variables, outputDir)`

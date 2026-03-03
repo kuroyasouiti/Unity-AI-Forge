@@ -6,7 +6,7 @@
 共通するのは「グリッドベースの状態管理」「Undo/Redo」「クリア条件判定」「UI 中心設計」である。
 物理演算は最小限に留め、ゲームロジックをカスタムスクリプトと ScriptableObject で完全にデータ化することが
 ゲームバランス調整の効率化に直結する。
-GameKit の UI Pillar を中心に構築し、Presentation Pillar でクリア演出を表現する。
+GameKit の UI Pillar を中心に構築する。
 
 ---
 
@@ -58,10 +58,6 @@ Assets/
       MoveBinding.cs         # 生成: unity_gamekit_ui_binding
       StageSelectList.cs     # 生成: unity_gamekit_ui_list
       DifficultyTabs.cs      # 生成: unity_gamekit_ui_selection
-    Presentation/
-      ClearFeedback.cs       # 生成: unity_gamekit_feedback
-      ClearVFX.cs            # 生成: unity_gamekit_vfx
-      PuzzleAudio.cs         # 生成: unity_gamekit_audio
   Data/
     Stages/
       Stage_001.asset        # ScriptableObject: ステージデータ
@@ -238,42 +234,7 @@ unity_gamekit_ui_list(operation='create',
 unity_compilation_await(operation='await')
 ```
 
-### Step 7: クリア演出・効果音
-
-```python
-# フィードバックマネージャ
-unity_gameobject_crud(operation='create', name='FeedbackManager')
-
-# クリア時フィードバック（画面フラッシュ）
-unity_gamekit_feedback(operation='create', targetPath='FeedbackManager',
-    feedbackId='stage_clear',
-    components=[
-        {'type': 'screenFlash', 'color': {'r':1,'g':1,'b':0.5,'a':0.6}, 'duration': 0.3},
-    ])
-unity_compilation_await(operation='await')
-
-# クリア VFX
-unity_gamekit_vfx(operation='create', targetPath='FX/ClearEffect',
-    vfxId='clear_vfx')
-unity_compilation_await(operation='await')
-
-# BGM
-unity_gamekit_audio(operation='create', targetPath='Audio/BGM',
-    audioId='puzzle_bgm', audioClipPath='Assets/Audio/BGM/Puzzle.mp3',
-    loop=True)
-unity_compilation_await(operation='await')
-
-# 操作音
-unity_gamekit_audio(operation='create', targetPath='Audio/SFX',
-    audioId='sfx_move', audioClipPath='Assets/Audio/SFX/BlockMove.wav')
-unity_compilation_await(operation='await')
-
-unity_gamekit_audio(operation='create', targetPath='Audio/SFX',
-    audioId='sfx_clear', audioClipPath='Assets/Audio/SFX/Clear.wav')
-unity_compilation_await(operation='await')
-```
-
-### Step 8: イベント接続・検証
+### Step 7: イベント接続・検証
 
 ```python
 # ボタンクリックイベントを接続
@@ -347,9 +308,6 @@ A/B テストや QA フィードバックを素早く反映できる。
 | UI | `unity_gamekit_ui_list` | ステージ選択リスト |
 | UI | `unity_gamekit_ui_selection` | 難易度タブ |
 | UI基盤 | `unity_ui_foundation` | Canvas・Text 作成 |
-| 演出 | `unity_gamekit_feedback` | クリア演出 |
-| 演出 | `unity_gamekit_vfx` | 紙吹雪・クリアエフェクト |
-| 演出 | `unity_gamekit_audio` | BGM・操作音 |
 | イベント | `unity_event_wiring` | ボタン→スクリプト接続 |
 | 設定 | `unity_projectSettings_crud` | ビルドシーン管理 |
 | 検証 | `unity_validate_integrity` | 参照切れチェック |

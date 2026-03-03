@@ -4,7 +4,7 @@
 
 横スクロール・縦スクロール問わず、ジャンプとフィールド踏破が基本となるジャンル。
 Tilemap による地形構築、Rigidbody2D による物理演算、アニメーション同期が実装の三本柱となる。
-GameKit の Presentation Pillar（animation_sync, feedback, vfx, audio）と Mid-Level の 2D ツール群を組み合わせ、
+Mid-Level の 2D ツール群を活用し、
 ゲームロジック部分は `unity_component_crud` でコンポーネントを追加し、
 `unity_asset_crud` でカスタムスクリプトを作成して実装する。
 
@@ -54,8 +54,6 @@ Assets/
   Scripts/
     Player/
       PlayerController.cs      # 手動作成 or unity_asset_crud で生成
-      PlayerAnimationSync.cs   # 生成: unity_gamekit_animation_sync
-      PlayerAudio.cs           # 生成: unity_gamekit_audio
     Enemy/
       EnemyController.cs       # 手動作成（移動・衝突判定スクリプト）
     Items/
@@ -183,15 +181,6 @@ unity_component_crud(operation='add', gameObjectPath='Player',
 unity_animation2d_bundle(operation='setupAnimator', gameObjectPath='Player',
     controllerPath='Assets/Animations/Player/PlayerAnimator.controller')
 
-# アニメーション同期（速度・接地判定を自動でパラメータに反映）
-unity_gamekit_animation_sync(operation='create', targetPath='Player',
-    syncId='player_anim', syncSource='rigidbody2d', animatorPath='Player')
-unity_compilation_await(operation='await')
-
-unity_gamekit_animation_sync(operation='addSyncRule', syncId='player_anim',
-    parameterName='Speed', sourceField='velocity.magnitude')
-unity_gamekit_animation_sync(operation='addSyncRule', syncId='player_anim',
-    parameterName='VelocityY', sourceField='velocity.y')
 ```
 
 ### Step 4: カメラ・HUD
@@ -272,34 +261,7 @@ unity_prefab_crud(operation='create',
     prefabPath='Assets/Prefabs/Enemies/Enemy_Goomba.prefab')
 ```
 
-### Step 7: ダメージフィードバック・演出
-
-```python
-# 被弾フィードバック（ヒットストップ＋スクリーンシェイク）
-unity_gameobject_crud(operation='create', name='FeedbackManager')
-unity_gamekit_feedback(operation='create', targetPath='FeedbackManager',
-    feedbackId='player_hit',
-    components=[
-        {'type': 'hitstop', 'duration': 0.06},
-        {'type': 'screenShake', 'intensity': 0.25, 'duration': 0.2},
-    ])
-unity_compilation_await(operation='await')
-
-# 死亡 VFX
-unity_gameobject_crud(operation='create', name='FX', parentPath='')
-unity_gamekit_vfx(operation='create', targetPath='FX',
-    vfxId='player_death_vfx')
-unity_compilation_await(operation='await')
-
-# BGM
-unity_gameobject_crud(operation='create', name='BGM', parentPath='Audio')
-unity_gamekit_audio(operation='create', targetPath='Audio/BGM',
-    audioId='stage_bgm', audioClipPath='Assets/Audio/BGM/Stage1.mp3',
-    loop=True, volume=0.8)
-unity_compilation_await(operation='await')
-```
-
-### Step 8: ステージ進行・シーン遷移設定
+### Step 7: ステージ進行・シーン遷移設定
 
 ```python
 # ゴールオブジェクト
@@ -329,7 +291,7 @@ unity_scene_relationship_graph(operation='analyzeAll')
 
 `unity_component_crud` で Rigidbody2D（gravityScale=3, Continuous衝突検出）+ CapsuleCollider2D が設定される。
 接地判定は Raycast または足元の小さな BoxCast で実装する。
-`animation_sync` の `addSyncRule` で `isGrounded` を `Bool` パラメータにバインドすれば
+Animator パラメータの `isGrounded` を `Bool` でスクリプトから設定すれば
 ジャンプアニメーションへの遷移が自動化される。
 
 ### ステージ遷移の実装
@@ -351,8 +313,6 @@ unity_scene_relationship_graph(operation='analyzeAll')
   `Outlines` だと天井や坂でスタックが発生しやすい。
 - **Rigidbody2D の Collision Detection** は `Continuous` に設定する。
   高速移動時に壁をすり抜ける「トンネリング」を防ぐ。
-- **animation_sync** は Animator がアクティブな GameObject に作成すること。
-  非アクティブ時は `syncSource` の値取得が失敗する。
 - **GameKit 生成スクリプト** は `unity_compilation_await` で
   コンパイル完了を待ってからプロパティ設定を行うこと。
 - **Prefab の変更** は `unity_prefab_crud(operation='applyOverrides')` を忘れずに。
@@ -367,7 +327,6 @@ unity_scene_relationship_graph(operation='analyzeAll')
 | 地形 | `unity_tilemap_bundle` | Tilemap 作成・タイル配置 |
 | 地形 | `unity_sprite2d_bundle` | スプライト設定・スライス |
 | アニメーション | `unity_animation2d_bundle` | Animator・クリップ生成 |
-| アニメーション | `unity_gamekit_animation_sync` | 速度→アニメパラメータ同期 |
 | 物理 | `unity_component_crud` | Rigidbody2D・Collider2D 追加・物理設定 |
 | カメラ | `unity_camera_rig` | フォローカメラ設定 |
 | オブジェクト | `unity_gameobject_crud` | GameObject 作成・配置 |
@@ -378,9 +337,6 @@ unity_scene_relationship_graph(operation='analyzeAll')
 | UI | `unity_ui_foundation` | HUD Canvas 構築 |
 | UI | `unity_gamekit_ui_binding` | HP・スコア表示バインド |
 | UI | `unity_gamekit_ui_command` | ポーズ・リトライ操作 |
-| 演出 | `unity_gamekit_feedback` | ヒットストップ・シェイク |
-| 演出 | `unity_gamekit_vfx` | 爆発・死亡エフェクト |
-| 演出 | `unity_gamekit_audio` | BGM・SE 再生 |
 | 入力 | `unity_input_profile` | Input System 設定 |
 | イベント | `unity_event_wiring` | UnityEvent 接続 |
 | 設定 | `unity_projectSettings_crud` | 物理・タグ・ビルド設定 |

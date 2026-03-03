@@ -9,7 +9,7 @@ Animator Controller はキャラクターの動作状態（待機・移動・攻
 
 このガイドでは Unity 公式推奨のパターン（Hub-and-Spoke、Blend Tree、
 Critical Section、Layer 分離）を解説し、Unity-AI-Forge の
-`unity_animation2d_bundle` / `unity_animation3d_bundle` / `unity_gamekit_animation_sync`
+`unity_animation2d_bundle` / `unity_animation3d_bundle`
 を活用した効率的な構築ワークフローを提供します。
 
 ---
@@ -290,39 +290,7 @@ unity_animation3d_bundle(operation="addState",
     clipPath="Assets/Animations/Player/Clips/Attack_01.anim")
 ```
 
-### Step 6: GameKit AnimationSync で自動連動
-
-```python
-# AnimationSync でパラメータを自動更新
-unity_gamekit_animation_sync(operation="create",
-    targetPath="Player",
-    syncId="player_anim",
-    syncSource="rigidbody2d",
-    animatorPath="Player")
-
-unity_compilation_await(operation="await")
-
-# 速度 → Speed パラメータ
-unity_gamekit_animation_sync(operation="addSyncRule",
-    syncId="player_anim",
-    parameterName="Speed",
-    sourceField="velocity.magnitude")
-
-# Y速度 → VelocityY パラメータ
-unity_gamekit_animation_sync(operation="addSyncRule",
-    syncId="player_anim",
-    parameterName="VelocityY",
-    sourceField="velocity.y")
-
-# ダメージイベント → Hurt トリガー
-unity_gamekit_animation_sync(operation="addTriggerRule",
-    syncId="player_anim",
-    triggerName="Hurt",
-    eventSource="health",
-    eventType="damage")
-```
-
-### Step 7: 検証
+### Step 6: 検証
 
 ```python
 # Animator Controller の整合性を確認
@@ -353,8 +321,8 @@ Hub → Death  (isDead)
 ```
 
 各ステートから Hub への復帰は ExitTime または条件遷移で実現。
-`unity_gamekit_animation_sync` の `syncSource='custom'` で
-カスタムスクリプトのフィールドを直接パラメータにバインドできます。
+カスタムスクリプトから `Animator.SetFloat()` / `SetBool()` で
+パラメータを直接設定します。
 
 ### パターン 2: コンボ攻撃チェーン
 
@@ -368,7 +336,7 @@ Attack_02 → Hub       (ExitTime 1.0, no combo input)
 
 - `ExitTime` の範囲でのみコンボ入力を受け付ける
 - 範囲外は自動的に Hub に復帰
-- `unity_gamekit_feedback` でヒットストップ・画面振動を各攻撃に追加
+- カスタムスクリプトでヒットストップ・画面振動を各攻撃に追加
 
 ### パターン 3: Additive Layer でダメージリアクション
 
@@ -389,7 +357,7 @@ unity_animation3d_bundle(operation="addLayer",
 ## 注意点・落とし穴
 
 1. **パラメータ名の完全一致**
-   `animation_sync` の `parameterName` は Animator Controller 内のパラメータ名と
+   `Animator.SetFloat()` / `SetBool()` のパラメータ名は Animator Controller 内のパラメータ名と
    大文字・小文字を含め完全一致が必要。不一致時はサイレントに無視される。
 
 2. **Any State トランジションの過剰使用**
@@ -420,8 +388,6 @@ unity_animation3d_bundle(operation="addLayer",
 |---|---|
 | `unity_animation2d_bundle` | 2D AnimatorController 作成・ステート/パラメータ/トランジション追加 |
 | `unity_animation3d_bundle` | 3D AnimatorController 作成・BlendTree・Layer・AvatarMask |
-| `unity_gamekit_animation_sync` | Animator パラメータの自動同期（速度・接地判定等） |
-| `unity_gamekit_feedback` | ヒットストップ・画面振動（攻撃ステートと連動） |
 | `unity_component_crud` | Animator コンポーネントの追加・設定 |
 | `unity_asset_crud` | カスタム State Machine Behaviour スクリプト生成 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |

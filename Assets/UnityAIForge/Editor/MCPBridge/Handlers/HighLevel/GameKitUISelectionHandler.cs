@@ -8,7 +8,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace MCP.Editor.Handlers.GameKit
+namespace MCP.Editor.Handlers.HighLevel
 {
     /// <summary>
     /// GameKit UI Selection handler: create and manage selection groups using UI Toolkit.

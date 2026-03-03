@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。52ツール、3層構造（Low/Mid/High-Level）、3-Pillar GameKit（UI, Presentation, Logic）。
+AI駆動型Unity開発ツールキット。47ツール、3層構造（Low/Mid/High-Level）。
 
 ## 🔴 Critical Rules
 
@@ -15,16 +15,15 @@ AI駆動型Unity開発ツールキット。52ツール、3層構造（Low/Mid/Hi
 
 ---
 
-## 📋 ツール一覧 (52ツール)
+## 📋 ツール一覧 (47ツール)
 
-### High-Level GameKit (19) - 3-Pillar Architecture + Systems
+### High-Level (14) - 解析・検証 + GameKit UI + Systems
 
-| Pillar | ツール |
-|--------|-------|
+| カテゴリ | ツール |
+|---------|-------|
 | **Logic (7)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph, unity_scene_dependency, unity_script_syntax |
-| **UI (5)** UIシステム | unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection |
-| **Presentation (5)** 演出 | unity_gamekit_animation_sync, unity_gamekit_effect, unity_gamekit_feedback, unity_gamekit_vfx, unity_gamekit_audio |
-| **Systems (2)** データ・プール | unity_gamekit_pool, unity_gamekit_data |
+| **GameKit UI (5)** UIシステム | unity_gamekit_ui_command, unity_gamekit_ui_binding, unity_gamekit_ui_list, unity_gamekit_ui_slot, unity_gamekit_ui_selection |
+| **GameKit Systems (2)** データ・プール | unity_gamekit_pool, unity_gamekit_data |
 
 ### Mid-Level (22) - バッチ操作・プリセット
 
@@ -123,32 +122,6 @@ unity_gamekit_ui_slot(operation='createSlotBar', barId='quickbar', targetPath='C
 
 # 選択グループ（selectionMode: radio|toggle|checkbox|tab）
 unity_gamekit_ui_selection(operation='create', targetPath='Canvas/Tabs', selectionId='tabs', selectionMode='tab')
-```
-
----
-
-## 🎨 Presentation Pillar - 演出（コード生成、スタンドアロン）
-
-```python
-# 複合エフェクト（componentType: particle|sound|cameraShake|screenFlash|timeScale）
-unity_gamekit_effect(operation='create', targetPath='FX/Explosion', effectId='boom',
-    components=[{'type': 'particle', 'prefabPath': 'Assets/Prefabs/Boom.prefab'}, {'type': 'cameraShake', 'intensity': 0.5, 'duration': 0.3}])
-unity_gamekit_effect(operation='createManager', targetPath='EffectManager')
-
-# フィードバック（type: hitstop|screenShake|flash|colorFlash|scale|position|rotation|sound|particle|haptic）
-unity_gamekit_feedback(operation='create', targetPath='FBMgr', feedbackId='hit',
-    components=[{'type': 'hitstop', 'duration': 0.05}, {'type': 'screenShake', 'intensity': 0.3, 'duration': 0.15}])
-
-# VFX（プーリング対応）
-unity_gamekit_vfx(operation='create', targetPath='FX/Boom', vfxId='boom_vfx', particlePrefabPath='Assets/Prefabs/Boom.prefab', usePooling=True, poolSize=10)
-
-# オーディオ（audioType: sfx|music|ambient|voice|ui）
-unity_gamekit_audio(operation='create', targetPath='Audio/BGM', audioId='bgm', audioType='music', audioClipPath='Assets/Audio/BGM.mp3', loop=True)
-
-# アニメーション同期（syncSource: rigidbody2d|rigidbody3d|transform|health|custom）
-unity_gamekit_animation_sync(operation='create', targetPath='Player', syncId='anim', syncSource='rigidbody2d', animatorPath='Player')
-unity_gamekit_animation_sync(operation='addSyncRule', syncId='anim', parameterName='Speed', sourceField='velocity.magnitude')
-unity_gamekit_animation_sync(operation='addTriggerRule', syncId='anim', triggerName='Hit', eventSource='health', eventType='damage')
 ```
 
 ---
@@ -368,13 +341,11 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 - **Hub-and-Spoke**: 中央 Empty State から各アクション状態へ放射状遷移。デバッグ容易
 - **Blend Tree**: 速度・方向の連続値にはステートではなく BlendTree を使用。ステート数削減
 - **Layer 分離**: 上半身/下半身/表情を独立レイヤーで制御（`game_mechanics_guide(mechanic='animation_controller')`）
-- **AnimationSync 連携**: `gamekit_animation_sync` でパラメータ自動同期。手動 SetFloat/SetBool 不要
 
 ### オブジェクトプーリング
 - **頻繁な生成/破棄を避ける**: 弾丸、エフェクト、敵スポーンには `ObjectPool<T>` を使用
-- **GameKit VFX 内蔵プーリング**: VFX用途は `gamekit_vfx(usePooling=True)` が最も簡潔
-- **汎用プール**: `game_mechanics_guide(mechanic='object_pooling')` 参照
+- **GameKit Pool**: `gamekit_pool` で生成。`game_mechanics_guide(mechanic='object_pooling')` 参照
 
 ---
 
-Unity-AI-Forge v{VERSION} - 52 Tools, 3-Layer Architecture, 3-Pillar GameKit
+Unity-AI-Forge v{VERSION} - 47 Tools, 3-Layer Architecture

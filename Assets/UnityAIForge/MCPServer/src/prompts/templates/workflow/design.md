@@ -124,12 +124,12 @@ public interface ICommand
 頻繁に生成・破棄されるオブジェクト（弾, エフェクト）のGC負荷軽減。
 
 ```csharp
-// GameKit VFX はプーリング内蔵
-// unity_gamekit_vfx(usePooling=True, poolSize=20)
+// Unity 2021+ の ObjectPool<T> を使用
+// new ObjectPool<GameObject>(createFunc, actionOnGet, actionOnRelease, ...)
 ```
 
 **使いどころ**: 弾, VFXパーティクル, 敵の大量スポーン
-**備考**: `unity_gamekit_vfx` はプーリング機能を内蔵しているため、VFX用途では自前実装不要。
+**備考**: Unity 2021+ では `UnityEngine.Pool.ObjectPool<T>` が標準提供されています。
 
 ### ScriptableObject (データ駆動)
 
@@ -321,22 +321,10 @@ classDiagram
         +int maxHP
         +float moveSpeed
     }
-    class PlayerAnimSync {
-        <<beta>>
-        +SyncSpeed()
-        +TriggerAttack()
-    }
-    class HitFeedback {
-        <<beta>>
-        +PlayHitStop()
-        +ShakeScreen()
-    }
 
     GameManager --> PlayerController : manages
     GameManager --> EnemyController : manages
     EnemyController --> EnemyData : references
-    PlayerController --> PlayerAnimSync : presentation
-    EnemyController --> HitFeedback : presentation
 ```
 
 ### フェーズ注釈付きステート図の例
@@ -367,7 +355,7 @@ stateDiagram-v2
 
 - プロトタイプで `<<proto>>` 以外のクラスを実装しない。過剰設計を防ぐ
 - `<<alpha>>` のクラスで `<<proto>>` のクラスを置き換える場合がある（例: ハードコード PlayerProto → SO参照の PlayerController）
-- `<<beta>>` のクラスは Presentation Pillar ツールで生成されるため、設計時は接続先のみ定義すれば十分
+- `<<beta>>` のクラスは演出層（マテリアル・アニメーション・ライティング等）のため、設計時は接続先のみ定義すれば十分
 
 ---
 
@@ -448,7 +436,7 @@ stateDiagram-v2
 1. **プロジェクト初期設定** (`game_workflow_guide(phase='project_setup')`) - タグ・レイヤー・フォルダ構造の実装
 2. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
 
-フェーズ別実装マッピングで `<<proto>>` を付与したクラス・状態のみをプロトタイプで実装し、`<<alpha>>` のクラスはアルファフェーズで正式なアーキテクチャとして実装します。`<<beta>>` の演出クラスはベータフェーズで Presentation Pillar ツールを使って追加します。
+フェーズ別実装マッピングで `<<proto>>` を付与したクラス・状態のみをプロトタイプで実装し、`<<alpha>>` のクラスはアルファフェーズで正式なアーキテクチャとして実装します。`<<beta>>` の演出クラスはベータフェーズで Mid-Level ツールを使って追加します。
 
 ---
 

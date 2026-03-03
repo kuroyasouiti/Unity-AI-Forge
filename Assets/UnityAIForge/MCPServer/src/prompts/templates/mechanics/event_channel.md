@@ -379,7 +379,7 @@ public class EventLogger : MonoBehaviour
 6. **パフォーマンス**
    毎フレーム発火するイベントには SO チャネルを使わないこと。
    `Invoke` のオーバーヘッドは C# event より大きい。
-   位置同期やアニメーション更新には直接参照か `unity_gamekit_animation_sync` を使用。
+   位置同期やアニメーション更新には直接参照を使用。
 
 ---
 

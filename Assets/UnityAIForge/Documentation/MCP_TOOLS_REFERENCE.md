@@ -9,9 +9,9 @@
 | Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
 | Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
 | Mid-Level Batch | 22 | バッチ操作・プリセット・UI・ビジュアル制御・物理・NavMesh |
-| High-Level GameKit | 19 | 3本柱ゲーム開発フレームワーク + Systemsピラー |
+| High-Level GameKit | 14 | GameKit UI + Logic + Systems |
 
-**合計: 52 ツール** (+ batch_sequential 1 = 合計52 MCP定義)
+**合計: 47 ツール** (+ batch_sequential 1 = 合計47 MCP定義)
 
 ---
 
@@ -466,77 +466,7 @@ UIコマンドパネル作成（UXML/USS + C#）。
 
 ---
 
-## 9. GameKit - Presentationピラー (5ツール)
-
-### `unity_gamekit_animation_sync`
-宣言的アニメーション同期。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `addSyncRule`, `removeSyncRule`, `addTriggerRule`, `removeTriggerRule`, `fireTrigger`, `setParameter`, `findBySyncId` |
-| syncId | string | 同期識別子 |
-| syncRules | array | 同期ルール配列 |
-| triggers | array | トリガールール配列 |
-
-**ソースタイプ:** `rigidbody3d`, `rigidbody2d`, `transform`, `health`, `custom`
-
----
-
-### `unity_gamekit_effect`
-複合エフェクトシステム。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `addComponent`, `removeComponent`, `clearComponents`, `play`, `playAtPosition`, `playAtTransform`, `shakeCamera`, `flashScreen`, `setTimeScale`, `createManager`, `registerEffect`, `unregisterEffect` |
-| effectId | string | エフェクト識別子 |
-| components | array | エフェクトコンポーネント配列 |
-
-**コンポーネントタイプ:** `particle`, `sound`, `cameraShake`, `screenFlash`, `timeScale`
-
----
-
-### `unity_gamekit_feedback`
-ゲームフィール（ヒットストップ、画面振動等）。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `addComponent`, `clearComponents`, `setIntensity`, `findByFeedbackId` |
-| feedbackId | string | フィードバック識別子 |
-| components | array | フィードバックコンポーネント配列 |
-| globalIntensityMultiplier | number | グローバル強度倍率 |
-
-**コンポーネントタイプ:** `hitstop`, `screenShake`, `colorFlash`, `scaleEffect`, `knockback`, `particleEffect`, `soundEffect`, `slowMotion`, `chromaticAberration`, `vignette`
-
----
-
-### `unity_gamekit_vfx`
-ParticleSystemラッパー（プーリング対応）。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `setMultipliers`, `setColor`, `setLoop`, `findByVFXId` |
-| vfxId | string | VFX識別子 |
-| particlePrefabPath | string | パーティクルプレハブパス |
-| usePooling | boolean | オブジェクトプーリング使用 |
-| poolSize | integer | プールサイズ |
-
----
-
-### `unity_gamekit_audio`
-サウンド管理（SFX、BGM、環境音）。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `update`, `inspect`, `delete`, `setVolume`, `setPitch`, `setLoop`, `setClip`, `findByAudioId` |
-| audioId | string | オーディオ識別子 |
-| audioType | string | `sfx`, `music`, `ambient`, `voice`, `ui` |
-| audioClipPath | string | AudioClipパス |
-| volume | number | 音量 |
-| fadeInDuration/fadeOutDuration | number | フェード時間 |
-
----
-
-## 10. GameKit - Logicピラー (7ツール)
+## 9. GameKit - Logicピラー (7ツール)
 
 ### `unity_validate_integrity`
 シーン整合性検証。
@@ -776,33 +706,9 @@ unity_ui_navigation({
 })
 ```
 
-### エフェクトとフィードバック
+### シーン整合性検証
 
 ```python
-# 爆発エフェクト作成
-unity_gamekit_effect({
-    "operation": "create",
-    "effectId": "explosion",
-    "components": [
-        {"type": "particle", "prefabPath": "Assets/Prefabs/ExplosionVFX.prefab", "duration": 1.0},
-        {"type": "sound", "clipPath": "Assets/Audio/explosion.wav", "volume": 0.8},
-        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3}
-    ]
-})
-unity_compilation_await({"operation": "await"})
-
-# ヒットフィードバック作成
-unity_gamekit_feedback({
-    "operation": "create",
-    "feedbackId": "onHit",
-    "components": [
-        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
-        {"type": "screenShake", "duration": 0.2, "intensity": 0.3},
-        {"type": "colorFlash", "color": {"r": 1, "g": 0, "b": 0, "a": 0.5}, "flashDuration": 0.1}
-    ]
-})
-unity_compilation_await({"operation": "await"})
-
 # シーン整合性検証
 unity_validate_integrity({"operation": "all"})
 ```

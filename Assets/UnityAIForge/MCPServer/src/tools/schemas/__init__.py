@@ -6,10 +6,8 @@ This module organizes tool schemas into logical groups:
 - low_level: CRUD operations (Scene, GameObject, Component, Asset, etc.)
 - mid_level: Batch operations and presets (Transform, Physics, UI, etc.)
 - visual: Sprite, animation, material, light, particle, event wiring
-- gamekit_core: UICommand (UI Pillar)
-- gamekit_systems: AnimationSync, Effect (Presentation Pillar)
-- gamekit_pillar: UI Pillar + Presentation Pillar tools
-- graph: Integrity validation, class/scene dependency & reference analysis (Logic Pillar)
+- high_level_gamekit: GameKit UI (Command/Binding/List/Slot/Selection) + Systems (Pool/Data)
+- graph: Integrity validation, class/scene dependency & reference analysis (Logic)
 """
 
 from tools.schemas.common import (
@@ -25,24 +23,6 @@ from tools.schemas.common import (
     vector2_schema,
     vector3_schema,
 )
-from tools.schemas.gamekit_core import (
-    gamekit_ui_command_schema,
-)
-from tools.schemas.gamekit_pillar import (
-    gamekit_audio_schema,
-    gamekit_feedback_schema,
-    gamekit_ui_binding_schema,
-    gamekit_ui_list_schema,
-    gamekit_ui_selection_schema,
-    gamekit_ui_slot_schema,
-    gamekit_vfx_schema,
-)
-from tools.schemas.gamekit_systems import (
-    gamekit_animation_sync_schema,
-    gamekit_data_schema,
-    gamekit_effect_schema,
-    gamekit_pool_schema,
-)
 from tools.schemas.graph import (
     class_catalog_schema,
     class_dependency_graph_schema,
@@ -51,6 +31,15 @@ from tools.schemas.graph import (
     scene_relationship_graph_schema,
     script_syntax_schema,
     validate_integrity_schema,
+)
+from tools.schemas.high_level_gamekit import (
+    gamekit_data_schema,
+    gamekit_pool_schema,
+    gamekit_ui_binding_schema,
+    gamekit_ui_command_schema,
+    gamekit_ui_list_schema,
+    gamekit_ui_selection_schema,
+    gamekit_ui_slot_schema,
 )
 from tools.schemas.low_level import (
     asset_manage_schema,
@@ -142,22 +131,15 @@ __all__ = [
     "light_bundle_schema",
     "particle_bundle_schema",
     "event_wiring_schema",
-    # gamekit_core (UI Pillar)
+    # high_level_gamekit (GameKit UI + Systems)
     "gamekit_ui_command_schema",
-    # gamekit_systems (Presentation Pillar + Systems)
-    "gamekit_animation_sync_schema",
-    "gamekit_effect_schema",
-    "gamekit_pool_schema",
-    "gamekit_data_schema",
-    # gamekit_pillar (UI + Presentation Pillar)
     "gamekit_ui_binding_schema",
     "gamekit_ui_list_schema",
     "gamekit_ui_slot_schema",
     "gamekit_ui_selection_schema",
-    "gamekit_feedback_schema",
-    "gamekit_vfx_schema",
-    "gamekit_audio_schema",
-    # graph (Logic Pillar — integrity validation + dependency/reference analysis + type catalog)
+    "gamekit_pool_schema",
+    "gamekit_data_schema",
+    # graph (Logic — integrity validation + dependency/reference analysis + type catalog)
     "validate_integrity_schema",
     "class_catalog_schema",
     "class_dependency_graph_schema",

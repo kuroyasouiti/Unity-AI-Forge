@@ -1,6 +1,6 @@
 # GameKit Framework - Complete MCP Tool Guide
 
-**High-level game development framework with 3-pillar architecture: UI, Presentation, and Logic.**
+**High-level game development framework with GameKit UI, Systems, and Logic pillars.**
 
 GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
@@ -13,30 +13,24 @@ GameKit uses code generation to produce standalone C# scripts from templates, so
    - [UIList](#uilist)
    - [UISlot](#uislot)
    - [UISelection](#uiselection)
-3. [Presentation Pillar](#presentation-pillar)
-   - [AnimationSync](#animationsync)
-   - [Effect](#effect)
-   - [Feedback](#feedback)
-   - [VFX](#vfx)
-   - [Audio](#audio)
-4. [Logic Pillar](#logic-pillar)
-5. [Code Generation Workflow](#code-generation-workflow)
-6. [Complete Game Example](#complete-game-example)
-7. [Best Practices](#best-practices)
+3. [Logic Pillar](#logic-pillar)
+4. [Code Generation Workflow](#code-generation-workflow)
+5. [Complete Game Example](#complete-game-example)
+6. [Best Practices](#best-practices)
 
 ---
 
 ## Architecture Overview
 
-GameKit is organized into three pillars:
+GameKit is organized into pillars:
 
 | Pillar | Tools | Purpose |
 |--------|-------|---------|
 | **UI** | 5 tools | Generate UI Toolkit-based components (UXML/USS + C#) |
-| **Presentation** | 5 tools | Generate visual effects, animation, feedback, and audio components |
 | **Logic** | 7 tools | Scene/code analysis and integrity validation |
+| **Systems** | 2 tools | Object pooling and data management (event channels, containers, runtime sets) |
 
-All UI and Presentation pillar tools use **code generation**:
+All UI pillar tools use **code generation**:
 - Templates in `Assets/UnityAIForge/Editor/CodeGen/Templates/`
 - Generated scripts output to `Assets/Scripts/Generated/` by default
 - Generated code uses only standard Unity APIs (zero package dependency)
@@ -443,344 +437,6 @@ unity_gamekit_ui_selection({
 
 ---
 
-## Presentation Pillar
-
-### AnimationSync
-
-**MCP Tool:** `unity_gamekit_animation_sync`
-
-Declaratively sync Animator parameters with game state (velocity, health, etc.) and set up trigger rules for events.
-
-#### Operations
-
-| Operation | Description | Requires Compilation |
-|-----------|-------------|---------------------|
-| `create` | Create animation sync | Yes |
-| `update` | Modify animator reference | No |
-| `inspect` | View sync rules | No |
-| `delete` | Remove component | No |
-| `addSyncRule` | Add parameter sync | No |
-| `removeSyncRule` | Remove sync rule | No |
-| `addTriggerRule` | Add trigger rule | No |
-| `removeTriggerRule` | Remove trigger rule | No |
-| `fireTrigger` | Fire trigger (play mode) | No |
-| `setParameter` | Set parameter (play mode) | No |
-| `findBySyncId` | Find by ID | No |
-
-#### Sync Rule Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `parameter` | string | Animator parameter name |
-| `parameterType` | string | `float`, `int`, `bool` |
-| `sourceType` | string | `rigidbody3d`, `rigidbody2d`, `transform`, `health`, `custom` |
-| `sourceProperty` | string | Property name (e.g., `velocity.magnitude`) |
-| `multiplier` | number | Value scaling factor |
-| `boolThreshold` | number | Threshold for bool conversion |
-
-#### Trigger Rule Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `triggerName` | string | Animator trigger name |
-| `eventSource` | string | `health`, `input`, `manual` |
-| `inputAction` | string | Input action name |
-| `healthId` | string | Health component ID |
-| `healthEvent` | string | `OnDamaged`, `OnHealed`, `OnDeath`, `OnRespawn`, `OnInvincibilityStart`, `OnInvincibilityEnd` |
-
-#### Example
-
-```python
-unity_gamekit_animation_sync({
-    "operation": "create",
-    "syncId": "playerAnimSync",
-    "autoFindAnimator": true,
-    "syncRules": [
-        {"parameter": "Speed", "parameterType": "float",
-         "sourceType": "rigidbody3d",
-         "sourceProperty": "velocity.magnitude"},
-        {"parameter": "VelocityY", "parameterType": "float",
-         "sourceType": "rigidbody3d",
-         "sourceProperty": "velocity.y"},
-        {"parameter": "IsMoving", "parameterType": "bool",
-         "sourceType": "rigidbody3d",
-         "sourceProperty": "velocity.magnitude",
-         "boolThreshold": 0.1}
-    ],
-    "triggers": [
-        {"triggerName": "TakeDamage", "eventSource": "health",
-         "healthEvent": "OnDamaged"},
-        {"triggerName": "Die", "eventSource": "health",
-         "healthEvent": "OnDeath"}
-    ]
-})
-unity_compilation_await()
-```
-
----
-
-### Effect
-
-**MCP Tool:** `unity_gamekit_effect`
-
-Composite effect system combining particles, sound, camera shake, screen flash, and time scale. Includes EffectManager for centralized registration.
-
-#### Operations
-
-| Operation | Description | Requires Compilation |
-|-----------|-------------|---------------------|
-| `create` | Create effect | Yes |
-| `update` | Modify effect ID | No |
-| `inspect` | View components | No |
-| `delete` | Remove effect | No |
-| `addComponent` | Add effect component | No |
-| `removeComponent` | Remove by index | No |
-| `clearComponents` | Remove all | No |
-| `play` | Play effect | No |
-| `playAtPosition` | Play at coordinates | No |
-| `playAtTransform` | Play at transform | No |
-| `shakeCamera` | Direct camera shake | No |
-| `flashScreen` | Direct screen flash | No |
-| `setTimeScale` | Direct time scale | No |
-| `createManager` | Create EffectManager | Yes |
-| `registerEffect` | Register with manager | No |
-| `unregisterEffect` | Unregister | No |
-| `findByEffectId` | Find by ID | No |
-| `listEffects` | List all effects | No |
-
-#### Effect Component Types
-
-| Type | Key Parameters |
-|------|---------------|
-| `particle` | `prefabPath`, `duration`, `attachToTarget`, `positionOffset`, `particleScale` |
-| `sound` | `clipPath`, `volume`, `pitchVariation`, `spatialBlend` |
-| `cameraShake` | `intensity`, `shakeDuration`, `frequency` |
-| `screenFlash` | `color` (RGBA), `flashDuration`, `fadeTime` |
-| `timeScale` | `targetTimeScale`, `timeScaleDuration`, `timeScaleTransition` |
-
-#### Example
-
-```python
-# Create hit effect
-unity_gamekit_effect({
-    "operation": "create",
-    "effectId": "hitEffect",
-    "components": [
-        {"type": "particle",
-         "prefabPath": "Assets/VFX/HitSpark.prefab",
-         "duration": 0.5},
-        {"type": "sound",
-         "clipPath": "Assets/Audio/Hit.wav",
-         "volume": 0.7, "pitchVariation": 0.1},
-        {"type": "cameraShake",
-         "intensity": 0.3, "shakeDuration": 0.15, "frequency": 30},
-        {"type": "timeScale",
-         "targetTimeScale": 0.1, "timeScaleDuration": 0.05}
-    ]
-})
-unity_compilation_await()
-
-# Create global effect manager
-unity_gamekit_effect({
-    "operation": "createManager",
-    "managerId": "globalFX",
-    "persistent": true
-})
-unity_compilation_await()
-
-# Register effect with manager
-unity_gamekit_effect({
-    "operation": "registerEffect",
-    "managerId": "globalFX",
-    "effectId": "hitEffect"
-})
-```
-
----
-
-### Feedback
-
-**MCP Tool:** `unity_gamekit_feedback`
-
-Game feel effects: hitstop, screen shake, flash, scale punch, haptics, and more.
-
-#### Operations
-
-| Operation | Description | Requires Compilation |
-|-----------|-------------|---------------------|
-| `create` | Create feedback | Yes |
-| `update` | Modify settings | No |
-| `inspect` | View components | No |
-| `delete` | Remove feedback | No |
-| `addComponent` | Add feedback type | No |
-| `clearComponents` | Remove all | No |
-| `setIntensity` | Set global multiplier | No |
-| `findByFeedbackId` | Find by ID | No |
-
-#### Feedback Component Types
-
-| Type | Key Parameters |
-|------|---------------|
-| `hitstop` | `hitstopTimeScale` (0 = frozen) |
-| `screenShake` | `shakeFrequency` (Hz) |
-| `flash` | `color` (RGBA), `fadeTime` |
-| `colorFlash` | `color` (RGBA) |
-| `scale` | `scaleAmount` (Vector3) |
-| `position` | `positionAmount` (Vector3) |
-| `rotation` | `rotationAmount` (Vector3) |
-| `sound` | `soundVolume` |
-| `particle` | (particle parameters) |
-| `haptic` | `hapticIntensity` |
-
-**Common parameters for all components:** `delay`, `duration`, `intensity`
-
-#### Example
-
-```python
-unity_gamekit_feedback({
-    "operation": "create",
-    "feedbackId": "heavyAttack",
-    "playOnEnable": false,
-    "globalIntensityMultiplier": 1.0,
-    "components": [
-        {"type": "hitstop", "duration": 0.08, "hitstopTimeScale": 0},
-        {"type": "screenShake", "duration": 0.3, "intensity": 0.5,
-         "shakeFrequency": 20},
-        {"type": "flash", "duration": 0.15, "intensity": 0.8,
-         "color": {"r": 1, "g": 1, "b": 1, "a": 0.4}},
-        {"type": "scale", "duration": 0.2, "intensity": 1.3}
-    ]
-})
-unity_compilation_await()
-```
-
----
-
-### VFX
-
-**MCP Tool:** `unity_gamekit_vfx`
-
-ParticleSystem wrapper with object pooling and runtime parameter control.
-
-#### Operations
-
-| Operation | Description | Requires Compilation |
-|-----------|-------------|---------------------|
-| `create` | Create VFX component | Yes |
-| `update` | Modify settings | No |
-| `inspect` | View configuration | No |
-| `delete` | Remove component | No |
-| `setMultipliers` | Set duration/size/emission | No |
-| `setColor` | Set particle color | No |
-| `setLoop` | Enable/disable loop | No |
-| `findByVFXId` | Find by ID | No |
-
-#### Parameters (create)
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `vfxId` | string | Unique identifier |
-| `particlePrefabPath` | string | Particle prefab path |
-| `autoPlay` | boolean | Auto-play on enable |
-| `loop` | boolean | Loop playback |
-| `usePooling` | boolean | Enable object pool |
-| `poolSize` | integer | Pool size (default: 5) |
-| `attachToParent` | boolean | Attach to parent |
-| `durationMultiplier` | number | Duration scale |
-| `sizeMultiplier` | number | Size scale |
-| `emissionMultiplier` | number | Emission rate scale |
-
-#### Example
-
-```python
-unity_gamekit_vfx({
-    "operation": "create",
-    "vfxId": "muzzleFlash",
-    "particlePrefabPath": "Assets/VFX/MuzzleFlash.prefab",
-    "autoPlay": false,
-    "loop": false,
-    "usePooling": true,
-    "poolSize": 10,
-    "sizeMultiplier": 0.8,
-    "emissionMultiplier": 1.5
-})
-unity_compilation_await()
-```
-
----
-
-### Audio
-
-**MCP Tool:** `unity_gamekit_audio`
-
-Sound management wrapper supporting SFX, music, ambient, voice, and UI sounds with fade support and 3D spatialization.
-
-#### Operations
-
-| Operation | Description | Requires Compilation |
-|-----------|-------------|---------------------|
-| `create` | Create audio component | Yes |
-| `update` | Modify settings | No |
-| `inspect` | View configuration | No |
-| `delete` | Remove component | No |
-| `setVolume` | Set volume | No |
-| `setPitch` | Set pitch | No |
-| `setLoop` | Enable/disable loop | No |
-| `setClip` | Change audio clip | No |
-| `findByAudioId` | Find by ID | No |
-
-#### Parameters (create)
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `audioId` | string | Unique identifier |
-| `audioType` | string | `sfx`, `music`, `ambient`, `voice`, `ui` |
-| `audioClipPath` | string | AudioClip asset path |
-| `playOnEnable` | boolean | Auto-play |
-| `loop` | boolean | Loop playback |
-| `volume` | number | Volume (0-1) |
-| `pitch` | number | Pitch multiplier |
-| `pitchVariation` | number | Random pitch variation |
-| `spatialBlend` | number | 0 = 2D, 1 = 3D |
-| `fadeInDuration` | number | Fade-in time (seconds) |
-| `fadeOutDuration` | number | Fade-out time (seconds) |
-| `minDistance` | number | 3D min distance |
-| `maxDistance` | number | 3D max distance |
-
-#### Example
-
-```python
-# Background music
-unity_gamekit_audio({
-    "operation": "create",
-    "audioId": "bgm_main",
-    "audioType": "music",
-    "audioClipPath": "Assets/Audio/MainTheme.ogg",
-    "playOnEnable": true,
-    "loop": true,
-    "volume": 0.6,
-    "fadeInDuration": 3.0,
-    "fadeOutDuration": 2.0
-})
-unity_compilation_await()
-
-# Spatialized sound effect
-unity_gamekit_audio({
-    "operation": "create",
-    "audioId": "sfx_footstep",
-    "audioType": "sfx",
-    "audioClipPath": "Assets/Audio/Footstep.wav",
-    "volume": 0.8,
-    "pitchVariation": 0.15,
-    "spatialBlend": 1.0,
-    "minDistance": 1,
-    "maxDistance": 15
-})
-unity_compilation_await()
-```
-
----
-
 ## Logic Pillar
 
 The Logic pillar provides analysis and validation tools. These do not use code generation.
@@ -827,13 +483,7 @@ Assets/Scripts/Generated/
 ├── PlayerHPBinding.cs                ← UIBinding
 ├── InventoryList.cs                  ← UIList
 ├── QuickSlots.cs                     ← UISlot
-├── DifficultySelection.cs            ← UISelection
-├── PlayerAnimSync.cs                 ← AnimationSync
-├── HitEffect.cs                      ← Effect
-├── GlobalFXManager.cs                ← EffectManager
-├── HeavyAttackFeedback.cs            ← Feedback
-├── MuzzleFlashVFX.cs                 ← VFX
-└── BattleBGMAudio.cs                 ← Audio
+└── DifficultySelection.cs            ← UISelection
 
 Assets/UI/Generated/                  ← UI Toolkit assets
 ├── PlayerControls.uxml
@@ -866,7 +516,7 @@ var inventory = InventoryList.FindById("inventory");
 
 ## Complete Game Example
 
-### RPG with UI, Effects, and Audio
+### RPG with UI
 
 ```python
 # === Step 1: Create UI ===
@@ -908,51 +558,7 @@ unity_gamekit_ui_slot({
 })
 unity_compilation_await()
 
-# === Step 2: Presentation ===
-
-# Animation sync
-unity_gamekit_animation_sync({
-    "operation": "create",
-    "syncId": "playerAnim",
-    "autoFindAnimator": true,
-    "syncRules": [
-        {"parameter": "Speed", "parameterType": "float",
-         "sourceType": "rigidbody3d",
-         "sourceProperty": "velocity.magnitude"}
-    ],
-    "triggers": [
-        {"triggerName": "Hit", "eventSource": "health",
-         "healthEvent": "OnDamaged"}
-    ]
-})
-unity_compilation_await()
-
-# Hit feedback
-unity_gamekit_feedback({
-    "operation": "create",
-    "feedbackId": "onHit",
-    "components": [
-        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
-        {"type": "screenShake", "duration": 0.2, "intensity": 0.3},
-        {"type": "flash", "duration": 0.1,
-         "color": {"r": 1, "g": 0, "b": 0, "a": 0.3}}
-    ]
-})
-unity_compilation_await()
-
-# Background music
-unity_gamekit_audio({
-    "operation": "create",
-    "audioId": "bgm_field",
-    "audioType": "music",
-    "audioClipPath": "Assets/Audio/FieldBGM.ogg",
-    "loop": true,
-    "volume": 0.5,
-    "fadeInDuration": 2.0
-})
-unity_compilation_await()
-
-# === Step 3: Verify integrity ===
+# === Step 2: Verify integrity ===
 unity_validate_integrity({"operation": "checkAll"})
 ```
 
@@ -977,15 +583,15 @@ unity_compilation_await()
 
 Use consistent, descriptive IDs:
 - UI: `playerHP`, `inventoryList`, `quickbar`
-- Effects: `hitEffect`, `explosionFX`
-- Audio: `bgm_battle`, `sfx_sword`, `ambient_forest`
+- Pool: `bulletPool`, `enemyPool`
+- Data: `scoreChannel`, `playerConfig`
 
 ### 3. Use FindById for Cross-References
 
 Generated components expose `FindById()` for easy access:
 ```csharp
 // From any script
-var audio = BattleBGMAudio.FindById("bgm_battle");
+var hpBar = PlayerHPBinding.FindById("playerHP");
 ```
 
 ### 4. Inspect Before Modify
@@ -1005,4 +611,4 @@ unity_scene_reference_graph({"operation": "analyze", "rootPath": "Player"})
 
 ---
 
-**GameKit provides a complete toolkit for AI-driven game development. Use the 3-pillar architecture to build polished games efficiently.**
+**GameKit provides a complete toolkit for AI-driven game development. Use the GameKit UI, Systems, and Logic pillars to build polished games efficiently.**

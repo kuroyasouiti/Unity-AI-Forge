@@ -1,10 +1,104 @@
-"""Schema definitions for GameKit 3-pillar MCP tools (UI, Logic, Presentation)."""
+"""Schema definitions for High-Level GameKit MCP tools (UI + Systems)."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from tools.schemas.common import schema_with_required
+
+
+def gamekit_ui_command_schema() -> dict[str, Any]:
+    """Schema for the unity_gamekit_ui_command MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["createCommandPanel", "addCommand", "inspect", "delete"],
+                },
+                "panelId": {"type": "string", "description": "Unique command panel identifier."},
+                "parentPath": {
+                    "type": "string",
+                    "description": "Parent GameObject path for the UIDocument (optional, creates at scene root if omitted).",
+                },
+                "uiOutputDir": {
+                    "type": "string",
+                    "description": "Output directory for generated UXML/USS files (default: 'Assets/UI/Generated').",
+                },
+                "targetType": {
+                    "type": "string",
+                    "enum": ["actor", "manager"],
+                    "description": "Target type: 'actor' for GameKitActor or 'manager' for GameKitManager.",
+                },
+                "targetActorId": {
+                    "type": "string",
+                    "description": "Target actor ID (when targetType is 'actor').",
+                },
+                "targetManagerId": {
+                    "type": "string",
+                    "description": "Target manager ID (when targetType is 'manager').",
+                },
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "label": {"type": "string"},
+                            "icon": {"type": "string"},
+                            "commandType": {
+                                "type": "string",
+                                "enum": [
+                                    "move",
+                                    "jump",
+                                    "action",
+                                    "look",
+                                    "custom",
+                                    "addResource",
+                                    "setResource",
+                                    "consumeResource",
+                                    "changeState",
+                                    "nextTurn",
+                                    "triggerScene",
+                                ],
+                                "description": "Command type: Actor commands (move/jump/action/look/custom) or Manager commands (addResource/setResource/consumeResource/changeState/nextTurn/triggerScene).",
+                            },
+                            "commandParameter": {
+                                "type": "string",
+                                "description": "Parameter for action/resource/state commands.",
+                            },
+                            "resourceAmount": {
+                                "type": "number",
+                                "description": "Amount for resource commands (addResource/setResource/consumeResource).",
+                            },
+                            "moveDirection": {
+                                "type": "object",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                                "description": "Direction vector for move commands.",
+                            },
+                            "lookDirection": {
+                                "type": "object",
+                                "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                                "description": "Direction vector for look commands.",
+                            },
+                        },
+                    },
+                    "description": "List of commands to create as buttons in UXML.",
+                },
+                "layout": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical", "grid"],
+                    "description": "Button layout style (maps to USS flex-direction).",
+                },
+            },
+        },
+        ["operation"],
+    )
 
 
 def gamekit_ui_binding_schema() -> dict[str, Any]:
@@ -451,8 +545,8 @@ def gamekit_ui_selection_schema() -> dict[str, Any]:
     )
 
 
-def gamekit_feedback_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_feedback MCP tool."""
+def gamekit_pool_schema() -> dict[str, Any]:
+    """Schema for the unity_gamekit_pool MCP tool."""
     return schema_with_required(
         {
             "type": "object",
@@ -464,254 +558,125 @@ def gamekit_feedback_schema() -> dict[str, Any]:
                         "update",
                         "inspect",
                         "delete",
-                        "addComponent",
-                        "clearComponents",
-                        "setIntensity",
-                        "findByFeedbackId",
+                        "findByPoolId",
                     ],
-                    "description": "Feedback operation.",
+                    "description": "Object pool operation to perform.",
                 },
-                "feedbackId": {"type": "string", "description": "Unique feedback identifier."},
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path for feedback component.",
+                    "description": "Target GameObject hierarchy path.",
                 },
-                "playOnEnable": {
+                "poolId": {
+                    "type": "string",
+                    "description": "Unique object pool identifier.",
+                },
+                "prefabPath": {
+                    "type": "string",
+                    "description": "Prefab asset path for pooled objects (e.g., 'Assets/Prefabs/Bullet.prefab').",
+                },
+                "initialSize": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of objects to pre-instantiate (default: 10).",
+                },
+                "maxSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum pool size (default: 100).",
+                },
+                "defaultParentPath": {
+                    "type": "string",
+                    "description": "Default parent Transform path for pooled objects.",
+                },
+                "collectionCheck": {
                     "type": "boolean",
-                    "description": "Play feedback when GameObject becomes active.",
+                    "description": "Enable double-release detection (default: true).",
                 },
-                "globalIntensityMultiplier": {
-                    "type": "number",
-                    "description": "Global intensity multiplier (default: 1.0).",
+            },
+        },
+        ["operation"],
+    )
+
+
+def gamekit_data_schema() -> dict[str, Any]:
+    """Schema for the unity_gamekit_data MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "createEventChannel",
+                        "createDataContainer",
+                        "createRuntimeSet",
+                        "inspect",
+                        "delete",
+                        "findByDataId",
+                    ],
+                    "description": "Data architecture operation to perform.",
                 },
-                "intensity": {
-                    "type": "number",
-                    "description": "Intensity value for setIntensity operation.",
+                "targetPath": {
+                    "type": "string",
+                    "description": "Target GameObject hierarchy path (for listener attachment).",
                 },
-                "components": {
+                "dataId": {
+                    "type": "string",
+                    "description": "Unique data asset identifier.",
+                },
+                "assetPath": {
+                    "type": "string",
+                    "description": "Output asset path (e.g., 'Assets/Data/OnPlayerDeath.asset').",
+                },
+                "eventType": {
+                    "type": "string",
+                    "enum": ["void", "int", "float", "string", "Vector3", "GameObject"],
+                    "description": "Event channel payload type (default: void).",
+                },
+                "createListener": {
+                    "type": "boolean",
+                    "description": "Also create an EventListener MonoBehaviour on targetPath (default: false).",
+                },
+                "fields": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "type": {
+                            "name": {
+                                "type": "string",
+                                "description": "Field name.",
+                            },
+                            "fieldType": {
                                 "type": "string",
                                 "enum": [
-                                    "hitstop",
-                                    "screenShake",
-                                    "flash",
-                                    "colorFlash",
-                                    "scale",
-                                    "position",
-                                    "rotation",
-                                    "sound",
-                                    "particle",
-                                    "haptic",
+                                    "int",
+                                    "float",
+                                    "string",
+                                    "bool",
+                                    "Vector2",
+                                    "Vector3",
+                                    "Color",
                                 ],
-                                "description": "Feedback component type.",
+                                "description": "Field type.",
                             },
-                            "delay": {"type": "number", "description": "Delay before effect."},
-                            "duration": {"type": "number", "description": "Effect duration."},
-                            "intensity": {"type": "number", "description": "Effect intensity."},
-                            "hitstopTimeScale": {
-                                "type": "number",
-                                "description": "Time scale during hitstop (0 = frozen).",
-                            },
-                            "shakeFrequency": {
-                                "type": "number",
-                                "description": "Shake frequency in Hz.",
-                            },
-                            "color": {
-                                "type": "object",
-                                "properties": {
-                                    "r": {"type": "number", "minimum": 0, "maximum": 1},
-                                    "g": {"type": "number", "minimum": 0, "maximum": 1},
-                                    "b": {"type": "number", "minimum": 0, "maximum": 1},
-                                    "a": {"type": "number", "minimum": 0, "maximum": 1},
-                                },
-                                "description": "Flash color (RGBA 0-1).",
-                            },
-                            "fadeTime": {"type": "number", "description": "Flash fade time."},
-                            "scaleAmount": {
-                                "type": "object",
-                                "properties": {
-                                    "x": {"type": "number"},
-                                    "y": {"type": "number"},
-                                    "z": {"type": "number"},
-                                },
-                                "description": "Scale punch amount.",
-                            },
-                            "positionAmount": {
-                                "type": "object",
-                                "properties": {
-                                    "x": {"type": "number"},
-                                    "y": {"type": "number"},
-                                    "z": {"type": "number"},
-                                },
-                                "description": "Position shake amount.",
-                            },
-                            "soundVolume": {"type": "number", "description": "Sound volume."},
-                            "hapticIntensity": {
-                                "type": "number",
-                                "description": "Controller haptic intensity.",
+                            "defaultValue": {
+                                "description": "Default value for the field.",
                             },
                         },
                     },
-                    "description": "Feedback components for create operation.",
+                    "description": "Fields for DataContainer (name, fieldType, defaultValue).",
                 },
-                "component": {
-                    "type": "object",
-                    "description": "Single component for addComponent operation.",
-                },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_vfx_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_vfx MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "setMultipliers",
-                        "setColor",
-                        "setLoop",
-                        "findByVFXId",
-                    ],
-                    "description": "VFX operation.",
-                },
-                "vfxId": {"type": "string", "description": "Unique VFX identifier."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject path for VFX component.",
-                },
-                "autoPlay": {
+                "resetOnPlay": {
                     "type": "boolean",
-                    "description": "Auto-play on enable (default: false).",
+                    "description": "Reset DataContainer values on play mode entry (default: true).",
                 },
-                "loop": {"type": "boolean", "description": "Loop the effect."},
-                "usePooling": {
-                    "type": "boolean",
-                    "description": "Enable object pooling (default: true).",
-                },
-                "poolSize": {"type": "integer", "minimum": 1, "description": "Pool size (default: 5)."},
-                "attachToParent": {
-                    "type": "boolean",
-                    "description": "Attach to parent transform when playing.",
-                },
-                "durationMultiplier": {
-                    "type": "number",
-                    "description": "Duration multiplier (default: 1.0).",
-                },
-                "sizeMultiplier": {
-                    "type": "number",
-                    "description": "Size multiplier (default: 1.0).",
-                },
-                "emissionMultiplier": {
-                    "type": "number",
-                    "description": "Emission rate multiplier (default: 1.0).",
-                },
-                "particlePrefabPath": {
+                "elementType": {
                     "type": "string",
-                    "description": "Particle prefab asset path.",
+                    "description": "Fully qualified type name for RuntimeSet elements (default: GameObject).",
                 },
-                "duration": {
-                    "type": "number",
-                    "description": "Duration for setMultipliers operation.",
-                },
-                "size": {
-                    "type": "number",
-                    "description": "Size for setMultipliers operation.",
-                },
-                "emission": {
-                    "type": "number",
-                    "description": "Emission for setMultipliers operation.",
-                },
-            },
-        },
-        ["operation"],
-    )
-
-
-def gamekit_audio_schema() -> dict[str, Any]:
-    """Schema for the unity_gamekit_audio MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
+                "scriptOutputDir": {
                     "type": "string",
-                    "enum": [
-                        "create",
-                        "update",
-                        "inspect",
-                        "delete",
-                        "setVolume",
-                        "setPitch",
-                        "setLoop",
-                        "setClip",
-                        "findByAudioId",
-                    ],
-                    "description": "Audio operation.",
-                },
-                "audioId": {"type": "string", "description": "Unique audio identifier."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target GameObject path for audio component.",
-                },
-                "audioType": {
-                    "type": "string",
-                    "enum": ["sfx", "music", "ambient", "voice", "ui"],
-                    "description": "Audio type category.",
-                },
-                "audioClipPath": {
-                    "type": "string",
-                    "description": "Audio clip asset path.",
-                },
-                "playOnEnable": {
-                    "type": "boolean",
-                    "description": "Auto-play on enable.",
-                },
-                "loop": {"type": "boolean", "description": "Loop playback."},
-                "volume": {"type": "number", "minimum": 0, "maximum": 1, "description": "Volume (0-1)."},
-                "pitch": {"type": "number", "description": "Pitch (default: 1.0)."},
-                "pitchVariation": {
-                    "type": "number",
-                    "description": "Random pitch variation (+/-).",
-                },
-                "spatialBlend": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1,
-                    "description": "2D/3D blend (0=2D, 1=3D).",
-                },
-                "fadeInDuration": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Fade in duration in seconds.",
-                },
-                "fadeOutDuration": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Fade out duration in seconds.",
-                },
-                "minDistance": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "3D audio min distance.",
-                },
-                "maxDistance": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "3D audio max distance.",
+                    "description": "Output directory for generated scripts (default: 'Assets/Scripts/Generated').",
                 },
             },
         },

@@ -354,60 +354,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 
 ## よくあるパターン
 
-### パターン 1: フェードイン/アウト遷移
-
-```python
-# フェードエフェクト
-unity_gamekit_effect(
-    operation="create",
-    effectId="screen_fade",
-    components=[
-        {"type": "screenFlash",
-         "color": {"r": 0, "g": 0, "b": 0, "a": 1},
-         "flashDuration": 0.5, "fadeTime": 0.5}
-    ]
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### パターン 2: UI SE
-
-```python
-# UI サウンドエフェクト
-unity_gamekit_audio(
-    operation="create",
-    targetPath="GameCanvas",
-    audioId="ui_sfx",
-    audioType="ui",
-    volume=0.5
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### パターン 3: ボタンフィードバック
-
-```python
-# ボタン押下時のフィードバック
-unity_gamekit_feedback(
-    operation="create",
-    targetPath="GameCanvas",
-    feedbackId="button_feedback",
-    components=[
-        {"type": "scale", "scaleAmount": {"x": 0.05, "y": 0.05, "z": 0},
-         "duration": 0.1},
-        {"type": "sound", "soundVolume": 0.3}
-    ]
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### パターン 4: 設定画面のタブ切り替え
+### パターン 1: 設定画面のタブ切り替え
 
 ```python
 unity_gamekit_ui_selection(
@@ -431,7 +378,7 @@ unity_gamekit_ui_selection(
 unity_compilation_await(operation="await", timeoutSeconds=30)
 ```
 
-### パターン 5: UI Toolkit との併用
+### パターン 2: UI Toolkit との併用
 
 ```python
 # UI Toolkit アセットの作成
@@ -454,7 +401,7 @@ unity_uitk_document(
 )
 ```
 
-### パターン 6: CanvasGroup によるUI制御
+### パターン 3: CanvasGroup によるUI制御
 
 ```python
 # パネルにCanvasGroupを設定して透明度・操作性を制御
@@ -676,9 +623,6 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 | `unity_gamekit_ui_list` | 動的リスト・グリッド表示 |
 | `unity_gamekit_ui_slot` | スロットバー・装備スロット |
 | `unity_gamekit_ui_selection` | 選択状態の管理・タブ切り替え |
-| `unity_gamekit_effect` | フェードイン/アウト等の画面効果 |
-| `unity_gamekit_feedback` | ボタン押下時のスケールフィードバック |
-| `unity_gamekit_audio` | UI SE（ボタン音・決定音・キャンセル音） |
 | `unity_event_wiring` | ボタンと処理の接続 |
 | `unity_input_profile` | ポーズ・インベントリ等の入力設定 |
 | `unity_uitk_document` | UI Toolkit UIDocument の管理 |

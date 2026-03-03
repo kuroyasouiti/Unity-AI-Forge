@@ -184,18 +184,6 @@ unity_gameobject_crud(
     ]
 )
 
-# チェックポイント到達エフェクト
-unity_gamekit_effect(
-    operation="create",
-    effectId="checkpoint_effect",
-    components=[
-        {"type": "particle", "duration": 1.0},
-        {"type": "sound",    "volume": 0.6}
-    ]
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
 ```
 
 ### Step 4: カメラの設定
@@ -262,18 +250,6 @@ unity_transform_batch(
     endPosition={"x": 15, "y": 2, "z": 0}
 )
 
-# ピックアップ時のオーディオ
-unity_gamekit_audio(
-    operation="create",
-    targetPath="Collectibles",
-    audioId="coin_pickup_sfx",
-    audioType="sfx",
-    volume=0.5,
-    pitchVariation=0.1
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
 ```
 
 ### Step 6: トリガーゾーンの設置
@@ -381,24 +357,7 @@ unity_transform_batch(
 )
 ```
 
-### パターン 2: BGM ゾーン
-
-```python
-# 環境 BGM を配置
-unity_gamekit_audio(
-    operation="create",
-    targetPath="Level01_BGM",
-    audioId="field_bgm",
-    audioType="music",
-    audioClipPath="Assets/Audio/BGM/Field.mp3",
-    playOnEnable=true,
-    loop=true,
-    volume=0.6,
-    fadeInDuration=1.0
-)
-```
-
-### パターン 3: レベル設定の ScriptableObject
+### パターン 2: レベル設定の ScriptableObject
 
 ```python
 unity_asset_crud(
@@ -428,7 +387,7 @@ public class LevelConfig : ScriptableObject {
    地面と重なるとプレイヤーが地面にめり込む。
 
 3. **コード生成後のコンパイル待ち**
-   `unity_asset_crud` でスクリプト作成後、`unity_gamekit_effect` 等のコード生成後は、
+   `unity_asset_crud` でスクリプト作成後、コード生成ツール実行後は、
    必ず `unity_compilation_await` を呼ぶこと。
 
 4. **カメラ境界のズレ**
@@ -455,8 +414,6 @@ public class LevelConfig : ScriptableObject {
 | `unity_physics_bundle` | ギミックの物理設定 |
 | `unity_camera_rig` | フォロー・固定カメラ設定 |
 | `unity_prefab_crud` | レベルオブジェクトのプレハブ化 |
-| `unity_gamekit_effect` | チェックポイント・収集エフェクト |
-| `unity_gamekit_audio` | 環境 BGM・SE・ゾーン別音楽 |
 | `unity_sprite2d_bundle` | 2D スプライトの管理・設定 |
 | `unity_projectSettings_crud` | ビルドシーンの追加・レイヤー設定 |
 | `unity_scriptableObject_crud` | レベル設定 ScriptableObject |

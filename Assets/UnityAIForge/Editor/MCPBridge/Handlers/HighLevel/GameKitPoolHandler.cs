@@ -6,7 +6,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace MCP.Editor.Handlers.GameKit
+namespace MCP.Editor.Handlers.HighLevel
 {
     /// <summary>
     /// GameKit Object Pool handler: create and manage object pools.

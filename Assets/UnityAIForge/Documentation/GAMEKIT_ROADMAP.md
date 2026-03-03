@@ -15,12 +15,12 @@ v2.9.0でコード生成アーキテクチャに移行。ランタイムMonoBeha
 - `unity_gamekit_ui_slot` - アイテムスロット
 - `unity_gamekit_ui_selection` - 選択グループ
 
-**Presentation Pillar (5):**
-- `unity_gamekit_animation_sync` - アニメーション同期
-- `unity_gamekit_effect` - エフェクトシステム
-- `unity_gamekit_feedback` - ゲームフィール（ヒットストップ、画面揺れ）
-- `unity_gamekit_vfx` - VFXラッパー（プーリング対応）
-- `unity_gamekit_audio` - オーディオラッパー（フェード対応）
+~~**Presentation Pillar (5):** (Removed in v2.14)~~
+~~- `unity_gamekit_animation_sync` - アニメーション同期~~
+~~- `unity_gamekit_effect` - エフェクトシステム~~
+~~- `unity_gamekit_feedback` - ゲームフィール（ヒットストップ、画面揺れ）~~
+~~- `unity_gamekit_vfx` - VFXラッパー（プーリング対応）~~
+~~- `unity_gamekit_audio` - オーディオラッパー（フェード対応）~~
 
 **Logic Pillar (5):**
 - `unity_validate_integrity` - シーン整合性検証
@@ -33,7 +33,7 @@ v2.9.0でコード生成アーキテクチャに移行。ランタイムMonoBeha
 
 ## 🔮 Future Phases
 
-### ~~Phase 3: Animation & Effects~~ ✅ IMPLEMENTED
+### ~~Phase 3: Animation & Effects~~ ❌ REMOVED (v2.14)
 
 ### ~~Phase 4: Persistence & Inventory~~ ✅ IMPLEMENTED
 
@@ -720,8 +720,8 @@ public class GameKitStatusEffectReceiver : MonoBehaviour
 
 | Phase | Tools | Priority | Status |
 |-------|-------|----------|--------|
-| 3 | animation_sync | Medium | ✅ Implemented |
-| 3 | effect | High | ✅ Implemented |
+| 3 | ~~animation_sync~~ | Medium | ❌ Removed (v2.14) |
+| 3 | ~~effect~~ | High | ❌ Removed (v2.14) |
 | 4 | save | High | ✅ Implemented |
 | 4 | inventory | High | ✅ Implemented |
 | 5 | dialogue | Medium | ✅ Implemented |

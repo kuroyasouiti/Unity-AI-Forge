@@ -22,7 +22,7 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | [**Quick Start**](Installation/QUICKSTART.md) | 最速インストール | 5分 |
 | [**01. 基本シーン**](Examples/01-basic-scene-setup.md) | 最初のシーンを作る | 10分 |
 
-### GameKit を使う（3ピラーアーキテクチャ）
+### GameKit を使う
 
 #### UI ピラー
 
@@ -33,16 +33,6 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | **UIList** | リスト/グリッド | `unity_gamekit_ui_list` |
 | **UISlot** | スロット（インベントリ等） | `unity_gamekit_ui_slot` |
 | **UISelection** | 選択グループ（ラジオ/タブ等） | `unity_gamekit_ui_selection` |
-
-#### プレゼンテーションピラー
-
-| コンポーネント | 用途 | MCP ツール |
-|:---|:---|:---|
-| **AnimationSync** | アニメーションパラメータ同期 | `unity_gamekit_animation_sync` |
-| **Effect** | 複合エフェクト | `unity_gamekit_effect` |
-| **Feedback** | ゲームフィール | `unity_gamekit_feedback` |
-| **VFX** | ビジュアルエフェクト | `unity_gamekit_vfx` |
-| **Audio** | サウンド管理 | `unity_gamekit_audio` |
 
 #### ロジックピラー
 
@@ -59,7 +49,7 @@ Unity-AI-Forge を使いこなすための完全ガイド
 | ドキュメント | 内容 |
 |:---|:---|
 | [**MCP Server**](MCPServer/README.md) | MCP サーバーセットアップ |
-| [**49 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
+| [**47 Tools**](MCPServer/SKILL.md) | 全ツールリファレンス |
 | [**Batch Sequential**](MCPServer/BATCH_SEQUENTIAL.md) | バッチ逐次処理（レジューム対応） |
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
 
@@ -76,12 +66,12 @@ Documentation/
 │   └── INSTALL_GUIDE.md ─────── 詳細インストール手順
 │
 ├── GameKit/
-│   ├── README.md ────────────── GameKit 概要（3ピラーアーキテクチャ）
+│   ├── README.md ────────────── GameKit 概要
 │   └── GameKitUICommand ─────── UICommand 詳細ガイド
 │
 ├── MCPServer/
 │   ├── README.md ────────────── MCP サーバー概要
-│   ├── SKILL.md ─────────────── 全49ツール解説
+│   ├── SKILL.md ─────────────── 全47ツール解説
 │   ├── BATCH_SEQUENTIAL.md ──── バッチ逐次処理
 │   └── SKILL_GAMEKIT.md ─────── GameKit 完全ガイド
 │
@@ -117,13 +107,13 @@ Documentation/
 
 ### Level 2: GameKit を使う (2-4時間)
 
-4. [GameKit 概要](GameKit/README.md) - 3ピラーアーキテクチャの理解
-5. [GameKit 完全ガイド](MCPServer/SKILL_GAMEKIT.md) - 全10ツールの使い方
+4. [GameKit 概要](GameKit/README.md) - GameKit アーキテクチャの理解
+5. [GameKit 完全ガイド](MCPServer/SKILL_GAMEKIT.md) - GameKit ツールの使い方
 6. [UICommand](GameKit/GameKitUICommand.README.md) - UIコマンドパネル
 
 ### Level 3: 高度な機能 (4-8時間)
 
-7. [全49ツール](MCPServer/SKILL.md) - Low/Mid/High レベルツール
+7. [全47ツール](MCPServer/SKILL.md) - Low/Mid/High レベルツール
 8. [03. ゲームレベル](Examples/03-game-level.md) - レベル構築
 9. [05. デザインパターン](Examples/05-design-patterns.md) - 設計
 
@@ -152,11 +142,11 @@ Documentation/
 </details>
 
 <details>
-<summary><b>GameKit Framework（3ピラーアーキテクチャ）</b></summary>
+<summary><b>GameKit Framework</b></summary>
 
 #### 概要
 
-- [GameKit Overview](GameKit/README.md) - 3ピラーアーキテクチャ概要
+- [GameKit Overview](GameKit/README.md) - GameKit 概要
 
 #### UI ピラー
 
@@ -165,14 +155,6 @@ Documentation/
 - UIList - リスト/グリッド（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uilist)参照）
 - UISlot - スロット（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uislot)参照）
 - UISelection - 選択グループ（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#uiselection)参照）
-
-#### プレゼンテーションピラー
-
-- AnimationSync - アニメーション同期（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#animationsync)参照）
-- Effect - 複合エフェクト（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#effect)参照）
-- Feedback - ゲームフィール（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#feedback)参照）
-- VFX - ビジュアルエフェクト（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#vfx)参照）
-- Audio - サウンド管理（[完全ガイド](MCPServer/SKILL_GAMEKIT.md#audio)参照）
 
 #### ロジックピラー
 
@@ -185,7 +167,7 @@ Documentation/
 <summary><b>MCP & AI Integration</b></summary>
 
 - [MCP Server Overview](MCPServer/README.md)
-- [All 49 Tools Reference](MCPServer/SKILL.md)
+- [All 47 Tools Reference](MCPServer/SKILL.md)
 - [Batch Sequential Tool](MCPServer/BATCH_SEQUENTIAL.md)
 - [GameKit Complete Guide](MCPServer/SKILL_GAMEKIT.md)
 
@@ -221,9 +203,6 @@ Documentation/
 ### "ゲームの UI を作りたい"
 → [GameKit Overview](GameKit/README.md#ui-ピラー) → [UICommand](GameKit/GameKitUICommand.README.md)
 
-### "エフェクトやフィードバックを追加したい"
-→ [GameKit Overview](GameKit/README.md#プレゼンテーションピラー) → [完全ガイド - Effect/Feedback](MCPServer/SKILL_GAMEKIT.md#effect)
-
 ### "シーンの整合性をチェックしたい"
 → [GameKit Overview](GameKit/README.md#ロジックピラー)
 
@@ -248,8 +227,8 @@ Documentation/
 | ドキュメント | 状態 | 最終更新 |
 |:---|:---:|:---|
 | Getting Started | 完成 | 2025-12-09 |
-| GameKit Guide (3-Pillar) | 完成 | 2026-02-20 |
-| MCP Tools (49) | 完成 | 2026-02-20 |
+| GameKit Guide | 完成 | 2026-02-20 |
+| MCP Tools (47) | 完成 | 2026-02-20 |
 | Examples | 完成 | 2025-12-03 |
 | GameKit Roadmap | 計画中 | 2025-12-29 |
 | API Reference | 作成中 | - |

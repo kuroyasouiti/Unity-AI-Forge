@@ -20,18 +20,13 @@ from tools.schemas import (
     console_log_schema,
     event_wiring_schema,
     game_object_manage_schema,
-    gamekit_animation_sync_schema,
-    gamekit_audio_schema,
     gamekit_data_schema,
-    gamekit_effect_schema,
-    gamekit_feedback_schema,
     gamekit_pool_schema,
     gamekit_ui_binding_schema,
     gamekit_ui_command_schema,
     gamekit_ui_list_schema,
     gamekit_ui_selection_schema,
     gamekit_ui_slot_schema,
-    gamekit_vfx_schema,
     input_profile_schema,
     light_bundle_schema,
     material_bundle_schema,
@@ -98,15 +93,10 @@ ALL_SCHEMA_FUNCTIONS = [
     ("physics_bundle", physics_bundle_schema),
     ("navmesh_bundle", navmesh_bundle_schema),
     ("gamekit_ui_command", gamekit_ui_command_schema),
-    ("gamekit_animation_sync", gamekit_animation_sync_schema),
-    ("gamekit_effect", gamekit_effect_schema),
     ("gamekit_ui_binding", gamekit_ui_binding_schema),
     ("gamekit_ui_list", gamekit_ui_list_schema),
     ("gamekit_ui_slot", gamekit_ui_slot_schema),
     ("gamekit_ui_selection", gamekit_ui_selection_schema),
-    ("gamekit_feedback", gamekit_feedback_schema),
-    ("gamekit_vfx", gamekit_vfx_schema),
-    ("gamekit_audio", gamekit_audio_schema),
     ("gamekit_pool", gamekit_pool_schema),
     ("gamekit_data", gamekit_data_schema),
     ("class_catalog", class_catalog_schema),
@@ -188,6 +178,6 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 51, (
-            f"Expected 51 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 46, (
+            f"Expected 46 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )

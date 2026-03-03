@@ -13,11 +13,6 @@ This guide helps you choose the right tool for your Unity development tasks.
 | Scrollable lists / inventory grids | `unity_gamekit_ui_list` |
 | Equipment / quickbar slots | `unity_gamekit_ui_slot` |
 | Radio / toggle / tab groups | `unity_gamekit_ui_selection` |
-| Composite effects (particle + sound + shake) | `unity_gamekit_effect` |
-| Game feel (hitstop, screen shake) | `unity_gamekit_feedback` |
-| Animation parameter sync | `unity_gamekit_animation_sync` |
-| VFX with object pooling | `unity_gamekit_vfx` |
-| Sound management (SFX, BGM) | `unity_gamekit_audio` |
 | Build UI menu from JSON | `unity_ui_hierarchy` |
 | Configure keyboard/gamepad navigation | `unity_ui_navigation` |
 | Manage UI visibility states | `unity_ui_state` |
@@ -31,75 +26,7 @@ This guide helps you choose the right tool for your Unity development tasks.
 
 ---
 
-## 1. GameKit Effect & Feedback Tools
-
-### When to use `unity_gamekit_effect`
-
-**Best for:** Composite effects (particle + sound + camera shake)
-
-- Explosion effects (VFX + sound + camera shake)
-- Pickup effects (particles + sound)
-- Impact effects with multiple components
-- Reusable effect presets with EffectManager
-
-**Example use cases:**
-- Explosion → particles + boom sound + camera shake + time slow
-- Coin pickup → sparkle particles + bling sound
-- Level up → flash + sound + screen effect
-
-```python
-unity_gamekit_effect({
-    "operation": "create",
-    "effectId": "explosion",
-    "components": [
-        {"type": "particle", "prefabPath": "Assets/Prefabs/Explosion.prefab"},
-        {"type": "sound", "clipPath": "Assets/Audio/boom.wav"},
-        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3}
-    ]
-})
-```
-
-### When to use `unity_gamekit_feedback`
-
-**Best for:** Game feel (hitstop, screen shake, flash)
-
-- Hit reactions (hitstop + flash + knockback)
-- Screen effects (shake, flash, vignette)
-- Juice effects for game feel
-- Intensity-adjustable feedback chains
-
-**Example use cases:**
-- Melee hit → hitstop + screen shake + color flash
-- Critical hit → slow motion + chromatic aberration
-- Damage taken → red flash + knockback
-
-```python
-unity_gamekit_feedback({
-    "operation": "create",
-    "feedbackId": "onHit",
-    "components": [
-        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
-        {"type": "screenShake", "duration": 0.2, "intensity": 0.3},
-        {"type": "colorFlash", "color": {"r": 1, "g": 0, "b": 0, "a": 0.5}}
-    ]
-})
-```
-
-### Decision Matrix
-
-| Requirement | Use `effect` | Use `feedback` |
-|-------------|-------------|---------------|
-| Particle + Sound combo | Yes | No |
-| Hitstop / slow motion | No | Yes |
-| Camera shake | Yes | Yes |
-| Screen flash | Yes | Yes |
-| Knockback | No | Yes |
-| Reusable with Manager | Yes | No |
-| Intensity control | No | Yes |
-
----
-
-## 2. GameKit UI Tools (Code Generation)
+## 1. GameKit UI Tools (Code Generation)
 
 All GameKit UI tools generate standalone C# scripts via code generation. After `create` operations, call `unity_compilation_await({"operation": "await"})`.
 
@@ -163,7 +90,7 @@ unity_gamekit_ui_binding({
 
 ---
 
-## 3. Physics & Character Setup (via component_crud)
+## 2. Physics & Character Setup (via component_crud)
 
 Physics and character controller setup uses `unity_component_crud` directly:
 
@@ -200,7 +127,7 @@ unity_component_crud({
 
 ---
 
-## 4. UGUI Tools (Mid-Level)
+## 3. UGUI Tools (Mid-Level)
 
 ### When to use `unity_ui_hierarchy`
 
@@ -296,7 +223,7 @@ unity_ui_foundation({
 
 ---
 
-## 5. Scene Analysis & Validation (Logic Pillar)
+## 4. Scene Analysis & Validation (Logic Pillar)
 
 ### When to use `unity_validate_integrity`
 
@@ -409,7 +336,7 @@ unity_script_syntax({
 
 ---
 
-## 6. Sprite & Animation Tools
+## 5. Sprite & Animation Tools
 
 ### When to use `unity_vector_sprite_convert`
 
@@ -454,7 +381,7 @@ unity_sprite2d_bundle({
 
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
-| **High-Level GameKit** | UI Pillar (5), Presentation Pillar (5), Logic Pillar (7) | Game systems, analysis, validation |
+| **High-Level GameKit** | UI Pillar (5), Logic Pillar (7), Systems (2) | Game systems, analysis, validation |
 | **Mid-Level Batch** | transform_batch, camera_rig, ui_hierarchy, etc. (18) | Batch operations, presets |
 | **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
 | **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |

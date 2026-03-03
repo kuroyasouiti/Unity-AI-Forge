@@ -171,14 +171,6 @@ unity_gameobject_crud(operation='create', name='AudioManager')
 # InputManager
 unity_gameobject_crud(operation='create', name='InputManager')
 
-# オーディオを Managers シーンで管理 (GameKit Audio)
-unity_gamekit_audio(operation='create',
-    targetPath='AudioManager',
-    audioId='bgm_manager',
-    audioType='music',
-    loop=True)
-
-unity_compilation_await(operation='await', timeoutSeconds=30)
 unity_scene_crud(operation='save', scenePath='Assets/Scenes/Managers.unity')
 ```
 
@@ -459,7 +451,6 @@ _Lighting
 | `unity_ui_hierarchy` | HUD・メニューの宣言的構築 |
 | `unity_ui_navigation` | メニューのキーボードナビゲーション |
 | `unity_gamekit_ui_binding` | HUDデータバインディング |
-| `unity_gamekit_audio` | BGM・SE管理 |
 | `unity_light_bundle` | Level シーンのライティング |
 | `unity_tilemap_bundle` | Level シーンの地形構築 |
 | `unity_scene_relationship_graph` | analyzeAll / validateBuildSettings / findTransitionsTo |

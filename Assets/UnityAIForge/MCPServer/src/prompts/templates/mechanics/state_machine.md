@@ -7,7 +7,6 @@
 あらゆる「状態遷移」を伴うシステムに適用できます。
 
 Unity-AI-Forge では `unity_asset_crud` で C# スクリプトを生成し、
-`unity_gamekit_animation_sync` でアニメーション連動、`unity_gamekit_feedback` でエフェクト付きの
 本格的なステートマシンを素早く構築できます。
 
 ---
@@ -151,50 +150,7 @@ unity_input_profile(
 )
 ```
 
-### Step 3: アニメーション同期のセットアップ
-
-```python
-# AnimationSync コンポーネントを生成・アタッチ
-unity_gamekit_animation_sync(
-    operation="create",
-    targetPath="Player",
-    syncId="player_anim_sync",
-    syncRules=[
-        {"parameter": "Speed",      "parameterType": "float",
-         "sourceType": "rigidbody3d", "sourceProperty": "velocity.magnitude"},
-        {"parameter": "IsGrounded", "parameterType": "bool",
-         "sourceType": "custom",     "boolThreshold": 0.1}
-    ],
-    triggers=[
-        {"triggerName": "Attack", "eventSource": "input", "inputAction": "Attack"},
-        {"triggerName": "Jump",   "eventSource": "input", "inputAction": "Jump"}
-    ]
-)
-
-# コンパイル待ち（コード生成後は必須）
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### Step 4: フィードバックの設定
-
-```python
-# 攻撃ヒット時のフィードバック
-unity_gamekit_feedback(
-    operation="create",
-    targetPath="Player",
-    feedbackId="player_attack_feedback",
-    components=[
-        {"type": "screenShake", "intensity": 0.3, "duration": 0.2},
-        {"type": "hitstop",     "duration": 0.05, "hitstopTimeScale": 0},
-        {"type": "sound",       "soundVolume": 0.8}
-    ]
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### Step 5: ゲームフローの UI 制御
+### Step 3: ゲームフローの UI 制御
 
 ```python
 # GameFlowManager GameObject を作成
@@ -218,7 +174,7 @@ unity_gamekit_ui_command(
 unity_compilation_await(operation="await", timeoutSeconds=30)
 ```
 
-### Step 6: シーン整合性の確認
+### Step 4: シーン整合性の確認
 
 ```python
 # 実装後に整合性チェック
@@ -290,22 +246,18 @@ BossDeathState              -> 死亡演出
 ## 注意点・落とし穴
 
 1. **コード生成後の忘れがちなコンパイル待ち**
-   `unity_asset_crud` でスクリプトを作成した後、および `unity_gamekit_animation_sync` 等の
-   コード生成ツール使用後は、必ず `unity_compilation_await` を呼んでから次の操作を行うこと。
+   `unity_asset_crud` でスクリプトを作成した後、コード生成ツール使用後は、
+   必ず `unity_compilation_await` を呼んでから次の操作を行うこと。
 
 2. **Update ループ内での状態遷移の無限ループ**
    Enter() から即座に Exit() を呼ぶような状態を避けること。
    必ずフレームをまたぐか、フラグで再入防止を実装する。
 
-3. **AnimatorController との整合性**
-   `unity_gamekit_animation_sync` のパラメータ名は Animator Controller 内のパラメータ名と
-   完全一致させること。大文字・小文字の違いでバグが発生しやすい。
-
-4. **DontDestroyOnLoad でのゲームフロー管理**
+3. **DontDestroyOnLoad でのゲームフロー管理**
    GameFlowManager をシーンをまたいで使う場合は DontDestroyOnLoad を設定し、
    `unity_scene_crud` でのシーン遷移時に重複しないよう管理する。
 
-5. **シリアライズ問題**
+4. **シリアライズ問題**
    ステートを MonoBehaviour フィールドに保持する場合、インターフェース型は
    Unity のインスペクターでシリアライズできない。ScriptableObject パターンを検討する。
 
@@ -319,8 +271,6 @@ BossDeathState              -> 死亡演出
 | `unity_gameobject_crud` | ステートマシンホスト GameObject の作成 |
 | `unity_component_crud` | カスタムコンポーネントの追加・設定 |
 | `unity_scriptableObject_crud` | 状態設定データの ScriptableObject 作成 |
-| `unity_gamekit_animation_sync` | Animator パラメータと状態の同期 |
-| `unity_gamekit_feedback` | 状態遷移時のスクリーンシェイク・ヒットストップ |
 | `unity_gamekit_ui_command` | 状態に応じた UI パネルの表示/非表示 |
 | `unity_input_profile` | 入力アクションの定義（遷移トリガー） |
 | `unity_component_crud` (CharacterController) | プレイヤー移動の物理基盤 |

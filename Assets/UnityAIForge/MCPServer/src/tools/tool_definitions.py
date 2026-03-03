@@ -1,4 +1,4 @@
-"""Tool definitions for all 52 MCP tools (51 registry + 1 batch_sequential).
+"""Tool definitions for all 47 MCP tools (46 registry + 1 batch_sequential).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -22,18 +22,13 @@ from tools.schemas import (
     console_log_schema,
     event_wiring_schema,
     game_object_manage_schema,
-    gamekit_animation_sync_schema,
-    gamekit_audio_schema,
     gamekit_data_schema,
-    gamekit_effect_schema,
-    gamekit_feedback_schema,
     gamekit_pool_schema,
     gamekit_ui_binding_schema,
     gamekit_ui_command_schema,
     gamekit_ui_list_schema,
     gamekit_ui_selection_schema,
     gamekit_ui_slot_schema,
-    gamekit_vfx_schema,
     input_profile_schema,
     light_bundle_schema,
     material_bundle_schema,
@@ -66,7 +61,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 52 MCP tool definitions."""
+    """Return the list of all 47 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -514,77 +509,6 @@ def get_tool_definitions() -> list[types.Tool]:
                 "**Features:** USS-based visual state management, associated panels for tab mode, default selection support"
             ),
             inputSchema=gamekit_ui_selection_schema(),
-        ),
-        # ── GameKit – Presentation Pillar ──────────────────────────
-        types.Tool(
-            name="unity_gamekit_animation_sync",
-            description=(
-                "High-level GameKit Animation Sync: declarative animation synchronization with game state.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: AnimationSync CRUD\n"
-                "- addSyncRule/removeSyncRule: Parameter sync rule management\n"
-                "- addTriggerRule/removeTriggerRule: Trigger rule management\n"
-                "- fireTrigger: Manually fire an animator trigger\n"
-                "- setParameter: Set an animator parameter value\n"
-                "- findBySyncId: Find animation sync by ID\n\n"
-                "**Sync Source Types:** rigidbody3d/rigidbody2d (velocity), transform (position/rotation/scale), health (GameKitHealth), custom\n\n"
-                "**Trigger Event Sources:** health (damage/heal/death), input (action), manual (API call)"
-            ),
-            inputSchema=gamekit_animation_sync_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_effect",
-            description=(
-                "High-level GameKit Effect: composite effect system for particles, sound, camera shake, and screen flash.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Effect asset CRUD\n"
-                "- addComponent/removeComponent/clearComponents: Effect component management\n"
-                "- play/playAtPosition/playAtTransform: Play effect (runtime)\n"
-                "- shakeCamera/flashScreen/setTimeScale: Direct effects (runtime)\n"
-                "- createManager/registerEffect/unregisterEffect: Manager management\n"
-                "- findByEffectId/listEffects: Lookup\n\n"
-                "**Effect Component Types:** particle, sound, cameraShake, screenFlash, timeScale"
-            ),
-            inputSchema=gamekit_effect_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_feedback",
-            description=(
-                "High-level GameKit Feedback: game feel effects system.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Feedback CRUD\n"
-                "- addComponent/clearComponents: Effect component management\n"
-                "- setIntensity: Set global intensity multiplier\n"
-                "- findByFeedbackId: Find feedback by ID\n\n"
-                "**Component Types:** hitstop, screenShake, flash, colorFlash, scale, position, rotation, sound, particle, haptic"
-            ),
-            inputSchema=gamekit_feedback_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_vfx",
-            description=(
-                "High-level GameKit VFX: visual effects wrapper with pooling.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: VFX CRUD\n"
-                "- setMultipliers: Set duration/size/emission multipliers\n"
-                "- setColor/setLoop: Configuration\n"
-                "- findByVFXId: Find VFX by ID\n\n"
-                "**Features:** Object pooling, duration/size/emission multipliers, auto-play on enable, attach to parent transform, registry-based lookup"
-            ),
-            inputSchema=gamekit_vfx_schema(),
-        ),
-        types.Tool(
-            name="unity_gamekit_audio",
-            description=(
-                "High-level GameKit Audio: sound effect and music wrapper.\n\n"
-                "**Operations:**\n"
-                "- create/update/inspect/delete: Audio CRUD\n"
-                "- setVolume/setPitch/setLoop/setClip: Configuration\n"
-                "- findByAudioId: Find audio by ID\n\n"
-                "**Audio Types:** sfx, music, ambient, voice, ui\n\n"
-                "**Features:** Pitch variation, fade in/out, 2D/3D spatial blend, registry-based lookup, cross-fade support"
-            ),
-            inputSchema=gamekit_audio_schema(),
         ),
         # ── GameKit – Systems ──────────────────────────────────────
         types.Tool(

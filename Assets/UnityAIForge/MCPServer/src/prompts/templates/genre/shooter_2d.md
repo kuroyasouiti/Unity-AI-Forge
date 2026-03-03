@@ -6,7 +6,6 @@
 核心となるのは「オブジェクトプーリング」「ウェーブ制スポーン」「スコア/コンボ管理」
 「弾幕・プロジェクタイル処理」である。
 ゲームロジック（弾の移動・衝突判定・スポーン制御・AI パターン）はカスタムスクリプトで実装し、
-GameKit の Presentation Pillar（feedback, vfx, audio）でヒット演出を付加、
 UI Pillar で HUD 表示を構築する。
 
 ---
@@ -50,7 +49,6 @@ Assets/
   Scripts/
     Player/
       PlayerShip.cs          # 手動作成: 自機移動・射撃制御
-      PlayerAudio.cs         # 生成: unity_gamekit_audio
     Enemy/
       EnemyBase.cs           # 手動作成: 敵基底クラス
       EnemyMover.cs          # 手動作成: 移動パターン
@@ -260,63 +258,7 @@ unity_gamekit_ui_command(operation='createCommandPanel',
 unity_compilation_await(operation='await')
 ```
 
-### Step 6: ヒット・撃破演出
-
-```python
-# FX マネージャ
-unity_gameobject_crud(operation='create', name='FXManager')
-unity_gameobject_crud(operation='create', name='FeedbackManager')
-
-# 爆発 VFX
-unity_gamekit_vfx(operation='create', targetPath='FXManager',
-    vfxId='explosion_vfx')
-unity_compilation_await(operation='await')
-
-# ヒットスパーク VFX
-unity_gamekit_vfx(operation='create', targetPath='FXManager',
-    vfxId='hit_spark_vfx')
-unity_compilation_await(operation='await')
-
-# 被弾フィードバック（スクリーンシェイク + フラッシュ）
-unity_gamekit_feedback(operation='create', targetPath='FeedbackManager',
-    feedbackId='player_hit',
-    components=[
-        {'type': 'screenShake', 'intensity': 0.4, 'duration': 0.25},
-        {'type': 'flash', 'color': {'r':1,'g':0,'b':0,'a':0.5}, 'duration': 0.1},
-    ])
-unity_compilation_await(operation='await')
-
-# ボス撃破フィードバック（強め）
-unity_gamekit_feedback(operation='create', targetPath='FeedbackManager',
-    feedbackId='boss_defeat',
-    components=[
-        {'type': 'screenShake', 'intensity': 1.0, 'duration': 0.8},
-    ])
-unity_compilation_await(operation='await')
-```
-
-### Step 7: BGM・SE
-
-```python
-# BGM
-unity_gameobject_crud(operation='create', name='Audio')
-unity_gamekit_audio(operation='create', targetPath='Audio',
-    audioId='game_bgm', audioClipPath='Assets/Audio/BGM/Game.mp3',
-    loop=True)
-unity_compilation_await(operation='await')
-
-# 射撃SE
-unity_gamekit_audio(operation='create', targetPath='Audio',
-    audioId='sfx_shoot', audioClipPath='Assets/Audio/SFX/Shoot.wav')
-unity_compilation_await(operation='await')
-
-# 爆発SE
-unity_gamekit_audio(operation='create', targetPath='Audio',
-    audioId='sfx_explosion', audioClipPath='Assets/Audio/SFX/Explosion.wav')
-unity_compilation_await(operation='await')
-```
-
-### Step 8: カメラ・背景
+### Step 6: カメラ・背景
 
 ```python
 # カメラ（固定）
@@ -386,9 +328,6 @@ unity_validate_integrity(operation='all')
 | UI | `unity_gamekit_ui_command` | ポーズ・リトライ |
 | UI | `unity_gamekit_ui_list` | ランキング表示 |
 | UI基盤 | `unity_ui_foundation` | Canvas・Text 作成 |
-| 演出 | `unity_gamekit_vfx` | 爆発・ヒットスパーク |
-| 演出 | `unity_gamekit_feedback` | 被弾シェイク・ボス撃破 |
-| 演出 | `unity_gamekit_audio` | BGM・SE |
 | イベント | `unity_event_wiring` | UnityEvent 接続 |
 | 設定 | `unity_projectSettings_crud` | 物理・レイヤー設定 |
 | 検証 | `unity_validate_integrity` | プール参照切れ検出 |

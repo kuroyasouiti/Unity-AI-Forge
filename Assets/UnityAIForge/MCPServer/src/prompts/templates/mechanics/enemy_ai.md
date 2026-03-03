@@ -5,8 +5,7 @@
 敵 AI はプレイヤーに挑戦と緊張感をもたらすゲームの重要な要素です。
 パトロール・索敵・追跡・攻撃の基本行動から、複数フェーズを持つボス AI まで、
 Unity-AI-Forge の `unity_asset_crud` でカスタム AI スクリプトを作成し、
-`unity_physics_bundle` で物理設定、`unity_gamekit_animation_sync` でアニメーション同期、
-`unity_gamekit_effect` で演出を付加して体系的に構築できます。
+`unity_physics_bundle` で物理設定を行い体系的に構築できます。
 
 ---
 
@@ -230,75 +229,7 @@ unity_transform_batch(
 )
 ```
 
-### Step 5: アニメーション同期
-
-```python
-# 敵アニメーションと AI 状態を同期
-unity_gamekit_animation_sync(
-    operation="create",
-    targetPath="Slime",
-    syncId="slime_anim_sync",
-    syncRules=[
-        {"parameter": "Speed",     "parameterType": "float",
-         "sourceType": "rigidbody3d", "sourceProperty": "velocity.magnitude"},
-        {"parameter": "IsChasing", "parameterType": "bool",
-         "sourceType": "custom", "boolThreshold": 0.1}
-    ],
-    triggers=[
-        {"triggerName": "Attack", "eventSource": "manual"},
-        {"triggerName": "Death",  "eventSource": "health",
-         "healthId": "slime_health", "healthEvent": "OnDeath"}
-    ]
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### Step 6: ダメージ・死亡エフェクト
-
-```python
-# ダメージ時のフィードバック
-unity_gamekit_feedback(
-    operation="create",
-    targetPath="Slime",
-    feedbackId="slime_damage_feedback",
-    components=[
-        {"type": "colorFlash", "color": {"r": 1, "g": 0, "b": 0, "a": 0.5},
-         "duration": 0.15, "fadeTime": 0.1},
-        {"type": "scale", "scaleAmount": {"x": 0.1, "y": 0.1, "z": 0.1},
-         "duration": 0.1}
-    ]
-)
-
-# 死亡時のエフェクト
-unity_gamekit_effect(
-    operation="create",
-    effectId="slime_death_effect",
-    components=[
-        {"type": "particle",    "duration": 1.0},
-        {"type": "sound",       "volume": 0.8},
-        {"type": "cameraShake", "intensity": 0.2, "shakeDuration": 0.3}
-    ]
-)
-
-# 敵の SE
-unity_gamekit_audio(
-    operation="create",
-    targetPath="Slime",
-    audioId="slime_sfx",
-    audioType="sfx",
-    volume=0.7,
-    spatialBlend=1.0,
-    minDistance=2.0,
-    maxDistance=15.0
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
-```
-
-### Step 7: プレハブ化と確認
+### Step 5: プレハブ化と確認
 
 ```python
 # 敵をプレハブとして保存
@@ -487,7 +418,7 @@ unity_projectSettings_crud(
 ```
 
 3. **コード生成後のコンパイル待ち**
-   `unity_asset_crud` でスクリプト作成後、`unity_gamekit_animation_sync` 等のコード生成後は、
+   `unity_asset_crud` でスクリプト作成後、コード生成ツール実行後は、
    必ず `unity_compilation_await` を呼ぶこと。
 
 4. **パフォーマンス: Update の頻度**
@@ -515,10 +446,6 @@ unity_projectSettings_crud(
 | `unity_physics_bundle` | コライダー・Rigidbody の物理設定 |
 | `unity_transform_batch` | ウェイポイントの一括配置 |
 | `unity_prefab_crud` | 敵プレハブの作成・管理 |
-| `unity_gamekit_animation_sync` | AI 状態とアニメーションの同期 |
-| `unity_gamekit_effect` | ダメージ・死亡エフェクト |
-| `unity_gamekit_feedback` | ヒット時のカメラシェイク・フラッシュ |
-| `unity_gamekit_audio` | 敵の SE（鳴き声・攻撃音） |
 | `unity_camera_rig` | ボス戦・ロックオンカメラ |
 | `unity_projectSettings_crud` | Enemy レイヤーの追加 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |

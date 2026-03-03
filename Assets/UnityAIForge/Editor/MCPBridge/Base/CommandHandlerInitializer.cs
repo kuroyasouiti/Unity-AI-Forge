@@ -68,8 +68,8 @@ namespace MCP.Editor.Base
                 // 開発サイクル・ビジュアル制御ツールのハンドラーを登録
                 RegisterDevCycleAndVisualHandlers();
 
-                // ハイレベルGameKitツールのハンドラーを登録
-                RegisterGameKitHandlers();
+                // ハイレベルツールのハンドラーを登録
+                RegisterHighLevelHandlers();
                 
                 var stats = CommandHandlerFactory.GetStatistics();
                 _hasInitialized = true;
@@ -157,29 +157,22 @@ namespace MCP.Editor.Base
         }
 
         /// <summary>
-        /// ハイレベルGameKitツールのハンドラーを登録します。
+        /// ハイレベルツールのハンドラーを登録します。
         /// </summary>
-        private static void RegisterGameKitHandlers()
+        private static void RegisterHighLevelHandlers()
         {
-            // UI Pillar
-            CommandHandlerFactory.Register("gamekitUICommand", new Handlers.GameKit.GameKitUICommandHandler());
-            CommandHandlerFactory.Register("gamekitUIBinding", new Handlers.GameKit.GameKitUIBindingHandler());
-            CommandHandlerFactory.Register("gamekitUIList", new Handlers.GameKit.GameKitUIListHandler());
-            CommandHandlerFactory.Register("gamekitUISlot", new Handlers.GameKit.GameKitUISlotHandler());
-            CommandHandlerFactory.Register("gamekitUISelection", new Handlers.GameKit.GameKitUISelectionHandler());
+            // GameKit UI
+            CommandHandlerFactory.Register("gamekitUICommand", new Handlers.HighLevel.GameKitUICommandHandler());
+            CommandHandlerFactory.Register("gamekitUIBinding", new Handlers.HighLevel.GameKitUIBindingHandler());
+            CommandHandlerFactory.Register("gamekitUIList", new Handlers.HighLevel.GameKitUIListHandler());
+            CommandHandlerFactory.Register("gamekitUISlot", new Handlers.HighLevel.GameKitUISlotHandler());
+            CommandHandlerFactory.Register("gamekitUISelection", new Handlers.HighLevel.GameKitUISelectionHandler());
 
-            // Presentation Pillar
-            CommandHandlerFactory.Register("gamekitAnimationSync", new Handlers.GameKit.GameKitAnimationSyncHandler());
-            CommandHandlerFactory.Register("gamekitEffect", new Handlers.GameKit.GameKitEffectHandler());
-            CommandHandlerFactory.Register("gamekitFeedback", new Handlers.GameKit.GameKitFeedbackHandler());
-            CommandHandlerFactory.Register("gamekitVFX", new Handlers.GameKit.GameKitVFXHandler());
-            CommandHandlerFactory.Register("gamekitAudio", new Handlers.GameKit.GameKitAudioHandler());
+            // GameKit Systems (Pool & Data)
+            CommandHandlerFactory.Register("gamekitPool", new Handlers.HighLevel.GameKitPoolHandler());
+            CommandHandlerFactory.Register("gamekitData", new Handlers.HighLevel.GameKitDataHandler());
 
-            // Systems (Pool & Data)
-            CommandHandlerFactory.Register("gamekitPool", new Handlers.GameKit.GameKitPoolHandler());
-            CommandHandlerFactory.Register("gamekitData", new Handlers.GameKit.GameKitDataHandler());
-
-            // Logic Pillar — 整合性検証・依存関係/参照解析・型カタログ
+            // Logic — 整合性検証・依存関係/参照解析・型カタログ
             CommandHandlerFactory.Register("sceneIntegrity", new Handlers.HighLevel.SceneIntegrityHandler());
             CommandHandlerFactory.Register("classDependencyGraph", new Handlers.HighLevel.ClassDependencyGraphHandler());
             CommandHandlerFactory.Register("classCatalog", new Handlers.HighLevel.ClassCatalogHandler());

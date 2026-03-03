@@ -213,13 +213,13 @@ Unity Test Frameworkによる包括的なテストスイート:
 - **Audio Source Bundle** (`unity_audio_source_bundle`) - プリセット（music、sfx、ambient、voice、ui）、2D/3D空間オーディオ、ミキサーグループ統合によるAudioSourceの作成と設定
 - **Input Profile** (`unity_input_profile`) - 新Input SystemでのPlayerInput作成、アクションマップの設定、通知動作の設定、InputActionsアセットの作成
 
-### 高レベルGameKitツール（15ツール）
+### 高レベルGameKitツール（14ツール）
 
-GameKitはコード生成方式でスタンドアロンC#スクリプトを生成します。3本柱アーキテクチャ:
+GameKitはコード生成方式でスタンドアロンC#スクリプトを生成します。
 
 - **UIピラー** (5) - UICommand, UIBinding, UIList, UISlot, UISelection
-- **Presentationピラー** (5) - AnimationSync, Effect, Feedback, VFX, Audio
-- **Logicピラー** (5) - Integrity検証, ClassCatalog, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph
+- **Logicピラー** (7) - Integrity検証, ClassCatalog, ClassDependencyGraph, SceneReferenceGraph, SceneRelationshipGraph, SceneDependency, ScriptSyntax
+- **Systemsピラー** (2) - Pool, Data
 
 ## 📦 ScriptableObject管理の例
 
@@ -281,16 +281,16 @@ Unity-AI-Forge/
 │       ├── Editor/
 │       │   ├── MCPBridge/           # Unity C# Bridge
 │       │   │   ├── Base/            # ハンドラー基盤クラス
-│       │   │   ├── Handlers/        # 48ハンドラー（6カテゴリ）
+│       │   │   ├── Handlers/        # 43ハンドラー（6カテゴリ）
 │       │   │   │   ├── LowLevel/    # 基本CRUD操作（7）
 │       │   │   │   ├── MidLevel/    # バッチ・プリセット（20）
 │       │   │   │   ├── HighLevel/   # 分析・整合性（5）
-│       │   │   │   ├── GameKit/     # UI・Presentation（10）
+│       │   │   │   ├── GameKit/     # UI・Systems（7）
 │       │   │   │   ├── Utility/     # ユーティリティ（5）
 │       │   │   │   └── Settings/    # プロジェクト設定（1）
 │       │   │   └── Utilities/       # 共通ユーティリティ
 │       │   ├── CodeGen/             # コード生成インフラ
-│       │   │   └── Templates/       # 11テンプレート（*.cs.txt）
+│       │   │   └── Templates/       # 10テンプレート（*.cs.txt）
 │       │   └── MCPServerManager/    # サーバー管理UI
 │       ├── MCPServer/               # MCPサーバー（Python）
 │       │   ├── src/                 # サーバーソース

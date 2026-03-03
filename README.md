@@ -44,11 +44,11 @@ Model Context Protocol で Unity を AI から操作
 - 宣言的UIシステム (Hierarchy/State/Navigation)
 - シーン整合性検証・依存関係グラフ・参照解析
 
-### 🎮 GameKit Framework (3-Pillar Architecture)
+### 🎮 GameKit Framework
 コード生成によるゼロ依存のゲームシステムフレームワーク
-- **UI Pillar**: UICommand, UIBinding, UIList, UISlot, UISelection（UI Toolkit ベース）
-- **Presentation Pillar**: AnimationSync, Effect, Feedback, VFX, Audio
-- **Logic Pillar**: シーン整合性検証, クラス依存関係グラフ, 型カタログ, シーン参照解析
+- **GameKit UI**: UICommand, UIBinding, UIList, UISlot, UISelection（UI Toolkit ベース）
+- **GameKit Systems**: ObjectPool, EventChannel, DataContainer, RuntimeSet
+- **Logic**: シーン整合性検証, クラス依存関係グラフ, 型カタログ, シーン参照解析
 
 ---
 

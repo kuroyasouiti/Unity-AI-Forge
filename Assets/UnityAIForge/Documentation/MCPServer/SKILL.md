@@ -6,7 +6,7 @@ license: MIT
 
 # Unity-AI-Forge - AI-Powered Unity Development
 
-**Forge Unity games through AI collaboration. Model Context Protocol integration with 3-pillar GameKit framework.**
+**Forge Unity games through AI collaboration. Model Context Protocol integration with GameKit framework.**
 
 You are now working with Unity-AI-Forge, a powerful system that lets you create, modify, and manage Unity projects directly from this conversation through intelligent AI collaboration.
 
@@ -19,10 +19,10 @@ Before using these tools, ensure:
 
 ## 3-Layer Architecture
 
-Unity-AI-Forge provides **52 tools** organized in 3 layers. Always prefer higher-level tools first:
+Unity-AI-Forge provides **47 tools** organized in 3 layers. Always prefer higher-level tools first:
 
 ```
-High-Level GameKit (19 tools)  ← Game systems & analysis (use first)
+High-Level GameKit (14 tools)  ← Game systems & analysis (use first)
 Mid-Level Batch   (22 tools)  ← Batch operations & presets
 Low-Level CRUD     (8 tools)  ← Individual object operations
 Utility            (2 tools)  ← Helpers & diagnostics
@@ -31,22 +31,22 @@ Batch Operations   (1 tool)   ← Sequential execution
 
 | Purpose | Recommended Layer | Example |
 |---------|------------------|---------|
-| Game systems (UI, effects, audio) | High-Level GameKit | `unity_gamekit_ui_command`, `unity_gamekit_effect` |
+| Game systems (UI, pooling, data) | High-Level GameKit | `unity_gamekit_ui_command`, `unity_gamekit_pool` |
 | Scene/code analysis | High-Level Analysis | `unity_scene_reference_graph`, `unity_class_catalog` |
 | Batch operations & presets | Mid-Level Batch | `unity_transform_batch`, `unity_material_bundle` |
 | Individual object control | Low-Level CRUD | `unity_gameobject_crud`, `unity_component_crud` |
 
 ---
 
-## GameKit Framework (3-Pillar Architecture)
+## GameKit Framework
 
 GameKit uses **code generation** to produce standalone C# scripts from templates. Generated scripts have zero runtime dependency on Unity-AI-Forge.
 
 | Pillar | Tools | Purpose |
 |--------|-------|---------|
 | **UI** (5 tools) | Command, Binding, List, Slot, Selection | UI Toolkit-based components (UXML/USS + C#) |
-| **Presentation** (5 tools) | AnimationSync, Effect, Feedback, VFX, Audio | Visual effects, animation, and audio components |
 | **Logic** (7 tools) | Integrity, Catalog, Dependencies, References, Relationships, SceneDependency, ScriptSyntax | Scene/code analysis and validation |
+| **Systems** (2 tools) | Pool, Data | Object pooling and data management (event channels, containers, runtime sets) |
 
 After `create` operations, call `unity_compilation_await` to wait for Unity to compile the generated scripts.
 
@@ -65,17 +65,6 @@ unity_gamekit_ui_command({
          "moveDirection": {"x": 0, "y": 0, "z": 1}},
         {"name": "attack", "label": "Attack", "commandType": "action",
          "commandParameter": "melee"}
-    ]
-})
-unity_compilation_await({"operation": "await"})
-
-# Create hit feedback (Presentation Pillar)
-unity_gamekit_feedback({
-    "operation": "create",
-    "feedbackId": "onHit",
-    "components": [
-        {"type": "hitstop", "duration": 0.05, "hitstopTimeScale": 0},
-        {"type": "screenShake", "duration": 0.2, "intensity": 0.3}
     ]
 })
 unity_compilation_await({"operation": "await"})
@@ -721,7 +710,7 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-## Complete Tool Reference (52 Tools)
+## Complete Tool Reference (47 Tools)
 
 ### High-Level GameKit - UI Pillar (5 tools)
 
@@ -732,16 +721,6 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_gamekit_ui_list` | Dynamic ScrollView list/grid |
 | `unity_gamekit_ui_slot` | Equipment/quickslot UI |
 | `unity_gamekit_ui_selection` | Radio/toggle/checkbox/tab groups |
-
-### High-Level GameKit - Presentation Pillar (5 tools)
-
-| Tool | Description |
-|------|-------------|
-| `unity_gamekit_animation_sync` | Animator parameter sync with game state |
-| `unity_gamekit_effect` | Composite effects (particle + sound + shake) |
-| `unity_gamekit_feedback` | Game feel (hitstop, screen shake, flash) |
-| `unity_gamekit_vfx` | ParticleSystem wrapper with pooling |
-| `unity_gamekit_audio` | Sound management (SFX, music, ambient) |
 
 ### High-Level GameKit - Logic Pillar (7 tools)
 
@@ -815,13 +794,13 @@ unity_batch_sequential_execute({"operations": [...]})
 ## Additional Documentation
 
 ### GameKit Framework
-**[SKILL_GAMEKIT.md](SKILL_GAMEKIT.md)** - Complete guide to GameKit's 3-pillar architecture:
+**[SKILL_GAMEKIT.md](SKILL_GAMEKIT.md)** - Complete guide to GameKit framework:
 - **UI Pillar**: UICommand, UIBinding, UIList, UISlot, UISelection
-- **Presentation Pillar**: AnimationSync, Effect, Feedback, VFX, Audio
 - **Logic Pillar**: Integrity validation, class catalog, dependency/reference/relationship graphs
+- **Systems**: Pool, Data (event channels, containers, runtime sets)
 - Code generation workflow
 - Complete game examples and best practices
 
 ---
 
-**You now have complete control over Unity Editor with 52 tools across 3 layers. Build amazing projects!**
+**You now have complete control over Unity Editor with 47 tools across 3 layers. Build amazing projects!**

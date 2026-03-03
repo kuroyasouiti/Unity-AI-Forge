@@ -1,6 +1,6 @@
 """Single source of truth for MCP tool name to Unity bridge name mapping.
 
-All MCP tools (except ``unity_batch_sequential_execute``, which is handled
+All 46 MCP tools (except ``unity_batch_sequential_execute``, which is handled
 separately) are listed here.  Both ``register_tools.py`` and
 ``batch_sequential.py`` import from this module so that name mappings are
 never duplicated.
@@ -50,22 +50,16 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     # ── Mid-Level Physics & NavMesh ────────────────────────
     "unity_physics_bundle": "physicsBundle",
     "unity_navmesh_bundle": "navmeshBundle",
-    # ── High-Level GameKit – UI Pillar ───────────────────────
+    # ── High-Level – GameKit UI ─────────────────────────────
     "unity_gamekit_ui_command": "gamekitUICommand",
     "unity_gamekit_ui_binding": "gamekitUIBinding",
     "unity_gamekit_ui_list": "gamekitUIList",
     "unity_gamekit_ui_slot": "gamekitUISlot",
     "unity_gamekit_ui_selection": "gamekitUISelection",
-    # ── High-Level GameKit – Presentation Pillar ──────────────
-    "unity_gamekit_animation_sync": "gamekitAnimationSync",
-    "unity_gamekit_effect": "gamekitEffect",
-    "unity_gamekit_feedback": "gamekitFeedback",
-    "unity_gamekit_vfx": "gamekitVFX",
-    "unity_gamekit_audio": "gamekitAudio",
-    # ── High-Level GameKit – Systems ──────────────────────────
+    # ── High-Level – GameKit Systems ──────────────────────────
     "unity_gamekit_pool": "gamekitPool",
     "unity_gamekit_data": "gamekitData",
-    # ── High-Level GameKit – Logic Pillar ─────────────────────
+    # ── High-Level – Logic ────────────────────────────────────
     "unity_validate_integrity": "sceneIntegrity",
     "unity_class_dependency_graph": "classDependencyGraph",
     "unity_class_catalog": "classCatalog",

@@ -241,18 +241,6 @@ unity_gameobject_crud(
     ]
 )
 
-# ピックアップ時の演出エフェクト
-unity_gamekit_effect(
-    operation="create",
-    effectId="pickup_effect",
-    components=[
-        {"type": "sound",    "volume": 0.7},
-        {"type": "particle", "duration": 0.5}
-    ]
-)
-
-# コンパイル待ち
-unity_compilation_await(operation="await", timeoutSeconds=30)
 ```
 
 ### Step 6: アイテム選択 UI の実装
@@ -371,8 +359,6 @@ unity_ui_state(
 | `unity_gamekit_ui_slot` | スロットバー・装備スロットの作成 |
 | `unity_gamekit_ui_selection` | スロット選択状態の管理 |
 | `unity_gamekit_ui_command` | アイテムコンテキストメニュー |
-| `unity_gamekit_effect` | ピックアップ時のパーティクル・サウンドエフェクト |
-| `unity_gamekit_audio` | ピックアップ・装備・使用時の SE |
 | `unity_gameobject_crud` | ワールドアイテム GameObject の作成 |
 | `unity_component_crud` | コンポーネントの追加・プロパティ設定 |
 | `unity_ui_foundation` | インベントリ UI パネルの基盤構築 |

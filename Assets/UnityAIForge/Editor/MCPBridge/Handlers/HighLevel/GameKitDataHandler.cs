@@ -6,7 +6,7 @@ using MCP.Editor.CodeGen;
 using UnityEditor;
 using UnityEngine;
 
-namespace MCP.Editor.Handlers.GameKit
+namespace MCP.Editor.Handlers.HighLevel
 {
     /// <summary>
     /// GameKit Data Architecture handler: generate ScriptableObject-based data patterns.

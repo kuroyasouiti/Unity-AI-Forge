@@ -163,21 +163,9 @@ unity_gamekit_ui_binding({
 unity_compilation_await({"operation": "await"})
 ```
 
-### Example 3: エフェクトとフィードバック
+### Example 3: シーン整合性の検証
 
 ```python
-# 爆発エフェクト（パーティクル + サウンド + カメラシェイク）
-unity_gamekit_effect({
-    "operation": "create",
-    "effectId": "explosion",
-    "components": [
-        {"type": "particle", "prefabPath": "Assets/Prefabs/ExplosionVFX.prefab"},
-        {"type": "sound", "clipPath": "Assets/Audio/explosion.wav", "volume": 0.8},
-        {"type": "cameraShake", "intensity": 0.5, "shakeDuration": 0.3}
-    ]
-})
-unity_compilation_await({"operation": "await"})
-
 # シーン整合性の検証
 unity_validate_integrity({"operation": "all"})
 ```
@@ -278,7 +266,7 @@ AI が自動的に:
 | リソース | 内容 |
 |:---|:---|
 | [**GameKit Guide**](MCPServer/SKILL_GAMEKIT.md) | GameKit 完全ガイド |
-| [**MCP Tools**](MCPServer/SKILL.md) | 全49ツールのリファレンス |
+| [**MCP Tools**](MCPServer/SKILL.md) | 全47ツールのリファレンス |
 | [**Examples**](Examples/README.md) | 実践的なサンプル集 |
 | [**API Docs**](GameKit/README.md) | GameKit API ドキュメント |
 
@@ -293,7 +281,7 @@ AI が自動的に:
 #### 中級
 
 - [ ] **Tower Defense** - UI Slot + Effect で構築
-- [ ] **RPG** - GameKit 3ピラー統合
+- [ ] **RPG** - GameKit UI + Logic + Systems 統合
 - [ ] **Roguelike** - プロシージャル生成 + GameKit
 
 #### 上級

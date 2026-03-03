@@ -216,5 +216,5 @@ unity_gamekit_ui_command({
 
 ## See Also
 
-- [GameKit Overview](./README.md) - 3-pillar architecture overview
+- [GameKit Overview](./README.md) - GameKit architecture overview
 - [GameKit Complete Guide](../MCPServer/SKILL_GAMEKIT.md) - All tool documentation

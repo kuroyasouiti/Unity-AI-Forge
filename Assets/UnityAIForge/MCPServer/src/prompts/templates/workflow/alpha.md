@@ -468,9 +468,9 @@ apply ではなく applyOverrides を使用してください。
 
 アルファでゲームロジックが完成したら、ベータフェーズで演出を追加します:
 
-1. **ベータ** (`game_workflow_guide(phase='beta')`) - アセット・VFX・Audio・Feedbackの統合
+1. **ベータ** (`game_workflow_guide(phase='beta')`) - アセット・アニメーション・マテリアル・ライティングの統合
    - プリミティブを実アセットに置き換え
-   - Presentation Pillar ツールで演出を追加
+   - Mid-Level ツールで演出を追加
    - UI を本番品質に引き上げ
 
 ロジック層が安定しているため、ベータでの演出追加はロジックに影響しません。
