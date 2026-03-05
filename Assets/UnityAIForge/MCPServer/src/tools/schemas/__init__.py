@@ -2,10 +2,10 @@
 
 This module organizes tool schemas into logical groups:
 - common: Shared type definitions (Vector3, Color, Bounds, etc.)
-- utility: Ping, compilation await, playmode, console log
+- utility: Ping, compilation await, playmode, console log, event wiring
 - low_level: CRUD operations (Scene, GameObject, Component, Asset, etc.)
 - mid_level: Batch operations and presets (Transform, Physics, UI, etc.)
-- visual: Sprite, animation, material, light, particle, event wiring
+- visual: Sprite, animation, material, light, particle
 - high_level_gamekit: GameKit UI (Command/Binding/List/Slot/Selection) + Systems (Pool/Data)
 - graph: Integrity validation, class/scene dependency & reference analysis (Logic)
 """
@@ -55,7 +55,6 @@ from tools.schemas.mid_level import (
     tilemap_bundle_schema,
     transform_batch_schema,
     ui_foundation_schema,
-    ui_hierarchy_schema,
     ui_navigation_schema,
     ui_state_schema,
     uitk_asset_schema,
@@ -64,13 +63,13 @@ from tools.schemas.mid_level import (
 from tools.schemas.utility import (
     compilation_await_schema,
     console_log_schema,
+    event_wiring_schema,
     ping_schema,
     playmode_control_schema,
 )
 from tools.schemas.visual import (
     animation2d_bundle_schema,
     animation3d_bundle_schema,
-    event_wiring_schema,
     light_bundle_schema,
     material_bundle_schema,
     particle_bundle_schema,
@@ -95,6 +94,7 @@ __all__ = [
     "compilation_await_schema",
     "playmode_control_schema",
     "console_log_schema",
+    "event_wiring_schema",
     # low_level
     "scene_manage_schema",
     "game_object_manage_schema",
@@ -109,7 +109,6 @@ __all__ = [
     "rect_transform_batch_schema",
     "camera_bundle_schema",
     "ui_foundation_schema",
-    "ui_hierarchy_schema",
     "ui_state_schema",
     "ui_navigation_schema",
     "input_profile_schema",
@@ -125,7 +124,6 @@ __all__ = [
     "material_bundle_schema",
     "light_bundle_schema",
     "particle_bundle_schema",
-    "event_wiring_schema",
     # high_level_gamekit (GameKit UI + Data)
     "gamekit_ui_schema",
     "gamekit_data_schema",

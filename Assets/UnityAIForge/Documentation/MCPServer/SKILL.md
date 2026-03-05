@@ -19,11 +19,11 @@ Before using these tools, ensure:
 
 ## 3-Layer Architecture
 
-Unity-AI-Forge provides **42 tools** organized in 3 layers. Always prefer higher-level tools first:
+Unity-AI-Forge provides **41 tools** organized in 3 layers. Always prefer higher-level tools first:
 
 ```
 High-Level GameKit (9 tools)   ← Game systems & analysis (use first)
-Mid-Level Batch   (22 tools)  ← Batch operations & presets
+Mid-Level Batch   (21 tools)  ← Batch operations & presets
 Low-Level CRUD     (8 tools)  ← Individual object operations
 Utility            (2 tools)  ← Helpers & diagnostics
 Batch Operations   (1 tool)   ← Sequential execution
@@ -150,22 +150,25 @@ unity_ui_foundation({
     "anchorPreset": "middleCenter"
 })
 
-# Create complete UI hierarchy declaratively
-unity_ui_hierarchy({
-    "operation": "create",
-    "parentPath": "GameUI",
-    "hierarchy": {
-        "type": "panel",
-        "name": "MainMenu",
-        "children": [
-            {"type": "text", "name": "Title", "text": "Game Title", "fontSize": 48},
-            {"type": "button", "name": "StartBtn", "text": "Start Game"},
-            {"type": "button", "name": "OptionsBtn", "text": "Options"},
-            {"type": "button", "name": "QuitBtn", "text": "Quit"}
-        ],
-        "layout": "Vertical",
-        "spacing": 20
-    }
+# Create panel and buttons
+unity_ui_foundation({
+    "operation": "createPanel",
+    "name": "MainMenu",
+    "parentPath": "GameUI"
+})
+
+unity_ui_foundation({
+    "operation": "createButton",
+    "name": "StartBtn",
+    "parentPath": "GameUI/MainMenu",
+    "text": "Start Game"
+})
+
+unity_ui_foundation({
+    "operation": "createButton",
+    "name": "QuitBtn",
+    "parentPath": "GameUI/MainMenu",
+    "text": "Quit"
 })
 ```
 
@@ -593,8 +596,8 @@ unity_playmode_control({"operation": "stop"})
 
 2. **Use higher-level tools first** - GameKit > Batch > CRUD
    ```python
-   # Use ui_hierarchy instead of manual GameObject + component creation
-   unity_ui_hierarchy({"operation": "create", "parentPath": "Canvas", "hierarchy": {...}})
+   # Use ui_foundation instead of manual GameObject + component creation
+   unity_ui_foundation({"operation": "createButton", "name": "Start", "parentPath": "Canvas", "text": "Start"})
    ```
 
 3. **Use `includeProperties=false` for fast inspection**
@@ -709,7 +712,7 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-## Complete Tool Reference (42 Tools)
+## Complete Tool Reference (41 Tools)
 
 ### High-Level GameKit - GameKit UI (1 tool)
 
@@ -735,15 +738,14 @@ unity_batch_sequential_execute({"operations": [...]})
 |------|-------------|
 | `unity_gamekit_data` | Object pooling, event channels, data containers, runtime sets (dataType: pool/eventChannel/dataContainer/runtimeSet) |
 
-### Mid-Level Batch (22 tools)
+### Mid-Level Batch (21 tools)
 
 | Tool | Description |
 |------|-------------|
 | `unity_transform_batch` | Batch arrange, rename patterns |
 | `unity_rectTransform_batch` | UI anchors, alignment, distribution |
 | `unity_camera_bundle` | Camera CRUD with presets (default, orthographic2D, etc.) |
-| `unity_ui_foundation` | UGUI element creation (Canvas, Button, Text, etc.) |
-| `unity_ui_hierarchy` | Declarative UI hierarchy from JSON |
+| `unity_ui_foundation` | UGUI element creation, show/hide/toggle, inspectTree |
 | `unity_ui_state` | UI state management |
 | `unity_ui_navigation` | Keyboard/gamepad navigation setup |
 | `unity_input_profile` | New Input System setup |
@@ -797,4 +799,4 @@ unity_batch_sequential_execute({"operations": [...]})
 
 ---
 
-**You now have complete control over Unity Editor with 42 tools across 3 layers. Build amazing projects!**
+**You now have complete control over Unity Editor with 41 tools across 3 layers. Build amazing projects!**

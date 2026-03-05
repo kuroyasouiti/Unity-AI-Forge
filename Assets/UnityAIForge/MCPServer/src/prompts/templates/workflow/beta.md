@@ -215,14 +215,9 @@ unity_component_crud(operation='update',
 
 # HUDのビジュアル改善（テキストをイメージ付きに差し替え等）
 # 既存構造を活用しつつ子要素を追加
-unity_ui_hierarchy(operation='create', parentPath='GameUI/HUD',
-    hierarchy={
-        'type': 'image', 'name': 'HPBarBG',
-        'children': [
-            {'type': 'image', 'name': 'HPBarFill',
-             'sprite': {'$ref': 'Assets/UI/HPBarFill.png'}}
-        ]
-    })
+unity_ui_foundation(operation='createImage', name='HPBarBG', parentPath='GameUI/HUD')
+unity_ui_foundation(operation='createImage', name='HPBarFill', parentPath='GameUI/HUD/HPBarBG',
+    sprite={'$ref': 'Assets/UI/HPBarFill.png'})
 
 # ライティング設定
 unity_light_bundle(operation='createLightingSetup', setupPreset='daylight')

@@ -31,10 +31,6 @@ namespace MCP.Editor.Handlers
             // Coordinate conversion
             "worldToCell",
             "cellToWorld",
-            // Component settings
-            "updateRenderer",
-            "updateCollider",
-            "addCollider",
             // Tile asset creation
             "createTile",
             "createRuleTile",
@@ -67,10 +63,6 @@ namespace MCP.Editor.Handlers
                 // Coordinate conversion
                 "worldToCell" => WorldToCell(payload),
                 "cellToWorld" => CellToWorld(payload),
-                // Component settings
-                "updateRenderer" => UpdateRenderer(payload),
-                "updateCollider" => UpdateCollider(payload),
-                "addCollider" => AddCollider(payload),
                 // Tile asset creation
                 "createTile" => CreateTileAsset(payload),
                 "createRuleTile" => CreateRuleTile(payload),
@@ -546,159 +538,6 @@ namespace MCP.Editor.Handlers
                 ("worldPosition", SerializeVector3(worldPosition)),
                 ("centerWorld", SerializeVector3(centerWorld))
             );
-        }
-
-        #endregion
-
-        #region Component Settings
-
-        private object UpdateRenderer(Dictionary<string, object> payload)
-        {
-            var tilemapPath = GetString(payload, "tilemapPath");
-            if (string.IsNullOrEmpty(tilemapPath))
-            {
-                throw new InvalidOperationException("'tilemapPath' is required");
-            }
-
-            var go = ResolveGameObject(tilemapPath);
-            var renderer = go.GetComponent<TilemapRenderer>();
-            if (renderer == null)
-            {
-                throw new InvalidOperationException($"GameObject '{tilemapPath}' does not have a TilemapRenderer component");
-            }
-
-            Undo.RecordObject(renderer, "Update Tilemap Renderer");
-
-            var sortingLayerName = GetString(payload, "sortingLayerName");
-            if (!string.IsNullOrEmpty(sortingLayerName))
-            {
-                renderer.sortingLayerName = sortingLayerName;
-            }
-
-            if (payload.ContainsKey("sortingOrder"))
-            {
-                renderer.sortingOrder = GetInt(payload, "sortingOrder", 0);
-            }
-
-            if (payload.TryGetValue("mode", out var modeObj))
-            {
-                var modeStr = modeObj.ToString().ToLowerInvariant();
-                renderer.mode = modeStr switch
-                {
-                    "chunk" => TilemapRenderer.Mode.Chunk,
-                    "individual" => TilemapRenderer.Mode.Individual,
-                    _ => renderer.mode
-                };
-            }
-
-            MarkSceneDirty(go);
-
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(go)),
-                ("sortingLayerName", renderer.sortingLayerName),
-                ("sortingOrder", renderer.sortingOrder),
-                ("mode", renderer.mode.ToString())
-            );
-        }
-
-        private object UpdateCollider(Dictionary<string, object> payload)
-        {
-            var tilemapPath = GetString(payload, "tilemapPath");
-            if (string.IsNullOrEmpty(tilemapPath))
-            {
-                throw new InvalidOperationException("'tilemapPath' is required");
-            }
-
-            var go = ResolveGameObject(tilemapPath);
-            var collider = go.GetComponent<TilemapCollider2D>();
-            if (collider == null)
-            {
-                throw new InvalidOperationException($"GameObject '{tilemapPath}' does not have a TilemapCollider2D component");
-            }
-
-            Undo.RecordObject(collider, "Update Tilemap Collider");
-
-            #pragma warning disable CS0618 // Type or member is obsolete
-            if (payload.ContainsKey("usedByComposite"))
-            {
-                collider.usedByComposite = GetBool(payload, "usedByComposite", false);
-            }
-
-            if (payload.ContainsKey("usedByEffector"))
-            {
-                collider.usedByEffector = GetBool(payload, "usedByEffector", false);
-            }
-            #pragma warning restore CS0618
-
-            if (payload.ContainsKey("isTrigger"))
-            {
-                collider.isTrigger = GetBool(payload, "isTrigger", false);
-            }
-
-            MarkSceneDirty(go);
-
-            #pragma warning disable CS0618 // Type or member is obsolete
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(go)),
-                ("usedByComposite", collider.usedByComposite),
-                ("usedByEffector", collider.usedByEffector),
-                ("isTrigger", collider.isTrigger)
-            );
-            #pragma warning restore CS0618
-        }
-
-        private object AddCollider(Dictionary<string, object> payload)
-        {
-            var tilemapPath = GetString(payload, "tilemapPath");
-            if (string.IsNullOrEmpty(tilemapPath))
-            {
-                throw new InvalidOperationException("'tilemapPath' is required");
-            }
-
-            var go = ResolveGameObject(tilemapPath);
-            var tilemap = go.GetComponent<Tilemap>();
-            if (tilemap == null)
-            {
-                throw new InvalidOperationException($"GameObject '{tilemapPath}' does not have a Tilemap component");
-            }
-
-            var collider = go.GetComponent<TilemapCollider2D>();
-            if (collider == null)
-            {
-                collider = Undo.AddComponent<TilemapCollider2D>(go);
-            }
-
-            #pragma warning disable CS0618 // Type or member is obsolete
-            var usedByComposite = GetBool(payload, "usedByComposite", false);
-            collider.usedByComposite = usedByComposite;
-            #pragma warning restore CS0618
-
-            // If using composite, add CompositeCollider2D and Rigidbody2D if not present
-            if (usedByComposite)
-            {
-                var composite = go.GetComponent<CompositeCollider2D>();
-                if (composite == null)
-                {
-                    // CompositeCollider2D requires Rigidbody2D
-                    var rb = go.GetComponent<Rigidbody2D>();
-                    if (rb == null)
-                    {
-                        rb = Undo.AddComponent<Rigidbody2D>(go);
-                        rb.bodyType = RigidbodyType2D.Static;
-                    }
-                    composite = Undo.AddComponent<CompositeCollider2D>(go);
-                }
-            }
-
-            MarkSceneDirty(go);
-
-            #pragma warning disable CS0618 // Type or member is obsolete
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(go)),
-                ("usedByComposite", collider.usedByComposite),
-                ("hasCompositeCollider", go.GetComponent<CompositeCollider2D>() != null)
-            );
-            #pragma warning restore CS0618
         }
 
         #endregion

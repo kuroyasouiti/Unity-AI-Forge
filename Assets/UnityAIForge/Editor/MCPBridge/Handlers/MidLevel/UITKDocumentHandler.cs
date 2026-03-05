@@ -18,8 +18,6 @@ namespace MCP.Editor.Handlers
         {
             "create",
             "inspect",
-            "update",
-            "delete",
             "query",
         };
 
@@ -35,8 +33,6 @@ namespace MCP.Editor.Handlers
             {
                 "create" => CreateDocument(payload),
                 "inspect" => InspectDocument(payload),
-                "update" => UpdateDocument(payload),
-                "delete" => DeleteDocument(payload),
                 "query" => QueryElements(payload),
                 _ => throw new InvalidOperationException($"Unsupported uitkDocument operation: {operation}"),
             };
@@ -182,100 +178,6 @@ namespace MCP.Editor.Handlers
             }
 
             return result;
-        }
-
-        #endregion
-
-        #region Update
-
-        private object UpdateDocument(Dictionary<string, object> payload)
-        {
-            var gameObjectPath = GetString(payload, "gameObjectPath");
-            if (string.IsNullOrEmpty(gameObjectPath))
-                throw new InvalidOperationException("'gameObjectPath' is required for update");
-
-            var go = ResolveGameObject(gameObjectPath);
-            var uiDoc = go.GetComponent<UIDocument>();
-            if (uiDoc == null)
-                return CreateFailureResponse($"No UIDocument found on '{gameObjectPath}'");
-
-            Undo.RecordObject(uiDoc, "Update UIDocument");
-
-            var uxmlPath = GetString(payload, "sourceAsset");
-            if (uxmlPath != null)
-            {
-                if (string.IsNullOrEmpty(uxmlPath))
-                {
-                    uiDoc.visualTreeAsset = null;
-                }
-                else
-                {
-                    var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(uxmlPath);
-                    if (asset != null) uiDoc.visualTreeAsset = asset;
-                    else return CreateFailureResponse($"VisualTreeAsset not found at '{uxmlPath}'");
-                }
-            }
-
-            var panelSettingsPath = GetString(payload, "panelSettings");
-            if (panelSettingsPath != null)
-            {
-                if (string.IsNullOrEmpty(panelSettingsPath))
-                {
-                    uiDoc.panelSettings = null;
-                }
-                else
-                {
-                    var ps = AssetDatabase.LoadAssetAtPath<PanelSettings>(panelSettingsPath);
-                    if (ps != null) uiDoc.panelSettings = ps;
-                    else return CreateFailureResponse($"PanelSettings not found at '{panelSettingsPath}'");
-                }
-            }
-
-            if (payload.ContainsKey("sortingOrder"))
-            {
-                uiDoc.sortingOrder = GetFloat(payload, "sortingOrder", 0f);
-            }
-
-            MarkSceneDirty(go);
-
-            return CreateSuccessResponse(
-                (KeyGameObjectPath, BuildGameObjectPath(go)),
-                (KeyMessage, $"Updated UIDocument on '{gameObjectPath}'")
-            );
-        }
-
-        #endregion
-
-        #region Delete
-
-        private object DeleteDocument(Dictionary<string, object> payload)
-        {
-            var gameObjectPath = GetString(payload, "gameObjectPath");
-            if (string.IsNullOrEmpty(gameObjectPath))
-                throw new InvalidOperationException("'gameObjectPath' is required for delete");
-
-            var go = ResolveGameObject(gameObjectPath);
-            var deleteGameObject = GetBool(payload, "deleteGameObject", false);
-
-            if (deleteGameObject)
-            {
-                Undo.DestroyObjectImmediate(go);
-                return CreateSuccessResponse(
-                    (KeyMessage, $"Deleted GameObject '{gameObjectPath}'")
-                );
-            }
-
-            var uiDoc = go.GetComponent<UIDocument>();
-            if (uiDoc == null)
-                return CreateFailureResponse($"No UIDocument found on '{gameObjectPath}'");
-
-            Undo.DestroyObjectImmediate(uiDoc);
-            MarkSceneDirty(go);
-
-            return CreateSuccessResponse(
-                (KeyGameObjectPath, BuildGameObjectPath(go)),
-                (KeyMessage, $"Removed UIDocument from '{gameObjectPath}'")
-            );
         }
 
         #endregion

@@ -5,7 +5,7 @@
 優れた UI/UX はゲームの操作性とユーザー体験を大きく左右します。
 Unity-AI-Forge の UI Pillar（`unity_gamekit_ui(widgetType='command')`、`unity_gamekit_ui(widgetType='binding')`、
 `unity_gamekit_ui(widgetType='list')`、`unity_gamekit_ui(widgetType='slot')`、`unity_gamekit_ui(widgetType='selection')`）を
-`unity_ui_foundation`、`unity_ui_hierarchy`、`unity_ui_state`、`unity_ui_navigation` と
+`unity_ui_foundation`、`unity_ui_state`、`unity_ui_navigation` と
 組み合わせることで、コントローラー対応・レスポンシブなゲーム UI を素早く構築できます。
 
 ---
@@ -114,41 +114,38 @@ unity_ui_foundation(
     renderMode="ScreenSpaceOverlay"
 )
 
-# UI 階層の一括構築
-unity_ui_hierarchy(
-    operation="create",
-    parentPath="GameCanvas",
-    definition={
-        "name": "UIRoot",
-        "children": [
-            {
-                "type": "Panel", "name": "HUD", "active": true,
-                "children": [
-                    {"type": "Text", "name": "ScoreText", "text": "スコア: 000000"},
-                    {"type": "Text", "name": "HPText",    "text": "HP: 100/100"}
-                ]
-            },
-            {
-                "type": "Panel", "name": "Screens",
-                "children": [
-                    {"type": "Panel", "name": "TitlePanel",     "active": true},
-                    {"type": "Panel", "name": "PausePanel",     "active": false},
-                    {"type": "Panel", "name": "InventoryPanel", "active": false},
-                    {"type": "Panel", "name": "SettingsPanel",  "active": false},
-                    {"type": "Panel", "name": "ResultPanel",    "active": false}
-                ]
-            },
-            {
-                "type": "Panel", "name": "Overlays",
-                "children": [
-                    {"type": "Panel", "name": "DialogPanel",       "active": false},
-                    {"type": "Panel", "name": "ToastNotification", "active": false},
-                    {"type": "Panel", "name": "LoadingScreen",     "active": false}
-                ]
-            }
-        ]
-    }
-)
+# UI 階層の構築（ui_foundation で個別に作成）
+unity_ui_foundation(operation="createPanel", name="UIRoot", parentPath="GameCanvas")
+
+# HUD パネル
+unity_ui_foundation(operation="createPanel", name="HUD", parentPath="GameCanvas/UIRoot")
+unity_ui_foundation(operation="createText", name="ScoreText", parentPath="GameCanvas/UIRoot/HUD",
+    text="スコア: 000000")
+unity_ui_foundation(operation="createText", name="HPText", parentPath="GameCanvas/UIRoot/HUD",
+    text="HP: 100/100")
+
+# Screens パネル（各画面）
+unity_ui_foundation(operation="createPanel", name="Screens", parentPath="GameCanvas/UIRoot")
+unity_ui_foundation(operation="createPanel", name="TitlePanel", parentPath="GameCanvas/UIRoot/Screens")
+unity_ui_foundation(operation="createPanel", name="PausePanel", parentPath="GameCanvas/UIRoot/Screens")
+unity_ui_foundation(operation="createPanel", name="InventoryPanel", parentPath="GameCanvas/UIRoot/Screens")
+unity_ui_foundation(operation="createPanel", name="SettingsPanel", parentPath="GameCanvas/UIRoot/Screens")
+unity_ui_foundation(operation="createPanel", name="ResultPanel", parentPath="GameCanvas/UIRoot/Screens")
+
+# Overlays パネル
+unity_ui_foundation(operation="createPanel", name="Overlays", parentPath="GameCanvas/UIRoot")
+unity_ui_foundation(operation="createPanel", name="DialogPanel", parentPath="GameCanvas/UIRoot/Overlays")
+unity_ui_foundation(operation="createPanel", name="ToastNotification", parentPath="GameCanvas/UIRoot/Overlays")
+unity_ui_foundation(operation="createPanel", name="LoadingScreen", parentPath="GameCanvas/UIRoot/Overlays")
+
+# 初期非表示パネルを隠す
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Screens/PausePanel")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Screens/InventoryPanel")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Screens/SettingsPanel")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Screens/ResultPanel")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/DialogPanel")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/ToastNotification")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/LoadingScreen")
 ```
 
 ### Step 2: HUD の構築（データバインディング）
@@ -425,8 +422,8 @@ unity_ui_foundation(
 )
 
 # show/hide でCanvasGroup経由の表示切替（SetActiveより推奨）
-unity_ui_hierarchy(operation="show", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
-unity_ui_hierarchy(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
+unity_ui_foundation(operation="show", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
+unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
 
 # ui_state で ignoreParentGroups を含む状態定義
 unity_ui_state(
@@ -614,8 +611,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 
 | ツール名 | 用途 |
 |---|---|
-| `unity_ui_foundation` | Canvas・Panel・Button 等の基本 UI 要素作成 |
-| `unity_ui_hierarchy` | 宣言的な UI 階層の一括構築 |
+| `unity_ui_foundation` | Canvas・Panel・Button 等の基本 UI 要素作成・show/hide/toggle |
 | `unity_ui_state` | 画面状態の定義・管理・遷移 |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
 | `unity_gamekit_ui(widgetType='command')` | ボタンアクション・画面切り替えコマンド |

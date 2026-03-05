@@ -8,10 +8,10 @@
 |----------|----------|------|
 | Utility | 5 | 接続確認・コンパイル待機・プレイモード・ログ |
 | Low-Level CRUD | 8 | シーン・GameObject・コンポーネント・アセット管理 |
-| Mid-Level Batch | 22 | バッチ操作・プリセット・UI・ビジュアル制御・物理・NavMesh |
+| Mid-Level Batch | 21 | バッチ操作・プリセット・UI・ビジュアル制御・物理・NavMesh |
 | High-Level GameKit | 9 | GameKit UI (1) + Logic (7) + GameKit Data (1) |
 
-**合計: 42 ツール** (+ batch_sequential 1 = 合計42 MCP定義)
+**合計: 41 ツール** (+ batch_sequential 1 = 合計41 MCP定義)
 
 ---
 
@@ -194,20 +194,6 @@ UGUI基盤要素作成。
 | anchorPreset | string | アンカープリセット |
 | layoutType | string | `Horizontal`, `Vertical`, `Grid` |
 | templateType | string | `dialog`, `hud`, `menu`, `statusBar`, `inventoryGrid` |
-
----
-
-### `unity_ui_hierarchy`
-宣言的UIヒエラルキー管理。
-
-| パラメータ | 型 | 説明 |
-|------------|-----|------|
-| operation | string | `create`, `clone`, `inspect`, `delete`, `show`, `hide`, `toggle` |
-| parentPath | string | 親パス |
-| hierarchy | object | 宣言的UIヒエラルキー定義 |
-| hierarchyId | string | ヒエラルキー識別子 |
-
-**ヒエラルキー要素タイプ:** `panel`, `button`, `text`, `image`, `inputfield`, `scrollview`, `toggle`, `slider`, `dropdown`
 
 ---
 
@@ -683,21 +669,25 @@ unity_ui_foundation({
     "renderMode": "screenSpaceOverlay"
 })
 
-# 宣言的UIヒエラルキー作成
-unity_ui_hierarchy({
-    "operation": "create",
-    "parentPath": "MainCanvas",
-    "hierarchy": {
-        "type": "panel",
-        "name": "MainMenu",
-        "children": [
-            {"type": "text", "name": "Title", "text": "My Game", "fontSize": 48},
-            {"type": "button", "name": "StartBtn", "text": "Start"},
-            {"type": "button", "name": "QuitBtn", "text": "Quit"}
-        ],
-        "layout": "Vertical",
-        "spacing": 20
-    }
+# パネルとボタンを作成
+unity_ui_foundation({
+    "operation": "createPanel",
+    "name": "MainMenu",
+    "parentPath": "MainCanvas"
+})
+
+unity_ui_foundation({
+    "operation": "createButton",
+    "name": "StartBtn",
+    "parentPath": "MainCanvas/MainMenu",
+    "text": "Start"
+})
+
+unity_ui_foundation({
+    "operation": "createButton",
+    "name": "QuitBtn",
+    "parentPath": "MainCanvas/MainMenu",
+    "text": "Quit"
 })
 
 # キーボードナビゲーション設定

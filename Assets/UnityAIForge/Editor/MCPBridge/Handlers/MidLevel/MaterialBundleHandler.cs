@@ -22,9 +22,6 @@ namespace MCP.Editor.Handlers
             "setColor",
             "applyPreset",
             "inspect",
-            "applyToObjects",
-            "delete",
-            "duplicate",
             "listPresets"
         };
 
@@ -44,9 +41,6 @@ namespace MCP.Editor.Handlers
                 "setColor" => HandleSetColor(payload),
                 "applyPreset" => HandleApplyPreset(payload),
                 "inspect" => HandleInspect(payload),
-                "applyToObjects" => HandleApplyToObjects(payload),
-                "delete" => HandleDelete(payload),
-                "duplicate" => HandleDuplicate(payload),
                 "listPresets" => HandleListPresets(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
@@ -333,85 +327,6 @@ namespace MCP.Editor.Handlers
                 ("renderQueue", material.renderQueue),
                 ("renderPipeline", DetectRenderPipeline().ToString()),
                 ("properties", properties)
-            );
-        }
-
-        /// <summary>
-        /// Apply material to multiple objects.
-        /// </summary>
-        private object HandleApplyToObjects(Dictionary<string, object> payload)
-        {
-            string assetPath = GetString(payload, "assetPath");
-            string pattern = GetString(payload, "pattern");
-            int maxResults = GetInt(payload, "maxResults", 100);
-
-            Material material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
-            if (material == null)
-            {
-                return CreateFailureResponse($"Material not found at '{assetPath}'");
-            }
-
-            var gameObjects = FindGameObjectsByPattern(pattern, false, maxResults);
-            int appliedCount = 0;
-
-            foreach (var go in gameObjects)
-            {
-                var renderers = go.GetComponentsInChildren<Renderer>();
-                foreach (var renderer in renderers)
-                {
-                    renderer.sharedMaterial = material;
-                    appliedCount++;
-                }
-            }
-
-            return CreateSuccessResponse(
-                ("message", $"Material applied to {appliedCount} renderers"),
-                ("assetPath", assetPath),
-                ("appliedCount", appliedCount)
-            );
-        }
-
-        /// <summary>
-        /// Delete material.
-        /// </summary>
-        private object HandleDelete(Dictionary<string, object> payload)
-        {
-            string assetPath = GetString(payload, "assetPath");
-
-            if (!AssetDatabase.DeleteAsset(assetPath))
-            {
-                return CreateFailureResponse($"Failed to delete material at '{assetPath}'");
-            }
-
-            return CreateSuccessResponse(
-                ("message", $"Material deleted"),
-                ("assetPath", assetPath)
-            );
-        }
-
-        /// <summary>
-        /// Duplicate material.
-        /// </summary>
-        private object HandleDuplicate(Dictionary<string, object> payload)
-        {
-            string sourcePath = GetString(payload, "assetPath");
-            string destPath = GetString(payload, "destinationPath");
-
-            Material source = AssetDatabase.LoadAssetAtPath<Material>(sourcePath);
-            if (source == null)
-            {
-                return CreateFailureResponse($"Material not found at '{sourcePath}'");
-            }
-
-            if (!AssetDatabase.CopyAsset(sourcePath, destPath))
-            {
-                return CreateFailureResponse($"Failed to duplicate material to '{destPath}'");
-            }
-
-            return CreateSuccessResponse(
-                ("message", $"Material duplicated"),
-                ("sourcePath", sourcePath),
-                ("destinationPath", destPath)
             );
         }
 

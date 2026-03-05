@@ -19,8 +19,6 @@ namespace MCP.Editor.Handlers
         {
             // Animator management
             "setupAnimator",
-            "updateAnimator",
-            "inspectAnimator",
             // AnimatorController operations
             "createController",
             "addState",
@@ -44,8 +42,6 @@ namespace MCP.Editor.Handlers
             return operation switch
             {
                 "setupAnimator" => SetupAnimator(payload),
-                "updateAnimator" => UpdateAnimator(payload),
-                "inspectAnimator" => InspectAnimator(payload),
                 "createController" => CreateController(payload),
                 "addState" => AddState(payload),
                 "addTransition" => AddTransition(payload),
@@ -103,107 +99,6 @@ namespace MCP.Editor.Handlers
                 ("animatorID", animator.GetInstanceID()),
                 ("controllerPath", controllerPath)
             );
-        }
-
-        private object UpdateAnimator(Dictionary<string, object> payload)
-        {
-            var go = ResolveGameObjectFromPayload(payload);
-            var animator = go.GetComponent<Animator>();
-
-            if (animator == null)
-            {
-                throw new InvalidOperationException($"GameObject '{BuildGameObjectPath(go)}' does not have an Animator");
-            }
-
-            Undo.RecordObject(animator, "Update Animator");
-
-            if (payload.ContainsKey("controllerPath"))
-            {
-                var controllerPath = GetString(payload, "controllerPath");
-                if (!string.IsNullOrEmpty(controllerPath))
-                {
-                    var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath);
-                    if (controller != null)
-                    {
-                        animator.runtimeAnimatorController = controller;
-                    }
-                }
-                else
-                {
-                    animator.runtimeAnimatorController = null;
-                }
-            }
-
-            if (payload.ContainsKey("applyRootMotion"))
-            {
-                animator.applyRootMotion = GetBool(payload, "applyRootMotion", false);
-            }
-
-            if (payload.ContainsKey("updateMode"))
-            {
-                animator.updateMode = ParseAnimatorUpdateMode(GetString(payload, "updateMode"));
-            }
-
-            if (payload.ContainsKey("cullingMode"))
-            {
-                animator.cullingMode = ParseAnimatorCullingMode(GetString(payload, "cullingMode"));
-            }
-
-            if (payload.ContainsKey("speed"))
-            {
-                animator.speed = GetFloat(payload, "speed", 1f);
-            }
-
-            EditorSceneManager.MarkSceneDirty(go.scene);
-
-            return CreateSuccessResponse(
-                ("gameObjectPath", BuildGameObjectPath(go)),
-                ("updated", true)
-            );
-        }
-
-        private object InspectAnimator(Dictionary<string, object> payload)
-        {
-            var go = ResolveGameObjectFromPayload(payload);
-            var animator = go.GetComponent<Animator>();
-
-            if (animator == null)
-            {
-                throw new InvalidOperationException($"GameObject '{BuildGameObjectPath(go)}' does not have an Animator");
-            }
-
-            var info = new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["gameObjectPath"] = BuildGameObjectPath(go),
-                ["hasController"] = animator.runtimeAnimatorController != null,
-                ["controllerPath"] = animator.runtimeAnimatorController != null
-                    ? AssetDatabase.GetAssetPath(animator.runtimeAnimatorController)
-                    : null,
-                ["applyRootMotion"] = animator.applyRootMotion,
-                ["updateMode"] = animator.updateMode.ToString(),
-                ["cullingMode"] = animator.cullingMode.ToString(),
-                ["speed"] = animator.speed,
-                ["layerCount"] = animator.layerCount,
-                ["parameterCount"] = animator.parameterCount
-            };
-
-            // Get parameters
-            if (animator.parameterCount > 0)
-            {
-                var parameters = new List<Dictionary<string, object>>();
-                foreach (var param in animator.parameters)
-                {
-                    parameters.Add(new Dictionary<string, object>
-                    {
-                        ["name"] = param.name,
-                        ["type"] = param.type.ToString()
-                    });
-                }
-                info["parameters"] = parameters;
-            }
-
-            return info;
         }
 
         #endregion

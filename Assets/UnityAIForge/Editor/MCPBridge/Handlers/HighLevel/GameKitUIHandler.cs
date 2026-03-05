@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers.HighLevel
         private static readonly string[] Operations =
         {
             // common CRUD
-            "create", "update", "inspect", "delete",
+            "create", "inspect",
             // command
             "createCommandPanel", "addCommand",
             // binding
@@ -27,7 +27,7 @@ namespace MCP.Editor.Handlers.HighLevel
             "refreshFromSource", "findByListId",
             // slot
             "setItem", "clearSlot", "setHighlight",
-            "createSlotBar", "updateSlotBar", "inspectSlotBar", "deleteSlotBar",
+            "createSlotBar", "inspectSlotBar",
             "useSlot", "refreshFromInventory",
             "findBySlotId", "findByBarId",
             // selection

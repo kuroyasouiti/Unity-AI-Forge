@@ -21,8 +21,6 @@ namespace MCP.Editor.Handlers
             "stop",
             "pause",
             "inspect",
-            "delete",
-            "duplicate",
             "listPresets"
         };
 
@@ -40,8 +38,6 @@ namespace MCP.Editor.Handlers
                 "stop" => HandleStop(payload),
                 "pause" => HandlePause(payload),
                 "inspect" => HandleInspect(payload),
-                "delete" => HandleDelete(payload),
-                "duplicate" => HandleDuplicate(payload),
                 "listPresets" => HandleListPresets(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
@@ -265,42 +261,6 @@ namespace MCP.Editor.Handlers
                     ["radius"] = shape.radius,
                     ["angle"] = shape.angle
                 })
-            );
-        }
-
-        /// <summary>
-        /// Delete particle system.
-        /// </summary>
-        private object HandleDelete(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            string path = BuildGameObjectPath(go);
-
-            Undo.DestroyObjectImmediate(go);
-
-            return CreateSuccessResponse(
-                ("message", $"Particle System deleted"),
-                ("gameObjectPath", path)
-            );
-        }
-
-        /// <summary>
-        /// Duplicate particle system.
-        /// </summary>
-        private object HandleDuplicate(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            string newName = GetString(payload, "newName", go.name + "_Copy");
-
-            GameObject duplicate = UnityEngine.Object.Instantiate(go);
-            duplicate.name = newName;
-
-            Undo.RegisterCreatedObjectUndo(duplicate, $"Duplicate {go.name}");
-
-            return CreateSuccessResponse(
-                ("message", $"Particle System duplicated"),
-                ("sourcePath", BuildGameObjectPath(go)),
-                ("newPath", BuildGameObjectPath(duplicate))
             );
         }
 

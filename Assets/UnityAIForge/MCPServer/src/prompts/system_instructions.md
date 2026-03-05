@@ -32,7 +32,7 @@ AI駆動型Unity開発ツールキット。42ツール、3層構造（Low/Mid/Hi
 | Transform | unity_transform_batch, unity_rectTransform_batch |
 | Camera | unity_camera_bundle |
 | Physics | unity_physics_bundle, unity_navmesh_bundle |
-| UI (UGUI) | unity_ui_foundation, unity_ui_hierarchy, unity_ui_state, unity_ui_navigation |
+| UI (UGUI) | unity_ui_foundation, unity_ui_state, unity_ui_navigation |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
 | Input | unity_input_profile |
 | 2D | unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle |
@@ -177,13 +177,14 @@ unity_ui_foundation(operation='addLayoutGroup', targetPath='GameUI/Panel', layou
 unity_ui_foundation(operation='configureCanvasGroup', gameObjectPath='GameUI/Panel', alpha=0.5, interactable=False)
 unity_ui_foundation(operation='createPanel', name='Overlay', parentPath='GameUI', addCanvasGroup=True, ignoreParentGroups=True)
 
-# 宣言的UI構築
-unity_ui_hierarchy(operation='create', parentPath='Canvas', hierarchy={
-    'type':'panel', 'name':'Menu', 'children':[
-        {'type':'text','name':'Title','text':'Game','fontSize':32},
-        {'type':'button','name':'StartBtn','text':'Start'}
-    ], 'layout':'Vertical', 'spacing':20})
-unity_ui_hierarchy(operation='show', targetPath='Canvas/Menu')  # show/hide/toggle
+# UI要素の個別作成
+unity_ui_foundation(operation='createPanel', name='Menu', parentPath='Canvas', layoutType='Vertical', spacing=20)
+unity_ui_foundation(operation='createText', name='Title', parentPath='Canvas/Menu', text='Game', fontSize=32)
+unity_ui_foundation(operation='createButton', name='StartBtn', parentPath='Canvas/Menu', text='Start')
+
+# 表示切替 (show/hide/toggle)
+unity_ui_foundation(operation='show', targetPath='Canvas/Menu')
+unity_ui_foundation(operation='hide', targetPath='Canvas/Menu')
 
 # UI状態管理
 unity_ui_state(operation='defineState', rootPath='Canvas', stateName='menu', elements=[...])

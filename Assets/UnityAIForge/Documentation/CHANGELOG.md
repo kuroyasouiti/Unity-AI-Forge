@@ -5,6 +5,23 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.16.0] - 2026-03-05
+
+### 変更
+
+- **オペレーション簡素化**: Mid-Level / High-Level ツールから Low-Level CRUD で代替可能な約40オペレーションを削除
+  - Mid-Level: camera (update/inspect/delete), light (update/inspect/delete), material (applyToObjects/delete/duplicate), particle (delete/duplicate), animation3d (delete), sprite2d (updateSprite/inspect/updateMultiple/setSortingLayer/setColor), animation2d (updateAnimator/inspectAnimator), ui_foundation (updateLayoutGroup/removeLayoutGroup/configureCanvasGroup), ui_hierarchy (clone/delete), ui_state (deleteState), uitk_document (update/delete), uitk_asset (updateUXML/updateUSS), ui_navigation (reset/disable), tilemap (updateRenderer/updateCollider/addCollider), event_wiring (unwire/clearEvent)
+  - High-Level: validate_integrity (removeMissingScripts), gamekit_ui (update/delete/updateSlotBar/deleteSlotBar), gamekit_data (update/delete)
+
+- **`unity_ui_hierarchy` 廃止 (42→41ツール)**: show/hide/toggle と inspectTree を `unity_ui_foundation` に統合。宣言的 create は個別 ui_foundation create で代替。`UIHierarchyHandler.cs` を削除
+
+- **Utility カテゴリ再分類**: event_wiring, playmode_control, console_log を Mid-Level から Utility に移動。event_wiring スキーマを visual.py から utility.py に移行
+
+### 追加
+
+- **`unity_ui_foundation` 新オペレーション**: `inspectTree` (再帰的UIツリーJSON出力), `show`, `hide`, `toggle` (CanvasGroup/SetActiveによる可視性制御)
+- **inspectTree 色情報**: Image.color, Text/TMP fontColor, Button ColorBlock (normal/highlighted/pressed/selected/disabled) を返却。UI全体のカラー一貫性チェックが可能
+
 ## [2.13.1] - 2026-03-01
 
 ### 修正

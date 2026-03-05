@@ -18,7 +18,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "update", "inspect", "delete",
+            "create", "inspect",
             "setItems", "addItem", "removeItem", "clear",
             "selectItem", "deselectItem", "clearSelection",
             "refreshFromSource", "findByListId"
@@ -36,9 +36,7 @@ namespace MCP.Editor.Handlers.HighLevel
             return operation switch
             {
                 "create" => CreateList(payload),
-                "update" => UpdateList(payload),
                 "inspect" => InspectList(payload),
-                "delete" => DeleteList(payload),
                 "setItems" => SetItems(payload),
                 "addItem" => AddItem(payload),
                 "removeItem" => RemoveItem(payload),
@@ -237,47 +235,6 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #endregion
 
-        #region Update
-
-        private object UpdateList(Dictionary<string, object> payload)
-        {
-            var component = ResolveListComponent(payload);
-            Undo.RecordObject(component, "Update UIList");
-            var so = new SerializedObject(component);
-
-            if (payload.TryGetValue("layout", out var layoutObj))
-            {
-                var layoutName = ParseLayoutType(layoutObj.ToString());
-                var prop = so.FindProperty("layout");
-                var names = prop.enumDisplayNames;
-                for (int i = 0; i < names.Length; i++)
-                {
-                    if (string.Equals(names[i], layoutName, StringComparison.OrdinalIgnoreCase))
-                    { prop.enumValueIndex = i; break; }
-                }
-            }
-
-            if (payload.TryGetValue("columns", out var columnsObj))
-                so.FindProperty("columns").intValue = Convert.ToInt32(columnsObj);
-
-            if (payload.TryGetValue("selectable", out var selectableObj))
-                so.FindProperty("selectable").boolValue = Convert.ToBoolean(selectableObj);
-
-            if (payload.TryGetValue("multiSelect", out var multiObj))
-                so.FindProperty("multiSelect").boolValue = Convert.ToBoolean(multiObj);
-
-            so.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
-
-            return CreateSuccessResponse(
-                ("listId", new SerializedObject(component).FindProperty("listId").stringValue),
-                ("path", BuildGameObjectPath(component.gameObject)),
-                ("updated", true)
-            );
-        }
-
-        #endregion
-
         #region Inspect
 
         private object InspectList(Dictionary<string, object> payload)
@@ -319,45 +276,6 @@ namespace MCP.Editor.Handlers.HighLevel
             }
 
             return CreateSuccessResponse(("list", info));
-        }
-
-        #endregion
-
-        #region Delete
-
-        private object DeleteList(Dictionary<string, object> payload)
-        {
-            var listId = GetString(payload, "listId");
-
-            try
-            {
-                var component = ResolveListComponent(payload);
-                var path = BuildGameObjectPath(component.gameObject);
-                listId = new SerializedObject(component).FindProperty("listId").stringValue;
-                var scene = component.gameObject.scene;
-
-                UITKGenerationHelper.DeleteUIAssets(listId);
-                Undo.DestroyObjectImmediate(component.gameObject);
-                ScriptGenerator.Delete(listId);
-                EditorSceneManager.MarkSceneDirty(scene);
-
-                return CreateSuccessResponse(
-                    ("listId", listId),
-                    ("path", path),
-                    ("deleted", true)
-                );
-            }
-            catch (InvalidOperationException) when (!string.IsNullOrEmpty(listId))
-            {
-                UITKGenerationHelper.DeleteUIAssets(listId);
-                ScriptGenerator.Delete(listId);
-
-                return CreateSuccessResponse(
-                    ("listId", listId),
-                    ("deleted", true),
-                    ("note", "Component not found in scene; orphaned script cleaned up.")
-                );
-            }
         }
 
         #endregion

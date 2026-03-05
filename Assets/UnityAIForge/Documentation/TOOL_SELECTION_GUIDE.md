@@ -13,10 +13,9 @@ This guide helps you choose the right tool for your Unity development tasks.
 | Scrollable lists / inventory grids | `unity_gamekit_ui(widgetType='list')` |
 | Equipment / quickbar slots | `unity_gamekit_ui(widgetType='slot')` |
 | Radio / toggle / tab groups | `unity_gamekit_ui(widgetType='selection')` |
-| Build UI menu from JSON | `unity_ui_hierarchy` |
 | Configure keyboard/gamepad navigation | `unity_ui_navigation` |
 | Manage UI visibility states | `unity_ui_state` |
-| Create single UI element | `unity_ui_foundation` |
+| Create UI elements / show / hide / inspect | `unity_ui_foundation` |
 | Scene integrity validation | `unity_validate_integrity` |
 | Type discovery / inspection | `unity_class_catalog` |
 | Scene asset dependency audit | `unity_scene_dependency` |
@@ -129,31 +128,6 @@ unity_component_crud({
 
 ## 3. UGUI Tools (Mid-Level)
 
-### When to use `unity_ui_hierarchy`
-
-**Best for:** Declarative UI creation from JSON
-
-- Build entire menu systems from JSON definition
-- Complex nested UI structures
-- Rapid prototyping
-- Show/hide UI panels
-
-```python
-unity_ui_hierarchy({
-    "operation": "create",
-    "parentPath": "Canvas",
-    "hierarchy": {
-        "type": "panel",
-        "name": "MainMenu",
-        "children": [
-            {"type": "button", "name": "StartBtn", "text": "Start"},
-            {"type": "button", "name": "QuitBtn", "text": "Quit"}
-        ],
-        "layout": "Vertical"
-    }
-})
-```
-
 ### When to use `unity_ui_navigation`
 
 **Best for:** Keyboard/gamepad navigation setup
@@ -193,11 +167,12 @@ unity_ui_state({
 
 ### When to use `unity_ui_foundation`
 
-**Best for:** Single UI element creation
+**Best for:** UI element creation, visibility control, and inspection
 
 - Create individual buttons, panels, text
 - Add LayoutGroup to existing panels
-- Simple one-off UI elements
+- Show/hide/toggle UI panels
+- Inspect UI hierarchy trees
 
 ```python
 unity_ui_foundation({
@@ -212,14 +187,14 @@ unity_ui_foundation({
 
 ### Decision Matrix
 
-| Requirement | hierarchy | navigation | state | foundation |
-|-------------|-----------|------------|-------|------------|
-| Build UI from JSON | Yes | No | No | No |
-| Keyboard navigation | No | Yes | No | No |
-| Show/hide panels | Yes | No | Yes | No |
-| State management | No | No | Yes | No |
-| Single element | No | No | No | Yes |
-| LayoutGroup | No | No | No | Yes |
+| Requirement | navigation | state | foundation |
+|-------------|------------|-------|------------|
+| Keyboard navigation | Yes | No | No |
+| Show/hide panels | No | Yes | Yes |
+| State management | No | Yes | No |
+| Create UI elements | No | No | Yes |
+| LayoutGroup | No | No | Yes |
+| Inspect UI tree | No | No | Yes |
 
 ---
 
@@ -382,7 +357,7 @@ unity_sprite2d_bundle({
 | Layer | Tools | When to Use |
 |-------|-------|-------------|
 | **High-Level GameKit** | GameKit UI (1), Logic Pillar (7), GameKit Data (1) | Game systems, analysis, validation |
-| **Mid-Level Batch** | transform_batch, camera_bundle, ui_hierarchy, etc. (18) | Batch operations, presets |
+| **Mid-Level Batch** | transform_batch, camera_bundle, ui_foundation, etc. (17) | Batch operations, presets |
 | **Low-Level CRUD** | gameobject_crud, component_crud, asset_crud, etc. (8) | Fine-grained control |
 | **Utility** | ping, compilation_await, playmode_control, etc. (5) | Diagnostics, helpers |
 

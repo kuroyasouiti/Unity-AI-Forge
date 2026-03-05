@@ -1,4 +1,7 @@
-"""Schema definitions for visual and presentation MCP tools."""
+"""Schema definitions for visual and presentation MCP tools.
+
+Includes: sprite2d, animation2d, material, light, particle, animation3d.
+"""
 
 from __future__ import annotations
 
@@ -17,11 +20,6 @@ def sprite2d_bundle_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": [
                         "createSprite",
-                        "updateSprite",
-                        "inspect",
-                        "updateMultiple",
-                        "setSortingLayer",
-                        "setColor",
                         "sliceSpriteSheet",
                         "createSpriteAtlas",
                     ],
@@ -131,8 +129,6 @@ def animation2d_bundle_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": [
                         "setupAnimator",
-                        "updateAnimator",
-                        "inspectAnimator",
                         "createController",
                         "addState",
                         "addTransition",
@@ -246,9 +242,6 @@ def material_bundle_schema() -> dict[str, Any]:
                         "setColor",
                         "applyPreset",
                         "inspect",
-                        "applyToObjects",
-                        "delete",
-                        "duplicate",
                         "listPresets",
                     ],
                     "description": "Material bundle operation.",
@@ -327,9 +320,6 @@ def light_bundle_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": [
                         "create",
-                        "update",
-                        "inspect",
-                        "delete",
                         "applyPreset",
                         "createLightingSetup",
                         "listPresets",
@@ -422,8 +412,6 @@ def particle_bundle_schema() -> dict[str, Any]:
                         "stop",
                         "pause",
                         "inspect",
-                        "delete",
-                        "duplicate",
                         "listPresets",
                     ],
                     "description": "Particle bundle operation.",
@@ -509,7 +497,6 @@ def animation3d_bundle_schema() -> dict[str, Any]:
                         "addBlendTree",
                         "createAvatarMask",
                         "inspect",
-                        "delete",
                         "listParameters",
                         "listStates",
                     ],
@@ -646,91 +633,6 @@ def animation3d_bundle_schema() -> dict[str, Any]:
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Disabled body parts for AvatarMask.",
-                },
-            },
-        },
-        ["operation"],
-    )
-
-
-def event_wiring_schema() -> dict[str, Any]:
-    """Schema for the unity_event_wiring MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "wire",
-                        "unwire",
-                        "inspect",
-                        "listEvents",
-                        "clearEvent",
-                        "wireMultiple",
-                    ],
-                    "description": "Event wiring operation.",
-                },
-                "source": {
-                    "type": "object",
-                    "properties": {
-                        "gameObject": {"type": "string", "description": "Source GameObject path."},
-                        "component": {
-                            "type": "string",
-                            "description": "Source component type (e.g., 'Button', 'UnityEngine.UI.Button').",
-                        },
-                        "event": {
-                            "type": "string",
-                            "description": "Event name (e.g., 'onClick', 'm_OnClick').",
-                        },
-                    },
-                    "description": "Event source.",
-                },
-                "target": {
-                    "type": "object",
-                    "properties": {
-                        "gameObject": {"type": "string", "description": "Target GameObject path."},
-                        "component": {
-                            "type": "string",
-                            "description": "Target component type (optional, defaults to searching GameObject).",
-                        },
-                        "method": {"type": "string", "description": "Target method name."},
-                        "mode": {
-                            "type": "string",
-                            "enum": ["Void", "Int", "Float", "String", "Bool", "Object"],
-                            "description": "Argument mode.",
-                        },
-                        "argument": {"description": "Argument value (type depends on mode)."},
-                    },
-                    "description": "Event target.",
-                },
-                "gameObjectPath": {"type": "string", "description": "GameObject for listEvents."},
-                "componentType": {
-                    "type": "string",
-                    "description": "Component type for listEvents (optional).",
-                },
-                "targetGameObject": {
-                    "type": "string",
-                    "description": "Target GameObject for unwire filtering.",
-                },
-                "targetMethod": {
-                    "type": "string",
-                    "description": "Target method for unwire filtering.",
-                },
-                "listenerIndex": {
-                    "type": "integer",
-                    "description": "Specific listener index for unwire.",
-                },
-                "wirings": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "source": {"type": "object"},
-                            "target": {"type": "object"},
-                        },
-                    },
-                    "description": "Multiple wirings for wireMultiple.",
                 },
             },
         },

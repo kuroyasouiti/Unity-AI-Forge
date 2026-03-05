@@ -23,7 +23,6 @@ namespace MCP.Editor.Handlers
             "saveState",
             "loadState",
             "listStates",
-            "deleteState",
             "createStateGroup",
             "transitionTo",
             "getActiveState",
@@ -44,7 +43,6 @@ namespace MCP.Editor.Handlers
                 "saveState" => SaveCurrentState(payload),
                 "loadState" => LoadState(payload),
                 "listStates" => ListStates(payload),
-                "deleteState" => DeleteState(payload),
                 "createStateGroup" => CreateStateGroup(payload),
                 "transitionTo" => TransitionTo(payload),
                 "getActiveState" => GetActiveState(payload),
@@ -410,40 +408,6 @@ namespace MCP.Editor.Handlers
                 ["stateCount"] = states.Count,
                 ["activeState"] = activeState,
                 ["states"] = states
-            };
-        }
-
-        #endregion
-
-        #region Delete State
-
-        private object DeleteState(Dictionary<string, object> payload)
-        {
-            var stateName = GetString(payload, "stateName");
-            if (string.IsNullOrEmpty(stateName))
-            {
-                throw new InvalidOperationException("stateName is required for deleteState operation.");
-            }
-
-            var rootPath = GetString(payload, "rootPath");
-            if (string.IsNullOrEmpty(rootPath))
-            {
-                throw new InvalidOperationException("rootPath is required for deleteState operation.");
-            }
-
-            if (!UIStatePersistence.HasState(rootPath, stateName))
-            {
-                throw new InvalidOperationException($"State '{stateName}' not found for root '{rootPath}'.");
-            }
-
-            UIStatePersistence.DeleteState(rootPath, stateName);
-
-            return new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["stateName"] = stateName,
-                ["rootPath"] = rootPath,
-                ["message"] = $"State '{stateName}' deleted."
             };
         }
 

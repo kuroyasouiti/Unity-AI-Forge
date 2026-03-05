@@ -226,19 +226,15 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 
 ```python
 # 確認ダイアログパネル
-unity_ui_hierarchy(
-    operation="create",
-    parentPath="SaveLoadCanvas",
-    definition={
-        "name": "ConfirmDialog",
-        "active": false,
-        "children": [
-            {"type": "Text",   "name": "ConfirmMessage", "text": "上書きしますか？"},
-            {"type": "Button", "name": "ConfirmYes",     "text": "はい"},
-            {"type": "Button", "name": "ConfirmNo",      "text": "いいえ"}
-        ]
-    }
-)
+unity_ui_foundation(operation="createPanel", name="ConfirmDialog", parentPath="SaveLoadCanvas",
+    layoutType="Vertical", spacing=12)
+unity_ui_foundation(operation="createText", name="ConfirmMessage",
+    parentPath="SaveLoadCanvas/ConfirmDialog", text="上書きしますか？")
+unity_ui_foundation(operation="createButton", name="ConfirmYes",
+    parentPath="SaveLoadCanvas/ConfirmDialog", text="はい")
+unity_ui_foundation(operation="createButton", name="ConfirmNo",
+    parentPath="SaveLoadCanvas/ConfirmDialog", text="いいえ")
+unity_ui_foundation(operation="hide", targetPath="SaveLoadCanvas/ConfirmDialog")
 
 # ダイアログのイベント接続
 unity_event_wiring(
@@ -403,8 +399,7 @@ ISaveBackend
 | `unity_gamekit_ui(widgetType='list')` | セーブスロット一覧 UI |
 | `unity_gamekit_ui(widgetType='selection')` | セーブ/ロードタブの切り替え |
 | `unity_gamekit_ui(widgetType='command')` | オートセーブ通知 UI |
-| `unity_ui_foundation` | セーブ/ロード画面の UI 基盤 |
-| `unity_ui_hierarchy` | 確認ダイアログの階層構造 |
+| `unity_ui_foundation` | セーブ/ロード画面の UI 基盤・確認ダイアログ構築 |
 | `unity_event_wiring` | ボタンとセーブ処理の接続 |
 | `unity_input_profile` | クイックセーブ/ロードのキーバインド |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |

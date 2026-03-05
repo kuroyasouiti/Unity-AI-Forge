@@ -27,11 +27,12 @@ namespace MCP.Editor.Handlers
             "createInputField",
             "createScrollView",
             "addLayoutGroup",
-            "updateLayoutGroup",
-            "removeLayoutGroup",
             "createFromTemplate",
             "inspect",
-            "configureCanvasGroup",
+            "inspectTree",
+            "show",
+            "hide",
+            "toggle",
         };
 
         public override string Category => "uiFoundation";
@@ -52,11 +53,12 @@ namespace MCP.Editor.Handlers
                 "createInputField" => CreateInputField(payload),
                 "createScrollView" => CreateScrollView(payload),
                 "addLayoutGroup" => AddLayoutGroup(payload),
-                "updateLayoutGroup" => UpdateLayoutGroup(payload),
-                "removeLayoutGroup" => RemoveLayoutGroup(payload),
                 "createFromTemplate" => CreateFromTemplate(payload),
                 "inspect" => InspectUI(payload),
-                "configureCanvasGroup" => ConfigureCanvasGroup(payload),
+                "inspectTree" => InspectTree(payload),
+                "show" => SetVisibility(payload, true),
+                "hide" => SetVisibility(payload, false),
+                "toggle" => ToggleVisibility(payload),
                 _ => throw new InvalidOperationException($"Unsupported UI foundation operation: {operation}"),
             };
         }
@@ -793,76 +795,6 @@ namespace MCP.Editor.Handlers
             return CreateSuccessResponse(
                 ("path", BuildGameObjectPath(go)),
                 ("layoutType", layoutType)
-            );
-        }
-
-        private object UpdateLayoutGroup(Dictionary<string, object> payload)
-        {
-            var targetPath = GetString(payload, "targetPath");
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for updateLayoutGroup.");
-            }
-
-            var go = ResolveGameObject(targetPath);
-
-            // Check for existing layout groups
-            var hlg = go.GetComponent<HorizontalLayoutGroup>();
-            var vlg = go.GetComponent<VerticalLayoutGroup>();
-            var glg = go.GetComponent<GridLayoutGroup>();
-
-            if (hlg != null)
-            {
-                Undo.RecordObject(hlg, "Update HorizontalLayoutGroup");
-                ConfigureHorizontalOrVerticalLayoutGroup(hlg, payload);
-                EditorSceneManager.MarkSceneDirty(go.scene);
-                return CreateSuccessResponse(("path", BuildGameObjectPath(go)), ("layoutType", "horizontal"));
-            }
-
-            if (vlg != null)
-            {
-                Undo.RecordObject(vlg, "Update VerticalLayoutGroup");
-                ConfigureHorizontalOrVerticalLayoutGroup(vlg, payload);
-                EditorSceneManager.MarkSceneDirty(go.scene);
-                return CreateSuccessResponse(("path", BuildGameObjectPath(go)), ("layoutType", "vertical"));
-            }
-
-            if (glg != null)
-            {
-                Undo.RecordObject(glg, "Update GridLayoutGroup");
-                ConfigureGridLayoutGroup(glg, payload);
-                EditorSceneManager.MarkSceneDirty(go.scene);
-                return CreateSuccessResponse(("path", BuildGameObjectPath(go)), ("layoutType", "grid"));
-            }
-
-            throw new InvalidOperationException($"No LayoutGroup found on '{targetPath}'.");
-        }
-
-        private object RemoveLayoutGroup(Dictionary<string, object> payload)
-        {
-            var targetPath = GetString(payload, "targetPath");
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                throw new InvalidOperationException("targetPath is required for removeLayoutGroup.");
-            }
-
-            var go = ResolveGameObject(targetPath);
-            var removed = RemoveExistingLayoutGroup(go);
-
-            // Also remove ContentSizeFitter if requested
-            if (GetBool(payload, "removeContentSizeFitter", true))
-            {
-                var csf = go.GetComponent<ContentSizeFitter>();
-                if (csf != null)
-                {
-                    Undo.DestroyObjectImmediate(csf);
-                }
-            }
-
-            EditorSceneManager.MarkSceneDirty(go.scene);
-            return CreateSuccessResponse(
-                ("path", BuildGameObjectPath(go)),
-                ("removed", removed)
             );
         }
 
@@ -1890,81 +1822,6 @@ namespace MCP.Editor.Handlers
 
         #endregion
 
-        #region Configure CanvasGroup
-
-        private object ConfigureCanvasGroup(Dictionary<string, object> payload)
-        {
-            // Resolve targets: gameObjectPaths (batch) or gameObjectPath (single)
-            var targets = new List<string>();
-            if (payload.TryGetValue("gameObjectPaths", out var pathsObj) && pathsObj is List<object> pathsList)
-            {
-                foreach (var p in pathsList)
-                    targets.Add(p.ToString());
-            }
-            else
-            {
-                var singlePath = GetString(payload, "gameObjectPath");
-                if (string.IsNullOrEmpty(singlePath))
-                    throw new InvalidOperationException("gameObjectPath or gameObjectPaths is required for configureCanvasGroup.");
-                targets.Add(singlePath);
-            }
-
-            var results = new List<Dictionary<string, object>>();
-
-            foreach (var targetPath in targets)
-            {
-                var go = ResolveGameObject(targetPath);
-
-                var canvasGroup = go.GetComponent<CanvasGroup>();
-                if (canvasGroup == null)
-                {
-                    canvasGroup = Undo.AddComponent<CanvasGroup>(go);
-                }
-                else
-                {
-                    Undo.RecordObject(canvasGroup, "Configure CanvasGroup");
-                }
-
-                // Partial update: only set properties that are present in payload
-                if (payload.ContainsKey("alpha"))
-                    canvasGroup.alpha = GetFloat(payload, "alpha", 1f);
-                if (payload.ContainsKey("interactable"))
-                    canvasGroup.interactable = GetBool(payload, "interactable", true);
-                if (payload.ContainsKey("blocksRaycasts"))
-                    canvasGroup.blocksRaycasts = GetBool(payload, "blocksRaycasts", true);
-                if (payload.ContainsKey("ignoreParentGroups"))
-                    canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
-
-                EditorSceneManager.MarkSceneDirty(go.scene);
-
-                results.Add(new Dictionary<string, object>
-                {
-                    ["path"] = BuildGameObjectPath(go),
-                    ["alpha"] = canvasGroup.alpha,
-                    ["interactable"] = canvasGroup.interactable,
-                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
-                    ["ignoreParentGroups"] = canvasGroup.ignoreParentGroups
-                });
-            }
-
-            if (targets.Count == 1)
-            {
-                return new Dictionary<string, object>
-                {
-                    ["success"] = true,
-                    ["canvasGroup"] = results[0]
-                };
-            }
-
-            return new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["canvasGroups"] = results
-            };
-        }
-
-        #endregion
-
         #region Helpers
 
         /// <summary>
@@ -2208,6 +2065,306 @@ namespace MCP.Editor.Handlers
                 if (children[i] != null)
                     Undo.DestroyObjectImmediate(children[i]);
             }
+        }
+
+        #endregion
+
+        #region Visibility Control & Tree Inspect
+
+        private object InspectTree(Dictionary<string, object> payload)
+        {
+            var targetPath = GetString(payload, "targetPath");
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                targetPath = GetString(payload, "parentPath");
+            }
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                throw new InvalidOperationException("targetPath is required for inspectTree operation.");
+            }
+
+            var target = ResolveGameObject(targetPath);
+            var includeChildren = GetBool(payload, "includeChildren", true);
+            var maxDepth = GetInt(payload, "maxDepth", 10);
+
+            var structure = InspectUIElement(target, includeChildren, maxDepth, 0);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["structure"] = structure
+            };
+        }
+
+        private Dictionary<string, object> InspectUIElement(GameObject go, bool includeChildren, int maxDepth, int currentDepth)
+        {
+            var result = new Dictionary<string, object>
+            {
+                ["name"] = go.name,
+                ["path"] = BuildGameObjectPath(go),
+                ["active"] = go.activeSelf
+            };
+
+            // Determine type
+            if (go.GetComponent<Button>() != null)
+                result["type"] = "button";
+            else if (go.GetComponent<InputField>() != null)
+                result["type"] = "inputfield";
+            else if (go.GetComponent<Toggle>() != null)
+                result["type"] = "toggle";
+            else if (go.GetComponent<Slider>() != null)
+                result["type"] = "slider";
+            else if (go.GetComponent<Dropdown>() != null)
+                result["type"] = "dropdown";
+            else if (go.GetComponent<ScrollRect>() != null)
+                result["type"] = "scrollview";
+            else if (go.GetComponent<Text>() != null || HasTextMeshPro(go))
+                result["type"] = "text";
+            else if (go.GetComponent<Image>() != null)
+                result["type"] = "panel";
+            else
+                result["type"] = "container";
+
+            // RectTransform info
+            var rect = go.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                result["rectTransform"] = new Dictionary<string, object>
+                {
+                    ["anchoredPosition"] = new Dictionary<string, object> { ["x"] = rect.anchoredPosition.x, ["y"] = rect.anchoredPosition.y },
+                    ["sizeDelta"] = new Dictionary<string, object> { ["x"] = rect.sizeDelta.x, ["y"] = rect.sizeDelta.y },
+                    ["anchorMin"] = new Dictionary<string, object> { ["x"] = rect.anchorMin.x, ["y"] = rect.anchorMin.y },
+                    ["anchorMax"] = new Dictionary<string, object> { ["x"] = rect.anchorMax.x, ["y"] = rect.anchorMax.y },
+                    ["pivot"] = new Dictionary<string, object> { ["x"] = rect.pivot.x, ["y"] = rect.pivot.y }
+                };
+            }
+
+            // Layout info
+            var hLayout = go.GetComponent<HorizontalLayoutGroup>();
+            var vLayout = go.GetComponent<VerticalLayoutGroup>();
+            var gridLayout = go.GetComponent<GridLayoutGroup>();
+
+            if (hLayout != null)
+                result["layout"] = "Horizontal";
+            else if (vLayout != null)
+                result["layout"] = "Vertical";
+            else if (gridLayout != null)
+                result["layout"] = "Grid";
+
+            // CanvasGroup info
+            var canvasGroup = go.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                result["canvasGroup"] = new Dictionary<string, object>
+                {
+                    ["alpha"] = canvasGroup.alpha,
+                    ["interactable"] = canvasGroup.interactable,
+                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
+                    ["ignoreParentGroups"] = canvasGroup.ignoreParentGroups
+                };
+            }
+
+            // Color info — Image, Text/TMP font color, Button ColorBlock
+            var image = go.GetComponent<Image>();
+            if (image != null)
+            {
+                result["color"] = ColorToDict(image.color);
+            }
+
+            var text = go.GetComponent<Text>();
+            if (text != null)
+            {
+                result["fontColor"] = ColorToDict(text.color);
+            }
+            else
+            {
+                var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+                if (tmpType != null)
+                {
+                    var tmp = go.GetComponent(tmpType);
+                    if (tmp != null)
+                    {
+                        var colorProp = tmpType.GetProperty("color");
+                        if (colorProp != null)
+                            result["fontColor"] = ColorToDict((Color)colorProp.GetValue(tmp));
+                    }
+                }
+            }
+
+            var button = go.GetComponent<Button>();
+            if (button != null)
+            {
+                var cb = button.colors;
+                result["buttonColors"] = new Dictionary<string, object>
+                {
+                    ["normal"] = ColorToDict(cb.normalColor),
+                    ["highlighted"] = ColorToDict(cb.highlightedColor),
+                    ["pressed"] = ColorToDict(cb.pressedColor),
+                    ["selected"] = ColorToDict(cb.selectedColor),
+                    ["disabled"] = ColorToDict(cb.disabledColor)
+                };
+            }
+
+            // Children
+            if (includeChildren && currentDepth < maxDepth)
+            {
+                var children = new List<Dictionary<string, object>>();
+                for (int i = 0; i < go.transform.childCount; i++)
+                {
+                    var child = go.transform.GetChild(i).gameObject;
+                    children.Add(InspectUIElement(child, includeChildren, maxDepth, currentDepth + 1));
+                }
+                result["children"] = children;
+                result["childCount"] = go.transform.childCount;
+            }
+
+            return result;
+        }
+
+        private object SetVisibility(Dictionary<string, object> payload, bool visible)
+        {
+            var targets = GetVisibilityTargetPaths(payload);
+            var useCanvasGroup = GetBool(payload, "useCanvasGroup", true);
+            var results = new List<Dictionary<string, object>>();
+
+            foreach (var targetPath in targets)
+            {
+                var target = ResolveGameObject(targetPath);
+
+                if (useCanvasGroup)
+                {
+                    var canvasGroup = target.GetComponent<CanvasGroup>();
+                    if (canvasGroup == null)
+                    {
+                        canvasGroup = Undo.AddComponent<CanvasGroup>(target);
+                    }
+
+                    Undo.RecordObject(canvasGroup, visible ? "Show UI" : "Hide UI");
+                    canvasGroup.alpha = visible ? 1f : 0f;
+                    canvasGroup.interactable = payload.ContainsKey("interactable")
+                        ? GetBool(payload, "interactable", true) : visible;
+                    canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
+                        ? GetBool(payload, "blocksRaycasts", true) : visible;
+                    if (payload.ContainsKey("ignoreParentGroups"))
+                        canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
+                }
+                else
+                {
+                    Undo.RecordObject(target, visible ? "Show UI" : "Hide UI");
+                    target.SetActive(visible);
+                }
+
+                results.Add(new Dictionary<string, object>
+                {
+                    ["path"] = targetPath,
+                    ["visible"] = visible
+                });
+
+                EditorSceneManager.MarkSceneDirty(target.scene);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["results"] = results
+            };
+        }
+
+        private object ToggleVisibility(Dictionary<string, object> payload)
+        {
+            var targets = GetVisibilityTargetPaths(payload);
+            var useCanvasGroup = GetBool(payload, "useCanvasGroup", true);
+            var results = new List<Dictionary<string, object>>();
+
+            foreach (var targetPath in targets)
+            {
+                var target = ResolveGameObject(targetPath);
+                bool newVisible;
+
+                if (useCanvasGroup)
+                {
+                    var canvasGroup = target.GetComponent<CanvasGroup>();
+                    if (canvasGroup == null)
+                    {
+                        canvasGroup = Undo.AddComponent<CanvasGroup>(target);
+                        newVisible = false;
+                    }
+                    else
+                    {
+                        newVisible = canvasGroup.alpha < 0.5f;
+                    }
+
+                    Undo.RecordObject(canvasGroup, "Toggle UI Visibility");
+                    canvasGroup.alpha = newVisible ? 1f : 0f;
+                    canvasGroup.interactable = payload.ContainsKey("interactable")
+                        ? GetBool(payload, "interactable", true) : newVisible;
+                    canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
+                        ? GetBool(payload, "blocksRaycasts", true) : newVisible;
+                    if (payload.ContainsKey("ignoreParentGroups"))
+                        canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
+                }
+                else
+                {
+                    newVisible = !target.activeSelf;
+                    Undo.RecordObject(target, "Toggle UI Visibility");
+                    target.SetActive(newVisible);
+                }
+
+                results.Add(new Dictionary<string, object>
+                {
+                    ["path"] = targetPath,
+                    ["visible"] = newVisible
+                });
+
+                EditorSceneManager.MarkSceneDirty(target.scene);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["results"] = results
+            };
+        }
+
+        private List<string> GetVisibilityTargetPaths(Dictionary<string, object> payload)
+        {
+            var paths = new List<string>();
+
+            if (payload.TryGetValue("targets", out var targetsObj) && targetsObj is List<object> targetsList)
+            {
+                foreach (var t in targetsList)
+                {
+                    paths.Add(t.ToString());
+                }
+            }
+            else if (payload.TryGetValue("targetPath", out var targetPathObj))
+            {
+                paths.Add(targetPathObj.ToString());
+            }
+
+            if (paths.Count == 0)
+            {
+                throw new InvalidOperationException("targets or targetPath is required for show/hide/toggle.");
+            }
+
+            return paths;
+        }
+
+        private bool HasTextMeshPro(GameObject go)
+        {
+            var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+            return tmpType != null && go.GetComponent(tmpType) != null;
+        }
+
+        private static Dictionary<string, object> ColorToDict(Color c)
+        {
+            return new Dictionary<string, object>
+            {
+                ["r"] = (float)System.Math.Round(c.r, 4),
+                ["g"] = (float)System.Math.Round(c.g, 4),
+                ["b"] = (float)System.Math.Round(c.b, 4),
+                ["a"] = (float)System.Math.Round(c.a, 4)
+            };
         }
 
         #endregion

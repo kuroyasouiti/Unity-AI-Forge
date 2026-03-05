@@ -23,8 +23,6 @@ namespace MCP.Editor.Handlers
             "createGroup",
             "setFirstSelected",
             "inspect",
-            "reset",
-            "disable",
         };
 
         public override string Category => "uiNavigation";
@@ -43,8 +41,6 @@ namespace MCP.Editor.Handlers
                 "createGroup" => CreateNavigationGroup(payload),
                 "setFirstSelected" => SetFirstSelected(payload),
                 "inspect" => InspectNavigation(payload),
-                "reset" => ResetNavigation(payload),
-                "disable" => DisableNavigation(payload),
                 _ => throw new InvalidOperationException($"Unsupported UI navigation operation: {operation}"),
             };
         }
@@ -565,122 +561,6 @@ namespace MCP.Editor.Handlers
                 ["selectOnLeft"] = navigation.selectOnLeft != null ? BuildGameObjectPath(navigation.selectOnLeft.gameObject) : null,
                 ["selectOnRight"] = navigation.selectOnRight != null ? BuildGameObjectPath(navigation.selectOnRight.gameObject) : null,
                 ["interactable"] = selectable.interactable
-            };
-        }
-
-        #endregion
-
-        #region Reset Navigation
-
-        private object ResetNavigation(Dictionary<string, object> payload)
-        {
-            var gameObjectPath = GetString(payload, "gameObjectPath");
-            var recursive = GetBool(payload, "recursive", false);
-
-            if (string.IsNullOrEmpty(gameObjectPath))
-            {
-                throw new InvalidOperationException("gameObjectPath is required for reset operation.");
-            }
-
-            var go = ResolveGameObject(gameObjectPath);
-            var resetCount = 0;
-
-            if (recursive)
-            {
-                var selectables = go.GetComponentsInChildren<Selectable>(true);
-                foreach (var selectable in selectables)
-                {
-                    ResetSelectableNavigation(selectable);
-                    resetCount++;
-                }
-            }
-            else
-            {
-                var selectable = go.GetComponent<Selectable>();
-                if (selectable != null)
-                {
-                    ResetSelectableNavigation(selectable);
-                    resetCount = 1;
-                }
-            }
-
-            EditorSceneManager.MarkSceneDirty(go.scene);
-
-            return new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["gameObjectPath"] = gameObjectPath,
-                ["recursive"] = recursive,
-                ["resetCount"] = resetCount
-            };
-        }
-
-        private void ResetSelectableNavigation(Selectable selectable)
-        {
-            var navigation = selectable.navigation;
-            navigation.mode = Navigation.Mode.Automatic;
-            navigation.wrapAround = false;
-            navigation.selectOnUp = null;
-            navigation.selectOnDown = null;
-            navigation.selectOnLeft = null;
-            navigation.selectOnRight = null;
-            Undo.RecordObject(selectable, "Configure Navigation");
-            selectable.navigation = navigation;
-            EditorUtility.SetDirty(selectable);
-        }
-
-        #endregion
-
-        #region Disable Navigation
-
-        private object DisableNavigation(Dictionary<string, object> payload)
-        {
-            var gameObjectPath = GetString(payload, "gameObjectPath");
-            var recursive = GetBool(payload, "recursive", false);
-
-            if (string.IsNullOrEmpty(gameObjectPath))
-            {
-                throw new InvalidOperationException("gameObjectPath is required for disable operation.");
-            }
-
-            var go = ResolveGameObject(gameObjectPath);
-            var disabledCount = 0;
-
-            if (recursive)
-            {
-                var selectables = go.GetComponentsInChildren<Selectable>(true);
-                foreach (var selectable in selectables)
-                {
-                    var navigation = selectable.navigation;
-                    navigation.mode = Navigation.Mode.None;
-                    Undo.RecordObject(selectable, "Configure Navigation");
-                    selectable.navigation = navigation;
-                    EditorUtility.SetDirty(selectable);
-                    disabledCount++;
-                }
-            }
-            else
-            {
-                var selectable = go.GetComponent<Selectable>();
-                if (selectable != null)
-                {
-                    var navigation = selectable.navigation;
-                    navigation.mode = Navigation.Mode.None;
-                    Undo.RecordObject(selectable, "Configure Navigation");
-                    selectable.navigation = navigation;
-                    EditorUtility.SetDirty(selectable);
-                    disabledCount = 1;
-                }
-            }
-
-            EditorSceneManager.MarkSceneDirty(go.scene);
-
-            return new Dictionary<string, object>
-            {
-                ["success"] = true,
-                ["gameObjectPath"] = gameObjectPath,
-                ["recursive"] = recursive,
-                ["disabledCount"] = disabledCount
             };
         }
 

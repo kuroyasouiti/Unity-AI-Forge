@@ -120,7 +120,6 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("rectTransformBatch", new RectTransformBatchHandler());
             CommandHandlerFactory.Register("cameraBundle", new CameraBundleHandler());
             CommandHandlerFactory.Register("uiFoundation", new UIFoundationHandler());
-            CommandHandlerFactory.Register("uiHierarchy", new UIHierarchyHandler());
             CommandHandlerFactory.Register("uiState", new UIStateHandler());
             CommandHandlerFactory.Register("uiNavigation", new UINavigationHandler());
             CommandHandlerFactory.Register("inputProfile", new InputProfileHandler());

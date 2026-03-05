@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using MCP.Editor.Base;
 using UnityEditor;
-using UnityEditor.Events;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -19,10 +18,8 @@ namespace MCP.Editor.Handlers
         public override IEnumerable<string> SupportedOperations => new[]
         {
             "wire",
-            "unwire",
             "inspect",
             "listEvents",
-            "clearEvent",
             "wireMultiple"
         };
 
@@ -39,10 +36,8 @@ namespace MCP.Editor.Handlers
             return operation switch
             {
                 "wire" => HandleWire(payload),
-                "unwire" => HandleUnwire(payload),
                 "inspect" => HandleInspect(payload),
                 "listEvents" => HandleListEvents(payload),
-                "clearEvent" => HandleClearEvent(payload),
                 "wireMultiple" => HandleWireMultiple(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
@@ -148,100 +143,6 @@ namespace MCP.Editor.Handlers
                     ["mode"] = argMode
                 }),
                 ("message", "Event wired successfully")
-            );
-        }
-
-        /// <summary>
-        /// Unwire (remove) a listener from a UnityEvent.
-        /// </summary>
-        private object HandleUnwire(Dictionary<string, object> payload)
-        {
-            var sourceData = GetDictFromPayload(payload, "source");
-            string targetGameObjectPath = GetString(payload, "targetGameObject", null);
-            string targetMethodName = GetString(payload, "targetMethod", null);
-            int listenerIndex = GetInt(payload, "listenerIndex", -1);
-
-            if (sourceData == null)
-            {
-                throw new ArgumentException("source is required");
-            }
-
-            string sourceGameObjectPath = sourceData.ContainsKey("gameObject") ? sourceData["gameObject"]?.ToString() : "";
-            string sourceComponentType = sourceData.ContainsKey("component") ? sourceData["component"]?.ToString() : "";
-            string eventName = sourceData.ContainsKey("event") ? sourceData["event"]?.ToString() : "";
-
-            var sourceGo = GameObject.Find(sourceGameObjectPath);
-            if (sourceGo == null)
-            {
-                throw new ArgumentException($"Source GameObject not found: {sourceGameObjectPath}");
-            }
-
-            Component sourceComponent = FindComponent(sourceGo, sourceComponentType);
-            if (sourceComponent == null)
-            {
-                throw new ArgumentException($"Source component not found: {sourceComponentType}");
-            }
-
-            var eventField = FindEventField(sourceComponent, eventName);
-            if (eventField == null)
-            {
-                throw new ArgumentException($"Event not found: {eventName}");
-            }
-
-            var unityEvent = eventField.GetValue(sourceComponent) as UnityEventBase;
-            if (unityEvent == null)
-            {
-                throw new ArgumentException($"Event is not a UnityEvent: {eventName}");
-            }
-
-            int removedCount = 0;
-
-            if (listenerIndex >= 0)
-            {
-                // Remove by index
-                UnityEventTools.RemovePersistentListener(unityEvent, listenerIndex);
-                removedCount = 1;
-            }
-            else if (!string.IsNullOrEmpty(targetGameObjectPath) || !string.IsNullOrEmpty(targetMethodName))
-            {
-                // Remove by target/method match
-                int count = unityEvent.GetPersistentEventCount();
-                for (int i = count - 1; i >= 0; i--)
-                {
-                    var target = unityEvent.GetPersistentTarget(i);
-                    var method = unityEvent.GetPersistentMethodName(i);
-
-                    bool matchTarget = string.IsNullOrEmpty(targetGameObjectPath);
-                    bool matchMethod = string.IsNullOrEmpty(targetMethodName);
-
-                    if (!string.IsNullOrEmpty(targetGameObjectPath) && target is Component comp)
-                    {
-                        matchTarget = BuildGameObjectPath(comp.gameObject) == targetGameObjectPath;
-                    }
-                    else if (!string.IsNullOrEmpty(targetGameObjectPath) && target is GameObject go)
-                    {
-                        matchTarget = BuildGameObjectPath(go) == targetGameObjectPath;
-                    }
-
-                    if (!string.IsNullOrEmpty(targetMethodName))
-                    {
-                        matchMethod = method == targetMethodName;
-                    }
-
-                    if (matchTarget && matchMethod)
-                    {
-                        UnityEventTools.RemovePersistentListener(unityEvent, i);
-                        removedCount++;
-                    }
-                }
-            }
-
-            EditorUtility.SetDirty(sourceComponent);
-
-            return CreateSuccessResponse(
-                ("source", sourceData),
-                ("removedCount", removedCount),
-                ("message", $"Removed {removedCount} listener(s)")
             );
         }
 
@@ -413,63 +314,6 @@ namespace MCP.Editor.Handlers
                 ("gameObjectPath", gameObjectPath),
                 ("events", events),
                 ("eventCount", events.Count)
-            );
-        }
-
-        /// <summary>
-        /// Clear all listeners from a UnityEvent.
-        /// </summary>
-        private object HandleClearEvent(Dictionary<string, object> payload)
-        {
-            var sourceData = GetDictFromPayload(payload, "source");
-
-            if (sourceData == null)
-            {
-                throw new ArgumentException("source is required");
-            }
-
-            string sourceGameObjectPath = sourceData.ContainsKey("gameObject") ? sourceData["gameObject"]?.ToString() : "";
-            string sourceComponentType = sourceData.ContainsKey("component") ? sourceData["component"]?.ToString() : "";
-            string eventName = sourceData.ContainsKey("event") ? sourceData["event"]?.ToString() : "";
-
-            var sourceGo = GameObject.Find(sourceGameObjectPath);
-            if (sourceGo == null)
-            {
-                throw new ArgumentException($"Source GameObject not found: {sourceGameObjectPath}");
-            }
-
-            Component sourceComponent = FindComponent(sourceGo, sourceComponentType);
-            if (sourceComponent == null)
-            {
-                throw new ArgumentException($"Source component not found: {sourceComponentType}");
-            }
-
-            var eventField = FindEventField(sourceComponent, eventName);
-            if (eventField == null)
-            {
-                throw new ArgumentException($"Event not found: {eventName}");
-            }
-
-            var unityEvent = eventField.GetValue(sourceComponent) as UnityEventBase;
-            if (unityEvent == null)
-            {
-                throw new ArgumentException($"Event is not a UnityEvent: {eventName}");
-            }
-
-            int previousCount = unityEvent.GetPersistentEventCount();
-
-            // Remove all listeners
-            for (int i = previousCount - 1; i >= 0; i--)
-            {
-                UnityEventTools.RemovePersistentListener(unityEvent, i);
-            }
-
-            EditorUtility.SetDirty(sourceComponent);
-
-            return CreateSuccessResponse(
-                ("source", sourceData),
-                ("removedCount", previousCount),
-                ("message", $"Cleared {previousCount} listener(s)")
             );
         }
 

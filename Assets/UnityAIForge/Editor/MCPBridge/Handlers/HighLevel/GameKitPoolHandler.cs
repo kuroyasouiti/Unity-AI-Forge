@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "update", "inspect", "delete", "findByPoolId"
+            "create", "inspect", "findByPoolId"
         };
 
         public override string Category => "gamekitPool";
@@ -31,9 +31,7 @@ namespace MCP.Editor.Handlers.HighLevel
             return operation switch
             {
                 "create" => CreatePool(payload),
-                "update" => UpdatePool(payload),
                 "inspect" => InspectPool(payload),
-                "delete" => DeletePool(payload),
                 "findByPoolId" => FindByPoolId(payload),
                 _ => throw new InvalidOperationException($"Unsupported GameKit Pool operation: {operation}")
             };
@@ -108,52 +106,6 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #endregion
 
-        #region Update
-
-        private object UpdatePool(Dictionary<string, object> payload)
-        {
-            var component = ResolvePoolComponent(payload);
-            Undo.RecordObject(component, "Update Pool");
-
-            var so = new SerializedObject(component);
-
-            if (payload.TryGetValue("initialSize", out var initObj))
-                so.FindProperty("initialSize").intValue = Convert.ToInt32(initObj);
-
-            if (payload.TryGetValue("maxSize", out var maxObj))
-                so.FindProperty("maxSize").intValue = Convert.ToInt32(maxObj);
-
-            if (payload.TryGetValue("collectionCheck", out var ccObj))
-                so.FindProperty("collectionCheck").boolValue = Convert.ToBoolean(ccObj);
-
-            if (payload.TryGetValue("prefabPath", out var prefabPathObj))
-            {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPathObj.ToString());
-                if (prefab != null)
-                    so.FindProperty("prefab").objectReferenceValue = prefab;
-            }
-
-            if (payload.TryGetValue("defaultParentPath", out var parentPathObj))
-            {
-                var parentGo = GameObject.Find(parentPathObj.ToString());
-                if (parentGo != null)
-                    so.FindProperty("defaultParent").objectReferenceValue = parentGo.transform;
-            }
-
-            so.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
-
-            var poolId = new SerializedObject(component).FindProperty("poolId").stringValue;
-
-            return CreateSuccessResponse(
-                ("poolId", poolId),
-                ("path", BuildGameObjectPath(component.gameObject)),
-                ("updated", true)
-            );
-        }
-
-        #endregion
-
         #region Inspect
 
         private object InspectPool(Dictionary<string, object> payload)
@@ -178,28 +130,6 @@ namespace MCP.Editor.Handlers.HighLevel
             };
 
             return CreateSuccessResponse(("pool", info));
-        }
-
-        #endregion
-
-        #region Delete
-
-        private object DeletePool(Dictionary<string, object> payload)
-        {
-            var component = ResolvePoolComponent(payload);
-            var path = BuildGameObjectPath(component.gameObject);
-            var poolId = new SerializedObject(component).FindProperty("poolId").stringValue;
-            var scene = component.gameObject.scene;
-
-            Undo.DestroyObjectImmediate(component);
-            ScriptGenerator.Delete(poolId);
-            EditorSceneManager.MarkSceneDirty(scene);
-
-            return CreateSuccessResponse(
-                ("poolId", poolId),
-                ("path", path),
-                ("deleted", true)
-            );
         }
 
         #endregion

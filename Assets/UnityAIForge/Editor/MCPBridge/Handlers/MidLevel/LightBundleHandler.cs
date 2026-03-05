@@ -16,9 +16,6 @@ namespace MCP.Editor.Handlers
         public override IEnumerable<string> SupportedOperations => new[]
         {
             "create",
-            "update",
-            "inspect",
-            "delete",
             "applyPreset",
             "createLightingSetup",
             "listPresets"
@@ -32,9 +29,6 @@ namespace MCP.Editor.Handlers
             return operation switch
             {
                 "create" => HandleCreate(payload),
-                "update" => HandleUpdate(payload),
-                "inspect" => HandleInspect(payload),
-                "delete" => HandleDelete(payload),
                 "applyPreset" => HandleApplyPreset(payload),
                 "createLightingSetup" => HandleCreateLightingSetup(payload),
                 "listPresets" => HandleListPresets(payload),
@@ -96,93 +90,6 @@ namespace MCP.Editor.Handlers
                 ("gameObjectPath", BuildGameObjectPath(lightGO)),
                 ("lightType", lightType.ToString()),
                 ("preset", preset ?? "none")
-            );
-        }
-
-        /// <summary>
-        /// Update an existing light.
-        /// </summary>
-        private object HandleUpdate(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            Light light = go.GetComponent<Light>();
-
-            if (light == null)
-            {
-                return CreateFailureResponse($"GameObject '{go.name}' does not have a Light component");
-            }
-
-            ApplyLightProperties(light, payload);
-
-            EditorUtility.SetDirty(go);
-
-            return CreateSuccessResponse(
-                ("message", $"Light updated"),
-                ("gameObjectPath", BuildGameObjectPath(go))
-            );
-        }
-
-        /// <summary>
-        /// Inspect light properties.
-        /// </summary>
-        private object HandleInspect(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            Light light = go.GetComponent<Light>();
-
-            if (light == null)
-            {
-                return CreateFailureResponse($"GameObject '{go.name}' does not have a Light component");
-            }
-
-            return CreateSuccessResponse(
-                ("gameObjectPath", BuildGameObjectPath(go)),
-                ("lightType", light.type.ToString()),
-                ("color", new Dictionary<string, float>
-                {
-                    ["r"] = light.color.r,
-                    ["g"] = light.color.g,
-                    ["b"] = light.color.b,
-                    ["a"] = light.color.a
-                }),
-                ("intensity", light.intensity),
-                ("range", light.range),
-                ("spotAngle", light.spotAngle),
-                ("innerSpotAngle", light.innerSpotAngle),
-                ("shadows", light.shadows.ToString()),
-                ("shadowStrength", light.shadowStrength),
-                ("cookieSize", light.cookieSize),
-                ("renderMode", light.renderMode.ToString()),
-                ("cullingMask", light.cullingMask),
-                ("bounceIntensity", light.bounceIntensity),
-                ("position", new Dictionary<string, float>
-                {
-                    ["x"] = light.transform.position.x,
-                    ["y"] = light.transform.position.y,
-                    ["z"] = light.transform.position.z
-                }),
-                ("rotation", new Dictionary<string, float>
-                {
-                    ["x"] = light.transform.eulerAngles.x,
-                    ["y"] = light.transform.eulerAngles.y,
-                    ["z"] = light.transform.eulerAngles.z
-                })
-            );
-        }
-
-        /// <summary>
-        /// Delete light.
-        /// </summary>
-        private object HandleDelete(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            string path = BuildGameObjectPath(go);
-
-            Undo.DestroyObjectImmediate(go);
-
-            return CreateSuccessResponse(
-                ("message", $"Light deleted"),
-                ("gameObjectPath", path)
             );
         }
 

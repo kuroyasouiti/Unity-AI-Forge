@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers.HighLevel
     /// </summary>
     public class GameKitUICommandHandler : BaseCommandHandler
     {
-        private static readonly string[] Operations = { "createCommandPanel", "addCommand", "inspect", "delete" };
+        private static readonly string[] Operations = { "createCommandPanel", "addCommand", "inspect" };
 
         public override string Category => "gamekitUICommand";
 
@@ -32,7 +32,6 @@ namespace MCP.Editor.Handlers.HighLevel
                 "createCommandPanel" => CreateCommandPanel(payload),
                 "addCommand" => AddCommand(payload),
                 "inspect" => InspectCommandPanel(payload),
-                "delete" => DeleteCommandPanel(payload),
                 _ => throw new InvalidOperationException($"Unsupported GameKit UI Command operation: {operation}"),
             };
         }
@@ -304,47 +303,6 @@ namespace MCP.Editor.Handlers.HighLevel
             }
 
             return CreateSuccessResponse(("commandPanel", info));
-        }
-
-        #endregion
-
-        #region Delete
-
-        private object DeleteCommandPanel(Dictionary<string, object> payload)
-        {
-            var panelId = GetString(payload, "panelId");
-            if (string.IsNullOrEmpty(panelId))
-                throw new InvalidOperationException("panelId is required for delete.");
-
-            try
-            {
-                var component = CodeGenHelper.FindComponentInSceneByField("panelId", panelId);
-                if (component == null)
-                    throw new InvalidOperationException($"Command panel with ID '{panelId}' not found.");
-
-                var scene = component.gameObject.scene;
-
-                // Delete UXML/USS assets
-                UITKGenerationHelper.DeleteUIAssets(panelId);
-
-                Undo.DestroyObjectImmediate(component.gameObject);
-                ScriptGenerator.Delete(panelId);
-
-                EditorSceneManager.MarkSceneDirty(scene);
-
-                return CreateSuccessResponse(("panelId", panelId), ("deleted", true));
-            }
-            catch (InvalidOperationException) when (!string.IsNullOrEmpty(panelId))
-            {
-                UITKGenerationHelper.DeleteUIAssets(panelId);
-                ScriptGenerator.Delete(panelId);
-
-                return CreateSuccessResponse(
-                    ("panelId", panelId),
-                    ("deleted", true),
-                    ("note", "Component not found in scene; orphaned script cleaned up.")
-                );
-            }
         }
 
         #endregion

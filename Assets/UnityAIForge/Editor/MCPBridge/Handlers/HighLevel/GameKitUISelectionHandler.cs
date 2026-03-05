@@ -20,7 +20,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "update", "inspect", "delete",
+            "create", "inspect",
             "setItems", "addItem", "removeItem", "clear",
             "selectItem", "selectItemById", "deselectItem", "clearSelection",
             "setSelectionActions", "setItemEnabled",
@@ -39,9 +39,7 @@ namespace MCP.Editor.Handlers.HighLevel
             return operation switch
             {
                 "create" => CreateSelection(payload),
-                "update" => UpdateSelection(payload),
                 "inspect" => InspectSelection(payload),
-                "delete" => DeleteSelection(payload),
                 "setItems" => SetItems(payload),
                 "addItem" => AddItem(payload),
                 "removeItem" => RemoveItem(payload),
@@ -201,73 +199,6 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #endregion
 
-        #region Update
-
-        private object UpdateSelection(Dictionary<string, object> payload)
-        {
-            var component = ResolveSelectionComponent(payload);
-
-            Undo.RecordObject(component, "Update UISelection");
-
-            var so = new SerializedObject(component);
-
-            if (payload.TryGetValue("selectionType", out var typeObj))
-            {
-                var selectionType = ParseSelectionType(typeObj.ToString());
-                var prop = so.FindProperty("selectionType");
-                var names = prop.enumDisplayNames;
-                for (int i = 0; i < names.Length; i++)
-                {
-                    if (string.Equals(names[i], selectionType, StringComparison.OrdinalIgnoreCase))
-                    {
-                        prop.enumValueIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            if (payload.TryGetValue("allowNone", out var allowNoneObj))
-            {
-                so.FindProperty("allowNone").boolValue = Convert.ToBoolean(allowNoneObj);
-            }
-
-            if (payload.TryGetValue("defaultIndex", out var defaultIdxObj))
-            {
-                so.FindProperty("defaultIndex").intValue = Convert.ToInt32(defaultIdxObj);
-            }
-
-            if (payload.TryGetValue("layout", out var layoutObj))
-            {
-                var layoutType = ParseLayoutType(layoutObj.ToString());
-                var prop = so.FindProperty("layout");
-                var names = prop.enumDisplayNames;
-                for (int i = 0; i < names.Length; i++)
-                {
-                    if (string.Equals(names[i], layoutType, StringComparison.OrdinalIgnoreCase))
-                    {
-                        prop.enumValueIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            if (payload.TryGetValue("spacing", out var spacingObj))
-            {
-                so.FindProperty("spacing").floatValue = Convert.ToSingle(spacingObj);
-            }
-
-            so.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
-
-            return CreateSuccessResponse(
-                ("selectionId", so.FindProperty("selectionId").stringValue),
-                ("path", BuildGameObjectPath(component.gameObject)),
-                ("updated", true)
-            );
-        }
-
-        #endregion
-
         #region Inspect
 
         private object InspectSelection(Dictionary<string, object> payload)
@@ -343,48 +274,6 @@ namespace MCP.Editor.Handlers.HighLevel
             }
 
             return CreateSuccessResponse(("selection", info));
-        }
-
-        #endregion
-
-        #region Delete
-
-        private object DeleteSelection(Dictionary<string, object> payload)
-        {
-            var selectionId = GetString(payload, "selectionId");
-
-            try
-            {
-                var component = ResolveSelectionComponent(payload);
-                var path = BuildGameObjectPath(component.gameObject);
-                selectionId = new SerializedObject(component).FindProperty("selectionId").stringValue;
-                var scene = component.gameObject.scene;
-
-                // Delete UXML/USS assets
-                UITKGenerationHelper.DeleteUIAssets(selectionId);
-
-                Undo.DestroyObjectImmediate(component.gameObject);
-                ScriptGenerator.Delete(selectionId);
-
-                EditorSceneManager.MarkSceneDirty(scene);
-
-                return CreateSuccessResponse(
-                    ("selectionId", selectionId),
-                    ("path", path),
-                    ("deleted", true)
-                );
-            }
-            catch (InvalidOperationException) when (!string.IsNullOrEmpty(selectionId))
-            {
-                UITKGenerationHelper.DeleteUIAssets(selectionId);
-                ScriptGenerator.Delete(selectionId);
-
-                return CreateSuccessResponse(
-                    ("selectionId", selectionId),
-                    ("deleted", true),
-                    ("note", "Component not found in scene; orphaned script cleaned up.")
-                );
-            }
         }
 
         #endregion

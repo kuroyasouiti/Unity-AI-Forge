@@ -25,7 +25,6 @@ namespace MCP.Editor.Handlers
             "addBlendTree",
             "createAvatarMask",
             "inspect",
-            "delete",
             "listParameters",
             "listStates"
         };
@@ -50,7 +49,6 @@ namespace MCP.Editor.Handlers
                 "addBlendTree" => HandleAddBlendTree(payload),
                 "createAvatarMask" => HandleCreateAvatarMask(payload),
                 "inspect" => HandleInspect(payload),
-                "delete" => HandleDelete(payload),
                 "listParameters" => HandleListParameters(payload),
                 "listStates" => HandleListStates(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
@@ -738,57 +736,6 @@ namespace MCP.Editor.Handlers
                 ("parameters", parameters),
                 ("layerCount", controller.layers.Length),
                 ("layers", layers)
-            );
-        }
-
-        /// <summary>
-        /// Delete an AnimatorController or state.
-        /// </summary>
-        private object HandleDelete(Dictionary<string, object> payload)
-        {
-            string controllerPath = GetString(payload, "controllerPath", null);
-            string stateName = GetString(payload, "stateName", null);
-            int layerIndex = GetInt(payload, "layerIndex", 0);
-
-            if (string.IsNullOrEmpty(controllerPath))
-            {
-                throw new ArgumentException("controllerPath is required");
-            }
-
-            if (string.IsNullOrEmpty(stateName))
-            {
-                // Delete entire controller
-                if (AssetDatabase.DeleteAsset(controllerPath))
-                {
-                    return CreateSuccessResponse(
-                        ("deleted", controllerPath),
-                        ("type", "controller")
-                    );
-                }
-                throw new Exception($"Failed to delete controller: {controllerPath}");
-            }
-
-            // Delete state
-            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
-            if (controller == null)
-            {
-                throw new ArgumentException($"AnimatorController not found: {controllerPath}");
-            }
-
-            var stateMachine = controller.layers[layerIndex].stateMachine;
-            var state = FindState(stateMachine, stateName);
-            if (state == null)
-            {
-                throw new ArgumentException($"State not found: {stateName}");
-            }
-
-            stateMachine.RemoveState(state);
-            AssetDatabase.SaveAssets();
-
-            return CreateSuccessResponse(
-                ("controllerPath", controllerPath),
-                ("deletedState", stateName),
-                ("type", "state")
             );
         }
 

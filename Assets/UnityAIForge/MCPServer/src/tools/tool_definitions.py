@@ -45,7 +45,6 @@ from tools.schemas import (
     tilemap_bundle_schema,
     transform_batch_schema,
     ui_foundation_schema,
-    ui_hierarchy_schema,
     ui_navigation_schema,
     ui_state_schema,
     uitk_asset_schema,
@@ -78,6 +77,58 @@ def get_tool_definitions() -> list[types.Tool]:
             inputSchema=compilation_await_schema(),
         ),
         batch_sequential_tool,  # Sequential batch execution with resume capability
+        types.Tool(
+            name="unity_event_wiring",
+            description=(
+                "Wire UnityEvents dynamically (Button.onClick, Slider.onValueChanged, etc.).\n\n"
+                "**Operations:**\n"
+                "- wire: Add listener to UnityEvent\n"
+                "- inspect: View event listeners\n"
+                "- listEvents: List UnityEvent fields on component\n"
+                "- wireMultiple: Wire multiple events at once\n\n"
+                "**Argument Modes:** Void, Int, Float, String, Bool, Object\n\n"
+                "Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom UnityEvents."
+            ),
+            inputSchema=event_wiring_schema(),
+        ),
+        types.Tool(
+            name="unity_playmode_control",
+            description=(
+                "Control Unity Editor play mode for testing games.\n\n"
+                "**Operations:**\n"
+                "- play: Start play mode\n"
+                "- pause: Pause play mode\n"
+                "- unpause: Resume paused play mode\n"
+                "- stop: Stop play mode\n"
+                "- step: Step one frame (while paused)\n"
+                "- getState: Get current play mode state (stopped/playing/paused)\n"
+                "- captureState: Capture runtime state of specified GameObjects (position, rotation, components). Requires play mode.\n"
+                "- waitForScene: Check if a scene is loaded by name/path. Poll until loaded=true for scene transitions.\n"
+                "- validateState: Validate runtime manager state — check MonoBehaviours exist and collections meet minimum counts (requires play mode).\n\n"
+                "Essential for LLMs to execute and test games autonomously."
+            ),
+            inputSchema=playmode_control_schema(),
+        ),
+        types.Tool(
+            name="unity_console_log",
+            description=(
+                "Retrieve Unity Console logs for debugging.\n\n"
+                "**Operations:**\n"
+                "- getRecent: Get recent N logs (default: 50)\n"
+                "- getErrors: Get error logs only\n"
+                "- getWarnings: Get warning logs only\n"
+                "- getLogs: Get normal Debug.Log messages only\n"
+                "- clear: Clear console\n"
+                "- getCompilationErrors: Get detailed compilation errors with file/line info\n"
+                "- getSummary: Get log count summary (errors/warnings/logs)\n"
+                "- snapshot: Take a snapshot of current logs for later diff comparison\n"
+                "- diff: Compare current logs against last snapshot, returning only new entries. Supports severity/keyword filters.\n"
+                "- filter: Filter all logs by severity array and/or keyword regex pattern\n\n"
+                "**Snapshot workflow:** snapshot → (make changes / play test) → diff → fix issues → repeat.\n\n"
+                "Essential for LLMs to debug and fix issues autonomously."
+            ),
+            inputSchema=console_log_schema(),
+        ),
         # ── Low-Level CRUD ─────────────────────────────────────────
         types.Tool(
             name="unity_scene_crud",
@@ -157,12 +208,12 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_camera_bundle",
-            description="Mid-level Camera CRUD with presets: create/update/inspect/delete Camera components, apply presets (default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreenLeft/Right/Top/Bottom, minimap, uiCamera). Full Camera property control: fieldOfView, orthographic, orthographicSize, clearFlags, backgroundColor, cullingMask, depth, nearClipPlane, farClipPlane, rect (viewport), targetDisplay, renderingPath, allowHDR, allowMSAA. Supports position/rotation. Use for rapid camera setup, split-screen viewports, minimap overlays, and dedicated UI cameras.",
+            description="Mid-level Camera creation with presets: create Camera GameObjects, apply presets (default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreenLeft/Right/Top/Bottom, minimap, uiCamera). Full Camera property control on create: fieldOfView, orthographic, orthographicSize, clearFlags, backgroundColor, cullingMask, depth, nearClipPlane, farClipPlane, rect (viewport), targetDisplay, renderingPath, allowHDR, allowMSAA. For update/inspect/delete, use component_crud (Camera) or gameobject_crud.",
             inputSchema=camera_bundle_schema(),
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports LayoutGroups (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). configureCanvasGroup: add/update CanvasGroup on any GameObject (alpha, interactable, blocksRaycasts, ignoreParentGroups) — supports batch via gameObjectPaths. createPanel supports addCanvasGroup option. inspect reports CanvasGroup properties. Supports render modes (screenSpaceOverlay/screenSpaceCamera/worldSpace), anchor presets (topLeft/middleCenter/stretchAll, etc.), automatic sizing, and color configuration. Perfect for rapid UI prototyping and hierarchical UI design. Use for basic UI setup, then customize with unity_component_crud if needed.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle using CanvasGroup (alpha, interactable, blocksRaycasts) or SetActive. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(
@@ -172,38 +223,8 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_tilemap_bundle",
-            description="Mid-level Tilemap management: create Tilemaps with Grid parent, set/get/clear individual tiles, fill rectangular areas, create Tile and RuleTile assets from sprites. Operations: createTilemap (auto-creates Grid), setTile/getTile/setTiles (place tiles at positions), clearTile/clearTiles/clearAllTiles (remove tiles), fillArea/boxFill (batch placement), worldToCell/cellToWorld (coordinate conversion), updateRenderer/updateCollider/addCollider (component settings), createTile/createRuleTile/inspectTile/updateTile (tile asset management). Supports Rectangle/Hexagon/Isometric layouts, sorting layers, TilemapCollider2D with CompositeCollider2D support. RuleTile requires 2D Tilemap Extras package. Essential for 2D level design, roguelikes, platformers, and procedural map generation.",
+            description="Mid-level Tilemap management: create Tilemaps with Grid parent, set/get/clear individual tiles, fill rectangular areas, create Tile and RuleTile assets from sprites. Operations: createTilemap (auto-creates Grid), setTile/getTile/setTiles (place tiles at positions), clearTile/clearTiles/clearAllTiles (remove tiles), fillArea/boxFill (batch placement), worldToCell/cellToWorld (coordinate conversion), createTile/createRuleTile/inspectTile/updateTile (tile asset management). Supports Rectangle/Hexagon/Isometric layouts, sorting layers. For TilemapRenderer/TilemapCollider2D settings, use component_crud directly.",
             inputSchema=tilemap_bundle_schema(),
-        ),
-        types.Tool(
-            name="unity_ui_hierarchy",
-            description=(
-                "Mid-level declarative UI hierarchy management: create complex UI structures from single JSON definitions, manage visibility states.\n\n"
-                "**Operations:**\n"
-                "- create: Build complete UI hierarchy from declarative JSON structure (panels, buttons, text, images, inputs, scrollviews, toggles, sliders, dropdowns)\n"
-                "- clone: Duplicate existing UI hierarchy with optional rename\n"
-                "- inspect: Export UI hierarchy as JSON structure\n"
-                "- delete: Remove UI hierarchy\n"
-                "- show/hide/toggle: Control visibility using CanvasGroup (alpha, interactable, blocksRaycasts, ignoreParentGroups)\n\n"
-                "For navigation, use unity_ui_navigation tool.\n\n"
-                "**Hierarchy Structure Example:**\n"
-                "```json\n"
-                "{\n"
-                '  "type": "panel",\n'
-                '  "name": "MainMenu",\n'
-                '  "children": [\n'
-                '    {"type": "text", "name": "Title", "text": "Game Title", "fontSize": 48},\n'
-                '    {"type": "button", "name": "StartBtn", "text": "Start Game"},\n'
-                '    {"type": "button", "name": "OptionsBtn", "text": "Options"}\n'
-                "  ],\n"
-                '  "layout": "Vertical",\n'
-                '  "spacing": 20\n'
-                "}\n"
-                "```\n\n"
-                "**Supported Element Types:** panel, button, text, image, inputfield, scrollview, toggle, slider, dropdown\n\n"
-                "Perfect for rapid UI prototyping, menu systems, dialog boxes, and complex UI structures without multiple API calls."
-            ),
-            inputSchema=ui_hierarchy_schema(),
         ),
         types.Tool(
             name="unity_ui_state",
@@ -215,7 +236,6 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- saveState: Capture current UI state (including children)\n"
                 "- loadState: Load state definition without applying\n"
                 "- listStates: List all defined states for a root\n"
-                "- deleteState: Remove a state definition\n"
                 "- createStateGroup: Create a group of mutually exclusive states\n"
                 "- transitionTo: Transition to a state (alias for applyState)\n"
                 "- getActiveState: Get currently active state name\n\n"
@@ -237,9 +257,8 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- autoSetup: Automatically configure navigation for all Selectables under a root (vertical/horizontal/grid)\n"
                 "- createGroup: Create a navigation group with isolated navigation\n"
                 "- setFirstSelected: Set the first selected element for EventSystem\n"
-                "- inspect: View current navigation configuration\n"
-                "- reset: Reset navigation to automatic mode\n"
-                "- disable: Disable navigation (mode=none)\n\n"
+                "- inspect: View current navigation configuration\n\n"
+                "For reset/disable, use component_crud to update Selectable navigation mode directly.\n\n"
                 "**Direction Options:**\n"
                 "- vertical: Up/Down navigation in order\n"
                 "- horizontal: Left/Right navigation in order\n"
@@ -256,9 +275,8 @@ def get_tool_definitions() -> list[types.Tool]:
                 "**Operations:**\n"
                 "- create: Create a new GameObject with UIDocument component, optional PanelSettings and UXML source\n"
                 "- inspect: View UIDocument configuration and live VisualElement tree (if available)\n"
-                "- update: Update UIDocument properties (sourceAsset, panelSettings, sortingOrder)\n"
-                "- delete: Remove UIDocument component or delete entire GameObject\n"
                 "- query: Search the live VisualElement tree by name, USS class, or element type (UQuery-style)\n\n"
+                "For update/delete, use component_crud (UIDocument) or gameobject_crud.\n\n"
                 "**Key Concepts:**\n"
                 "- UIDocument is the bridge between UXML assets and the scene\n"
                 "- PanelSettings controls rendering (scale mode, reference resolution)\n"
@@ -276,12 +294,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- createUSS: Generate USS stylesheet from rule definitions\n"
                 "- inspectUXML: Parse UXML file and return as JSON structure\n"
                 "- inspectUSS: Parse USS file and return rules with selectors/properties\n"
-                "- updateUXML: Add, remove, or replace elements in existing UXML\n"
-                "- updateUSS: Add, update, or remove rules in existing USS\n"
                 "- createPanelSettings: Create PanelSettings ScriptableObject asset\n"
                 "- createFromTemplate: Generate UXML+USS from built-in templates (menu, dialog, hud, settings, inventory)\n"
                 "- validateDependencies: Validate UXML references (Style src, Template src) and report missing files\n\n"
-                "**Dependency Validation:** createUXML, updateUXML, createFromTemplate, and inspectUXML automatically include "
+                "**Dependency Validation:** createUXML, createFromTemplate, and inspectUXML automatically include "
                 "dependency validation results (dependencies, issues, isValid) in their responses. Use validateDependencies "
                 "for standalone validation of any UXML file.\n\n"
                 "**UXML Element Types:** VisualElement, Button, Label, TextField, Toggle, Slider, SliderInt, MinMaxSlider, "
@@ -298,12 +314,12 @@ def get_tool_definitions() -> list[types.Tool]:
         # ── Visual ─────────────────────────────────────────────────
         types.Tool(
             name="unity_sprite2d_bundle",
-            description="Mid-level 2D sprite management: create/update SpriteRenderer GameObjects, batch update sprites, set sorting layers and colors, slice sprite sheets into multiple sprites, create SpriteAtlas assets. Operations: createSprite (new GameObject with SpriteRenderer), updateSprite (modify sprite/color/flip/sortingLayer), inspect (view sprite properties), updateMultiple/setSortingLayer/setColor (batch operations with pattern matching), sliceSpriteSheet (grid/automatic slicing), createSpriteAtlas (pack sprites). Perfect for 2D game sprite setup, sprite sheet management, and batch sprite configuration.",
+            description="Mid-level 2D sprite management: create SpriteRenderer GameObjects, slice sprite sheets, create SpriteAtlas assets. Operations: createSprite (new GameObject with SpriteRenderer), sliceSpriteSheet (grid/automatic slicing), createSpriteAtlas (pack sprites). For update/inspect/batch operations on SpriteRenderer, use component_crud directly.",
             inputSchema=sprite2d_bundle_schema(),
         ),
         types.Tool(
             name="unity_animation2d_bundle",
-            description="Mid-level 2D animation setup: manage Animator components, create AnimatorControllers, add states and transitions, create AnimationClips from sprite sequences. Operations: setupAnimator/updateAnimator/inspectAnimator (Animator component), createController/addState/addTransition/addParameter/inspectController (AnimatorController), createClipFromSprites/updateClip/inspectClip (AnimationClip). Supports transition conditions (If/Greater/Less), animation parameters (Bool/Float/Int/Trigger), and sprite-based animation creation. Essential for 2D character animation, state machines, and procedural animation setup.",
+            description="Mid-level 2D animation setup: create Animator components, AnimatorControllers, states, transitions, and AnimationClips from sprite sequences. Operations: setupAnimator (Animator component), createController/addState/addTransition/addParameter/inspectController (AnimatorController), createClipFromSprites/updateClip/inspectClip (AnimationClip). For Animator component update/inspect, use component_crud directly.",
             inputSchema=animation2d_bundle_schema(),
         ),
         types.Tool(
@@ -319,7 +335,6 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- addBlendTree: Create BlendTree for smooth animation blending\n"
                 "- createAvatarMask: Create AvatarMask for partial body animation\n"
                 "- inspect: Get controller structure\n"
-                "- delete: Delete controller or state\n"
                 "- listParameters: List all parameters\n"
                 "- listStates: List all states in layer"
             ),
@@ -336,10 +351,8 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- setColor: Set color property\n"
                 "- applyPreset: Apply material preset\n"
                 "- inspect: Get material properties\n"
-                "- applyToObjects: Apply material to multiple GameObjects\n"
-                "- delete: Delete material asset\n"
-                "- duplicate: Duplicate material\n"
                 "- listPresets: List available presets\n\n"
+                "For delete/duplicate, use asset_crud. For applying material to objects, use component_crud (update Renderer.sharedMaterial).\n\n"
                 "**Presets:** unlit, lit, transparent, cutout, fade, sprite, ui, emissive, metallic, glass\n\n"
                 "Supports Standard, URP, and HDRP render pipelines."
             ),
@@ -351,12 +364,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Create and configure lights with presets.\n\n"
                 "**Operations:**\n"
                 "- create: Create light with type and preset\n"
-                "- update: Update light properties\n"
-                "- inspect: Get light properties\n"
-                "- delete: Delete light GameObject\n"
                 "- applyPreset: Apply light preset\n"
                 "- createLightingSetup: Create complete lighting setup\n"
                 "- listPresets: List available presets\n\n"
+                "For update/inspect/delete, use component_crud (Light) or gameobject_crud.\n\n"
                 "**Light Presets:** daylight, moonlight, warm, cool, spotlight, candle, neon\n\n"
                 "**Setup Presets:** daylight (sun+ambient), nighttime (moon), indoor (points), dramatic (contrast), studio (3-point), sunset (warm)"
             ),
@@ -374,28 +385,11 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- stop: Stop particle playback\n"
                 "- pause: Pause particle playback\n"
                 "- inspect: Get particle system properties\n"
-                "- delete: Delete particle system GameObject\n"
-                "- duplicate: Duplicate particle system\n"
                 "- listPresets: List available presets\n\n"
+                "For delete/duplicate, use gameobject_crud.\n\n"
                 "**Presets:** explosion, fire, smoke, sparkle, rain, snow, dust, trail, hit, heal, magic, leaves"
             ),
             inputSchema=particle_bundle_schema(),
-        ),
-        types.Tool(
-            name="unity_event_wiring",
-            description=(
-                "Wire UnityEvents dynamically (Button.onClick, Slider.onValueChanged, etc.).\n\n"
-                "**Operations:**\n"
-                "- wire: Add listener to UnityEvent\n"
-                "- unwire: Remove listener(s) from UnityEvent\n"
-                "- inspect: View event listeners\n"
-                "- listEvents: List UnityEvent fields on component\n"
-                "- clearEvent: Clear all listeners from event\n"
-                "- wireMultiple: Wire multiple events at once\n\n"
-                "**Argument Modes:** Void, Int, Float, String, Bool, Object\n\n"
-                "Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom UnityEvents."
-            ),
-            inputSchema=event_wiring_schema(),
         ),
         # ── Mid-Level Physics & NavMesh ────────────────────────────
         types.Tool(
@@ -444,18 +438,18 @@ def get_tool_definitions() -> list[types.Tool]:
                 "  Actor Commands: move, jump, action, look, custom\n"
                 "  Manager Commands: addResource, setResource, consumeResource, changeState, nextTurn, triggerScene\n\n"
                 "**binding** — Declarative UI data binding.\n"
-                "  Operations: create, update, inspect, delete, setRange, refresh, findByBindingId\n"
+                "  Operations: create, inspect, setRange, refresh, findByBindingId\n"
                 "  Source Types: health, economy, timer, custom | Formats: raw, percent, ratio, formatted\n\n"
                 "**list** — Dynamic list/grid for displaying collections.\n"
-                "  Operations: create, update, inspect, delete, setItems, addItem, removeItem, clear,\n"
+                "  Operations: create, inspect, setItems, addItem, removeItem, clear,\n"
                 "    selectItem, deselectItem, clearSelection, refreshFromSource, findByListId\n"
                 "  Layout: vertical, horizontal, grid | Data Sources: custom, inventory, equipment\n\n"
                 "**slot** — Slot-based UI for equipment/quickslots/item management.\n"
-                "  Slot: create, update, inspect, delete, setItem, clearSlot, setHighlight, findBySlotId\n"
-                "  Bar: createSlotBar, updateSlotBar, inspectSlotBar, deleteSlotBar, useSlot, refreshFromInventory, findByBarId\n"
+                "  Slot: create, inspect, setItem, clearSlot, setHighlight, findBySlotId\n"
+                "  Bar: createSlotBar, inspectSlotBar, useSlot, refreshFromInventory, findByBarId\n"
                 "  Slot Types: storage, equipment, quickslot, trash\n\n"
                 "**selection** — Selection groups (toggles, radios, checkboxes, tabs).\n"
-                "  Operations: create, update, inspect, delete, setItems, addItem, removeItem, clear,\n"
+                "  Operations: create, inspect, setItems, addItem, removeItem, clear,\n"
                 "    selectItem, selectItemById, deselectItem, clearSelection, setSelectionActions, setItemEnabled, findBySelectionId\n"
                 "  Selection Types: radio, toggle, checkbox, tab\n\n"
                 "All generated scripts are standalone — no dependency on Unity-AI-Forge package."
@@ -469,18 +463,18 @@ def get_tool_definitions() -> list[types.Tool]:
                 "High-level GameKit Data: unified data architecture for pools, events, containers, and runtime sets.\n\n"
                 "**dataType** selects the data category:\n\n"
                 "**pool** — Object pooling using UnityEngine.Pool.\n"
-                "  Operations: create, update, inspect, delete, find\n"
+                "  Operations: create, inspect, find\n"
                 "  Configurable: prefab, initialSize, maxSize, collectionCheck, defaultParent\n\n"
                 "**eventChannel** — ScriptableObject-based typed event channels.\n"
-                "  Operations: create, inspect, delete, find\n"
+                "  Operations: create, inspect, find\n"
                 "  Event Types: void, int, float, string, Vector3, GameObject\n"
                 "  Optional: createListener (EventListener MonoBehaviour on targetPath)\n\n"
                 "**dataContainer** — ScriptableObject data containers with custom fields.\n"
-                "  Operations: create, inspect, delete, find\n"
+                "  Operations: create, inspect, find\n"
                 "  Field Types: int, float, string, bool, Vector2, Vector3, Color\n"
                 "  Optional: resetOnPlay (reset values on play mode entry)\n\n"
                 "**runtimeSet** — ScriptableObject runtime sets for auto-register/unregister patterns.\n"
-                "  Operations: create, inspect, delete, find\n"
+                "  Operations: create, inspect, find\n"
                 "  Configurable: elementType (default: GameObject)\n\n"
                 "All generated scripts are standalone — no dependency on Unity-AI-Forge package."
             ),
@@ -496,7 +490,6 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- nullReferences: Detect SerializedProperty object references pointing to destroyed objects\n"
                 "- brokenEvents: Detect UnityEvent listeners with null targets or missing methods\n"
                 "- brokenPrefabs: Detect prefab instances with missing or disconnected assets\n"
-                "- removeMissingScripts: Detect and remove all missing MonoBehaviour scripts (undoable)\n"
                 "- all: Run all checks and return categorized summary\n"
                 "- typeCheck: Detect type mismatches in object reference fields (field type vs actual object type)\n"
                 "- report: Run all integrity checks across multiple scenes (scope: active_scene/build_scenes/all_scenes)\n"
@@ -624,44 +617,5 @@ def get_tool_definitions() -> list[types.Tool]:
                 "typeof, generic_argument, static_access, member_access"
             ),
             inputSchema=script_syntax_schema(),
-        ),
-        # ── Development Cycle & Visual Tools ───────────────────────
-        types.Tool(
-            name="unity_playmode_control",
-            description=(
-                "Control Unity Editor play mode for testing games.\n\n"
-                "**Operations:**\n"
-                "- play: Start play mode\n"
-                "- pause: Pause play mode\n"
-                "- unpause: Resume paused play mode\n"
-                "- stop: Stop play mode\n"
-                "- step: Step one frame (while paused)\n"
-                "- getState: Get current play mode state (stopped/playing/paused)\n"
-                "- captureState: Capture runtime state of specified GameObjects (position, rotation, components). Requires play mode.\n"
-                "- waitForScene: Check if a scene is loaded by name/path. Poll until loaded=true for scene transitions.\n"
-                "- validateState: Validate runtime manager state — check MonoBehaviours exist and collections meet minimum counts (requires play mode).\n\n"
-                "Essential for LLMs to execute and test games autonomously."
-            ),
-            inputSchema=playmode_control_schema(),
-        ),
-        types.Tool(
-            name="unity_console_log",
-            description=(
-                "Retrieve Unity Console logs for debugging.\n\n"
-                "**Operations:**\n"
-                "- getRecent: Get recent N logs (default: 50)\n"
-                "- getErrors: Get error logs only\n"
-                "- getWarnings: Get warning logs only\n"
-                "- getLogs: Get normal Debug.Log messages only\n"
-                "- clear: Clear console\n"
-                "- getCompilationErrors: Get detailed compilation errors with file/line info\n"
-                "- getSummary: Get log count summary (errors/warnings/logs)\n"
-                "- snapshot: Take a snapshot of current logs for later diff comparison\n"
-                "- diff: Compare current logs against last snapshot, returning only new entries. Supports severity/keyword filters.\n"
-                "- filter: Filter all logs by severity array and/or keyword regex pattern\n\n"
-                "**Snapshot workflow:** snapshot → (make changes / play test) → diff → fix issues → repeat.\n\n"
-                "Essential for LLMs to debug and fix issues autonomously."
-            ),
-            inputSchema=console_log_schema(),
         ),
     ]

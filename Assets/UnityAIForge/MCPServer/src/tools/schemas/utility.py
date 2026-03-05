@@ -1,4 +1,7 @@
-"""Schema definitions for utility MCP tools."""
+"""Schema definitions for utility and dev-cycle MCP tools.
+
+Includes: ping, compilation_await, playmode_control, console_log, event_wiring.
+"""
 
 from __future__ import annotations
 
@@ -170,6 +173,77 @@ def console_log_schema() -> dict[str, Any]:
                     "type": "integer",
                     "description": "Maximum number of results to return for diff/filter (default: 100).",
                     "default": 100,
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def event_wiring_schema() -> dict[str, Any]:
+    """Schema for the unity_event_wiring MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "wire",
+                        "inspect",
+                        "listEvents",
+                        "wireMultiple",
+                    ],
+                    "description": "Event wiring operation.",
+                },
+                "source": {
+                    "type": "object",
+                    "properties": {
+                        "gameObject": {"type": "string", "description": "Source GameObject path."},
+                        "component": {
+                            "type": "string",
+                            "description": "Source component type (e.g., 'Button', 'UnityEngine.UI.Button').",
+                        },
+                        "event": {
+                            "type": "string",
+                            "description": "Event name (e.g., 'onClick', 'm_OnClick').",
+                        },
+                    },
+                    "description": "Event source.",
+                },
+                "target": {
+                    "type": "object",
+                    "properties": {
+                        "gameObject": {"type": "string", "description": "Target GameObject path."},
+                        "component": {
+                            "type": "string",
+                            "description": "Target component type (optional, defaults to searching GameObject).",
+                        },
+                        "method": {"type": "string", "description": "Target method name."},
+                        "mode": {
+                            "type": "string",
+                            "enum": ["Void", "Int", "Float", "String", "Bool", "Object"],
+                            "description": "Argument mode.",
+                        },
+                        "argument": {"description": "Argument value (type depends on mode)."},
+                    },
+                    "description": "Event target.",
+                },
+                "gameObjectPath": {"type": "string", "description": "GameObject for listEvents."},
+                "componentType": {
+                    "type": "string",
+                    "description": "Component type for listEvents (optional).",
+                },
+                "wirings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "source": {"type": "object"},
+                            "target": {"type": "object"},
+                        },
+                    },
+                    "description": "Multiple wirings for wireMultiple.",
                 },
             },
         },

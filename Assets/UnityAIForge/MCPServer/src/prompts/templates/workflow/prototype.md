@@ -208,32 +208,28 @@ unity_component_crud(operation='add', gameObjectPath='Player',
 # Canvas作成（本番でも流用する構造）
 unity_ui_foundation(operation='createCanvas', name='GameUI')
 
-# 宣言的UIでHUDを構築（後でバインディングを追加しやすい構造）
-unity_ui_hierarchy(operation='create', parentPath='GameUI',
-    hierarchy={
-        'type': 'panel', 'name': 'HUD',
-        'children': [
-            {'type': 'text', 'name': 'ScoreText', 'text': 'Score: 0', 'fontSize': 24},
-            {'type': 'text', 'name': 'HPText',    'text': 'HP: 100',  'fontSize': 24},
-            {'type': 'text', 'name': 'TimerText', 'text': 'Time: 0',  'fontSize': 20}
-        ],
-        'layout': 'Vertical', 'spacing': 8
-    })
+# HUDを構築（後でバインディングを追加しやすい構造）
+unity_ui_foundation(operation='createPanel', name='HUD', parentPath='GameUI',
+    layoutType='Vertical', spacing=8)
+unity_ui_foundation(operation='createText', name='ScoreText', parentPath='GameUI/HUD',
+    text='Score: 0', fontSize=24)
+unity_ui_foundation(operation='createText', name='HPText', parentPath='GameUI/HUD',
+    text='HP: 100', fontSize=24)
+unity_ui_foundation(operation='createText', name='TimerText', parentPath='GameUI/HUD',
+    text='Time: 0', fontSize=20)
 
 # メニュー構造（ボタン配置 → アルファでイベント接続）
-unity_ui_hierarchy(operation='create', parentPath='GameUI',
-    hierarchy={
-        'type': 'panel', 'name': 'PauseMenu',
-        'children': [
-            {'type': 'text',   'name': 'Title',     'text': 'PAUSED', 'fontSize': 36},
-            {'type': 'button', 'name': 'ResumeBtn', 'text': 'Resume'},
-            {'type': 'button', 'name': 'QuitBtn',   'text': 'Quit'}
-        ],
-        'layout': 'Vertical', 'spacing': 16
-    })
+unity_ui_foundation(operation='createPanel', name='PauseMenu', parentPath='GameUI',
+    layoutType='Vertical', spacing=16)
+unity_ui_foundation(operation='createText', name='Title', parentPath='GameUI/PauseMenu',
+    text='PAUSED', fontSize=36)
+unity_ui_foundation(operation='createButton', name='ResumeBtn', parentPath='GameUI/PauseMenu',
+    text='Resume')
+unity_ui_foundation(operation='createButton', name='QuitBtn', parentPath='GameUI/PauseMenu',
+    text='Quit')
 
 # ポーズメニューは初期非表示
-unity_ui_hierarchy(operation='hide', targetPath='GameUI/PauseMenu')
+unity_ui_foundation(operation='hide', targetPath='GameUI/PauseMenu')
 ```
 
 ### Step 8: プレイモードで素早くテスト
@@ -378,8 +374,7 @@ staticプリセットはColliderのみ追加し、Rigidbodyを追加しません
 | `unity_input_profile` | createInputActions / createPlayerInput |
 | `unity_asset_crud` | プロトタイプスクリプト生成 |
 | `unity_prefab_crud` | 繰り返し要素のPrefab化・複製 |
-| `unity_ui_foundation` | Canvas作成 |
-| `unity_ui_hierarchy` | 宣言的UIの構造的構築 |
+| `unity_ui_foundation` | Canvas作成・UI要素作成・show/hide/toggle |
 | `unity_playmode_control` | play/stop/stepでのテストサイクル |
 | `unity_console_log` | エラー・警告の即時確認 |
 | `unity_validate_integrity` | プロトタイプ完了時の整合性チェック |

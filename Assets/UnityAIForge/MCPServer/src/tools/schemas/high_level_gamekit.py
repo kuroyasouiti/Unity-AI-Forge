@@ -26,11 +26,9 @@ def gamekit_ui_schema() -> dict[str, Any]:
                 "operation": {
                     "type": "string",
                     "enum": [
-                        # common CRUD
+                        # common
                         "create",
-                        "update",
                         "inspect",
-                        "delete",
                         # command-specific
                         "createCommandPanel",
                         "addCommand",
@@ -53,9 +51,7 @@ def gamekit_ui_schema() -> dict[str, Any]:
                         "clearSlot",
                         "setHighlight",
                         "createSlotBar",
-                        "updateSlotBar",
                         "inspectSlotBar",
-                        "deleteSlotBar",
                         "useSlot",
                         "refreshFromInventory",
                         "findBySlotId",
@@ -413,7 +409,7 @@ def gamekit_data_schema() -> dict[str, Any]:
                 },
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "update", "inspect", "delete", "find"],
+                    "enum": ["create", "inspect", "find"],
                     "description": "Operation to perform.",
                 },
                 # ── shared ─────────────────────────────────────────────

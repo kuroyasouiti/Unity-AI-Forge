@@ -19,9 +19,9 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "update", "inspect", "delete",
+            "create", "inspect",
             "setItem", "clearSlot", "setHighlight",
-            "createSlotBar", "updateSlotBar", "inspectSlotBar", "deleteSlotBar",
+            "createSlotBar", "inspectSlotBar",
             "useSlot", "refreshFromInventory",
             "findBySlotId", "findByBarId"
         };
@@ -38,16 +38,12 @@ namespace MCP.Editor.Handlers.HighLevel
             return operation switch
             {
                 "create" => CreateSlot(payload),
-                "update" => UpdateSlot(payload),
                 "inspect" => InspectSlot(payload),
-                "delete" => DeleteSlot(payload),
                 "setItem" => SetItem(payload),
                 "clearSlot" => ClearSlot(payload),
                 "setHighlight" => SetHighlight(payload),
                 "createSlotBar" => CreateSlotBar(payload),
-                "updateSlotBar" => UpdateSlotBar(payload),
                 "inspectSlotBar" => InspectSlotBar(payload),
-                "deleteSlotBar" => DeleteSlotBar(payload),
                 "useSlot" => UseSlot(payload),
                 "refreshFromInventory" => RefreshFromInventory(payload),
                 "findBySlotId" => FindBySlotId(payload),
@@ -218,41 +214,7 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #endregion
 
-        #region Slot CRUD
-
-        private object UpdateSlot(Dictionary<string, object> payload)
-        {
-            var component = ResolveSlotComponent(payload);
-            Undo.RecordObject(component, "Update UISlot");
-            var so = new SerializedObject(component);
-
-            if (payload.TryGetValue("slotType", out var typeObj))
-            {
-                var typeName = ParseSlotType(typeObj.ToString());
-                var prop = so.FindProperty("slotType");
-                var names = prop.enumDisplayNames;
-                for (int i = 0; i < names.Length; i++)
-                {
-                    if (string.Equals(names[i], typeName, StringComparison.OrdinalIgnoreCase))
-                    { prop.enumValueIndex = i; break; }
-                }
-            }
-
-            if (payload.TryGetValue("equipmentSlot", out var equipObj))
-                so.FindProperty("equipSlotName").stringValue = equipObj.ToString();
-
-            if (payload.TryGetValue("dragDropEnabled", out var ddObj))
-                so.FindProperty("dragDropEnabled").boolValue = Convert.ToBoolean(ddObj);
-
-            so.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
-
-            return CreateSuccessResponse(
-                ("slotId", so.FindProperty("slotId").stringValue),
-                ("path", BuildGameObjectPath(component.gameObject)),
-                ("updated", true)
-            );
-        }
+        #region Slot Inspect
 
         private object InspectSlot(Dictionary<string, object> payload)
         {
@@ -292,37 +254,6 @@ namespace MCP.Editor.Handlers.HighLevel
             }
 
             return CreateSuccessResponse(("slot", info));
-        }
-
-        private object DeleteSlot(Dictionary<string, object> payload)
-        {
-            var slotId = GetString(payload, "slotId");
-
-            try
-            {
-                var component = ResolveSlotComponent(payload);
-                var path = BuildGameObjectPath(component.gameObject);
-                slotId = new SerializedObject(component).FindProperty("slotId").stringValue;
-                var scene = component.gameObject.scene;
-
-                UITKGenerationHelper.DeleteUIAssets(slotId);
-                Undo.DestroyObjectImmediate(component.gameObject);
-                ScriptGenerator.Delete(slotId);
-                EditorSceneManager.MarkSceneDirty(scene);
-
-                return CreateSuccessResponse(("slotId", slotId), ("path", path), ("deleted", true));
-            }
-            catch (InvalidOperationException) when (!string.IsNullOrEmpty(slotId))
-            {
-                UITKGenerationHelper.DeleteUIAssets(slotId);
-                ScriptGenerator.Delete(slotId);
-
-                return CreateSuccessResponse(
-                    ("slotId", slotId),
-                    ("deleted", true),
-                    ("note", "Component not found in scene; orphaned script cleaned up.")
-                );
-            }
         }
 
         #endregion
@@ -547,41 +478,7 @@ namespace MCP.Editor.Handlers.HighLevel
             return sb.ToString();
         }
 
-        private object UpdateSlotBar(Dictionary<string, object> payload) => UpdateSlot(payload);
         private object InspectSlotBar(Dictionary<string, object> payload) => InspectSlot(payload);
-
-        private object DeleteSlotBar(Dictionary<string, object> payload)
-        {
-            var barId = GetString(payload, "barId");
-            if (string.IsNullOrEmpty(barId))
-                throw new InvalidOperationException("barId is required for deleteSlotBar.");
-
-            try
-            {
-                var component = CodeGenHelper.FindComponentInSceneByField("slotId", barId);
-                if (component == null)
-                    throw new InvalidOperationException($"Slot bar with ID '{barId}' not found.");
-
-                var scene = component.gameObject.scene;
-                UITKGenerationHelper.DeleteUIAssets(barId);
-                Undo.DestroyObjectImmediate(component.gameObject);
-                ScriptGenerator.Delete(barId);
-                EditorSceneManager.MarkSceneDirty(scene);
-
-                return CreateSuccessResponse(("barId", barId), ("deleted", true));
-            }
-            catch (InvalidOperationException)
-            {
-                UITKGenerationHelper.DeleteUIAssets(barId);
-                ScriptGenerator.Delete(barId);
-
-                return CreateSuccessResponse(
-                    ("barId", barId),
-                    ("deleted", true),
-                    ("note", "Component not found in scene; orphaned script cleaned up.")
-                );
-            }
-        }
 
         private object UseSlot(Dictionary<string, object> payload)
         {

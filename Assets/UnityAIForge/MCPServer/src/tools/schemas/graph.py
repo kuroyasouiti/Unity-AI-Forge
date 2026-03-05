@@ -436,7 +436,6 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "nullReferences",
                         "brokenEvents",
                         "brokenPrefabs",
-                        "removeMissingScripts",
                         "all",
                         "typeCheck",
                         "report",

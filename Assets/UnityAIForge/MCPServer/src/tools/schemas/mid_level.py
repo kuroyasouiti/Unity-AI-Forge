@@ -241,9 +241,6 @@ def camera_bundle_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": [
                         "create",
-                        "update",
-                        "inspect",
-                        "delete",
                         "applyPreset",
                         "listPresets",
                     ],
@@ -354,11 +351,12 @@ def ui_foundation_schema() -> dict[str, Any]:
                         "createInputField",
                         "createScrollView",
                         "addLayoutGroup",
-                        "updateLayoutGroup",
-                        "removeLayoutGroup",
                         "createFromTemplate",
                         "inspect",
-                        "configureCanvasGroup",
+                        "inspectTree",
+                        "show",
+                        "hide",
+                        "toggle",
                     ],
                 },
                 "parentPath": {
@@ -631,6 +629,23 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Add CanvasGroup when creating Panel (default: false).",
                 },
+                "useCanvasGroup": {
+                    "type": "boolean",
+                    "description": "Use CanvasGroup for visibility control (default: true). Set false to use SetActive.",
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Multiple target paths for batch show/hide/toggle operations.",
+                },
+                "includeChildren": {
+                    "type": "boolean",
+                    "description": "Include children in inspectTree (default: true).",
+                },
+                "maxDepth": {
+                    "type": "integer",
+                    "description": "Maximum depth for inspectTree (default: 10).",
+                },
             },
         },
         ["operation"],
@@ -707,9 +722,6 @@ def tilemap_bundle_schema() -> dict[str, Any]:
                         "boxFill",
                         "worldToCell",
                         "cellToWorld",
-                        "updateRenderer",
-                        "updateCollider",
-                        "addCollider",
                         "createTile",
                         "createRuleTile",
                         "inspectTile",
@@ -871,65 +883,6 @@ def tilemap_bundle_schema() -> dict[str, Any]:
     )
 
 
-def ui_hierarchy_schema() -> dict[str, Any]:
-    """Schema for the unity_ui_hierarchy MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["create", "clone", "inspect", "delete", "show", "hide", "toggle"],
-                    "description": "UI hierarchy operation.",
-                },
-                "parentPath": {
-                    "type": "string",
-                    "description": "Parent GameObject path (usually Canvas or Panel).",
-                },
-                "gameObjectPath": {
-                    "type": "string",
-                    "description": "Target UI hierarchy root path for inspect/delete/show/hide/toggle/clone.",
-                },
-                "hierarchyId": {
-                    "type": "string",
-                    "description": "Optional identifier for the UI hierarchy (used for referencing).",
-                },
-                "hierarchy": {
-                    "type": "object",
-                    "description": "Declarative UI hierarchy definition (recursive structure).",
-                    "additionalProperties": True,
-                },
-                "recursive": {
-                    "type": "boolean",
-                    "description": "Apply visibility recursively to children (default: true).",
-                },
-                "interactable": {
-                    "type": "boolean",
-                    "description": "Set interactable state when showing/hiding.",
-                },
-                "blocksRaycasts": {
-                    "type": "boolean",
-                    "description": "Set blocksRaycasts state when showing/hiding.",
-                },
-                "ignoreParentGroups": {
-                    "type": "boolean",
-                    "description": "Set CanvasGroup ignoreParentGroups when showing/hiding.",
-                },
-                "useCanvasGroup": {
-                    "type": "boolean",
-                    "description": "Use CanvasGroup for visibility control (default: true). Set false to use SetActive.",
-                },
-                "targets": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Multiple target paths for batch show/hide/toggle operations.",
-                },
-                "newName": {"type": "string", "description": "New name for cloned hierarchy root."},
-            },
-        },
-        ["operation"],
-    )
-
 
 def ui_state_schema() -> dict[str, Any]:
     """Schema for the unity_ui_state MCP tool."""
@@ -945,7 +898,6 @@ def ui_state_schema() -> dict[str, Any]:
                         "saveState",
                         "loadState",
                         "listStates",
-                        "deleteState",
                         "createStateGroup",
                         "transitionTo",
                         "getActiveState",
@@ -1025,7 +977,7 @@ def uitk_document_schema() -> dict[str, Any]:
             "properties": {
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "inspect", "update", "delete", "query"],
+                    "enum": ["create", "inspect", "query"],
                     "description": "UIDocument operation.",
                 },
                 "name": {
@@ -1095,8 +1047,6 @@ def uitk_asset_schema() -> dict[str, Any]:
                         "createUSS",
                         "inspectUXML",
                         "inspectUSS",
-                        "updateUXML",
-                        "updateUSS",
                         "createPanelSettings",
                         "createFromTemplate",
                         "validateDependencies",
@@ -1253,8 +1203,6 @@ def ui_navigation_schema() -> dict[str, Any]:
                         "createGroup",
                         "setFirstSelected",
                         "inspect",
-                        "reset",
-                        "disable",
                     ],
                     "description": "UI navigation operation.",
                 },

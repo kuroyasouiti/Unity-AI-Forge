@@ -43,7 +43,6 @@ from tools.schemas import (
     tilemap_bundle_schema,
     transform_batch_schema,
     ui_foundation_schema,
-    ui_hierarchy_schema,
     ui_navigation_schema,
     ui_state_schema,
     uitk_asset_schema,
@@ -71,7 +70,6 @@ ALL_SCHEMA_FUNCTIONS = [
     ("rect_transform_batch", rect_transform_batch_schema),
     ("camera_bundle", camera_bundle_schema),
     ("ui_foundation", ui_foundation_schema),
-    ("ui_hierarchy", ui_hierarchy_schema),
     ("ui_state", ui_state_schema),
     ("ui_navigation", ui_navigation_schema),
     ("input_profile", input_profile_schema),
@@ -168,6 +166,6 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 41, (
-            f"Expected 41 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 40, (
+            f"Expected 40 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )

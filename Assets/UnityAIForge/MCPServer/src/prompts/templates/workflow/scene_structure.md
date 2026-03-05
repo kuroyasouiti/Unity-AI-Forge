@@ -188,19 +188,13 @@ unity_ui_foundation(operation='createCanvas',
     sortingOrder=10)
 
 # HUD の内容
-unity_ui_hierarchy(operation='create',
-    parentPath='HUDCanvas',
-    hierarchy={
-        'type': 'panel', 'name': 'HUD',
-        'children': [
-            {'type': 'image', 'name': 'HPBarBG',   'anchors': 'topLeft'},
-            {'type': 'image', 'name': 'HPBarFill',  'anchors': 'topLeft'},
-            {'type': 'text',  'name': 'ScoreText',  'text': '0',
-             'anchors': 'topCenter', 'fontSize': 32},
-            {'type': 'text',  'name': 'TimerText',  'text': '00:00',
-             'anchors': 'topRight', 'fontSize': 24}
-        ]
-    })
+unity_ui_foundation(operation='createPanel', name='HUD', parentPath='HUDCanvas')
+unity_ui_foundation(operation='createImage', name='HPBarBG', parentPath='HUDCanvas/HUD')
+unity_ui_foundation(operation='createImage', name='HPBarFill', parentPath='HUDCanvas/HUD')
+unity_ui_foundation(operation='createText', name='ScoreText', parentPath='HUDCanvas/HUD',
+    text='0', fontSize=32)
+unity_ui_foundation(operation='createText', name='TimerText', parentPath='HUDCanvas/HUD',
+    text='00:00', fontSize=24)
 
 # HP バインディング
 unity_gamekit_ui(widgetType='binding',operation='create',
@@ -225,18 +219,16 @@ unity_ui_foundation(operation='createCanvas',
     renderMode='ScreenSpaceOverlay',
     sortingOrder=20)
 
-unity_ui_hierarchy(operation='create',
-    parentPath='PauseCanvas',
-    hierarchy={
-        'type': 'panel', 'name': 'PausePanel',
-        'children': [
-            {'type': 'text',   'name': 'Title',       'text': '一時停止', 'fontSize': 48},
-            {'type': 'button', 'name': 'ResumeBtn',   'text': '再開'},
-            {'type': 'button', 'name': 'SettingsBtn',  'text': '設定'},
-            {'type': 'button', 'name': 'QuitBtn',      'text': 'タイトルへ'}
-        ],
-        'layout': 'Vertical', 'spacing': 20
-    })
+unity_ui_foundation(operation='createPanel', name='PausePanel', parentPath='PauseCanvas',
+    layoutType='Vertical', spacing=20)
+unity_ui_foundation(operation='createText', name='Title', parentPath='PauseCanvas/PausePanel',
+    text='一時停止', fontSize=48)
+unity_ui_foundation(operation='createButton', name='ResumeBtn', parentPath='PauseCanvas/PausePanel',
+    text='再開')
+unity_ui_foundation(operation='createButton', name='SettingsBtn', parentPath='PauseCanvas/PausePanel',
+    text='設定')
+unity_ui_foundation(operation='createButton', name='QuitBtn', parentPath='PauseCanvas/PausePanel',
+    text='タイトルへ')
 
 # キーボード/ゲームパッドナビゲーション
 unity_ui_navigation(operation='autoSetup',
@@ -447,8 +439,7 @@ _Lighting
 | `unity_gameobject_crud` | シーン内オブジェクト作成 |
 | `unity_component_crud` | DontDestroyOnLoad 等のコンポーネント追加 |
 | `unity_asset_crud` | Manager・LevelManager スクリプト生成 |
-| `unity_ui_foundation` | 各シーンのCanvas作成 |
-| `unity_ui_hierarchy` | HUD・メニューの宣言的構築 |
+| `unity_ui_foundation` | 各シーンのCanvas・UI要素作成・show/hide/toggle |
 | `unity_ui_navigation` | メニューのキーボードナビゲーション |
 | `unity_gamekit_ui(widgetType='binding')` | HUDデータバインディング |
 | `unity_light_bundle` | Level シーンのライティング |

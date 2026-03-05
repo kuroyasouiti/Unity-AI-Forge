@@ -17,7 +17,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "update", "inspect", "delete",
+            "create", "inspect",
             "setRange", "refresh", "findByBindingId"
         };
 
@@ -33,9 +33,7 @@ namespace MCP.Editor.Handlers.HighLevel
             return operation switch
             {
                 "create" => CreateBinding(payload),
-                "update" => UpdateBinding(payload),
                 "inspect" => InspectBinding(payload),
-                "delete" => DeleteBinding(payload),
                 "setRange" => SetRange(payload),
                 "refresh" => RefreshBinding(payload),
                 "findByBindingId" => FindByBindingId(payload),
@@ -114,79 +112,6 @@ namespace MCP.Editor.Handlers.HighLevel
 
         #endregion
 
-        #region Update
-
-        private object UpdateBinding(Dictionary<string, object> payload)
-        {
-            var component = ResolveBindingComponent(payload);
-
-            Undo.RecordObject(component, "Update UIBinding");
-
-            var so = new SerializedObject(component);
-
-            if (payload.TryGetValue("sourceType", out var typeObj))
-            {
-                var sourceType = ParseSourceType(typeObj.ToString());
-                var prop = so.FindProperty("sourceType");
-                var names = prop.enumDisplayNames;
-                for (int i = 0; i < names.Length; i++)
-                {
-                    if (string.Equals(names[i], sourceType, StringComparison.OrdinalIgnoreCase))
-                    { prop.enumValueIndex = i; break; }
-                }
-            }
-
-            if (payload.TryGetValue("sourceId", out var srcIdObj))
-                so.FindProperty("sourceId").stringValue = srcIdObj.ToString();
-
-            if (payload.TryGetValue("format", out var formatObj))
-            {
-                var format = ParseValueFormat(formatObj.ToString());
-                var prop = so.FindProperty("format");
-                var names = prop.enumDisplayNames;
-                for (int i = 0; i < names.Length; i++)
-                {
-                    if (string.Equals(names[i], format, StringComparison.OrdinalIgnoreCase))
-                    { prop.enumValueIndex = i; break; }
-                }
-            }
-
-            if (payload.TryGetValue("elementName", out var elemObj))
-                so.FindProperty("elementName").stringValue = elemObj.ToString();
-
-            if (payload.TryGetValue("targetProperty", out var propObj))
-                so.FindProperty("targetProperty").stringValue = propObj.ToString();
-
-            if (payload.TryGetValue("formatString", out var formatStrObj))
-                so.FindProperty("formatString").stringValue = formatStrObj.ToString();
-
-            if (payload.TryGetValue("minValue", out var minObj))
-                so.FindProperty("minValue").floatValue = Convert.ToSingle(minObj);
-
-            if (payload.TryGetValue("maxValue", out var maxObj))
-                so.FindProperty("maxValue").floatValue = Convert.ToSingle(maxObj);
-
-            if (payload.TryGetValue("updateInterval", out var intervalObj))
-                so.FindProperty("updateInterval").floatValue = Convert.ToSingle(intervalObj);
-
-            if (payload.TryGetValue("smoothTransition", out var smoothObj))
-                so.FindProperty("smoothTransition").boolValue = Convert.ToBoolean(smoothObj);
-
-            if (payload.TryGetValue("smoothSpeed", out var speedObj))
-                so.FindProperty("smoothSpeed").floatValue = Convert.ToSingle(speedObj);
-
-            so.ApplyModifiedProperties();
-            EditorSceneManager.MarkSceneDirty(component.gameObject.scene);
-
-            return CreateSuccessResponse(
-                ("bindingId", so.FindProperty("bindingId").stringValue),
-                ("path", BuildGameObjectPath(component.gameObject)),
-                ("updated", true)
-            );
-        }
-
-        #endregion
-
         #region Inspect
 
         private object InspectBinding(Dictionary<string, object> payload)
@@ -214,44 +139,6 @@ namespace MCP.Editor.Handlers.HighLevel
             };
 
             return CreateSuccessResponse(("binding", info));
-        }
-
-        #endregion
-
-        #region Delete
-
-        private object DeleteBinding(Dictionary<string, object> payload)
-        {
-            var bindingId = GetString(payload, "bindingId");
-
-            try
-            {
-                var component = ResolveBindingComponent(payload);
-                var path = BuildGameObjectPath(component.gameObject);
-                bindingId = new SerializedObject(component).FindProperty("bindingId").stringValue;
-                var scene = component.gameObject.scene;
-
-                Undo.DestroyObjectImmediate(component);
-                ScriptGenerator.Delete(bindingId);
-                EditorSceneManager.MarkSceneDirty(scene);
-
-                return CreateSuccessResponse(
-                    ("bindingId", bindingId),
-                    ("path", path),
-                    ("deleted", true)
-                );
-            }
-            catch (InvalidOperationException) when (!string.IsNullOrEmpty(bindingId))
-            {
-                // Parent GO already destroyed — clean up the orphaned script via tracker
-                ScriptGenerator.Delete(bindingId);
-
-                return CreateSuccessResponse(
-                    ("bindingId", bindingId),
-                    ("deleted", true),
-                    ("note", "Component not found in scene; orphaned script cleaned up.")
-                );
-            }
         }
 
         #endregion

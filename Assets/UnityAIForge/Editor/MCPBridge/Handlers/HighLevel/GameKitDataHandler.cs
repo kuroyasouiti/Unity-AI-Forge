@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "update", "inspect", "delete", "find"
+            "create", "inspect", "find"
         };
 
         private readonly GameKitPoolHandler _poolHandler = new();
@@ -53,9 +53,7 @@ namespace MCP.Editor.Handlers.HighLevel
             var poolOp = operation switch
             {
                 "create" => "create",
-                "update" => "update",
                 "inspect" => "inspect",
-                "delete" => "delete",
                 "find" => "findByPoolId",
                 _ => null
             };
@@ -63,7 +61,7 @@ namespace MCP.Editor.Handlers.HighLevel
             if (poolOp == null)
                 return CreateFailureResponse(
                     $"Operation '{operation}' is not supported for dataType 'pool'. " +
-                    "Supported: create, update, inspect, delete, find");
+                    "Supported: create, inspect, find");
 
             payload["operation"] = poolOp;
             return _poolHandler.InvokeOperation(poolOp, payload);
@@ -79,11 +77,10 @@ namespace MCP.Editor.Handlers.HighLevel
             {
                 "create" => CreateEventChannel(payload),
                 "inspect" => InspectData(payload),
-                "delete" => DeleteData(payload),
                 "find" => FindByDataId(payload),
                 _ => CreateFailureResponse(
                     $"Operation '{operation}' is not supported for dataType 'eventChannel'. " +
-                    "Supported: create, inspect, delete, find")
+                    "Supported: create, inspect, find")
             };
         }
 
@@ -186,11 +183,10 @@ namespace MCP.Editor.Handlers.HighLevel
             {
                 "create" => CreateDataContainer(payload),
                 "inspect" => InspectData(payload),
-                "delete" => DeleteData(payload),
                 "find" => FindByDataId(payload),
                 _ => CreateFailureResponse(
                     $"Operation '{operation}' is not supported for dataType 'dataContainer'. " +
-                    "Supported: create, inspect, delete, find")
+                    "Supported: create, inspect, find")
             };
         }
 
@@ -305,11 +301,10 @@ namespace MCP.Editor.Handlers.HighLevel
             {
                 "create" => CreateRuntimeSet(payload),
                 "inspect" => InspectData(payload),
-                "delete" => DeleteData(payload),
                 "find" => FindByDataId(payload),
                 _ => CreateFailureResponse(
                     $"Operation '{operation}' is not supported for dataType 'runtimeSet'. " +
-                    "Supported: create, inspect, delete, find")
+                    "Supported: create, inspect, find")
             };
         }
 
@@ -381,24 +376,6 @@ namespace MCP.Editor.Handlers.HighLevel
                 ("scriptPath", entry.scriptPath),
                 ("templateName", entry.templateName),
                 ("gameObjectPath", entry.gameObjectPath)
-            );
-        }
-
-        private object DeleteData(Dictionary<string, object> payload)
-        {
-            var dataId = GetString(payload, "dataId");
-            if (string.IsNullOrEmpty(dataId))
-                throw new InvalidOperationException("dataId is required for delete operation.");
-
-            // Delete generated script
-            ScriptGenerator.Delete(dataId);
-
-            // Also try to delete listener script if it exists
-            ScriptGenerator.Delete($"{dataId}_Listener");
-
-            return CreateSuccessResponse(
-                ("dataId", dataId),
-                ("deleted", true)
             );
         }
 

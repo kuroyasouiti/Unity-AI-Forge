@@ -15,9 +15,6 @@ namespace MCP.Editor.Handlers
         public override IEnumerable<string> SupportedOperations => new[]
         {
             "create",
-            "update",
-            "inspect",
-            "delete",
             "applyPreset",
             "listPresets"
         };
@@ -29,9 +26,6 @@ namespace MCP.Editor.Handlers
             return operation switch
             {
                 "create" => HandleCreate(payload),
-                "update" => HandleUpdate(payload),
-                "inspect" => HandleInspect(payload),
-                "delete" => HandleDelete(payload),
                 "applyPreset" => HandleApplyPreset(payload),
                 "listPresets" => HandleListPresets(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
@@ -70,93 +64,6 @@ namespace MCP.Editor.Handlers
                 ("message", $"Camera '{name}' created"),
                 ("gameObjectPath", BuildGameObjectPath(cameraGO)),
                 ("preset", preset ?? "none")
-            );
-        }
-
-        private object HandleUpdate(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            Camera camera = go.GetComponent<Camera>();
-
-            if (camera == null)
-            {
-                return CreateFailureResponse($"GameObject '{go.name}' does not have a Camera component");
-            }
-
-            Undo.RecordObject(camera, "Update Camera");
-            ApplyTransformFromPayload(go.transform, payload);
-            ApplyCameraProperties(camera, payload);
-            EditorUtility.SetDirty(go);
-
-            return CreateSuccessResponse(
-                ("message", "Camera updated"),
-                ("gameObjectPath", BuildGameObjectPath(go))
-            );
-        }
-
-        private object HandleInspect(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            Camera camera = go.GetComponent<Camera>();
-
-            if (camera == null)
-            {
-                return CreateFailureResponse($"GameObject '{go.name}' does not have a Camera component");
-            }
-
-            return CreateSuccessResponse(
-                ("gameObjectPath", BuildGameObjectPath(go)),
-                ("fieldOfView", camera.fieldOfView),
-                ("orthographic", camera.orthographic),
-                ("orthographicSize", camera.orthographicSize),
-                ("clearFlags", camera.clearFlags.ToString()),
-                ("backgroundColor", new Dictionary<string, float>
-                {
-                    ["r"] = camera.backgroundColor.r,
-                    ["g"] = camera.backgroundColor.g,
-                    ["b"] = camera.backgroundColor.b,
-                    ["a"] = camera.backgroundColor.a
-                }),
-                ("cullingMask", camera.cullingMask),
-                ("depth", camera.depth),
-                ("nearClipPlane", camera.nearClipPlane),
-                ("farClipPlane", camera.farClipPlane),
-                ("rect", new Dictionary<string, float>
-                {
-                    ["x"] = camera.rect.x,
-                    ["y"] = camera.rect.y,
-                    ["width"] = camera.rect.width,
-                    ["height"] = camera.rect.height
-                }),
-                ("targetDisplay", camera.targetDisplay),
-                ("renderingPath", camera.renderingPath.ToString()),
-                ("allowHDR", camera.allowHDR),
-                ("allowMSAA", camera.allowMSAA),
-                ("position", new Dictionary<string, float>
-                {
-                    ["x"] = camera.transform.position.x,
-                    ["y"] = camera.transform.position.y,
-                    ["z"] = camera.transform.position.z
-                }),
-                ("rotation", new Dictionary<string, float>
-                {
-                    ["x"] = camera.transform.eulerAngles.x,
-                    ["y"] = camera.transform.eulerAngles.y,
-                    ["z"] = camera.transform.eulerAngles.z
-                })
-            );
-        }
-
-        private object HandleDelete(Dictionary<string, object> payload)
-        {
-            GameObject go = ResolveGameObjectFromPayload(payload);
-            string path = BuildGameObjectPath(go);
-
-            Undo.DestroyObjectImmediate(go);
-
-            return CreateSuccessResponse(
-                ("message", "Camera deleted"),
-                ("gameObjectPath", path)
             );
         }
 
