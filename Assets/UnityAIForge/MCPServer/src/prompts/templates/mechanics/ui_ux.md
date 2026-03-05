@@ -402,13 +402,11 @@ unity_uitk_document(
 
 ```python
 # パネルにCanvasGroupを設定して透明度・操作性を制御
-unity_ui_foundation(
-    operation="configureCanvasGroup",
+unity_component_crud(
+    operation="update",
     gameObjectPath="GameCanvas/UIRoot/Screens/PausePanel",
-    alpha=0.8,
-    interactable=True,
-    blocksRaycasts=True,
-    ignoreParentGroups=True  # 親CanvasGroupの影響を無視
+    componentType="CanvasGroup",
+    propertyChanges={"alpha": 0.8, "interactable": True, "blocksRaycasts": True, "ignoreParentGroups": True}
 )
 
 # パネル作成時にCanvasGroupを同時追加

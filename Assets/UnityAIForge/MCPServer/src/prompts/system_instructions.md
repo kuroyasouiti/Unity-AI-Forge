@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。42ツール、3層構造（Low/Mid/High-Level）。
+AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/High-Level）。
 
 ## 🔴 Critical Rules
 
@@ -15,7 +15,7 @@ AI駆動型Unity開発ツールキット。42ツール、3層構造（Low/Mid/Hi
 
 ---
 
-## 📋 ツール一覧 (42ツール)
+## 📋 ツール一覧 (41ツール)
 
 ### High-Level (9) - 解析・検証 + GameKit UI + Data
 
@@ -25,7 +25,7 @@ AI駆動型Unity開発ツールキット。42ツール、3層構造（Low/Mid/Hi
 | **GameKit UI (1)** UIシステム | unity_gamekit_ui (widgetType: command, binding, list, slot, selection) |
 | **GameKit Data (1)** データ・プール | unity_gamekit_data (dataType: pool, eventChannel, dataContainer, runtimeSet) |
 
-### Mid-Level (22) - バッチ操作・プリセット
+### Mid-Level (18) - バッチ操作・プリセット
 
 | カテゴリ | ツール |
 |---------|-------|
@@ -37,15 +37,14 @@ AI駆動型Unity開発ツールキット。42ツール、3層構造（Low/Mid/Hi
 | Input | unity_input_profile |
 | 2D | unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle |
 | 3D/Visual | unity_material_bundle, unity_light_bundle, unity_particle_bundle, unity_animation3d_bundle |
-| Events/Dev-Cycle | unity_event_wiring, unity_playmode_control, unity_console_log |
 
 ### Low-Level CRUD (8)
 
 unity_scene_crud, unity_gameobject_crud, unity_component_crud, unity_asset_crud, unity_scriptableObject_crud, unity_prefab_crud, unity_vector_sprite_convert, unity_projectSettings_crud
 
-### Utility (2) + Batch (1)
+### Utility (5) + Batch (1)
 
-unity_ping, unity_compilation_await, unity_batch_sequential_execute
+unity_ping, unity_compilation_await, unity_event_wiring, unity_playmode_control, unity_console_log, unity_batch_sequential_execute
 
 ---
 
@@ -56,7 +55,7 @@ unity_ping, unity_compilation_await, unity_batch_sequential_execute
 | **Plan** | 現状把握・影響調査 | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
 | **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
-| **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `validate_integrity(removeMissingScripts)`, `playmode_control(play/stop)` |
+| **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `playmode_control(play/stop)` |
 
 ---
 
@@ -65,7 +64,6 @@ unity_ping, unity_compilation_await, unity_batch_sequential_execute
 ```python
 # シーン整合性（Missing Script, null参照, 壊れたEvent/Prefab）
 unity_validate_integrity(operation='all')                    # 全チェック
-unity_validate_integrity(operation='removeMissingScripts')   # 自動除去（Undo可）
 unity_validate_integrity(operation='typeCheck')              # 型ミスマッチ検出
 unity_validate_integrity(operation='report', scope='build_scenes')  # 複数シーンレポート
 unity_validate_integrity(operation='checkPrefab', prefabPath='Assets/Prefabs/Player.prefab')  # Prefab検証
@@ -131,7 +129,6 @@ unity_gamekit_ui(widgetType='selection', operation='create', targetPath='Canvas/
 ```python
 # オブジェクトプール（UnityEngine.Pool使用）
 unity_gamekit_data(dataType='pool', operation='create', targetPath='PoolManager', poolId='bullets', prefabPath='Assets/Prefabs/Bullet.prefab', initialSize=20, maxSize=100)
-unity_gamekit_data(dataType='pool', operation='update', poolId='bullets', maxSize=200)
 unity_gamekit_data(dataType='pool', operation='inspect', poolId='bullets')
 
 # イベントチャンネル（ScriptableObject型、eventType: void|int|float|string|Vector3|GameObject）
@@ -174,7 +171,6 @@ unity_camera_bundle(operation='create', name='MainCam', preset='thirdPerson', po
 unity_ui_foundation(operation='createCanvas', name='GameUI')
 unity_ui_foundation(operation='createButton', name='Btn', parentPath='GameUI', text='Click')
 unity_ui_foundation(operation='addLayoutGroup', targetPath='GameUI/Panel', layoutType='Vertical', spacing=10)
-unity_ui_foundation(operation='configureCanvasGroup', gameObjectPath='GameUI/Panel', alpha=0.5, interactable=False)
 unity_ui_foundation(operation='createPanel', name='Overlay', parentPath='GameUI', addCanvasGroup=True, ignoreParentGroups=True)
 
 # UI要素の個別作成
@@ -291,7 +287,7 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 
 **接続:** `unity_ping` → Tools > MCP Assistant確認 → ポート7077確認
 **コンパイル:** `compilation_await(await)` → `console_log(getCompilationErrors)`
-**整合性:** `validate_integrity(all)` → `validate_integrity(removeMissingScripts)` → `scene_reference_graph(findOrphans)`
+**整合性:** `validate_integrity(all)` → `scene_reference_graph(findOrphans)`
 
 ---
 
@@ -349,4 +345,4 @@ unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes
 
 ---
 
-Unity-AI-Forge v{VERSION} - 42 Tools, 3-Layer Architecture
+Unity-AI-Forge v{VERSION} - 41 Tools, 3-Layer Architecture

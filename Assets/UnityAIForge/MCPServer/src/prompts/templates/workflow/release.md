@@ -77,9 +77,6 @@ unity_console_log(operation='clear')
 # 全項目チェック
 unity_validate_integrity(operation='all')
 
-# Missing Script があれば除去（Undo可能）
-unity_validate_integrity(operation='removeMissingScripts')
-
 # 個別チェックで詳細確認
 unity_validate_integrity(operation='nullReferences')
 unity_validate_integrity(operation='brokenEvents')

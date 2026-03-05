@@ -105,9 +105,10 @@ unity_tilemap_bundle(
 )
 
 # コライダーを追加
-unity_tilemap_bundle(
-    operation="addCollider",
-    targetPath="Level01_Terrain"
+unity_component_crud(
+    operation="add",
+    gameObjectPath="Level01_Terrain",
+    componentType="UnityEngine.Tilemaps.TilemapCollider2D"
 )
 ```
 

@@ -356,9 +356,6 @@ unity_scriptableObject_crud(operation='create',
 # 整合性チェック（全項目）
 unity_validate_integrity(operation='all')
 
-# Missing Scriptを自動除去
-unity_validate_integrity(operation='removeMissingScripts')
-
 # コード依存関係の確認
 unity_class_dependency_graph(operation='analyzeClass',
     target='GameManager')
@@ -490,7 +487,7 @@ apply ではなく applyOverrides を使用してください。
 | `unity_event_wiring` | wire / wireMultiple でUnityEvent接続 |
 | `unity_class_dependency_graph` | analyzeClass / findDependents でコード品質確認 |
 | `unity_class_catalog` | listTypes / inspectType で型一覧確認 |
-| `unity_validate_integrity` | all / removeMissingScripts で品質ゲート |
+| `unity_validate_integrity` | all / typeCheck で品質ゲート |
 | `unity_scene_reference_graph` | findOrphans で孤立オブジェクト確認 |
 | `unity_prefab_crud` | create / applyOverrides でPrefab管理 |
 | `unity_playmode_control` | 動作確認 |

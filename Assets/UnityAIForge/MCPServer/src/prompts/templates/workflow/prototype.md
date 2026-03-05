@@ -276,9 +276,6 @@ unity_component_crud(operation='update', gameObjectPath='Enemies/EnemyProto',
 # 整合性チェック（プロトタイプが一段落したら）
 unity_validate_integrity(operation='all')
 
-# Missing Scriptがあれば自動除去
-unity_validate_integrity(operation='removeMissingScripts')
-
 # シーン参照の確認（孤立オブジェクト検出）
 unity_scene_reference_graph(operation='findOrphans')
 ```
