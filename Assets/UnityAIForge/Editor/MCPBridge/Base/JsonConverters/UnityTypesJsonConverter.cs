@@ -64,6 +64,14 @@ namespace MCP.Editor.Base.JsonConverters
 
         #endregion
 
+        private static readonly Dictionary<string, Func<float, float, float, float, AnimationCurve>> AnimationCurvePresets =
+            new Dictionary<string, Func<float, float, float, float, AnimationCurve>>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "linear", (t0, v0, t1, v1) => AnimationCurve.Linear(t0, v0, t1, v1) },
+            { "easeInOut", (t0, v0, t1, v1) => AnimationCurve.EaseInOut(t0, v0, t1, v1) },
+            { "constant", (t0, v0, t1, _) => AnimationCurve.Constant(t0, t1, v0) },
+        };
+
         private static readonly HashSet<Type> SupportedTypes = new HashSet<Type>
         {
             typeof(Vector2),
@@ -78,7 +86,8 @@ namespace MCP.Editor.Base.JsonConverters
             typeof(RectInt),
             typeof(Bounds),
             typeof(BoundsInt),
-            typeof(LayerMask)
+            typeof(LayerMask),
+            typeof(AnimationCurve)
         };
 
         public override bool CanConvert(Type objectType)
@@ -89,7 +98,7 @@ namespace MCP.Editor.Base.JsonConverters
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null)
-                return Activator.CreateInstance(objectType);
+                return objectType == typeof(AnimationCurve) ? new AnimationCurve() : Activator.CreateInstance(objectType);
 
             // 整数値の直接処理（LayerMask用）
             if (reader.TokenType == JsonToken.Integer)
@@ -208,6 +217,38 @@ namespace MCP.Editor.Base.JsonConverters
                 writer.WriteEndArray();
                 writer.WriteEndObject();
             }
+            else if (type == typeof(AnimationCurve))
+            {
+                var curve = (AnimationCurve)value;
+                writer.WriteStartObject();
+                writer.WritePropertyName("preWrapMode");
+                writer.WriteValue(curve.preWrapMode.ToString());
+                writer.WritePropertyName("postWrapMode");
+                writer.WriteValue(curve.postWrapMode.ToString());
+                writer.WritePropertyName("keys");
+                writer.WriteStartArray();
+                foreach (var key in curve.keys)
+                {
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("time");
+                    writer.WriteValue(key.time);
+                    writer.WritePropertyName("value");
+                    writer.WriteValue(key.value);
+                    writer.WritePropertyName("inTangent");
+                    writer.WriteValue(key.inTangent);
+                    writer.WritePropertyName("outTangent");
+                    writer.WriteValue(key.outTangent);
+                    writer.WritePropertyName("inWeight");
+                    writer.WriteValue(key.inWeight);
+                    writer.WritePropertyName("outWeight");
+                    writer.WriteValue(key.outWeight);
+                    writer.WritePropertyName("weightedMode");
+                    writer.WriteValue((int)key.weightedMode);
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
         }
 
         #region Helper Methods
@@ -237,6 +278,11 @@ namespace MCP.Editor.Base.JsonConverters
             else if (objectType == typeof(LayerMask))
             {
                 return ConvertLayerMaskFromString(str);
+            }
+            else if (objectType == typeof(AnimationCurve))
+            {
+                if (AnimationCurvePresets.TryGetValue(str, out var factory))
+                    return factory(0f, 0f, 1f, 1f);
             }
 
             throw new JsonSerializationException($"Unknown constant '{str}' for type {objectType.Name}");
@@ -414,8 +460,65 @@ namespace MCP.Editor.Base.JsonConverters
                 }
                 throw new JsonSerializationException("LayerMask must have 'value' or 'layers' property");
             }
+            if (objectType == typeof(AnimationCurve))
+            {
+                return ConvertAnimationCurveFromJObject(jObject);
+            }
 
             throw new JsonSerializationException($"Cannot convert to {objectType.Name}");
+        }
+
+        private AnimationCurve ConvertAnimationCurveFromJObject(JObject jObject)
+        {
+            // Preset format: {"preset": "easeInOut", "timeStart": 0, "valueStart": 0, "timeEnd": 1, "valueEnd": 1}
+            if (jObject.TryGetValue("preset", out var presetToken))
+            {
+                var presetName = presetToken.Value<string>();
+                if (AnimationCurvePresets.TryGetValue(presetName, out var factory))
+                {
+                    return factory(
+                        jObject.Value<float?>("timeStart") ?? 0f,
+                        jObject.Value<float?>("valueStart") ?? 0f,
+                        jObject.Value<float?>("timeEnd") ?? 1f,
+                        jObject.Value<float?>("valueEnd") ?? 1f
+                    );
+                }
+                throw new JsonSerializationException($"Unknown AnimationCurve preset: '{presetName}'. Available: linear, easeInOut, constant");
+            }
+
+            // Keys format: {"keys": [{"time": 0, "value": 0, "inTangent": 0, "outTangent": 1}, ...]}
+            if (jObject.TryGetValue("keys", out var keysToken) && keysToken is JArray keysArray)
+            {
+                var keyframes = new Keyframe[keysArray.Count];
+                for (int i = 0; i < keysArray.Count; i++)
+                {
+                    var kObj = (JObject)keysArray[i];
+                    var time = kObj.Value<float>("time");
+                    var value = kObj.Value<float>("value");
+                    var inTangent = kObj.Value<float?>("inTangent") ?? 0f;
+                    var outTangent = kObj.Value<float?>("outTangent") ?? 0f;
+                    var kf = new Keyframe(time, value, inTangent, outTangent);
+
+                    if (kObj.TryGetValue("inWeight", out var inW))
+                        kf.inWeight = inW.Value<float>();
+                    if (kObj.TryGetValue("outWeight", out var outW))
+                        kf.outWeight = outW.Value<float>();
+                    if (kObj.TryGetValue("weightedMode", out var wm))
+                        kf.weightedMode = (WeightedMode)wm.Value<int>();
+
+                    keyframes[i] = kf;
+                }
+                var curve = new AnimationCurve(keyframes);
+
+                if (jObject.TryGetValue("preWrapMode", out var preWrap))
+                    curve.preWrapMode = (WrapMode)Enum.Parse(typeof(WrapMode), preWrap.Value<string>(), true);
+                if (jObject.TryGetValue("postWrapMode", out var postWrap))
+                    curve.postWrapMode = (WrapMode)Enum.Parse(typeof(WrapMode), postWrap.Value<string>(), true);
+
+                return curve;
+            }
+
+            throw new JsonSerializationException("AnimationCurve must have 'preset' or 'keys' property");
         }
 
         private int ConvertLayerNameToMask(string layerName)
