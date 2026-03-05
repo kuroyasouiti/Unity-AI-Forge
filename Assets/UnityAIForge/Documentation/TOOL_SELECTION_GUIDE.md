@@ -14,6 +14,7 @@ This guide helps you choose the right tool for your Unity development tasks.
 | Equipment / quickbar slots | `unity_gamekit_ui(widgetType='slot')` |
 | Radio / toggle / tab groups | `unity_gamekit_ui(widgetType='selection')` |
 | Configure keyboard/gamepad navigation | `unity_ui_navigation` |
+| **Gameplay/menu mode switching** | `unity_ui_state` |
 | Manage UI visibility states | `unity_ui_state` |
 | Create UI elements / show / hide / inspect | `unity_ui_foundation` |
 | Scene integrity validation | `unity_validate_integrity` |
@@ -149,19 +150,56 @@ unity_ui_navigation({
 
 ### When to use `unity_ui_state`
 
-**Best for:** UI state management
+**Best for:** Gameplay / menu mode switching (standard tool)
 
-- Define show/hidden states
-- Manage dialog open/close
-- State groups (mutually exclusive menus)
-- Save/restore UI state
+This is the **standard tool for switching between game operation and menu screens**.
+Define each screen mode (gameplay, paused, inventory, settings, etc.) as a state, then call `applyState` to switch.
+Use `createStateGroup` to ensure mutual exclusivity — only one mode is active at a time.
+
+- **Gameplay ↔ Pause menu** switching
+- **Gameplay ↔ Inventory / Settings** switching
+- **Title → In-game → Result** screen flow
+- Dialog states (open, closed, minimized)
+- HUD mode variants (combat, exploration, cutscene)
 
 ```python
+# Define gameplay state (HUD visible, menus hidden)
 unity_ui_state({
     "operation": "defineState",
-    "stateName": "hidden",
-    "rootPath": "Canvas/Dialog",
-    "elements": [{"path": "", "active": false, "alpha": 0}]
+    "stateName": "gameplay",
+    "rootPath": "Canvas",
+    "elements": [
+        {"path": "HUD", "active": true},
+        {"path": "Screens/PauseMenu", "active": false},
+        {"path": "Screens/Inventory", "active": false}
+    ]
+})
+
+# Define paused state (HUD dimmed, pause menu visible)
+unity_ui_state({
+    "operation": "defineState",
+    "stateName": "paused",
+    "rootPath": "Canvas",
+    "elements": [
+        {"path": "HUD", "active": true, "interactable": false},
+        {"path": "Screens/PauseMenu", "active": true, "interactable": true}
+    ]
+})
+
+# Create exclusive group
+unity_ui_state({
+    "operation": "createStateGroup",
+    "rootPath": "Canvas",
+    "groupName": "screen_mode",
+    "states": ["gameplay", "paused", "inventory", "settings"],
+    "defaultState": "gameplay"
+})
+
+# Switch to paused
+unity_ui_state({
+    "operation": "applyState",
+    "rootPath": "Canvas",
+    "stateName": "paused"
 })
 ```
 
@@ -189,9 +227,10 @@ unity_ui_foundation({
 
 | Requirement | navigation | state | foundation |
 |-------------|------------|-------|------------|
+| **Gameplay/menu switching** | No | **Yes** | No |
 | Keyboard navigation | Yes | No | No |
 | Show/hide panels | No | Yes | Yes |
-| State management | No | Yes | No |
+| Mutually exclusive screens | No | Yes | No |
 | Create UI elements | No | No | Yes |
 | LayoutGroup | No | No | Yes |
 | Inspect UI tree | No | No | Yes |

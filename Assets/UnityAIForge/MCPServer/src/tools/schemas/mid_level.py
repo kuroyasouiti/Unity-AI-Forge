@@ -902,7 +902,7 @@ def ui_state_schema() -> dict[str, Any]:
                         "transitionTo",
                         "getActiveState",
                     ],
-                    "description": "UI state operation.",
+                    "description": "UI state operation. Use defineState + applyState for gameplay/menu switching (e.g., gameplay ↔ pause, gameplay ↔ inventory). Use createStateGroup for mutually exclusive screen states.",
                 },
                 "stateName": {"type": "string", "description": "Name of the UI state."},
                 "rootPath": {

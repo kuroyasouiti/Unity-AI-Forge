@@ -12,6 +12,7 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 6. **PDCA遵守**: Plan(inspect/graph) → Do(実行) → Check(validate_integrity/console_log) → Act(修正)
 7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作
 8. **物理設定のベストプラクティス**: Layer Collision Matrixで不要な衝突を除外、高速オブジェクトのCollision DetectionはContinuousに設定
+9. **ゲーム操作/メニュー切替には `ui_state` を使用**: gameplay ↔ pause、gameplay ↔ inventory 等の画面モード切替は `unity_ui_state` の `defineState` + `applyState` で管理。`createStateGroup` で排他制御
 
 ---
 
@@ -182,9 +183,23 @@ unity_ui_foundation(operation='createButton', name='StartBtn', parentPath='Canva
 unity_ui_foundation(operation='show', targetPath='Canvas/Menu')
 unity_ui_foundation(operation='hide', targetPath='Canvas/Menu')
 
-# UI状態管理
-unity_ui_state(operation='defineState', rootPath='Canvas', stateName='menu', elements=[...])
-unity_ui_state(operation='applyState', rootPath='Canvas', stateName='menu')
+# UI状態管理（ゲーム操作/メニュー切替の標準手法）
+# ゲームプレイ状態: HUDのみ表示、メニュー非表示
+unity_ui_state(operation='defineState', rootPath='Canvas', stateName='gameplay', elements=[
+    {'path': 'HUD', 'active': True},
+    {'path': 'Screens/PauseMenu', 'active': False, 'interactable': False},
+    {'path': 'Screens/Inventory', 'active': False}
+])
+# ポーズ状態: HUD + ポーズメニュー表示
+unity_ui_state(operation='defineState', rootPath='Canvas', stateName='paused', elements=[
+    {'path': 'HUD', 'active': True, 'interactable': False},
+    {'path': 'Screens/PauseMenu', 'active': True, 'interactable': True}
+])
+# 排他グループ（gameplay/paused/inventoryは同時に1つだけ）
+unity_ui_state(operation='createStateGroup', rootPath='Canvas', groupName='screen_mode',
+    states=['gameplay', 'paused', 'inventory', 'settings'], defaultState='gameplay')
+# 状態を切替
+unity_ui_state(operation='applyState', rootPath='Canvas', stateName='paused')
 
 # UIナビゲーション（キーボード/ゲームパッド）
 unity_ui_navigation(operation='autoSetup', rootPath='Canvas/Menu', direction='vertical')

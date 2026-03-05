@@ -449,23 +449,52 @@ unity_input_profile({
 
 ### UI State & Navigation
 
+`unity_ui_state` is the **standard tool for gameplay/menu mode switching** (gameplay ↔ pause ↔ inventory).
+
 ```python
-# Define UI states
+# Define gameplay state (HUD visible, menus hidden)
 unity_ui_state({
     "operation": "defineState",
-    "rootPath": "Canvas/HUD",
-    "stateName": "combat",
+    "rootPath": "Canvas",
+    "stateName": "gameplay",
     "elements": [
-        {"path": "HPBar", "visible": true},
-        {"path": "ManaBar", "visible": true},
-        {"path": "MinimapPanel", "visible": false}
+        {"path": "HUD", "active": true},
+        {"path": "Screens/PauseMenu", "active": false},
+        {"path": "Screens/Inventory", "active": false}
     ]
+})
+
+# Define paused state
+unity_ui_state({
+    "operation": "defineState",
+    "rootPath": "Canvas",
+    "stateName": "paused",
+    "elements": [
+        {"path": "HUD", "active": true, "interactable": false},
+        {"path": "Screens/PauseMenu", "active": true, "interactable": true}
+    ]
+})
+
+# Exclusive group: only one mode active at a time
+unity_ui_state({
+    "operation": "createStateGroup",
+    "rootPath": "Canvas",
+    "groupName": "screen_mode",
+    "states": ["gameplay", "paused", "inventory"],
+    "defaultState": "gameplay"
+})
+
+# Switch mode
+unity_ui_state({
+    "operation": "applyState",
+    "rootPath": "Canvas",
+    "stateName": "paused"
 })
 
 # Configure navigation for gamepad support
 unity_ui_navigation({
     "operation": "autoSetup",
-    "rootPath": "Canvas/MainMenu",
+    "rootPath": "Canvas/Screens/PauseMenu",
     "direction": "vertical"
 })
 ```
@@ -746,7 +775,7 @@ unity_batch_sequential_execute({"operations": [...]})
 | `unity_rectTransform_batch` | UI anchors, alignment, distribution |
 | `unity_camera_bundle` | Camera CRUD with presets (default, orthographic2D, etc.) |
 | `unity_ui_foundation` | UGUI element creation, show/hide/toggle, inspectTree |
-| `unity_ui_state` | UI state management |
+| `unity_ui_state` | **Gameplay/menu mode switching** (standard tool for gameplay ↔ pause ↔ inventory) |
 | `unity_ui_navigation` | Keyboard/gamepad navigation setup |
 | `unity_input_profile` | New Input System setup |
 | `unity_tilemap_bundle` | Tilemap creation and tile management |

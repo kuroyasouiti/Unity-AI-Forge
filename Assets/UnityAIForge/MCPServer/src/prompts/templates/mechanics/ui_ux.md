@@ -226,48 +226,85 @@ unity_gamekit_ui(widgetType='command',
 unity_compilation_await(operation="await", timeoutSeconds=30)
 ```
 
-### Step 5: UI 状態管理
+### Step 5: UI 状態管理（ゲーム操作/メニュー切替の標準手法）
+
+`unity_ui_state` はゲームプレイ中の操作画面とメニュー画面の切り替えを管理する標準ツールです。
+各画面モード（タイトル、ゲームプレイ、ポーズ、インベントリ等）を状態として定義し、
+`applyState` で瞬時に切り替えます。`createStateGroup` で排他制御も可能です。
 
 ```python
-# ui_state で画面状態を定義・管理
+# ui_state で画面モードを定義
 unity_ui_state(
     operation="defineState",
-    targetPath="GameCanvas",
+    rootPath="GameCanvas",
     stateName="Title",
-    properties={
-        "UIRoot/Screens/TitlePanel": {"active": true},
-        "UIRoot/HUD": {"active": false},
-        "UIRoot/Screens/PausePanel": {"active": false},
-        "UIRoot/Screens/ResultPanel": {"active": false}
-    }
+    elements=[
+        {"path": "UIRoot/Screens/TitlePanel", "active": True},
+        {"path": "UIRoot/HUD", "active": False},
+        {"path": "UIRoot/Screens/PausePanel", "active": False},
+        {"path": "UIRoot/Screens/ResultPanel", "active": False}
+    ]
 )
 
 unity_ui_state(
     operation="defineState",
-    targetPath="GameCanvas",
-    stateName="InGame",
-    properties={
-        "UIRoot/Screens/TitlePanel": {"active": false},
-        "UIRoot/HUD": {"active": true},
-        "UIRoot/Screens/PausePanel": {"active": false}
-    }
+    rootPath="GameCanvas",
+    stateName="Gameplay",
+    elements=[
+        {"path": "UIRoot/Screens/TitlePanel", "active": False},
+        {"path": "UIRoot/HUD", "active": True},
+        {"path": "UIRoot/Screens/PausePanel", "active": False}
+    ]
 )
 
 unity_ui_state(
     operation="defineState",
-    targetPath="GameCanvas",
+    rootPath="GameCanvas",
     stateName="Paused",
-    properties={
-        "UIRoot/HUD": {"active": true},
-        "UIRoot/Screens/PausePanel": {"active": true}
-    }
+    elements=[
+        {"path": "UIRoot/HUD", "active": True, "interactable": False},
+        {"path": "UIRoot/Screens/PausePanel", "active": True, "interactable": True}
+    ]
 )
 
-# 状態を適用
+unity_ui_state(
+    operation="defineState",
+    rootPath="GameCanvas",
+    stateName="Inventory",
+    elements=[
+        {"path": "UIRoot/HUD", "active": True, "interactable": False},
+        {"path": "UIRoot/Screens/InventoryPanel", "active": True, "interactable": True}
+    ]
+)
+
+# 排他グループ: 同時に1つの画面モードのみアクティブ
+unity_ui_state(
+    operation="createStateGroup",
+    rootPath="GameCanvas",
+    groupName="screen_mode",
+    states=["Title", "Gameplay", "Paused", "Inventory", "Settings", "Result"],
+    defaultState="Title"
+)
+
+# 状態を適用（ゲーム開始時）
 unity_ui_state(
     operation="applyState",
-    targetPath="GameCanvas",
+    rootPath="GameCanvas",
     stateName="Title"
+)
+
+# ポーズボタン押下時 → Paused に切替
+unity_ui_state(
+    operation="applyState",
+    rootPath="GameCanvas",
+    stateName="Paused"
+)
+
+# 再開時 → Gameplay に戻す
+unity_ui_state(
+    operation="applyState",
+    rootPath="GameCanvas",
+    stateName="Gameplay"
 )
 ```
 
@@ -610,7 +647,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 | ツール名 | 用途 |
 |---|---|
 | `unity_ui_foundation` | Canvas・Panel・Button 等の基本 UI 要素作成・show/hide/toggle |
-| `unity_ui_state` | 画面状態の定義・管理・遷移 |
+| `unity_ui_state` | **ゲーム操作/メニュー切替の標準ツール**。画面モード（gameplay/paused/inventory等）の定義・排他切替 |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
 | `unity_gamekit_ui(widgetType='command')` | ボタンアクション・画面切り替えコマンド |
 | `unity_gamekit_ui(widgetType='binding')` | データから UI への自動バインディング |

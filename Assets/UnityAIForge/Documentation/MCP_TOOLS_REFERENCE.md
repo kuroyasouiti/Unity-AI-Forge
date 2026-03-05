@@ -198,7 +198,7 @@ UGUI基盤要素作成。
 ---
 
 ### `unity_ui_state`
-UI状態管理。
+**ゲーム操作/メニュー切替の標準ツール。** gameplay ↔ pause、gameplay ↔ inventory 等の画面モード切替を `defineState` + `applyState` で管理。`createStateGroup` で排他制御。
 
 | パラメータ | 型 | 説明 |
 |------------|-----|------|

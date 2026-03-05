@@ -279,32 +279,51 @@ unity_ui_navigation(operation='autoSetup',
     direction='vertical')
 ```
 
-### Step 7: UI状態管理
+### Step 7: UI状態管理（ゲーム操作/メニュー切替）
 
-ゲーム状態に応じたUI表示切替を定義します。
+**`unity_ui_state` はゲーム操作とメニューの切り替えを管理する標準ツールです。**
+各画面モードを状態として定義し、`applyState` で切り替えます。
+`createStateGroup` で排他グループを作ると、1つの状態を適用するだけで他が自動的に解除されます。
 
 ```python
-# Playing状態: HUDのみ表示
+# ゲームプレイ状態: HUDのみ表示、メニュー非表示
 unity_ui_state(operation='defineState',
     rootPath='GameUI',
-    stateName='playing',
+    stateName='gameplay',
     elements=[
-        {'path': 'HUD',       'visible': True},
-        {'path': 'PauseMenu', 'visible': False}
+        {'path': 'HUD',       'active': True},
+        {'path': 'PauseMenu', 'active': False, 'interactable': False},
+        {'path': 'Inventory', 'active': False}
     ])
 
-# Paused状態: HUD + PauseMenu表示
+# ポーズ状態: HUD + PauseMenu表示
 unity_ui_state(operation='defineState',
     rootPath='GameUI',
     stateName='paused',
     elements=[
-        {'path': 'HUD',       'visible': True},
-        {'path': 'PauseMenu', 'visible': True}
+        {'path': 'HUD',       'active': True, 'interactable': False},
+        {'path': 'PauseMenu', 'active': True, 'interactable': True}
     ])
+
+# インベントリ状態
+unity_ui_state(operation='defineState',
+    rootPath='GameUI',
+    stateName='inventory',
+    elements=[
+        {'path': 'HUD',       'active': True, 'interactable': False},
+        {'path': 'Inventory', 'active': True, 'interactable': True}
+    ])
+
+# 排他グループ: gameplay/paused/inventory は同時に1つだけ
+unity_ui_state(operation='createStateGroup',
+    rootPath='GameUI',
+    groupName='screen_mode',
+    states=['gameplay', 'paused', 'inventory'],
+    defaultState='gameplay')
 
 # 初期状態を適用
 unity_ui_state(operation='applyState',
-    rootPath='GameUI', stateName='playing')
+    rootPath='GameUI', stateName='gameplay')
 ```
 
 ### Step 8: ゲームデータの拡充
@@ -420,7 +439,8 @@ unity_prefab_crud(operation='applyOverrides', gameObjectPath='Player')
 ### UIバインディング
 - [ ] gamekit_ui(widgetType='binding') でHP表示をデータ連動にした
 - [ ] gamekit_ui(widgetType='binding') でスコア表示をデータ連動にした
-- [ ] ui_state でゲーム状態に応じたUI切替を定義した
+- [ ] ui_state でゲーム操作/メニュー切替を定義した（gameplay/paused/inventory等）
+- [ ] ui_state(createStateGroup) で排他グループを設定した
 
 ### イベント接続
 - [ ] event_wiring でボタンにイベントを接続した
@@ -482,7 +502,7 @@ apply ではなく applyOverrides を使用してください。
 | `unity_asset_crud` | create でスクリプト生成 |
 | `unity_gamekit_ui(widgetType='binding')` | データバインディング設定 |
 | `unity_gamekit_ui(widgetType='command')` | ボタン→ロジック接続 |
-| `unity_ui_state` | ゲーム状態に応じたUI切替 |
+| `unity_ui_state` | **ゲーム操作/メニュー切替の標準ツール**（gameplay ↔ paused ↔ inventory） |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
 | `unity_event_wiring` | wire / wireMultiple でUnityEvent接続 |
 | `unity_class_dependency_graph` | analyzeClass / findDependents でコード品質確認 |

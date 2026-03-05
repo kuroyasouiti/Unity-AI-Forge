@@ -161,7 +161,7 @@ AIクライアント (Claude Code/Cursor) <--(MCP)--> Pythonサーバー <--(Web
 | `unity_physics_bundle` | 物理バンドル（2D/3Dプリセット） |
 | `unity_camera_bundle` | カメラCRUD+プリセット（default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreen, minimap, uiCamera） |
 | `unity_ui_foundation` | UI基礎（Canvas, Button, Text, Image, show/hide/toggle, inspectTree） |
-| `unity_ui_state` | UI状態管理 |
+| `unity_ui_state` | **ゲーム操作/メニュー切替の標準ツール**（gameplay ↔ pause ↔ inventory。排他グループ対応） |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
 | `unity_audio_source_bundle` | オーディオソースバンドル（music, sfx, ambient, voice, ui） |
 | `unity_input_profile` | 入力プロファイル（New Input System） |

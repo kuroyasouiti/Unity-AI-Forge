@@ -229,7 +229,9 @@ def get_tool_definitions() -> list[types.Tool]:
         types.Tool(
             name="unity_ui_state",
             description=(
-                "Mid-level UI state management: define, save, load, and transition between UI states.\n\n"
+                "Mid-level UI state management: define, save, load, and transition between UI states.\n"
+                "**This is the standard tool for switching between gameplay and menu modes** "
+                "(e.g., gameplay ↔ pause menu, gameplay ↔ inventory, title ↔ in-game).\n\n"
                 "**Operations:**\n"
                 "- defineState: Define a named UI state with element configurations (active, visible, interactable, alpha, blocksRaycasts, ignoreParentGroups, position, size)\n"
                 "- applyState: Apply a saved state to UI elements\n"
@@ -239,10 +241,12 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- createStateGroup: Create a group of mutually exclusive states\n"
                 "- transitionTo: Transition to a state (alias for applyState)\n"
                 "- getActiveState: Get currently active state name\n\n"
-                "**Use Cases:**\n"
-                "- Menu screens (main menu, pause menu, settings)\n"
+                "**Primary Use Case — Gameplay / Menu Switching:**\n"
+                "Define states like 'gameplay', 'paused', 'inventory', 'settings' etc., "
+                "then call applyState to switch. Use createStateGroup to make them mutually exclusive.\n\n"
+                "**Other Use Cases:**\n"
                 "- Dialog states (open, closed, minimized)\n"
-                "- HUD states (combat, exploration, cutscene)\n"
+                "- HUD mode variants (combat, exploration, cutscene)\n"
                 "- Form validation states (valid, invalid, loading)"
             ),
             inputSchema=ui_state_schema(),

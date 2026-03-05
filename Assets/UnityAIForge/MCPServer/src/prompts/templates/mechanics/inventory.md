@@ -363,7 +363,7 @@ unity_ui_state(
 | `unity_component_crud` | コンポーネントの追加・プロパティ設定 |
 | `unity_ui_foundation` | インベントリ UI パネルの基盤構築 |
 | `unity_ui_navigation` | キーボード/ゲームパッドナビゲーション |
-| `unity_ui_state` | インベントリの開閉状態管理 |
+| `unity_ui_state` | **ゲーム操作/メニュー切替の標準ツール**。インベントリ開閉（gameplay ↔ inventory）を排他管理 |
 | `unity_event_wiring` | UI イベントとインベントリロジックの接続 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |
 | `unity_validate_integrity` | 実装後の整合性チェック |
