@@ -100,10 +100,32 @@ namespace MCP.Editor.Handlers
                 if (parent != null)
                 {
                     grid = parent.GetComponent<Grid>();
+                    if (grid == null)
+                    {
+                        grid = parent.GetComponentInParent<Grid>();
+                    }
                 }
             }
 
-            // Create Grid if needed
+            // Search scene for existing Grid if none found via parentPath
+            if (grid == null)
+            {
+                var existingGrids = UnityEngine.Object.FindObjectsOfType<Grid>();
+                foreach (var g in existingGrids)
+                {
+                    if (g.cellLayout == cellLayout)
+                    {
+                        grid = g;
+                        if (parent == null)
+                        {
+                            parent = grid.gameObject;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Create Grid only if no suitable one exists
             if (grid == null)
             {
                 var gridGo = new GameObject("Grid");
@@ -122,6 +144,10 @@ namespace MCP.Editor.Handlers
                 }
 
                 parent = gridGo;
+            }
+            else if (parent == null)
+            {
+                parent = grid.gameObject;
             }
 
             // Create Tilemap GameObject
