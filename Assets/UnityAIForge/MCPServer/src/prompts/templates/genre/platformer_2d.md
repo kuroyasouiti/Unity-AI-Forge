@@ -186,10 +186,9 @@ unity_animation2d_bundle(operation='setupAnimator', gameObjectPath='Player',
 ### Step 4: カメラ・HUD
 
 ```python
-# カメラ作成（2Dプラットフォーマー向け）
-unity_camera_bundle(operation='create', name='MainCam',
-    preset='orthographic2D',
-    position={'x': 0, 'y': 2, 'z': -10})
+# カメラ設定（既存Main Cameraにプリセット適用。なければcreate）
+unity_camera_bundle(operation='applyPreset', gameObjectPath='Main Camera',
+    preset='orthographic2D')
 
 # HUD Canvas
 unity_ui_foundation(operation='createCanvas', canvasName='Canvas_HUD',

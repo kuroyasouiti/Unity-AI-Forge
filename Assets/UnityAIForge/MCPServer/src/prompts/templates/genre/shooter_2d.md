@@ -261,10 +261,9 @@ unity_compilation_await(operation='await')
 ### Step 6: カメラ・背景
 
 ```python
-# カメラ（固定）
-unity_camera_bundle(operation='create', name='MainCam',
-    preset='orthographic2D',
-    position={'x': 0, 'y': 0, 'z': -10})
+# カメラ設定（既存Main Cameraにプリセット適用。なければcreate）
+unity_camera_bundle(operation='applyPreset', gameObjectPath='Main Camera',
+    preset='orthographic2D')
 
 # ビルドシーン登録
 unity_projectSettings_crud(operation='addSceneToBuild',

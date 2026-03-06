@@ -240,10 +240,9 @@ unity_gamekit_ui(widgetType='binding',operation='create',
     bindingId='player_hp', uiType='slider', format='ratio')
 unity_compilation_await(operation='await')
 
-# カメラ作成（2Dゲーム向け）
-unity_camera_bundle(operation='create', name='MainCam',
-    preset='orthographic2D',
-    position={'x': 0, 'y': 1, 'z': -10})
+# カメラ設定（既存Main Cameraにプリセット適用。なければcreate）
+unity_camera_bundle(operation='applyPreset', gameObjectPath='Main Camera',
+    preset='orthographic2D')
 ```
 
 ### Step 6: 検証・ビルド設定

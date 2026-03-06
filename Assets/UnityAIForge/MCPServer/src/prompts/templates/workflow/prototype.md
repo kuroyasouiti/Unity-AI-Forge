@@ -141,19 +141,14 @@ unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'],
 ### Step 4: カメラをプレイヤー追従に設定
 
 ```python
-# thirdPersonプリセットでカメラ作成
-unity_camera_bundle(operation='create', name='MainCam',
-    preset='thirdPerson',
-    position={'x': 0, 'y': 5, 'z': -10})
+# 既存カメラにプリセット適用（推奨: シーンにMain Cameraがある場合）
+unity_camera_bundle(operation='applyPreset', gameObjectPath='Main Camera',
+    preset='thirdPerson')
 
-# 2D見下ろし型の場合
+# 新規カメラ作成（シーンにカメラがない場合のみ）
 unity_camera_bundle(operation='create', name='MainCam',
     preset='orthographic2D',
     position={'x': 0, 'y': 10, 'z': 0})
-
-# topDownカメラ
-unity_camera_bundle(operation='create', name='MainCam',
-    preset='topDown')
 ```
 
 ### Step 5: 入力プロファイルの接続

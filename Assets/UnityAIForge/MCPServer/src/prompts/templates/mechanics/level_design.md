@@ -190,10 +190,10 @@ unity_gameobject_crud(
 ### Step 4: カメラの設定
 
 ```python
-# プレイヤー追従カメラ
+# プレイヤー追従カメラ（既存Main CameraがあればapplyPresetを使う）
 unity_camera_bundle(
-    operation="create",
-    name="MainCamera",
+    operation="applyPreset",
+    gameObjectPath="Main Camera",
     preset="thirdPerson"
 )
 

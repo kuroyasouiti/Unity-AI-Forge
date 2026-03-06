@@ -16,6 +16,54 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 
 ---
 
+## 🔰 プロジェクト状態チェック（初回タスク開始前に必ず実施）
+
+新しいプロジェクトまたは初回タスク開始時に、以下のチェックを実行してプロジェクトの技術スタックを把握する。
+**コード生成・カメラ設定・UI作成の前に必ず確認すること。**
+
+### チェック手順
+
+```python
+# 1. パッケージ確認（Packages/manifest.json を読む）
+#    確認項目:
+#    - com.unity.inputsystem → 新Input System使用（Input.GetMouseButtonDown NG → Mouse.current を使う）
+#    - com.unity.render-pipelines.universal → URP使用（Standard shader NG → URP/Lit を使う）
+#    - com.unity.render-pipelines.high-definition → HDRP使用
+#    - com.unity.textmeshpro → TMP使用（Text NG → TextMeshProUGUI を使う）
+#    - com.unity.ai.navigation → NavMesh使用可能
+
+# 2. PlayerSettings確認
+unity_projectSettings_crud(operation='read', category='player')
+#    確認項目:
+#    - activeInputHandler: InputSystem / InputManager / Both
+#    - scriptingBackend: Mono / IL2CPP
+
+# 3. シーン階層確認（既存オブジェクトの把握）
+unity_scene_crud(operation='inspect', includeHierarchy=True)
+#    確認項目:
+#    - Main Camera が存在するか → あれば camera_bundle(applyPreset) で再利用、なければ create
+#    - EventSystem が存在するか → あれば作成不要
+#    - Canvas が存在するか → あれば再利用
+
+# 4. 既存コード規約の把握（スクリプトがある場合）
+unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
+#    確認項目:
+#    - namespace の命名規則
+#    - 既存クラスとの整合性
+```
+
+### 技術スタック判定表
+
+| パッケージ | 判定 | コード生成への影響 |
+|-----------|------|------------------|
+| `com.unity.inputsystem` あり | 新Input System | `Mouse.current`, `Keyboard.current`, `Gamepad.current` を使用 |
+| `com.unity.inputsystem` なし | 旧Input Manager | `Input.GetAxis()`, `Input.GetMouseButtonDown()` を使用 |
+| `com.unity.render-pipelines.universal` あり | URP | `Universal Render Pipeline/Lit` シェーダー使用 |
+| URP/HDRP なし | Built-in RP | `Standard` シェーダー使用 |
+| `com.unity.textmeshpro` あり | TMP | `TMPro.TextMeshProUGUI`, `TMPro.TMP_InputField` を使用 |
+
+---
+
 ## 📋 ツール一覧 (41ツール)
 
 ### High-Level (9) - 解析・検証 + GameKit UI + Data
@@ -53,7 +101,7 @@ unity_ping, unity_compilation_await, unity_event_wiring, unity_playmode_control,
 
 | Phase | やること | 主要ツール |
 |-------|---------|-----------|
-| **Plan** | 現状把握・影響調査 | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)` |
+| **Plan** | 現状把握・影響調査（初回はプロジェクト状態チェックも実施） | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)`, `projectSettings_crud(read, player)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
 | **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
 | **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `playmode_control(play/stop)` |
@@ -166,6 +214,9 @@ unity_component_crud(operation='add', gameObjectPath='Player', componentType='Bo
     propertyChanges={'size':{'x':1,'y':1}})
 
 # カメラバンドル (preset: default|orthographic2D|firstPerson|thirdPerson|topDown|splitScreenLeft/Right/Top/Bottom|minimap|uiCamera)
+# 既存カメラにプリセット適用（推奨: 既存Main Cameraがある場合は削除せずapplyPresetを使う）
+unity_camera_bundle(operation='applyPreset', gameObjectPath='Main Camera', preset='orthographic2D')
+# 新規カメラ作成（シーンにカメラがない場合のみ）
 unity_camera_bundle(operation='create', name='MainCam', preset='thirdPerson', position={'x':0,'y':5,'z':-10})
 
 # UI Foundation (UGUI)
