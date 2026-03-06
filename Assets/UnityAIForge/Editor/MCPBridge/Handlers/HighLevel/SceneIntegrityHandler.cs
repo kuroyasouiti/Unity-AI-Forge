@@ -28,6 +28,7 @@ namespace MCP.Editor.Handlers.HighLevel
             "referenceSemantics",
             "requiredFieldAudit",
             "uiOverflowAudit",
+            "uiOverlapAudit",
             "nullAssetAudit"
         };
 
@@ -56,6 +57,7 @@ namespace MCP.Editor.Handlers.HighLevel
                 "referenceSemantics" => BuildResponse(operation, analyzer.FindReferenceSemanticsIssues(rootPath)),
                 "requiredFieldAudit" => BuildResponse(operation, analyzer.FindRequiredFieldIssues(rootPath)),
                 "uiOverflowAudit" => BuildResponse(operation, analyzer.FindUIOverflowIssues(rootPath)),
+                "uiOverlapAudit" => BuildResponse(operation, analyzer.FindUIOverlapIssues(rootPath)),
                 "nullAssetAudit" => BuildResponse(operation, analyzer.FindNullAssetFieldIssues(GetString(payload, "searchPath"))),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
             };

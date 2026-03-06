@@ -502,6 +502,7 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- referenceSemantics: Detect logical reference issues (references to inactive objects, self-references)\n"
                 "- requiredFieldAudit: Detect null SerializedFields that are used in code without null guards\n"
                 "- uiOverflowAudit: Detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow)\n"
+                "- uiOverlapAudit: Detect UI sibling overlap (same-position without LayoutGroup, interactive overlap, raycast blocking)\n"
                 "- nullAssetAudit: Detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"

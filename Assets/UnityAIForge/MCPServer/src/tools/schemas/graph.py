@@ -444,6 +444,7 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "referenceSemantics",
                         "requiredFieldAudit",
                         "uiOverflowAudit",
+                        "uiOverlapAudit",
                         "nullAssetAudit",
                     ],
                     "description": (
@@ -459,6 +460,7 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'checkPrefab': validate a prefab asset for integrity issues. "
                         "'requiredFieldAudit': detect null SerializedFields that are used in code without null guards. "
                         "'uiOverflowAudit': detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow). "
+                        "'uiOverlapAudit': detect UI sibling overlap issues (same-position children without LayoutGroup, interactive element overlaps, raycast blocking). "
                         "'nullAssetAudit': detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets."
                     ),
                 },

@@ -490,6 +490,7 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 ["semanticRefIssues"] = 0,
                 ["requiredFieldIssues"] = 0,
                 ["uiOverflowIssues"] = 0,
+                ["uiOverlapIssues"] = 0,
                 ["nullAssetIssues"] = 0
             };
 
@@ -529,6 +530,10 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             var uiOverflowIssues = FindUIOverflowIssues(rootPath);
             summary["uiOverflowIssues"] = uiOverflowIssues.Count;
             allIssues.AddRange(uiOverflowIssues);
+
+            var uiOverlapIssues = FindUIOverlapIssues(rootPath);
+            summary["uiOverlapIssues"] = uiOverlapIssues.Count;
+            allIssues.AddRange(uiOverlapIssues);
 
             var nullAssetIssues = FindNullAssetFieldIssues();
             summary["nullAssetIssues"] = nullAssetIssues.Count;
@@ -802,6 +807,147 @@ namespace MCP.Editor.Utilities.GraphAnalysis
         }
 
         /// <summary>
+        /// Find UI overlap issues: sibling RectTransforms overlapping with interactive elements,
+        /// multiple children at same position without LayoutGroup, and raycast-blocking overlaps.
+        /// </summary>
+        public List<IntegrityIssue> FindUIOverlapIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            // Collect parents that have 2+ RectTransform children
+            var parentSet = new HashSet<Transform>();
+            foreach (var go in gameObjects)
+            {
+                var rt = go.GetComponent<RectTransform>();
+                if (rt == null || rt.parent == null) continue;
+                var parent = rt.parent;
+                if (parentSet.Contains(parent)) continue;
+
+                int childRtCount = 0;
+                for (int i = 0; i < parent.childCount; i++)
+                {
+                    if (parent.GetChild(i).GetComponent<RectTransform>() != null)
+                        childRtCount++;
+                }
+                if (childRtCount >= 2)
+                    parentSet.Add(parent);
+            }
+
+            foreach (var parent in parentSet)
+            {
+                var parentGo = parent.gameObject;
+                var hasLayout = parentGo.GetComponent<LayoutGroup>() != null;
+                var children = new List<(RectTransform rt, bool interactive, bool raycastTarget)>();
+
+                for (int i = 0; i < parent.childCount; i++)
+                {
+                    var childRt = parent.GetChild(i).GetComponent<RectTransform>();
+                    if (childRt == null || !childRt.gameObject.activeInHierarchy) continue;
+
+                    bool interactive = childRt.GetComponentInChildren<Selectable>(false) != null;
+                    bool hasRaycast = false;
+                    var graphics = childRt.GetComponentsInChildren<Graphic>(false);
+                    foreach (var g in graphics)
+                    {
+                        if (g.raycastTarget) { hasRaycast = true; break; }
+                    }
+                    children.Add((childRt, interactive, hasRaycast));
+                }
+
+                // Rule A: Same anchoredPosition without LayoutGroup
+                if (!hasLayout && children.Count >= 2)
+                {
+                    var posGroups = new Dictionary<string, List<RectTransform>>();
+                    foreach (var (rt, _, _) in children)
+                    {
+                        var key = $"{rt.anchoredPosition.x:F1},{rt.anchoredPosition.y:F1}";
+                        if (!posGroups.ContainsKey(key))
+                            posGroups[key] = new List<RectTransform>();
+                        posGroups[key].Add(rt);
+                    }
+
+                    foreach (var kvp in posGroups)
+                    {
+                        if (kvp.Value.Count < 2) continue;
+                        var names = new List<string>();
+                        foreach (var rt in kvp.Value) names.Add(rt.name);
+                        issues.Add(new IntegrityIssue
+                        {
+                            Type = "uiOverlap_samePosition",
+                            Severity = "warning",
+                            GameObjectPath = GetGameObjectPath(parentGo),
+                            ComponentType = "RectTransform",
+                            Message = $"{kvp.Value.Count} siblings at same position ({kvp.Key}) without LayoutGroup: {string.Join(", ", names)}",
+                            Suggestion = "Add a LayoutGroup component to the parent, or assign different anchoredPositions to each child"
+                        });
+                    }
+                }
+
+                // Rule B & C: Sibling overlap with interactive elements
+                if (!hasLayout)
+                {
+                    for (int i = 0; i < children.Count; i++)
+                    {
+                        for (int j = i + 1; j < children.Count; j++)
+                        {
+                            var (rtA, interactiveA, raycastA) = children[i];
+                            var (rtB, interactiveB, raycastB) = children[j];
+
+                            if (!interactiveA && !interactiveB) continue;
+
+                            var rectA = GetWorldRect(rtA);
+                            var rectB = GetWorldRect(rtB);
+                            if (!rectA.Overlaps(rectB)) continue;
+
+                            // Rule B: Two interactive siblings overlap
+                            if (interactiveA && interactiveB)
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "uiOverlap_interactiveOverlap",
+                                    Severity = "warning",
+                                    GameObjectPath = GetGameObjectPath(parentGo),
+                                    ComponentType = "Selectable",
+                                    Message = $"Interactive siblings '{rtA.name}' and '{rtB.name}' overlap — click target may be ambiguous",
+                                    Suggestion = "Separate them with different positions or add a LayoutGroup to the parent"
+                                });
+                            }
+
+                            // Rule C: Raycast-target non-interactive element blocks interactive one
+                            if (interactiveA && !interactiveB && raycastB && rtB.GetSiblingIndex() > rtA.GetSiblingIndex())
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "uiOverlap_raycastBlock",
+                                    Severity = "error",
+                                    GameObjectPath = GetGameObjectPath(rtB.gameObject),
+                                    ComponentType = "Graphic",
+                                    Message = $"'{rtB.name}' (raycastTarget=true) overlaps and blocks interactive '{rtA.name}'",
+                                    Suggestion = $"Disable raycastTarget on '{rtB.name}' or move it behind '{rtA.name}' in hierarchy"
+                                });
+                            }
+                            else if (interactiveB && !interactiveA && raycastA && rtA.GetSiblingIndex() > rtB.GetSiblingIndex())
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "uiOverlap_raycastBlock",
+                                    Severity = "error",
+                                    GameObjectPath = GetGameObjectPath(rtA.gameObject),
+                                    ComponentType = "Graphic",
+                                    Message = $"'{rtA.name}' (raycastTarget=true) overlaps and blocks interactive '{rtB.name}'",
+                                    Suggestion = $"Disable raycastTarget on '{rtA.name}' or move it behind '{rtB.name}' in hierarchy"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            return issues;
+        }
+
+        /// <summary>
         /// Find null asset reference fields in ScriptableObject assets.
         /// Checks Sprite, Texture2D, AudioClip, Material, GameObject, Mesh fields.
         /// Skips fields with "optional" in their name and Unity built-in SOs.
@@ -906,6 +1052,20 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 current = current.parent;
             }
             return path;
+        }
+
+        private static Rect GetWorldRect(RectTransform rt)
+        {
+            var corners = new Vector3[4];
+            rt.GetWorldCorners(corners);
+            var min = corners[0];
+            var max = corners[0];
+            for (int i = 1; i < 4; i++)
+            {
+                min = Vector3.Min(min, corners[i]);
+                max = Vector3.Max(max, corners[i]);
+            }
+            return new Rect(min.x, min.y, max.x - min.x, max.y - min.y);
         }
 
         private GameObject FindGameObjectByPath(string path)
