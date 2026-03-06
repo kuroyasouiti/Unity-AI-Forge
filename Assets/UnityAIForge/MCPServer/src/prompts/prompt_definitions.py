@@ -17,6 +17,7 @@ GENRE_OPTIONS: list[str] = [
     "shooter_2d",
     "action_2d",
     "card_game",
+    "tactics_srpg",
 ]
 
 MECHANIC_OPTIONS: list[str] = [

@@ -92,7 +92,7 @@ Assets/
 unity_scriptableObject_crud(operation='create',
     typeName='CardData',
     assetPath='Assets/Data/Cards/Card_Fireball.asset',
-    fields={
+    properties={
         'cardId':       'fireball',
         'cardName':     'ファイアボール',
         'cardType':     'Spell',
@@ -108,7 +108,7 @@ unity_scriptableObject_crud(operation='create',
 unity_scriptableObject_crud(operation='create',
     typeName='CardData',
     assetPath='Assets/Data/Cards/Card_Shield.asset',
-    fields={
+    properties={
         'cardId':       'iron_shield',
         'cardName':     'アイアンシールド',
         'cardType':     'Skill',
@@ -123,7 +123,7 @@ unity_scriptableObject_crud(operation='create',
 unity_scriptableObject_crud(operation='create',
     typeName='CardData',
     assetPath='Assets/Data/Cards/Card_Poison.asset',
-    fields={
+    properties={
         'cardId':       'poison_dart',
         'cardName':     'ポイズンダート',
         'cardType':     'Spell',
@@ -139,7 +139,7 @@ unity_scriptableObject_crud(operation='create',
 unity_scriptableObject_crud(operation='create',
     typeName='DeckData',
     assetPath='Assets/Data/Decks/StarterDeck_Red.asset',
-    fields={
+    properties={
         'deckName': 'スターターデッキ（炎）',
         'cardEntries': [
             {'cardId': 'fireball',    'count': 2},
@@ -153,29 +153,26 @@ unity_scriptableObject_crud(operation='create',
 
 ```python
 # バトルシーン作成
-unity_scene_crud(operation='create', sceneName='Battle',
+unity_scene_crud(operation='create',
     scenePath='Assets/Scenes/Battle.unity')
 unity_scene_crud(operation='load', scenePath='Assets/Scenes/Battle.unity')
 
 # GameManager（ターンフロー制御）
 unity_gameobject_crud(operation='create', name='GameManager')
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Game/GameManager.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Game/GameManager.cs')
 unity_compilation_await(operation='await')
 
 # CardManager（デッキ・手札・墓地管理）
 unity_gameobject_crud(operation='create', name='CardManager')
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Game/CardManager.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Game/CardManager.cs')
 unity_compilation_await(operation='await')
 
 # EffectResolver（カード効果解決）
 unity_gameobject_crud(operation='create', name='EffectResolver')
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Game/EffectResolver.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Game/EffectResolver.cs')
 unity_compilation_await(operation='await')
 ```
 
@@ -183,37 +180,34 @@ unity_compilation_await(operation='await')
 
 ```python
 # バトル Canvas
-unity_ui_foundation(operation='createCanvas', canvasName='Canvas_Battle',
-    renderMode='ScreenSpaceOverlay')
+unity_ui_foundation(operation='createCanvas', name='Canvas_Battle',
+    renderMode='screenSpaceOverlay')
 
 # マナ表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_Battle',
-    textName='ManaDisplay', text='Mana: 3/3',
-    position={'x': -350, 'y': -250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_Battle',
+    name='ManaDisplay', text='Mana: 3/3')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_Battle/ManaDisplay',
-    bindingId='mana_display', uiType='text', format='formatted')
+    bindingId='mana_display', format='formatted')
 unity_compilation_await(operation='await')
 
 # HP 表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_Battle',
-    textName='HPDisplay', text='HP: 80/80',
-    position={'x': -350, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_Battle',
+    name='HPDisplay', text='HP: 80/80')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_Battle/HPDisplay',
-    bindingId='hp_display', uiType='text', format='formatted')
+    bindingId='hp_display', format='formatted')
 unity_compilation_await(operation='await')
 
 # デッキ残り枚数
-unity_ui_foundation(operation='createText', canvasPath='Canvas_Battle',
-    textName='DeckCount', text='Deck: 10',
-    position={'x': 350, 'y': -250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_Battle',
+    name='DeckCount', text='Deck: 10')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_Battle/DeckCount',
-    bindingId='deck_count', uiType='text', format='formatted')
+    bindingId='deck_count', format='formatted')
 unity_compilation_await(operation='await')
 ```
 
@@ -224,16 +218,14 @@ unity_compilation_await(operation='await')
 unity_gamekit_ui(widgetType='list',operation='create',
     targetPath='Canvas_Battle/HandArea',
     listId='hand_list',
-    layout='horizontal',
-    maxItems=10)
+    layout='horizontal')
 unity_compilation_await(operation='await')
 
 # 墓地表示（直近 5 枚表示）
 unity_gamekit_ui(widgetType='list',operation='create',
     targetPath='Canvas_Battle/DiscardDisplay',
     listId='discard_list',
-    layout='vertical',
-    maxItems=5)
+    layout='vertical')
 unity_compilation_await(operation='await')
 ```
 
@@ -265,7 +257,7 @@ unity_compilation_await(operation='await')
 # コマンドパネル（ターン終了・降参・履歴）
 unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='battle_cmd',
-    canvasPath='Canvas_Battle',
+    parentPath='Canvas_Battle',
     commands=[
         {'name': 'EndTurn',  'commandType': 'action', 'label': 'ターン終了'},
         {'name': 'Concede',  'commandType': 'action', 'label': '降参'},
@@ -277,7 +269,7 @@ unity_compilation_await(operation='await')
 unity_gamekit_ui(widgetType='selection',operation='create',
     targetPath='Canvas_Battle/TargetSelector',
     selectionId='target_sel',
-    selectionMode='radio')
+    selectionType='radio')
 unity_compilation_await(operation='await')
 ```
 
@@ -288,14 +280,14 @@ unity_compilation_await(operation='await')
 unity_gamekit_ui(widgetType='list',operation='create',
     targetPath='Canvas_DeckBuilder/Collection',
     listId='collection_list',
-    layout='grid', gridColumns=6)
+    layout='grid', columns=6)
 unity_compilation_await(operation='await')
 
 # フィルタタブ（属性別）
 unity_gamekit_ui(widgetType='selection',operation='create',
     targetPath='Canvas_DeckBuilder/FilterTabs',
     selectionId='element_filter',
-    selectionMode='radio')
+    selectionType='radio')
 unity_compilation_await(operation='await')
 
 unity_gamekit_ui(widgetType='selection',operation='setItems',
@@ -311,7 +303,7 @@ unity_gamekit_ui(widgetType='selection',operation='setItems',
 unity_gamekit_ui(widgetType='list',operation='create',
     targetPath='Canvas_DeckBuilder/DeckList',
     listId='deck_list',
-    layout='vertical', maxItems=40)
+    layout='vertical')
 unity_compilation_await(operation='await')
 ```
 
@@ -320,17 +312,13 @@ unity_compilation_await(operation='await')
 ```python
 # ターン終了ボタンのイベント接続
 unity_event_wiring(operation='wire',
-    sourcePath='Canvas_Battle/CommandPanel/EndTurn',
-    eventName='onClick',
-    targetPath='GameManager',
-    methodName='OnEndTurnClicked')
+    source={'gameObject': 'Canvas_Battle/CommandPanel/EndTurn', 'component': 'Button', 'event': 'onClick'},
+    target={'gameObject': 'GameManager', 'method': 'OnEndTurnClicked'})
 
 # 降参ボタンのイベント接続
 unity_event_wiring(operation='wire',
-    sourcePath='Canvas_Battle/CommandPanel/Concede',
-    eventName='onClick',
-    targetPath='GameManager',
-    methodName='OnConcedeClicked')
+    source={'gameObject': 'Canvas_Battle/CommandPanel/Concede', 'component': 'Button', 'event': 'onClick'},
+    target={'gameObject': 'GameManager', 'method': 'OnConcedeClicked'})
 ```
 
 ### Step 9: 検証

@@ -240,7 +240,7 @@ unity_compilation_await(operation='await', timeoutSeconds=30)
 # ポーズメニューのボタンをコマンドとして接続
 unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='pause_commands',
-    canvasPath='GameUI/PauseMenu',
+    parentPath='GameUI/PauseMenu',
     commands=[
         {'name': 'Resume', 'commandType': 'action', 'label': 'Resume'},
         {'name': 'Quit',   'commandType': 'action', 'label': 'Quit'}
@@ -291,9 +291,9 @@ unity_ui_state(operation='defineState',
     rootPath='GameUI',
     stateName='gameplay',
     elements=[
-        {'path': 'HUD',       'active': True},
-        {'path': 'PauseMenu', 'active': False, 'interactable': False},
-        {'path': 'Inventory', 'active': False}
+        {'path': 'HUD',       'visible': True},
+        {'path': 'PauseMenu', 'visible': False},
+        {'path': 'Inventory', 'visible': False}
     ])
 
 # ポーズ状態: HUD + PauseMenu表示
@@ -301,8 +301,8 @@ unity_ui_state(operation='defineState',
     rootPath='GameUI',
     stateName='paused',
     elements=[
-        {'path': 'HUD',       'active': True, 'interactable': False},
-        {'path': 'PauseMenu', 'active': True, 'interactable': True}
+        {'path': 'HUD',       'visible': True, 'interactable': False},
+        {'path': 'PauseMenu', 'visible': True, 'interactable': True}
     ])
 
 # インベントリ状態
@@ -310,8 +310,8 @@ unity_ui_state(operation='defineState',
     rootPath='GameUI',
     stateName='inventory',
     elements=[
-        {'path': 'HUD',       'active': True, 'interactable': False},
-        {'path': 'Inventory', 'active': True, 'interactable': True}
+        {'path': 'HUD',       'visible': True, 'interactable': False},
+        {'path': 'Inventory', 'visible': True, 'interactable': True}
     ])
 
 # 排他グループ: gameplay/paused/inventory は同時に1つだけ

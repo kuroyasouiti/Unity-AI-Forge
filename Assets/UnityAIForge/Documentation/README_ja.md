@@ -3,18 +3,18 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.16.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.17.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。**41ツール**を備え、Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKit（UI + Logic + Systems）の3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
+Unity-AI-Forgeは、AIとの協働でUnityゲームを鍛造する開発ツールキットです。Model Context Protocol統合とGameKitフレームワークにより、AIアシスタントがUnity Editorとリアルタイムで対話。**41ツール**を備え、Low-Level CRUD操作、Mid-Levelバッチツール、High-Level GameKit（UI + Logic + Data）の3層構造で、シンプルなアセット操作から複雑なゲームシステム構築まで対応します。
 
-## v2.16.0のハイライト
+## v2.17.0のハイライト
 
-- **ツール簡素化 (42→41ツール)**
-  - Mid/High-Level ツールから Low-Level CRUD で代替可能な約40オペレーションを削除
-  - `unity_ui_hierarchy` を廃止し、show/hide/toggle と inspectTree を `unity_ui_foundation` に統合
-  - event_wiring, playmode_control, console_log を Utility カテゴリに再分類
-- **inspectTree 色情報追加**: Image.color, Text/TMP fontColor, Button ColorBlock を返却
+- **スキーマ・プロンプト・ハンドラーの包括的レビュー＆修正**
+  - Python スキーマから孤立パラメータ・古い説明文を除去
+  - 25 プロンプトテンプレートのパラメータ名・enum値を実スキーマと完全一致に修正
+  - C# ハンドラー 6 件の改善
+  - `tactics_srpg` ジャンルテンプレートを追加登録
 
 ## 📦 パッケージ構造
 

@@ -1,4 +1,4 @@
-"""Tool definitions for all 42 MCP tools (41 registry + 1 batch_sequential).
+"""Tool definitions for all 41 MCP tools (40 registry + 1 batch_sequential).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -55,7 +55,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 42 MCP tool definitions."""
+    """Return the list of all 41 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -213,7 +213,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle using CanvasGroup (alpha, interactable, blocksRaycasts) or SetActive. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(
@@ -233,7 +233,7 @@ def get_tool_definitions() -> list[types.Tool]:
                 "**This is the standard tool for switching between gameplay and menu modes** "
                 "(e.g., gameplay ↔ pause menu, gameplay ↔ inventory, title ↔ in-game).\n\n"
                 "**Operations:**\n"
-                "- defineState: Define a named UI state with element configurations (active, visible, interactable, alpha, blocksRaycasts, ignoreParentGroups, position, size)\n"
+                "- defineState: Define a named UI state with element configurations (visible, interactable, alpha, blocksRaycasts, ignoreParentGroups, position, size). Visibility uses CanvasGroup only (no SetActive).\n"
                 "- applyState: Apply a saved state to UI elements\n"
                 "- saveState: Capture current UI state (including children)\n"
                 "- loadState: Load state definition without applying\n"
@@ -438,7 +438,7 @@ def get_tool_definitions() -> list[types.Tool]:
                 "High-level GameKit UI: unified UI widget system using UI Toolkit (UXML/USS).\n\n"
                 "**widgetType** selects the widget category:\n\n"
                 "**command** — Command panels with buttons that send commands to GameKitActors/Managers.\n"
-                "  Operations: createCommandPanel, addCommand, inspect, delete\n"
+                "  Operations: createCommandPanel, addCommand, inspect\n"
                 "  Actor Commands: move, jump, action, look, custom\n"
                 "  Manager Commands: addResource, setResource, consumeResource, changeState, nextTurn, triggerScene\n\n"
                 "**binding** — Declarative UI data binding.\n"

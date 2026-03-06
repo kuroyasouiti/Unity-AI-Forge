@@ -87,11 +87,11 @@ Assets/
 ```python
 # 2D 物理（アクション向け: 重力強め）
 unity_projectSettings_crud(operation='write', category='physics2D',
-    settings={'gravity': {'x': 0, 'y': -25}})
+    property='gravity', value={'x': 0, 'y': -25})
 
 # タグ・レイヤー
-unity_projectSettings_crud(operation='write', category='tags',
-    settings={'tags': ['Player', 'Enemy', 'HitBox', 'HurtBox']})
+unity_projectSettings_crud(operation='write', category='tagsLayers',
+    property='tags', value=['Player', 'Enemy', 'HitBox', 'HurtBox'])
 
 # Tilemap 地形（地面・壁）
 unity_gameobject_crud(operation='create', name='Environment')
@@ -109,8 +109,7 @@ unity_tilemap_bundle(operation='createTilemap', tilemapName='Tilemap_Walls',
 
 ```python
 # プレイヤー GameObject
-unity_gameobject_crud(operation='create', name='Player',
-    position={'x': 0, 'y': 2, 'z': 0}, tag='Player')
+unity_gameobject_crud(operation='create', name='Player', tag='Player')
 
 # スプライト
 unity_sprite2d_bundle(operation='createSprite', gameObjectPath='Player',
@@ -159,8 +158,7 @@ unity_animation2d_bundle(operation='setupAnimator', gameObjectPath='Player',
 ```python
 # 攻撃判定用子オブジェクト（HitBox）
 unity_gameobject_crud(operation='create', name='HitBox',
-    parentPath='Player',
-    position={'x': 0.8, 'y': 0, 'z': 0})
+    parentPath='Player')
 
 unity_component_crud(operation='add', gameObjectPath='Player/HitBox',
     componentType='BoxCollider2D',
@@ -179,9 +177,8 @@ unity_component_crud(operation='add', gameObjectPath='Player/HurtBox',
     properties={'size': {'x': 0.6, 'y': 1.4}, 'isTrigger': true})
 
 # コンバットスクリプト作成
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Player/PlayerCombat.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Player/PlayerCombat.cs')
 unity_compilation_await(operation='await')
 ```
 
@@ -192,7 +189,7 @@ unity_compilation_await(operation='await')
 unity_scriptableObject_crud(operation='create',
     typeName='EnemyData',
     assetPath='Assets/Data/Characters/Enemy_Skeleton.asset',
-    fields={
+    properties={
         'enemyName': 'Skeleton',
         'maxHP': 30,
         'attack': 8,
@@ -204,7 +201,7 @@ unity_scriptableObject_crud(operation='create',
 
 # スケルトン敵
 unity_gameobject_crud(operation='create', name='Enemy_Skeleton',
-    parentPath='Enemies', position={'x': 5, 'y': 2, 'z': 0}, tag='Enemy')
+    parentPath='Enemies', tag='Enemy')
 
 unity_sprite2d_bundle(operation='createSprite',
     gameObjectPath='Enemies/Enemy_Skeleton',
@@ -228,16 +225,15 @@ unity_prefab_crud(operation='create',
 
 ```python
 # HP バー
-unity_ui_foundation(operation='createCanvas', canvasName='Canvas_HUD',
-    renderMode='ScreenSpaceOverlay')
+unity_ui_foundation(operation='createCanvas', name='Canvas_HUD',
+    renderMode='screenSpaceOverlay')
 
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='HPBar', text='HP: 100/100',
-    position={'x': -300, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='HPBar', text='HP: 100/100')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/HPBar',
-    bindingId='player_hp', uiType='slider', format='ratio')
+    bindingId='player_hp', format='ratio')
 unity_compilation_await(operation='await')
 
 # カメラ設定（既存Main Cameraにプリセット適用。なければcreate）

@@ -184,7 +184,7 @@ unity_scene_crud(operation='load',
 # HUD Canvas
 unity_ui_foundation(operation='createCanvas',
     name='HUDCanvas',
-    renderMode='ScreenSpaceOverlay',
+    renderMode='screenSpaceOverlay',
     sortingOrder=10)
 
 # HUD の内容
@@ -216,7 +216,7 @@ unity_scene_crud(operation='load',
 
 unity_ui_foundation(operation='createCanvas',
     name='PauseCanvas',
-    renderMode='ScreenSpaceOverlay',
+    renderMode='screenSpaceOverlay',
     sortingOrder=20)
 
 unity_ui_foundation(operation='createPanel', name='PausePanel', parentPath='PauseCanvas',
@@ -316,11 +316,11 @@ unity_scene_relationship_graph(operation='analyzeAll')
 
 # 特定シーンへの遷移元を確認（削除前の安全確認）
 unity_scene_relationship_graph(operation='findTransitionsTo',
-    sceneName='Level01')
+    scenePath='Level01')
 
 # 特定シーンからの遷移先を確認
 unity_scene_relationship_graph(operation='findTransitionsFrom',
-    sceneName='Boot')
+    scenePath='Boot')
 
 # シーン内の孤立オブジェクト確認
 unity_scene_reference_graph(operation='findOrphans')

@@ -180,7 +180,7 @@ unity_gameobject_crud(
 unity_ui_foundation(
     operation="createCanvas",
     name="SaveLoadCanvas",
-    renderMode="ScreenSpaceOverlay"
+    renderMode="screenSpaceOverlay"
 )
 
 unity_ui_foundation(
@@ -244,13 +244,9 @@ unity_event_wiring(
     target={"gameObject": "SaveManager", "method": "Save"}
 )
 
-unity_event_wiring(
-    operation="wire",
-    source={"gameObject": "SaveLoadCanvas/ConfirmDialog/ConfirmNo",
-            "component": "Button", "event": "onClick"},
-    target={"gameObject": "SaveLoadCanvas/ConfirmDialog",
-            "method": "SetActive", "mode": "Bool", "argument": false}
-)
+# ConfirmDialogを非表示にする（CanvasGroup経由）
+# ランタイムでは CanvasGroup の alpha/interactable/blocksRaycasts をスクリプトから制御
+unity_ui_foundation(operation="hide", targetPath="SaveLoadCanvas/ConfirmDialog")
 ```
 
 ### Step 5: クイックセーブ/ロードの入力設定

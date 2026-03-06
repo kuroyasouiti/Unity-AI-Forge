@@ -197,11 +197,18 @@ unity_gameobject_crud(
     ]
 )
 
-# コライダーと Rigidbody を追加
-unity_physics_bundle(
-    operation="applyPreset3D",
-    targetPath="Slime",
-    preset="kinematic"
+# コライダーと Rigidbody を追加（キネマティック設定）
+unity_component_crud(
+    operation="add",
+    gameObjectPath="Slime",
+    componentType="UnityEngine.Rigidbody",
+    propertyChanges={"isKinematic": true}
+)
+unity_component_crud(
+    operation="add",
+    gameObjectPath="Slime",
+    componentType="UnityEngine.CapsuleCollider",
+    propertyChanges={"center": {"x": 0, "y": 0.5, "z": 0}, "radius": 0.5, "height": 1.0}
 )
 ```
 

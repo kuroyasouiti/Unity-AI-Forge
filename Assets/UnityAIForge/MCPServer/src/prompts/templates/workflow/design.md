@@ -119,6 +119,120 @@ public interface ICommand
 
 **使いどころ**: ターン制RPGの行動選択, エディタツール, Undo機能
 
+### Action Result (ロジック・演出分離)
+
+ゲームロジックの計算結果を **ActionResult データ** として返し、演出層が消費するパターン。
+ロジックと演出を分離することで、プロトタイプでは演出なしで動作確認し、
+ベータフェーズで段階的に演出を追加できる。
+
+```
+Logic Layer (純粋な計算)              Presentation Layer (演出)
+┌──────────────────┐                 ┌─────────────────────┐
+│ CombatCalculator  │                 │ BattlePresenter      │
+│                  │  ActionResult   │                     │
+│ Execute(cmd)     │──────────────→│ Present(result)      │
+│   → damage計算   │  {type, actor, │   → アニメーション再生 │
+│   → 状態変化判定  │   target,      │   → VFX・SFX再生     │
+│   → 勝敗判定     │   damage,      │   → ダメージ数字表示  │
+│                  │   isCritical,  │   → 死亡演出         │
+│                  │   targetDied}  │   → 次のResultへ     │
+└──────────────────┘                 └─────────────────────┘
+```
+
+**フェーズ別実装との対応:**
+
+```csharp
+// ActionResult: ロジック層の出力データ
+public struct ActionResult
+{
+    public ActionType type;       // Attack, Heal, Move, UseItem, etc.
+    public GameObject actor;
+    public GameObject target;
+    public int value;             // ダメージ量・回復量
+    public bool isCritical;
+    public bool targetDefeated;
+}
+```
+
+```
+<<proto>>  ロジック層のみ実装。ActionResult を直接 Model に反映（演出なし）
+           → HP即減算、死亡即削除、テキストログ出力のみ
+<<alpha>>  簡易 Presenter を追加。ActionResult → 簡易テキスト表示 + 短いウェイト
+           → ダメージ数字のUI表示、勝敗パネル表示
+<<beta>>   本格 Presenter に差し替え。ActionResult → 演出キュー → 順番に再生
+           → 攻撃アニメ → ヒットVFX → ダメージ数字 → 死亡演出 → カメラ演出
+```
+
+**キュー方式（ターン制向け）:**
+
+複数の ActionResult を順番に演出する場合、キューで管理する。
+
+```csharp
+// Presenter がキューを消費して順番に演出
+Queue<ActionResult> presentationQueue;
+
+async UniTask PresentAll(List<ActionResult> results)
+{
+    foreach (var result in results)
+    {
+        await PlayAnimation(result);    // 攻撃モーション
+        await PlayVFX(result);          // ヒットエフェクト
+        await ShowDamageNumber(result);  // ダメージ数字
+        if (result.targetDefeated)
+            await PlayDeathSequence(result);
+    }
+}
+```
+
+**即時方式（リアルタイム向け）:**
+
+リアルタイムアクションでは、ActionResult を即座に演出に変換する（キュー不要）。
+
+```csharp
+// ダメージ発生時に即座に演出
+void OnDamageDealt(ActionResult result)
+{
+    SpawnDamageNumber(result.target, result.value, result.isCritical);
+    PlayHitVFX(result.target.transform.position);
+    PlayHitSFX(result.isCritical ? criticalClip : normalClip);
+}
+```
+
+**UML 上の表記:**
+
+```mermaid
+classDiagram
+    class ActionResult {
+        <<data>>
+        +ActionType type
+        +int value
+        +bool isCritical
+        +bool targetDefeated
+    }
+    class CombatCalculator {
+        <<proto>>
+        +Execute(cmd) ActionResult
+    }
+    class BattlePresenter {
+        <<beta>>
+        +Present(ActionResult)
+        -PlayAnimation()
+        -PlayVFX()
+        -ShowDamageNumber()
+    }
+    CombatCalculator ..> ActionResult : produces
+    BattlePresenter ..> ActionResult : consumes
+```
+
+**適するジャンル:**
+- ターン制RPG・SRPG（離散的なアクション → 演出キュー）
+- カードゲーム（カード効果解決 → 演出キュー）
+- リアルタイムアクション（ダメージ判定 → 即時演出）— キュー不要、即時方式で適用
+
+**適さないケース:**
+- 物理シミュレーション主体（物理エンジン自体が演出を兼ねる）
+- ロジックと演出が本質的に不可分な場合
+
 ### Object Pool (オブジェクトプール)
 
 頻繁に生成・破棄されるオブジェクト（弾, エフェクト）のGC負荷軽減。
@@ -163,6 +277,61 @@ View (UGUI/UI Toolkit) ← 表示のみ
 
 **使いどころ**: HUD, インベントリ画面, ショップ画面
 **MCPツール**: `unity_gamekit_ui(widgetType='binding')` がModel→View方向のバインディングを提供。
+
+### シーン間共有モデルの設計
+
+MVC の Model のうち、**シーンをまたいで共有するデータ**は設計段階で分離方針を決める。
+static クラスによるグローバル状態はテスト困難・リセット漏れバグの温床になるため避ける。
+
+| 用途 | 推奨パターン | MCPツール |
+|------|------------|-----------|
+| 少量の設定・選択データ（ステージID、難易度、パーティ編成等） | **DataContainer** (ScriptableObject) | `unity_gamekit_data(dataType='dataContainer', resetOnPlay=False)` |
+| ロジック付きドメインモデル（セーブデータ、プレイヤー成長データ等） | カスタム ScriptableObject | `unity_scriptableObject_crud` |
+| 変化通知が必要なデータ | EventChannel + DataContainer の組み合わせ | `unity_gamekit_data(dataType='eventChannel')` |
+
+```
+シーン間共有データの流れ:
+
+StageSelect Scene                    Battle Scene
+┌──────────────┐                    ┌──────────────┐
+│ StageSelector │── write ──→ [DataContainer SO] ←── read ──│ BattleManager │
+│ (MonoBehaviour)│           (Assets/Data/*.asset)           │ (MonoBehaviour)│
+└──────────────┘                    └──────────────┘
+
+※ 両シーンの MonoBehaviour が同じ SO アセットを SerializeField で参照
+※ Inspector で値を確認・デバッグ可能
+※ シーン単体テスト可能（SO をモックとしてセット可能）
+```
+
+**UML 上の表記**: シーン間共有の Model は `<<shared>>` ステレオタイプを付与し、
+DataContainer か カスタム SO かを明記する。
+
+```mermaid
+classDiagram
+    class SelectedStageData {
+        <<shared>>
+        <<DataContainer>>
+        +int stageId
+        +string difficulty
+    }
+    class PlayerProgress {
+        <<shared>>
+        <<ScriptableObject>>
+        +int level
+        +int experience
+        +List~string~ unlockedStages
+        +AddExperience(int)
+        +IsStageUnlocked(string) bool
+    }
+    StageSelector --> SelectedStageData : writes
+    BattleManager --> SelectedStageData : reads
+    GameManager --> PlayerProgress : reads/writes
+```
+
+**注意点**:
+- DataContainer は `resetOnPlay=False` でシーン遷移後もデータを保持する
+- ロジック（メソッド）が必要なモデルは DataContainer ではなくカスタム SO にする
+- DataContainer はコード生成されるため、生成後の手動編集は避ける
 
 ---
 
@@ -407,9 +576,16 @@ stateDiagram-v2
 - [ ] State Machine で管理する対象を列挙した
 - [ ] イベント（Observer）で通知する変化を列挙した
 - [ ] ScriptableObject で管理するデータを列挙した
+- [ ] Action Result パターンの適用箇所を特定した（ロジック・演出分離が必要な処理）
+
+### シーン間共有データ
+- [ ] シーン間で共有する Model を洗い出した
+- [ ] 各共有データに DataContainer / カスタムSO / EventChannel のパターンを割り当てた
+- [ ] static クラスによるグローバル状態がないことを確認した
 
 ### UML図
 - [ ] クラス図を作成した（主要クラスとその関係）
+- [ ] シーン間共有モデルに `<<shared>>` ステレオタイプを付与した
 - [ ] ステート図を作成した（プレイヤー/敵/ゲーム状態）
 - [ ] シーケンス図を作成した（主要なインタラクション）
 - [ ] コンポーネント図を作成した（シーン間関係）
@@ -447,5 +623,7 @@ stateDiagram-v2
 | `unity_asset_crud` | 設計ドキュメントの保存 |
 | `unity_class_dependency_graph` | 既存コードの依存関係調査（リファクタリング時） |
 | `unity_class_catalog` | 既存クラスの一覧確認 |
+| `unity_gamekit_data(dataType='dataContainer')` | シーン間共有データの実装 |
+| `unity_gamekit_data(dataType='eventChannel')` | システム間イベント通知の実装 |
 | `game_genre_guide` | ジャンル別推奨パターンの参照 |
 | `game_mechanics_guide` | メカニクス実装パターンの参照 |

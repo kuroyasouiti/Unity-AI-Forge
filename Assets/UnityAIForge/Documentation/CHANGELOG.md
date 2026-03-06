@@ -5,6 +5,37 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.17.0] - 2026-03-06
+
+### 修正
+
+- **Python スキーマのクリーンアップ**
+  - `visual.py`: sprite2d_bundle から 5 つの孤立パラメータ削除、material_bundle / particle_bundle から各1つ削除
+  - `mid_level.py`: camera_bundle / ui_foundation の説明文から廃止オペレーション記述を削除、uitk_document / uitk_asset / ui_navigation から孤立パラメータ削除
+  - `graph.py`: validate_integrity の `removeMissingScripts` 説明残骸を削除
+  - `high_level_gamekit.py`: gamekit_ui command widget 説明から "delete" を削除
+  - `tool_definitions.py`: ツール数カウント 42→41 に修正
+  - `register_tools.py`: docstring のツール数カウント 47→41 に修正
+  - `tool_registry.py`: インデント修正
+
+- **プロンプトテンプレートの全面修正（25ファイル）**
+  - `system_instructions.md`: パラメータ名 6 件修正（canvasPath→parentPath, gridColumns→columns, itemData→item, acceptTags→acceptedCategories, selectionMode→selectionType, loadMode 削除）
+  - 6 ジャンルテンプレート: `uiType=` 削除（14件）、`gridColumns→columns`（3件）、`selectionMode→selectionType`（4件）、`canvasPath→parentPath`（5件）、`maxItems=` 削除（4件）、`ScreenSpaceOverlay→screenSpaceOverlay`（6件）、createText の不正 `position=` 削除（12件）、`commandType='submenu'→'custom'`
+  - 5 メカニクステンプレート: `sourceState→fromState`、`applyPreset3D→applyPreset`、`ScreenSpaceOverlay` casing、`canvasPath→parentPath`、`textName→name`、`position=` 削除
+  - 4 ワークフローテンプレート: `applyPreset` 修正、`ScreenSpaceOverlay` casing、`sceneName→scenePath`、`canvasPath→parentPath`
+  - `prompt_definitions.py`: `tactics_srpg` を GENRE_OPTIONS に追加登録
+
+### 改善
+
+- **C# ハンドラー改善**
+  - `UIFoundationHandler.cs`: 処理改善
+  - `UIStateHandler.cs`: 処理改善
+  - `EventWiringHandler.cs`: 処理改善
+  - `GameKitUIListHandler.cs`, `GameKitUISelectionHandler.cs`, `GameKitUISlotHandler.cs`: 処理改善
+  - `UIList.cs.txt`, `UISlot.cs.txt`: コード生成テンプレート更新
+
+- **package.json 更新**: version 2.17.0、description をツール数 41・3層構造に修正
+
 ## [2.16.0] - 2026-03-05
 
 ### 変更

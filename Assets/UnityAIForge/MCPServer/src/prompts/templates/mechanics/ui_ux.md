@@ -111,7 +111,7 @@ Assets/
 unity_ui_foundation(
     operation="createCanvas",
     name="GameCanvas",
-    renderMode="ScreenSpaceOverlay"
+    renderMode="screenSpaceOverlay"
 )
 
 # UI 階層の構築（ui_foundation で個別に作成）
@@ -239,10 +239,10 @@ unity_ui_state(
     rootPath="GameCanvas",
     stateName="Title",
     elements=[
-        {"path": "UIRoot/Screens/TitlePanel", "active": True},
-        {"path": "UIRoot/HUD", "active": False},
-        {"path": "UIRoot/Screens/PausePanel", "active": False},
-        {"path": "UIRoot/Screens/ResultPanel", "active": False}
+        {"path": "UIRoot/Screens/TitlePanel", "visible": True},
+        {"path": "UIRoot/HUD", "visible": False},
+        {"path": "UIRoot/Screens/PausePanel", "visible": False},
+        {"path": "UIRoot/Screens/ResultPanel", "visible": False}
     ]
 )
 
@@ -251,9 +251,9 @@ unity_ui_state(
     rootPath="GameCanvas",
     stateName="Gameplay",
     elements=[
-        {"path": "UIRoot/Screens/TitlePanel", "active": False},
-        {"path": "UIRoot/HUD", "active": True},
-        {"path": "UIRoot/Screens/PausePanel", "active": False}
+        {"path": "UIRoot/Screens/TitlePanel", "visible": False},
+        {"path": "UIRoot/HUD", "visible": True},
+        {"path": "UIRoot/Screens/PausePanel", "visible": False}
     ]
 )
 
@@ -262,8 +262,8 @@ unity_ui_state(
     rootPath="GameCanvas",
     stateName="Paused",
     elements=[
-        {"path": "UIRoot/HUD", "active": True, "interactable": False},
-        {"path": "UIRoot/Screens/PausePanel", "active": True, "interactable": True}
+        {"path": "UIRoot/HUD", "visible": True, "interactable": False},
+        {"path": "UIRoot/Screens/PausePanel", "visible": True, "interactable": True}
     ]
 )
 
@@ -272,8 +272,8 @@ unity_ui_state(
     rootPath="GameCanvas",
     stateName="Inventory",
     elements=[
-        {"path": "UIRoot/HUD", "active": True, "interactable": False},
-        {"path": "UIRoot/Screens/InventoryPanel", "active": True, "interactable": True}
+        {"path": "UIRoot/HUD", "visible": True, "interactable": False},
+        {"path": "UIRoot/Screens/InventoryPanel", "visible": True, "interactable": True}
     ]
 )
 
@@ -314,7 +314,7 @@ unity_ui_state(
 # タイトルメニューのナビゲーション設定
 unity_ui_navigation(
     operation="autoSetup",
-    targetPath="GameCanvas/UIRoot/Screens/TitlePanel"
+    rootPath="GameCanvas/UIRoot/Screens/TitlePanel"
 )
 
 # 初期選択を設定
@@ -456,7 +456,7 @@ unity_ui_foundation(
     interactable=False
 )
 
-# show/hide でCanvasGroup経由の表示切替（SetActiveより推奨）
+# show/hide でCanvasGroup経由の表示切替
 unity_ui_foundation(operation="show", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
 unity_ui_foundation(operation="hide", targetPath="GameCanvas/UIRoot/Overlays/OverlayPanel")
 
@@ -466,16 +466,116 @@ unity_ui_state(
     rootPath="GameCanvas",
     stateName="dialog_open",
     elements=[
-        {"path": "UIRoot/Overlays/DialogPanel", "active": True, "visible": True,
+        {"path": "UIRoot/Overlays/DialogPanel", "visible": True,
          "alpha": 1.0, "ignoreParentGroups": True},
-        {"path": "UIRoot/Screens", "visible": False, "interactable": False}
+        {"path": "UIRoot/Screens", "visible": False}
     ]
 )
 ```
 
-> **推奨:** UI の表示/非表示には `SetActive(false)` よりも CanvasGroup (`alpha=0, interactable=false, blocksRaycasts=false`) を使用する。
+> **方針:** UI の表示/非表示は常に CanvasGroup (`alpha=0, interactable=false, blocksRaycasts=false`) で制御する。`SetActive` は使用しない。
 > CanvasGroup はレイアウト再計算を発生させず、フェードアニメーションとの相性も良い。
 > `ignoreParentGroups=true` を使えば、親パネルを非表示にしても子要素だけ独立して表示可能。
+
+---
+
+## ゲームフェーズ ↔ UI状態の連動
+
+ゲームのフェーズ（ターン制バトルのフェーズ、メニュー画面の状態等）に応じて
+UI パネルの表示/非表示を切り替えるパターン。**フェーズ変更時に UpdatePhaseUI() を呼び、
+CanvasGroup で各パネルの表示を制御する。**
+
+### パターン: フェーズ連動パネル制御
+
+```python
+# 各パネルに CanvasGroup を追加し、初期状態は非表示
+# GameObjectは常にアクティブ、CanvasGroup で表示制御
+unity_ui_foundation(operation="hide", targets=[
+    "BattleCanvas/StatusPanel",
+    "BattleCanvas/CommandMenu",
+    "BattleCanvas/DamagePredict",
+    "BattleCanvas/EnemyPhaseOverlay",
+    "BattleCanvas/ResultPanel"
+])
+```
+
+C# スクリプト側の実装パターン:
+
+```csharp
+// パネル参照は CanvasGroup 型で持つ（GameObject ではない）
+[Header("Panels")]
+public CanvasGroup statusPanel;
+public CanvasGroup commandMenu;
+public CanvasGroup resultPanel;
+
+void UpdatePhaseUI()
+{
+    // 全パネルを一旦非表示
+    SetPanel(commandMenu, false);
+    SetPanel(resultPanel, false);
+
+    // フェーズに応じて必要なパネルのみ表示
+    switch (currentPhase)
+    {
+        case Phase.PlayerIdle:
+            SetPanel(statusPanel, false);
+            break;
+        case Phase.PlayerAction:
+            SetPanel(statusPanel, true);
+            SetPanel(commandMenu, true);
+            break;
+        case Phase.Result:
+            SetPanel(resultPanel, true);
+            break;
+    }
+}
+
+void SetPanel(CanvasGroup panel, bool active)
+{
+    if (panel == null) return;
+    panel.alpha = active ? 1f : 0f;
+    panel.interactable = active;
+    panel.blocksRaycasts = active;
+}
+```
+
+### パターン: フェーズ連動ボタン制御
+
+特定フェーズでのみ操作可能なボタンは `Button.interactable` で制御する。
+CanvasGroup の interactable とは別に、個別ボタン単位の制御が必要。
+
+```csharp
+public Button endTurnButton;
+
+void UpdatePhaseUI()
+{
+    // ターン終了ボタンは PlayerIdle のみ操作可能
+    if (endTurnButton != null)
+        endTurnButton.interactable = (currentPhase == Phase.PlayerIdle);
+}
+```
+
+> **注意:** CanvasGroup.interactable はパネル全体の操作可否を制御する。
+> 個別ボタンの有効/無効は `Button.interactable` で制御すること。
+> 両方 false の場合はどちらか一方を true にしてもボタンは押せない。
+
+### パターン: 複数兄弟要素の配置
+
+同一親に複数の UI 要素を配置する場合は **必ず LayoutGroup を追加する**。
+LayoutGroup なしでは全要素が同位置に重なる。
+
+```python
+# 悪い例: LayoutGroup なしで兄弟要素が重なる
+unity_ui_foundation(operation='createButton', name='Btn1', parentPath='Canvas/Panel', text='A')
+unity_ui_foundation(operation='createButton', name='Btn2', parentPath='Canvas/Panel', text='B')
+# → Btn1 と Btn2 が同じ位置に重なる
+
+# 良い例: 先に LayoutGroup を追加
+unity_ui_foundation(operation='addLayoutGroup', targetPath='Canvas/Panel',
+    layoutType='Vertical', spacing=10)
+unity_ui_foundation(operation='createButton', name='Btn1', parentPath='Canvas/Panel', text='A')
+unity_ui_foundation(operation='createButton', name='Btn2', parentPath='Canvas/Panel', text='B')
+```
 
 ---
 

@@ -300,7 +300,8 @@ public class {{CLASS_NAME}} : MonoBehaviour
 
         OnItemClicked?.Invoke(index, items[index]);
 
-        if (lastClickIndex == index && Time.unscaledTime - lastClickTime < 0.3f)
+        const float DoubleClickThreshold = 0.3f;
+        if (lastClickIndex == index && Time.unscaledTime - lastClickTime < DoubleClickThreshold)
         {
             OnItemDoubleClicked?.Invoke(index, items[index]);
             lastClickIndex = -1;
@@ -316,6 +317,17 @@ public class {{CLASS_NAME}} : MonoBehaviour
             else
                 SelectItem(index);
         }
+    }
+
+    /// <summary>Refresh UI from current items list (re-render all elements).</summary>
+    public void RefreshFromSource()
+    {
+        if (listContainer == null) return;
+        listContainer.Clear();
+        itemElements.Clear();
+        selectedIndices.Clear();
+        for (int i = 0; i < items.Count; i++)
+            CreateItemElement(i);
     }
 
     private void UpdateItemVisual(int index, bool selected)

@@ -478,7 +478,69 @@ namespace MCP.Editor.Handlers.HighLevel
             return sb.ToString();
         }
 
-        private object InspectSlotBar(Dictionary<string, object> payload) => InspectSlot(payload);
+        private object InspectSlotBar(Dictionary<string, object> payload)
+        {
+            var component = ResolveSlotComponent(payload);
+            var so = new SerializedObject(component);
+
+            var barId = so.FindProperty("barId")?.stringValue ?? "";
+            var slotCountProp = so.FindProperty("slotCount");
+            var slotCount = slotCountProp != null ? slotCountProp.intValue : 0;
+            var inventoryId = so.FindProperty("inventoryId")?.stringValue ?? "";
+
+            // Collect per-slot info from child GameObjects
+            var slots = new List<Dictionary<string, object>>();
+            var barTransform = component.transform;
+            for (int i = 0; i < barTransform.childCount; i++)
+            {
+                var childGo = barTransform.GetChild(i).gameObject;
+                var slotComponents = childGo.GetComponents<Component>();
+                foreach (var slotComp in slotComponents)
+                {
+                    if (slotComp == null) continue;
+                    var slotIdField = slotComp.GetType().GetField("slotId",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                    if (slotIdField == null) continue;
+
+                    var childSo = new SerializedObject(slotComp);
+                    var slotInfo = new Dictionary<string, object>
+                    {
+                        { "slotId", childSo.FindProperty("slotId")?.stringValue ?? "" },
+                        { "slotIndex", childSo.FindProperty("slotIndex")?.intValue ?? i }
+                    };
+
+                    var isEmptyProp = slotComp.GetType().GetProperty("IsEmpty");
+                    if (isEmptyProp != null)
+                        slotInfo["isEmpty"] = isEmptyProp.GetValue(slotComp);
+
+                    var currentItemProp = slotComp.GetType().GetProperty("CurrentItem");
+                    if (currentItemProp != null)
+                    {
+                        var item = currentItemProp.GetValue(slotComp);
+                        if (item != null)
+                        {
+                            var itemIdField2 = item.GetType().GetField("itemId");
+                            if (itemIdField2 != null)
+                                slotInfo["currentItemId"] = itemIdField2.GetValue(item)?.ToString();
+                        }
+                    }
+
+                    slots.Add(slotInfo);
+                    break;
+                }
+            }
+
+            var info = new Dictionary<string, object>
+            {
+                { "barId", barId },
+                { "path", BuildGameObjectPath(component.gameObject) },
+                { "slotCount", slotCount },
+                { "inventoryId", inventoryId },
+                { "slots", slots }
+            };
+
+            return CreateSuccessResponse(("slotBar", info));
+        }
 
         private object UseSlot(Dictionary<string, object> payload)
         {
@@ -525,7 +587,7 @@ namespace MCP.Editor.Handlers.HighLevel
             if (string.IsNullOrEmpty(barId))
                 throw new InvalidOperationException("barId is required for findByBarId.");
 
-            var component = CodeGenHelper.FindComponentInSceneByField("slotId", barId);
+            var component = CodeGenHelper.FindComponentInSceneByField("barId", barId);
             if (component == null)
                 return CreateSuccessResponse(("found", false), ("barId", barId));
 

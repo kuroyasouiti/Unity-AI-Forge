@@ -120,22 +120,17 @@ unity_component_crud(operation='update', gameObjectPath='Goal',
 ### Step 3: 物理プリセットで即座にキャラクター動作を有効化
 
 ```python
-# プレイヤーに characterプリセット (3D)
-unity_physics_bundle(operation='applyPreset3D', gameObjectPaths=['Player'],
-    preset='character')
+# プレイヤーに物理プリセット (3D)
+unity_physics_bundle(operation='applyPreset', gameObjectPath='Player', preset='thirdPerson3D')
 
-# 敵はdynamicプリセット
-unity_physics_bundle(operation='applyPreset3D', gameObjectPaths=['Enemy'],
-    preset='dynamic')
+# 敵にも同様のプリセット
+unity_physics_bundle(operation='applyPreset', gameObjectPath='Enemy', preset='thirdPerson3D')
 
-# 地面・壁はstaticプリセット (Colliderのみ)
-unity_physics_bundle(operation='applyPreset3D',
-    gameObjectPaths=['Ground', 'WallLeft', 'WallRight'],
-    preset='static')
+# 地面・壁はコライダーのみ（component_crudで直接設定）
+unity_component_crud(operation='add', gameObjectPath='Ground', componentType='BoxCollider')
 
-# 2Dプロジェクトの場合は applyPreset2D を使用
-unity_physics_bundle(operation='applyPreset2D', gameObjectPaths=['Player'],
-    preset='character')
+# 2Dプロジェクトの場合は 2Dプリセットを使用
+unity_physics_bundle(operation='applyPreset', gameObjectPath='Player', preset='platformer2D')
 ```
 
 ### Step 4: カメラをプレイヤー追従に設定
@@ -361,7 +356,7 @@ staticプリセットはColliderのみ追加し、Rigidbodyを追加しません
 | `unity_projectSettings_crud` | Build Settings への登録 (addSceneToBuild) |
 | `unity_gameobject_crud` | プリミティブ配置 (template='Cube'等)・階層構築 |
 | `unity_component_crud` | Transform設定・コンポーネントのアタッチ |
-| `unity_physics_bundle` | applyPreset3D/applyPreset2D でプリセット即時適用 |
+| `unity_physics_bundle` | applyPreset でプリセット即時適用 |
 | `unity_camera_bundle` | カメラの即時セットアップ |
 | `unity_input_profile` | createInputActions / createPlayerInput |
 | `unity_asset_crud` | プロトタイプスクリプト生成 |

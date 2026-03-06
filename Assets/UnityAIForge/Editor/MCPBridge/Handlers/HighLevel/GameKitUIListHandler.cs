@@ -542,7 +542,13 @@ namespace MCP.Editor.Handlers.HighLevel
             {
                 var findMethod = component.GetType().GetMethod("FindItemIndex");
                 if (findMethod != null)
-                    return (int)findMethod.Invoke(component, new object[] { idObj.ToString() });
+                {
+                    var index = (int)findMethod.Invoke(component, new object[] { idObj.ToString() });
+                    if (index < 0)
+                        throw new InvalidOperationException($"Item with id '{idObj}' not found.");
+                    return index;
+                }
+                throw new InvalidOperationException("FindItemIndex method not found. Ensure the script is compiled.");
             }
 
             throw new InvalidOperationException("Either index or itemId is required.");

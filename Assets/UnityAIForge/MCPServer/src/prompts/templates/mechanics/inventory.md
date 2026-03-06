@@ -164,7 +164,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 unity_ui_foundation(
     operation="createCanvas",
     name="InventoryCanvas",
-    renderMode="ScreenSpaceOverlay"
+    renderMode="screenSpaceOverlay"
 )
 
 unity_ui_foundation(
@@ -262,7 +262,7 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 # キーボード/ゲームパッドナビゲーション
 unity_ui_navigation(
     operation="autoSetup",
-    targetPath="InventoryCanvas/InventoryPanel"
+    rootPath="InventoryCanvas/InventoryPanel"
 )
 ```
 
@@ -310,16 +310,16 @@ unity_gamekit_ui(widgetType='slot',
 ```python
 unity_ui_state(
     operation="defineState",
-    targetPath="InventoryCanvas",
+    rootPath="InventoryCanvas",
     stateName="InventoryClosed",
-    properties={"InventoryPanel": {"active": false}}
+    elements=[{"path": "InventoryPanel", "visible": False}]
 )
 
 unity_ui_state(
     operation="defineState",
-    targetPath="InventoryCanvas",
+    rootPath="InventoryCanvas",
     stateName="InventoryOpen",
-    properties={"InventoryPanel": {"active": true}}
+    elements=[{"path": "InventoryPanel", "visible": True}]
 )
 ```
 

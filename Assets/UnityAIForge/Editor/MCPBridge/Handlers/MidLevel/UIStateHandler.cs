@@ -11,8 +11,10 @@ using UnityEngine.UI;
 namespace MCP.Editor.Handlers
 {
     /// <summary>
-    /// Mid-level UI state management handler: manage UI states (active/visible),
+    /// Mid-level UI state management handler: manage UI states via CanvasGroup,
     /// state groups, state transitions, and state persistence.
+    /// Visibility is controlled exclusively through CanvasGroup (alpha/interactable/blocksRaycasts).
+    /// GameObjects remain active; SetActive is not used for UI visibility.
     /// </summary>
     public class UIStateHandler : BaseCommandHandler
     {
@@ -85,11 +87,21 @@ namespace MCP.Editor.Handlers
             {
                 if (elemObj is Dictionary<string, object> elemDict)
                 {
+                    // 'active' is accepted as alias for 'visible' for backward compatibility
+                    var hasVisible = elemDict.ContainsKey("visible");
+                    var hasActive = elemDict.ContainsKey("active");
+                    bool visible;
+                    if (hasVisible)
+                        visible = GetBool(elemDict, "visible", true);
+                    else if (hasActive)
+                        visible = GetBool(elemDict, "active", true);
+                    else
+                        visible = true;
+
                     var elementState = new UIElementState
                     {
                         Path = GetString(elemDict, "path") ?? "",
-                        Active = GetBool(elemDict, "active", true),
-                        Visible = GetBool(elemDict, "visible", true),
+                        Visible = visible,
                         Interactable = GetBool(elemDict, "interactable", true),
                         Alpha = GetFloat(elemDict, "alpha", 1f),
                         BlocksRaycasts = GetBool(elemDict, "blocksRaycasts", true),
@@ -184,25 +196,21 @@ namespace MCP.Editor.Handlers
                         continue;
                     }
 
-                    // Apply active state
+                    // Ensure GameObject is active (visibility controlled via CanvasGroup only)
                     Undo.RecordObject(targetGo, "Apply UI State");
-                    targetGo.SetActive(elemState.Active);
+                    if (!targetGo.activeSelf)
+                        targetGo.SetActive(true);
 
-                    // Apply CanvasGroup settings if visible/alpha/interactable are specified
+                    // Apply CanvasGroup-based visibility
                     var canvasGroup = targetGo.GetComponent<CanvasGroup>();
-                    if (canvasGroup == null && (!elemState.Visible || elemState.Alpha < 1f || !elemState.Interactable || !elemState.BlocksRaycasts || elemState.IgnoreParentGroups))
-                    {
+                    if (canvasGroup == null)
                         canvasGroup = Undo.AddComponent<CanvasGroup>(targetGo);
-                    }
 
-                    if (canvasGroup != null)
-                    {
-                        Undo.RecordObject(canvasGroup, "Apply UI State");
-                        canvasGroup.alpha = elemState.Visible ? elemState.Alpha : 0f;
-                        canvasGroup.interactable = elemState.Interactable;
-                        canvasGroup.blocksRaycasts = elemState.BlocksRaycasts;
-                        canvasGroup.ignoreParentGroups = elemState.IgnoreParentGroups;
-                    }
+                    Undo.RecordObject(canvasGroup, "Apply UI State");
+                    canvasGroup.alpha = elemState.Visible ? elemState.Alpha : 0f;
+                    canvasGroup.interactable = elemState.Visible && elemState.Interactable;
+                    canvasGroup.blocksRaycasts = elemState.Visible && elemState.BlocksRaycasts;
+                    canvasGroup.ignoreParentGroups = elemState.IgnoreParentGroups;
 
                     // Apply position/size overrides
                     var rectTransform = targetGo.GetComponent<RectTransform>();
@@ -296,7 +304,6 @@ namespace MCP.Editor.Handlers
             var elemState = new UIElementState
             {
                 Path = relativePath,
-                Active = go.activeSelf,
                 Visible = canvasGroup == null || canvasGroup.alpha > 0,
                 Interactable = canvasGroup == null || canvasGroup.interactable,
                 Alpha = canvasGroup?.alpha ?? 1f,
@@ -354,7 +361,6 @@ namespace MCP.Editor.Handlers
             var elementsInfo = stateData.Elements.Select(e => new Dictionary<string, object>
             {
                 ["path"] = e.Path,
-                ["active"] = e.Active,
                 ["visible"] = e.Visible,
                 ["interactable"] = e.Interactable,
                 ["alpha"] = e.Alpha,
@@ -533,7 +539,6 @@ namespace MCP.Editor.Handlers
         private class UIElementState
         {
             public string Path;
-            public bool Active = true;
             public bool Visible = true;
             public bool Interactable = true;
             public float Alpha = 1f;

@@ -103,6 +103,13 @@ namespace MCP.Editor.Handlers
                 }
                 targetObj = targetComponent;
             }
+            else
+            {
+                // Auto-search: find component that has the target method
+                var foundComponent = FindComponentWithMethod(targetGo, methodName, argMode);
+                if (foundComponent != null)
+                    targetObj = foundComponent;
+            }
 
             // Find the event field
             var eventField = FindEventField(sourceComponent, eventName);
@@ -121,7 +128,7 @@ namespace MCP.Editor.Handlers
             MethodInfo targetMethod = FindMethod(targetObj.GetType(), methodName, argMode);
             if (targetMethod == null)
             {
-                throw new ArgumentException($"Method not found: {methodName} with mode {argMode}");
+                throw new ArgumentException($"Method not found: {methodName} with mode {argMode}. Specify target.component to disambiguate.");
             }
 
             // Add persistent listener using SerializedObject
@@ -419,6 +426,21 @@ namespace MCP.Editor.Handlers
                 }
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// Auto-search all components on a GameObject for one that has the specified method.
+        /// </summary>
+        private Component FindComponentWithMethod(GameObject go, string methodName, string argMode)
+        {
+            foreach (var comp in go.GetComponents<Component>())
+            {
+                if (comp == null) continue;
+                var method = FindMethod(comp.GetType(), methodName, argMode);
+                if (method != null)
+                    return comp;
+            }
             return null;
         }
 

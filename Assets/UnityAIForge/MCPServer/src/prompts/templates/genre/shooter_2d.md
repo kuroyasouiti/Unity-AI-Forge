@@ -89,11 +89,11 @@ Assets/
 ```python
 # 物理設定（2D シューター: 重力なし）
 unity_projectSettings_crud(operation='write', category='physics2D',
-    settings={'gravity': {'x': 0, 'y': 0}})
+    property='gravity', value={'x': 0, 'y': 0})
 
 # タグ・レイヤー追加
-unity_projectSettings_crud(operation='write', category='tags',
-    settings={'tags': ['Player', 'Enemy', 'PlayerBullet', 'EnemyBullet', 'PowerUp']})
+unity_projectSettings_crud(operation='write', category='tagsLayers',
+    property='tags', value=['Player', 'Enemy', 'PlayerBullet', 'EnemyBullet', 'PowerUp'])
 
 # Input Profile（シューター向け）
 unity_input_profile(operation='createInputActions',
@@ -118,8 +118,7 @@ unity_input_profile(operation='createInputActions',
 
 ```python
 # 自機 GameObject
-unity_gameobject_crud(operation='create', name='Player',
-    position={'x': 0, 'y': -3, 'z': 0}, tag='Player')
+unity_gameobject_crud(operation='create', name='Player', tag='Player')
 
 # スプライト設定
 unity_sprite2d_bundle(operation='createSprite', gameObjectPath='Player',
@@ -134,9 +133,8 @@ unity_component_crud(operation='add', gameObjectPath='Player',
     properties={'radius': 0.1, 'isTrigger': true})
 
 # 自機制御スクリプト作成
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Player/PlayerShip.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Player/PlayerShip.cs')
 unity_compilation_await(operation='await')
 ```
 
@@ -173,9 +171,8 @@ unity_prefab_crud(operation='create', gameObjectPath='EnemyBullet',
     prefabPath='Assets/Prefabs/Bullets/EnemyBullet.prefab')
 
 # オブジェクトプールスクリプト作成
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Projectile/BulletPool.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Projectile/BulletPool.cs')
 unity_compilation_await(operation='await')
 ```
 
@@ -186,7 +183,7 @@ unity_compilation_await(operation='await')
 unity_scriptableObject_crud(operation='create',
     typeName='WaveData',
     assetPath='Assets/Data/Waves/Wave_Stage1.asset',
-    fields={
+    properties={
         'waves': [
             {'waveId': 1, 'enemyCount': 5, 'enemyType': 'TypeA',
              'spawnInterval': 1.0},
@@ -201,7 +198,7 @@ unity_scriptableObject_crud(operation='create',
 unity_scriptableObject_crud(operation='create',
     typeName='EnemyData',
     assetPath='Assets/Data/Enemies/Enemy_TypeA.asset',
-    fields={
+    properties={
         'enemyName': 'Type A',
         'maxHP': 10,
         'moveSpeed': 3.0,
@@ -214,43 +211,40 @@ unity_scriptableObject_crud(operation='create',
 
 ```python
 # HUD Canvas
-unity_ui_foundation(operation='createCanvas', canvasName='Canvas_HUD',
-    renderMode='ScreenSpaceOverlay')
+unity_ui_foundation(operation='createCanvas', name='Canvas_HUD',
+    renderMode='screenSpaceOverlay')
 
 # スコア表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='ScoreText', text='Score: 0',
-    position={'x': 300, 'y': 260})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='ScoreText', text='Score: 0')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/ScoreText',
-    bindingId='score_display', uiType='text', format='formatted')
+    bindingId='score_display', format='formatted')
 unity_compilation_await(operation='await')
 
 # コンボ表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='ComboText', text='Combo: 0',
-    position={'x': 300, 'y': 230})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='ComboText', text='Combo: 0')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/ComboText',
-    bindingId='combo_display', uiType='text', format='formatted')
+    bindingId='combo_display', format='formatted')
 unity_compilation_await(operation='await')
 
 # HP 表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='HPText', text='HP: 3',
-    position={'x': -350, 'y': 260})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='HPText', text='HP: 3')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/HPText',
-    bindingId='hp_display', uiType='text', format='formatted')
+    bindingId='hp_display', format='formatted')
 unity_compilation_await(operation='await')
 
 # ポーズ・リトライコマンド
 unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='pause_cmd',
-    canvasPath='Canvas_HUD',
+    parentPath='Canvas_HUD',
     commands=[
         {'name': 'Pause',  'commandType': 'action', 'label': 'ポーズ'},
         {'name': 'Retry',  'commandType': 'action', 'label': 'リトライ'},

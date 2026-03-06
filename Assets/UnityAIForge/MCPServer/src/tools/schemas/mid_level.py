@@ -247,7 +247,7 @@ def camera_bundle_schema() -> dict[str, Any]:
                 },
                 "gameObjectPath": {
                     "type": "string",
-                    "description": "Target GameObject path (required for update/inspect/delete/applyPreset). For create, used as the name of the new Camera GameObject.",
+                    "description": "Target GameObject path (required for applyPreset).",
                 },
                 "name": {
                     "type": "string",
@@ -365,7 +365,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                 },
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path for addLayoutGroup/updateLayoutGroup/removeLayoutGroup operations.",
+                    "description": "Target GameObject path for addLayoutGroup/show/hide/toggle/inspect/inspectTree operations.",
                 },
                 "name": {"type": "string", "description": "UI element name."},
                 "renderMode": {
@@ -597,15 +597,15 @@ def ui_foundation_schema() -> dict[str, Any]:
                     "type": "integer",
                     "description": "Number of slots for inventoryGrid template (default: 20).",
                 },
-                # configureCanvasGroup / createPanel CanvasGroup parameters
+                # show/hide/toggle / createPanel CanvasGroup parameters
                 "gameObjectPath": {
                     "type": "string",
-                    "description": "Target GameObject path for configureCanvasGroup operation.",
+                    "description": "Target GameObject path for show/hide/toggle operations.",
                 },
                 "gameObjectPaths": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Multiple target paths for batch configureCanvasGroup operation.",
+                    "description": "Multiple target paths for batch show/hide/toggle operations.",
                 },
                 "alpha": {
                     "type": "number",
@@ -631,7 +631,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                 },
                 "useCanvasGroup": {
                     "type": "boolean",
-                    "description": "Use CanvasGroup for visibility control (default: true). Set false to use SetActive.",
+                    "description": "Deprecated, ignored. Visibility is always controlled via CanvasGroup.",
                 },
                 "targets": {
                     "type": "array",
@@ -918,11 +918,10 @@ def ui_state_schema() -> dict[str, Any]:
                                 "type": "string",
                                 "description": "Relative path from root (empty for root itself).",
                             },
-                            "active": {
+                            "visible": {
                                 "type": "boolean",
-                                "description": "GameObject active state.",
+                                "description": "Visible state via CanvasGroup (alpha > 0). 'active' is accepted as alias for backward compatibility.",
                             },
-                            "visible": {"type": "boolean", "description": "Visible (alpha > 0)."},
                             "interactable": {
                                 "type": "boolean",
                                 "description": "CanvasGroup interactable.",
@@ -1003,10 +1002,6 @@ def uitk_document_schema() -> dict[str, Any]:
                 "sortingOrder": {
                     "type": "number",
                     "description": "UIDocument sorting order (higher renders on top).",
-                },
-                "deleteGameObject": {
-                    "type": "boolean",
-                    "description": "If true, delete the entire GameObject instead of just the UIDocument component.",
                 },
                 "maxDepth": {
                     "type": "integer",
@@ -1089,7 +1084,7 @@ def uitk_asset_schema() -> dict[str, Any]:
                             },
                         },
                     },
-                    "description": "UXML element definitions for createUXML or updateUXML (add action).",
+                    "description": "UXML element definitions for createUXML.",
                 },
                 "styleSheets": {
                     "type": "array",
@@ -1112,29 +1107,7 @@ def uitk_asset_schema() -> dict[str, Any]:
                             },
                         },
                     },
-                    "description": "USS rule definitions for createUSS or updateUSS.",
-                },
-                "action": {
-                    "type": "string",
-                    "enum": ["add", "remove", "replace", "update"],
-                    "description": "Update action type (default: 'add'). 'update' is alias for 'add' in USS.",
-                },
-                "parentElementName": {
-                    "type": "string",
-                    "description": "Parent element name for updateUXML add action (default: root).",
-                },
-                "elementName": {
-                    "type": "string",
-                    "description": "Target element name for updateUXML remove/replace.",
-                },
-                "element": {
-                    "type": "object",
-                    "additionalProperties": True,
-                    "description": "Replacement element definition for updateUXML replace action.",
-                },
-                "selector": {
-                    "type": "string",
-                    "description": "USS selector for updateUSS remove action.",
+                    "description": "USS rule definitions for createUSS.",
                 },
                 "scaleMode": {
                     "type": "string",
@@ -1243,10 +1216,6 @@ def ui_navigation_schema() -> dict[str, Any]:
                 "isolate": {
                     "type": "boolean",
                     "description": "Isolate group navigation (default: true).",
-                },
-                "recursive": {
-                    "type": "boolean",
-                    "description": "Apply recursively for reset/disable.",
                 },
             },
         },

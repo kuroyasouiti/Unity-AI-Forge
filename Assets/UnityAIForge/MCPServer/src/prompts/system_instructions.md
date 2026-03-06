@@ -13,6 +13,9 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作
 8. **物理設定のベストプラクティス**: Layer Collision Matrixで不要な衝突を除外、高速オブジェクトのCollision DetectionはContinuousに設定
 9. **ゲーム操作/メニュー切替には `ui_state` を使用**: gameplay ↔ pause、gameplay ↔ inventory 等の画面モード切替は `unity_ui_state` の `defineState` + `applyState` で管理。`createStateGroup` で排他制御
+10. **UI表示制御はCanvasGroupのみ**: `SetActive` は使わず `CanvasGroup`（alpha/interactable/blocksRaycasts）で制御。GameObjectは常にアクティブ状態を維持
+11. **シーン間データはDataContainer(SO)で渡す**: staticクラスではなく `gamekit_data(dataType='dataContainer')` で ScriptableObject を作成し、書き込み側・読み取り側の両方から参照する
+12. **複数兄弟UI要素にはLayoutGroup必須**: 同一親に複数のUI要素を配置する場合、LayoutGroupなしでは重なる
 
 ---
 
@@ -153,22 +156,22 @@ unity_script_syntax(operation='analyzeMetrics', searchPath='Assets/Scripts')
 
 ```python
 # UIコマンドパネル（ボタン→Actor/Manager連携）
-unity_gamekit_ui(widgetType='command', operation='createCommandPanel', panelId='cmd', canvasPath='Canvas',
+unity_gamekit_ui(widgetType='command', operation='createCommandPanel', panelId='cmd', parentPath='Canvas',
     commands=[{'name': 'Attack', 'commandType': 'action', 'label': '攻撃'}], targetType='actor', targetActorId='player')
 
 # データバインディング（sourceType: health|economy|timer|custom, format: raw|percent|ratio|formatted）
 unity_gamekit_ui(widgetType='binding', operation='create', targetPath='Canvas/HPBar', bindingId='hp', sourceType='health', sourceId='player_hp', format='percent')
 
 # 動的リスト/グリッド（layout: vertical|horizontal|grid）
-unity_gamekit_ui(widgetType='list', operation='create', targetPath='Canvas/Inventory', listId='inv', layout='grid', gridColumns=4)
-unity_gamekit_ui(widgetType='list', operation='addItem', listId='inv', itemData={'id': 'sword', 'name': '剣'})
+unity_gamekit_ui(widgetType='list', operation='create', targetPath='Canvas/Inventory', listId='inv', layout='grid', columns=4)
+unity_gamekit_ui(widgetType='list', operation='addItem', listId='inv', item={'id': 'sword', 'name': '剣'})
 
 # スロット（slotType: storage|equipment|quickslot|trash）
-unity_gamekit_ui(widgetType='slot', operation='create', targetPath='Canvas/WeaponSlot', slotId='weapon', slotType='equipment', acceptTags=['weapon'])
+unity_gamekit_ui(widgetType='slot', operation='create', targetPath='Canvas/WeaponSlot', slotId='weapon', slotType='equipment', acceptedCategories=['weapon'])
 unity_gamekit_ui(widgetType='slot', operation='createSlotBar', barId='quickbar', targetPath='Canvas/QuickBar', slotCount=8, slotType='quickslot')
 
 # 選択グループ（selectionMode: radio|toggle|checkbox|tab）
-unity_gamekit_ui(widgetType='selection', operation='create', targetPath='Canvas/Tabs', selectionId='tabs', selectionMode='tab')
+unity_gamekit_ui(widgetType='selection', operation='create', targetPath='Canvas/Tabs', selectionId='tabs', selectionType='tab')
 ```
 
 ---
@@ -190,6 +193,13 @@ unity_gamekit_data(dataType='dataContainer', operation='create', dataId='PlayerS
     {'name': 'speed', 'fieldType': 'float', 'defaultValue': 5.0},
     {'name': 'playerName', 'fieldType': 'string', 'defaultValue': 'Player'}
 ], resetOnPlay=True)
+
+# シーン間データ受け渡し用 DataContainer（staticクラスの代替）
+# StageSelect で書き込み → Battle で読み取り
+unity_gamekit_data(dataType='dataContainer', operation='create', dataId='SelectedStage', fields=[
+    {'name': 'mapDataPath', 'fieldType': 'string', 'defaultValue': 'Assets/Data/Maps/Stage1.asset'},
+    {'name': 'stageIndex', 'fieldType': 'int', 'defaultValue': 1}
+], resetOnPlay=False, assetPath='Assets/Data/SelectedStage.asset')
 
 # ランタイムセット（自動登録/解除パターン）
 unity_gamekit_data(dataType='runtimeSet', operation='create', dataId='ActiveEnemies', elementType='GameObject')
@@ -235,16 +245,17 @@ unity_ui_foundation(operation='show', targetPath='Canvas/Menu')
 unity_ui_foundation(operation='hide', targetPath='Canvas/Menu')
 
 # UI状態管理（ゲーム操作/メニュー切替の標準手法）
+# ※ 表示/非表示は CanvasGroup (alpha/interactable/blocksRaycasts) で制御。SetActive は使わない。
 # ゲームプレイ状態: HUDのみ表示、メニュー非表示
 unity_ui_state(operation='defineState', rootPath='Canvas', stateName='gameplay', elements=[
-    {'path': 'HUD', 'active': True},
-    {'path': 'Screens/PauseMenu', 'active': False, 'interactable': False},
-    {'path': 'Screens/Inventory', 'active': False}
+    {'path': 'HUD', 'visible': True},
+    {'path': 'Screens/PauseMenu', 'visible': False},
+    {'path': 'Screens/Inventory', 'visible': False}
 ])
 # ポーズ状態: HUD + ポーズメニュー表示
 unity_ui_state(operation='defineState', rootPath='Canvas', stateName='paused', elements=[
-    {'path': 'HUD', 'active': True, 'interactable': False},
-    {'path': 'Screens/PauseMenu', 'active': True, 'interactable': True}
+    {'path': 'HUD', 'visible': True, 'interactable': False},
+    {'path': 'Screens/PauseMenu', 'visible': True, 'interactable': True}
 ])
 # 排他グループ（gameplay/paused/inventoryは同時に1つだけ）
 unity_ui_state(operation='createStateGroup', rootPath='Canvas', groupName='screen_mode',
@@ -276,10 +287,10 @@ unity_particle_bundle(operation='create', gameObjectPath='FX/Fire', preset='fire
 unity_component_crud(operation='add', gameObjectPath='Audio/BGM', componentType='AudioSource',
     propertyChanges={'clip':{'$ref':'Assets/Audio/BGM.mp3'}, 'loop':True, 'volume':0.7, 'playOnAwake':True, 'priority':128})
 
-# イベント接続
+# イベント接続（target.component でメソッドの所属コンポーネントを明示）
 unity_event_wiring(operation='wire',
     source={'gameObject':'Button','component':'Button','event':'onClick'},
-    target={'gameObject':'Manager','method':'StartGame'})
+    target={'gameObject':'Manager','component':'GameManager','method':'StartGame'})
 unity_event_wiring(operation='wireMultiple', wirings=[...])
 unity_event_wiring(operation='listEvents', gameObjectPath='Button')
 
@@ -317,7 +328,7 @@ unity_navmesh_bundle(operation='inspect', gameObjectPath='Enemy')
 ```python
 # シーン
 unity_scene_crud(operation='inspect', includeHierarchy=True)
-unity_scene_crud(operation='load', scenePath='Assets/Scenes/Level1.unity', loadMode='single')
+unity_scene_crud(operation='load', scenePath='Assets/Scenes/Level1.unity')
 
 # GameObject（createでcomponents配列指定可）
 unity_gameobject_crud(operation='create', name='Player', parentPath='Characters',

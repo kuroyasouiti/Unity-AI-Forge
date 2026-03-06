@@ -88,7 +88,7 @@ Assets/
 ```python
 # プロジェクト設定: 2D物理・重力設定
 unity_projectSettings_crud(operation='write', category='physics2D',
-    settings={'gravity': {'x': 0, 'y': -20}})
+    property='gravity', value={'x': 0, 'y': -20})
 
 # Input Profile（プラットフォーマー向け）
 unity_input_profile(operation='createInputActions',
@@ -104,7 +104,7 @@ unity_input_profile(operation='createInputActions',
     ])
 
 # プレイシーン作成
-unity_scene_crud(operation='create', sceneName='World_1_1',
+unity_scene_crud(operation='create',
     scenePath='Assets/Scenes/World_1_1.unity')
 unity_scene_crud(operation='load', scenePath='Assets/Scenes/World_1_1.unity')
 ```
@@ -143,8 +143,7 @@ unity_tilemap_bundle(operation='setTiles',
 
 ```python
 # プレイヤー GameObject 作成
-unity_gameobject_crud(operation='create', name='Player',
-    position={'x': 2, 'y': 3, 'z': 0})
+unity_gameobject_crud(operation='create', name='Player')
 
 # スプライト設定
 unity_sprite2d_bundle(operation='createSprite', gameObjectPath='Player',
@@ -191,23 +190,23 @@ unity_camera_bundle(operation='applyPreset', gameObjectPath='Main Camera',
     preset='orthographic2D')
 
 # HUD Canvas
-unity_ui_foundation(operation='createCanvas', canvasName='Canvas_HUD',
-    renderMode='ScreenSpaceOverlay')
+unity_ui_foundation(operation='createCanvas', name='Canvas_HUD',
+    renderMode='screenSpaceOverlay')
 
 # HP バー: ui_binding で表示を連動
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='HPText', text='HP: 3', position={'x': -350, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='HPText', text='HP: 3')
 
 unity_gamekit_ui(widgetType='binding',operation='create', targetPath='Canvas_HUD/HPText',
-    bindingId='player_hp', uiType='text', format='formatted')
+    bindingId='player_hp', format='formatted')
 unity_compilation_await(operation='await')
 
 # スコア表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='ScoreText', text='Score: 0', position={'x': 350, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='ScoreText', text='Score: 0')
 
 unity_gamekit_ui(widgetType='binding',operation='create', targetPath='Canvas_HUD/ScoreText',
-    bindingId='score_display', uiType='text', format='formatted')
+    bindingId='score_display', format='formatted')
 unity_compilation_await(operation='await')
 ```
 
@@ -215,8 +214,7 @@ unity_compilation_await(operation='await')
 
 ```python
 # コインオブジェクト作成
-unity_gameobject_crud(operation='create', name='Coin',
-    position={'x': 5, 'y': 4, 'z': 0})
+unity_gameobject_crud(operation='create', name='Coin')
 
 # スプライト設定
 unity_sprite2d_bundle(operation='createSprite', gameObjectPath='Coin',
@@ -237,7 +235,7 @@ unity_prefab_crud(operation='create', gameObjectPath='Coin',
 ```python
 # 敵 GameObject
 unity_gameobject_crud(operation='create', name='Enemy_Goomba',
-    parentPath='Enemies', position={'x': 10, 'y': 2, 'z': 0})
+    parentPath='Enemies')
 
 # スプライト・物理・コライダー
 unity_sprite2d_bundle(operation='createSprite',
@@ -263,8 +261,7 @@ unity_prefab_crud(operation='create',
 
 ```python
 # ゴールオブジェクト
-unity_gameobject_crud(operation='create', name='GoalFlag',
-    position={'x': 30, 'y': 3, 'z': 0})
+unity_gameobject_crud(operation='create', name='GoalFlag')
 
 # ゴールのコライダー（トリガー）
 unity_component_crud(operation='add', gameObjectPath='GoalFlag',

@@ -29,21 +29,6 @@ def sprite2d_bundle_schema() -> dict[str, Any]:
                     "type": "string",
                     "description": "Target GameObject hierarchy path.",
                 },
-                "gameObjectGlobalObjectId": {
-                    "type": "string",
-                    "description": "Target GameObject GlobalObjectId.",
-                },
-                "gameObjectPaths": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Multiple target GameObject paths for batch operations.",
-                },
-                "pattern": {"type": "string", "description": "Pattern for matching GameObjects."},
-                "useRegex": {"type": "boolean", "description": "Use regex pattern matching."},
-                "maxResults": {
-                    "type": "integer",
-                    "description": "Maximum results for batch operations.",
-                },
                 "name": {"type": "string", "description": "Name for new sprite GameObject."},
                 "parentPath": {"type": "string", "description": "Parent GameObject path."},
                 "spritePath": {"type": "string", "description": "Sprite asset path."},
@@ -296,14 +281,6 @@ def material_bundle_schema() -> dict[str, Any]:
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
                     "description": "Texture offset.",
                 },
-                "pattern": {
-                    "type": "string",
-                    "description": "Pattern for applyToObjects (e.g., 'Cube*').",
-                },
-                "targetMaterialPath": {
-                    "type": "string",
-                    "description": "Target path for duplicate operation.",
-                },
             },
         },
         ["operation"],
@@ -470,10 +447,6 @@ def particle_bundle_schema() -> dict[str, Any]:
                 },
                 "shapeRadius": {"type": "number", "description": "Shape radius."},
                 "shapeAngle": {"type": "number", "description": "Shape angle (for Cone)."},
-                "targetPath": {
-                    "type": "string",
-                    "description": "Target path for duplicate operation.",
-                },
             },
         },
         ["operation"],

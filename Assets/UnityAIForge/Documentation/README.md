@@ -5,16 +5,16 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black)](https://unity.com/)
 [![MCP](https://img.shields.io/badge/MCP-0.9.0%2B-green)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-2.16.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
+[![Version](https://img.shields.io/badge/Version-2.17.0-brightgreen)](https://github.com/kuroyasouiti/Unity-AI-Forge/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## v2.16.0 のハイライト
+## v2.17.0 のハイライト
 
-- **ツール簡素化 (42→41ツール)**
-  - Mid/High-Level ツールから Low-Level CRUD で代替可能な約40オペレーションを削除
-  - `unity_ui_hierarchy` を廃止し、show/hide/toggle と inspectTree を `unity_ui_foundation` に統合
-  - event_wiring, playmode_control, console_log を Utility カテゴリに再分類
-- **inspectTree 色情報追加**: Image.color, Text/TMP fontColor, Button ColorBlock を返却し、UIカラー一貫性の俯瞰チェックが可能に
+- **スキーマ・プロンプト・ハンドラーの包括的レビュー＆修正**
+  - Python スキーマから v2.15.0 簡素化で残った孤立パラメータ・古い説明文を除去
+  - 25 プロンプトテンプレート全体のパラメータ名・enum値を実スキーマと完全一致に修正
+  - C# ハンドラー 6 件の改善（UIFoundation, UIState, EventWiring, GameKitUI List/Selection/Slot）
+  - `tactics_srpg` ジャンルテンプレートを追加登録
 
 ## v2.10.0 のハイライト
 

@@ -189,7 +189,8 @@ public class {{CLASS_NAME}} : MonoBehaviour
 
     private void OnClick(ClickEvent evt)
     {
-        if (Time.unscaledTime - lastClickTime < 0.3f)
+        const float DoubleClickThreshold = 0.3f;
+        if (Time.unscaledTime - lastClickTime < DoubleClickThreshold)
         {
             OnSlotDoubleClicked?.Invoke(this);
             lastClickTime = 0;

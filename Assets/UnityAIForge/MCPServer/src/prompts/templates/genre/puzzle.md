@@ -79,7 +79,7 @@ Assets/
 unity_scriptableObject_crud(operation='create',
     typeName='StageData',
     assetPath='Assets/Data/Stages/Stage_001.asset',
-    fields={
+    properties={
         'stageId': '001',
         'stageName': 'ステージ 1',
         'gridWidth': 8,
@@ -94,7 +94,7 @@ unity_scriptableObject_crud(operation='create',
 unity_scriptableObject_crud(operation='create',
     typeName='DifficultyData',
     assetPath='Assets/Data/Difficulties/Easy.asset',
-    fields={
+    properties={
         'difficultyName': 'かんたん',
         'moveLimitMultiplier': 1.5,
         'timeLimitMultiplier': 1.5,
@@ -106,31 +106,28 @@ unity_scriptableObject_crud(operation='create',
 
 ```python
 # パズルシーン作成
-unity_scene_crud(operation='create', sceneName='Puzzle',
+unity_scene_crud(operation='create',
     scenePath='Assets/Scenes/Puzzle.unity')
 unity_scene_crud(operation='load', scenePath='Assets/Scenes/Puzzle.unity')
 
 # PuzzleManager（ゲームフロー制御）
 unity_gameobject_crud(operation='create', name='PuzzleManager')
-unity_asset_crud(operation='create', assetType='script',
-    assetPath='Assets/Scripts/Puzzle/PuzzleManager.cs',
-    templateType='MonoBehaviour')
+unity_asset_crud(operation='create',
+    assetPath='Assets/Scripts/Puzzle/PuzzleManager.cs')
 unity_compilation_await(operation='await')
 
 # GridManager（グリッド状態管理）
 unity_gameobject_crud(operation='create', name='GridManager')
 
 # グリッド親オブジェクト
-unity_gameobject_crud(operation='create', name='Grid',
-    position={'x': 0, 'y': 0, 'z': 0})
+unity_gameobject_crud(operation='create', name='Grid')
 
 # セル GameObject を一括生成（8x8 グリッド例）
 for row in range(8):
     for col in range(8):
         unity_gameobject_crud(operation='create',
             name=f'Cell_{col}_{row}',
-            parentPath='Grid',
-            position={'x': col * 1.0, 'y': row * 1.0, 'z': 0})
+            parentPath='Grid')
 
 # SpriteRenderer を各セルに一括追加
 unity_component_crud(operation='addMultiple',
@@ -158,13 +155,13 @@ unity_component_crud(operation='addMultiple',
 
 ```python
 # HUD Canvas
-unity_ui_foundation(operation='createCanvas', canvasName='Canvas_HUD',
-    renderMode='ScreenSpaceOverlay')
+unity_ui_foundation(operation='createCanvas', name='Canvas_HUD',
+    renderMode='screenSpaceOverlay')
 
 # Undo/Redo ボタン コマンドパネル
 unity_gamekit_ui(widgetType='command',operation='createCommandPanel',
     panelId='undo_cmd',
-    canvasPath='Canvas_HUD',
+    parentPath='Canvas_HUD',
     commands=[
         {'name': 'Undo',  'commandType': 'action', 'label': '戻す'},
         {'name': 'Redo',  'commandType': 'action', 'label': 'やり直す'},
@@ -178,33 +175,30 @@ unity_compilation_await(operation='await')
 
 ```python
 # 手数カウンター
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='MoveCounter', text='手数: 0/30',
-    position={'x': -300, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='MoveCounter', text='手数: 0/30')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/MoveCounter',
-    bindingId='move_count', uiType='text', format='formatted')
+    bindingId='move_count', format='formatted')
 unity_compilation_await(operation='await')
 
 # タイマー表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='TimerDisplay', text='2:00',
-    position={'x': 0, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='TimerDisplay', text='2:00')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/TimerDisplay',
-    bindingId='timer_display', uiType='text', format='formatted')
+    bindingId='timer_display', format='formatted')
 unity_compilation_await(operation='await')
 
 # スコア表示
-unity_ui_foundation(operation='createText', canvasPath='Canvas_HUD',
-    textName='ScoreDisplay', text='Score: 0',
-    position={'x': 300, 'y': 250})
+unity_ui_foundation(operation='createText', parentPath='Canvas_HUD',
+    name='ScoreDisplay', text='Score: 0')
 
 unity_gamekit_ui(widgetType='binding',operation='create',
     targetPath='Canvas_HUD/ScoreDisplay',
-    bindingId='score_display', uiType='text', format='formatted')
+    bindingId='score_display', format='formatted')
 unity_compilation_await(operation='await')
 ```
 
@@ -215,7 +209,7 @@ unity_compilation_await(operation='await')
 unity_gamekit_ui(widgetType='selection',operation='create',
     targetPath='Canvas_StageSelect/DifficultyTabs',
     selectionId='difficulty_sel',
-    selectionMode='radio')
+    selectionType='radio')
 unity_compilation_await(operation='await')
 
 unity_gamekit_ui(widgetType='selection',operation='setItems',
@@ -230,7 +224,7 @@ unity_gamekit_ui(widgetType='selection',operation='setItems',
 unity_gamekit_ui(widgetType='list',operation='create',
     targetPath='Canvas_StageSelect/StageList',
     listId='stage_list',
-    layout='grid', gridColumns=5)
+    layout='grid', columns=5)
 unity_compilation_await(operation='await')
 ```
 
@@ -239,16 +233,12 @@ unity_compilation_await(operation='await')
 ```python
 # ボタンクリックイベントを接続
 unity_event_wiring(operation='wire',
-    sourcePath='Canvas_HUD/CommandPanel/Undo',
-    eventName='onClick',
-    targetPath='PuzzleManager',
-    methodName='OnUndoClicked')
+    source={'gameObject': 'Canvas_HUD/CommandPanel/Undo', 'component': 'Button', 'event': 'onClick'},
+    target={'gameObject': 'PuzzleManager', 'method': 'OnUndoClicked'})
 
 unity_event_wiring(operation='wire',
-    sourcePath='Canvas_HUD/CommandPanel/Reset',
-    eventName='onClick',
-    targetPath='PuzzleManager',
-    methodName='OnResetClicked')
+    source={'gameObject': 'Canvas_HUD/CommandPanel/Reset', 'component': 'Button', 'event': 'onClick'},
+    target={'gameObject': 'PuzzleManager', 'method': 'OnResetClicked'})
 
 # 整合性検証
 unity_validate_integrity(operation='all')

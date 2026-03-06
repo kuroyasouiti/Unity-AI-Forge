@@ -220,8 +220,7 @@ unity_component_crud(operation="add",
     componentType="PoolManager")
 
 # 弾丸プレハブを作成
-unity_gameobject_crud(operation="create", name="Bullet",
-    position={'x': 0, 'y': -100, 'z': 0})
+unity_gameobject_crud(operation="create", name="Bullet")
 unity_component_crud(operation="add",
     gameObjectPath="Bullet", componentType="Rigidbody2D",
     propertyChanges={'gravityScale': 0, 'collisionDetection': 'Continuous'})
@@ -337,7 +336,7 @@ public class EnemySpawner : MonoBehaviour
 # FloatingText プレハブを作成してプールに登録
 unity_gameobject_crud(operation="create", name="FloatingText")
 unity_ui_foundation(operation="createText",
-    canvasPath="Canvas_World", textName="DmgText", text="0",
+    parentPath="Canvas_World", name="DmgText", text="0",
     fontSize=24)
 unity_component_crud(operation="add",
     gameObjectPath="Canvas_World/DmgText", componentType="Poolable")

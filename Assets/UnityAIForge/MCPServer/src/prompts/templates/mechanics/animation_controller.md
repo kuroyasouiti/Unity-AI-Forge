@@ -178,62 +178,62 @@ unity_animation2d_bundle(operation="addState",
 # パラメータ追加
 unity_animation2d_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    parameterName="Speed", parameterType="float")
+    parameterName="Speed", parameterType="Float")
 unity_animation2d_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    parameterName="IsGrounded", parameterType="bool")
+    parameterName="IsGrounded", parameterType="Bool")
 unity_animation2d_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    parameterName="Attack", parameterType="trigger")
+    parameterName="Attack", parameterType="Trigger")
 unity_animation2d_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    parameterName="Hurt", parameterType="trigger")
+    parameterName="Hurt", parameterType="Trigger")
 
 # トランジション: Hub → Idle (Speed < 0.1 & IsGrounded)
 unity_animation2d_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    sourceState="Hub", destinationState="Idle",
+    fromState="Hub", toState="Idle",
     conditions=[
-        {"parameter": "Speed", "mode": "less", "threshold": 0.1},
-        {"parameter": "IsGrounded", "mode": "true"}
+        {"parameter": "Speed", "mode": "Less", "threshold": 0.1},
+        {"parameter": "IsGrounded", "mode": "If"}
     ], hasExitTime=False)
 
 # Hub → Run (Speed >= 0.1 & IsGrounded)
 unity_animation2d_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    sourceState="Hub", destinationState="Run",
+    fromState="Hub", toState="Run",
     conditions=[
-        {"parameter": "Speed", "mode": "greater", "threshold": 0.1},
-        {"parameter": "IsGrounded", "mode": "true"}
+        {"parameter": "Speed", "mode": "Greater", "threshold": 0.1},
+        {"parameter": "IsGrounded", "mode": "If"}
     ], hasExitTime=False)
 
 # Hub → Jump (!IsGrounded)
 unity_animation2d_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    sourceState="Hub", destinationState="Jump",
+    fromState="Hub", toState="Jump",
     conditions=[
-        {"parameter": "IsGrounded", "mode": "false"}
+        {"parameter": "IsGrounded", "mode": "IfNot"}
     ], hasExitTime=False)
 
 # Any State → Attack (Attack trigger)
 unity_animation2d_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    sourceState="Any State", destinationState="Attack",
+    fromState="Any State", toState="Attack",
     conditions=[{"parameter": "Attack", "mode": "trigger"}],
     hasExitTime=False)
 
 # Attack → Hub (Exit Time で自動遷移)
 unity_animation2d_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    sourceState="Attack", destinationState="Hub",
+    fromState="Attack", toState="Hub",
     hasExitTime=True, exitTime=0.9)
 
 # Idle/Run → Hub (常時 Hub 経由で遷移するため)
 unity_animation2d_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
-    sourceState="Idle", destinationState="Hub",
+    fromState="Idle", toState="Hub",
     conditions=[
-        {"parameter": "Speed", "mode": "greater", "threshold": 0.1}
+        {"parameter": "Speed", "mode": "Greater", "threshold": 0.1}
     ], hasExitTime=False)
 ```
 
@@ -241,7 +241,7 @@ unity_animation2d_bundle(operation="addTransition",
 
 ```python
 # 3D キャラクターの移動 BlendTree
-unity_animation3d_bundle(operation="createBlendTree",
+unity_animation3d_bundle(operation="addBlendTree",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     blendTreeName="Locomotion",
     blendType="1D",
@@ -257,7 +257,7 @@ unity_animation2d_bundle(operation="createBlendTree",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     blendTreeName="Movement",
     blendType="2D",
-    blendParameterX="MoveX",
+    blendParameter="MoveX",
     blendParameterY="MoveY",
     motions=[
         {"clip": "Assets/Animations/Player/Clips/Walk_Down.anim",

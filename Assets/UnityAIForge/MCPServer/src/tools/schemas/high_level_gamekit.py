@@ -107,7 +107,6 @@ def gamekit_ui_schema() -> dict[str, Any]:
                         "properties": {
                             "name": {"type": "string"},
                             "label": {"type": "string"},
-                            "icon": {"type": "string"},
                             "commandType": {
                                 "type": "string",
                                 "enum": [
@@ -198,7 +197,7 @@ def gamekit_ui_schema() -> dict[str, Any]:
                 "layout": {
                     "type": "string",
                     "enum": ["horizontal", "vertical", "grid"],
-                    "description": "Layout type.",
+                    "description": "Layout direction for command/list/slot/selection widgets (default varies by widget).",
                 },
                 "columns": {
                     "type": "integer",
@@ -245,7 +244,7 @@ def gamekit_ui_schema() -> dict[str, Any]:
                             },
                             "associatedPanelPath": {
                                 "type": "string",
-                                "description": "GameObject path of associated panel for tab type.",
+                                "description": "GameObject path of associated panel (selection widget tab type only).",
                             },
                         },
                     },
@@ -262,7 +261,10 @@ def gamekit_ui_schema() -> dict[str, Any]:
                         "quantity": {"type": "integer"},
                         "enabled": {"type": "boolean"},
                         "defaultSelected": {"type": "boolean"},
-                        "associatedPanelPath": {"type": "string"},
+                        "associatedPanelPath": {
+                            "type": "string",
+                            "description": "Selection widget tab type only.",
+                        },
                     },
                     "description": "Item data for addItem operation.",
                 },

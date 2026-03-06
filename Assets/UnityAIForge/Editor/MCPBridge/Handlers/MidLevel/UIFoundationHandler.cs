@@ -2224,35 +2224,31 @@ namespace MCP.Editor.Handlers
         private object SetVisibility(Dictionary<string, object> payload, bool visible)
         {
             var targets = GetVisibilityTargetPaths(payload);
-            var useCanvasGroup = GetBool(payload, "useCanvasGroup", true);
             var results = new List<Dictionary<string, object>>();
 
             foreach (var targetPath in targets)
             {
                 var target = ResolveGameObject(targetPath);
 
-                if (useCanvasGroup)
+                // Ensure GameObject is active (visibility controlled via CanvasGroup only)
+                if (!target.activeSelf)
                 {
-                    var canvasGroup = target.GetComponent<CanvasGroup>();
-                    if (canvasGroup == null)
-                    {
-                        canvasGroup = Undo.AddComponent<CanvasGroup>(target);
-                    }
+                    Undo.RecordObject(target, "Activate for CanvasGroup");
+                    target.SetActive(true);
+                }
 
-                    Undo.RecordObject(canvasGroup, visible ? "Show UI" : "Hide UI");
-                    canvasGroup.alpha = visible ? 1f : 0f;
-                    canvasGroup.interactable = payload.ContainsKey("interactable")
-                        ? GetBool(payload, "interactable", true) : visible;
-                    canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
-                        ? GetBool(payload, "blocksRaycasts", true) : visible;
-                    if (payload.ContainsKey("ignoreParentGroups"))
-                        canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
-                }
-                else
-                {
-                    Undo.RecordObject(target, visible ? "Show UI" : "Hide UI");
-                    target.SetActive(visible);
-                }
+                var canvasGroup = target.GetComponent<CanvasGroup>();
+                if (canvasGroup == null)
+                    canvasGroup = Undo.AddComponent<CanvasGroup>(target);
+
+                Undo.RecordObject(canvasGroup, visible ? "Show UI" : "Hide UI");
+                canvasGroup.alpha = visible ? 1f : 0f;
+                canvasGroup.interactable = payload.ContainsKey("interactable")
+                    ? GetBool(payload, "interactable", true) : visible;
+                canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
+                    ? GetBool(payload, "blocksRaycasts", true) : visible;
+                if (payload.ContainsKey("ignoreParentGroups"))
+                    canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
 
                 results.Add(new Dictionary<string, object>
                 {
@@ -2273,42 +2269,39 @@ namespace MCP.Editor.Handlers
         private object ToggleVisibility(Dictionary<string, object> payload)
         {
             var targets = GetVisibilityTargetPaths(payload);
-            var useCanvasGroup = GetBool(payload, "useCanvasGroup", true);
             var results = new List<Dictionary<string, object>>();
 
             foreach (var targetPath in targets)
             {
                 var target = ResolveGameObject(targetPath);
-                bool newVisible;
 
-                if (useCanvasGroup)
+                // Ensure GameObject is active (visibility controlled via CanvasGroup only)
+                if (!target.activeSelf)
                 {
-                    var canvasGroup = target.GetComponent<CanvasGroup>();
-                    if (canvasGroup == null)
-                    {
-                        canvasGroup = Undo.AddComponent<CanvasGroup>(target);
-                        newVisible = false;
-                    }
-                    else
-                    {
-                        newVisible = canvasGroup.alpha < 0.5f;
-                    }
+                    Undo.RecordObject(target, "Activate for CanvasGroup");
+                    target.SetActive(true);
+                }
 
-                    Undo.RecordObject(canvasGroup, "Toggle UI Visibility");
-                    canvasGroup.alpha = newVisible ? 1f : 0f;
-                    canvasGroup.interactable = payload.ContainsKey("interactable")
-                        ? GetBool(payload, "interactable", true) : newVisible;
-                    canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
-                        ? GetBool(payload, "blocksRaycasts", true) : newVisible;
-                    if (payload.ContainsKey("ignoreParentGroups"))
-                        canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
+                var canvasGroup = target.GetComponent<CanvasGroup>();
+                bool newVisible;
+                if (canvasGroup == null)
+                {
+                    canvasGroup = Undo.AddComponent<CanvasGroup>(target);
+                    newVisible = false;
                 }
                 else
                 {
-                    newVisible = !target.activeSelf;
-                    Undo.RecordObject(target, "Toggle UI Visibility");
-                    target.SetActive(newVisible);
+                    newVisible = canvasGroup.alpha < 0.5f;
                 }
+
+                Undo.RecordObject(canvasGroup, "Toggle UI Visibility");
+                canvasGroup.alpha = newVisible ? 1f : 0f;
+                canvasGroup.interactable = payload.ContainsKey("interactable")
+                    ? GetBool(payload, "interactable", true) : newVisible;
+                canvasGroup.blocksRaycasts = payload.ContainsKey("blocksRaycasts")
+                    ? GetBool(payload, "blocksRaycasts", true) : newVisible;
+                if (payload.ContainsKey("ignoreParentGroups"))
+                    canvasGroup.ignoreParentGroups = GetBool(payload, "ignoreParentGroups", false);
 
                 results.Add(new Dictionary<string, object>
                 {

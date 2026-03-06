@@ -133,13 +133,14 @@ namespace MCP.Editor.Handlers.HighLevel
 
         private string BuildSelectionUSS(string layout, float spacing, string selectionType)
         {
-            var flexDirection = layout switch
+            var layoutLower = layout.ToLowerInvariant();
+            var flexDirection = layoutLower switch
             {
-                "Horizontal" => "row",
-                "Grid" => "row",
+                "horizontal" => "row",
+                "grid" => "row",
                 _ => "column"
             };
-            var flexWrap = layout == "Grid" ? "wrap" : "nowrap";
+            var flexWrap = layoutLower == "grid" ? "wrap" : "nowrap";
 
             var sb = new StringBuilder();
             sb.AppendLine(".selection-container {");
