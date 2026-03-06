@@ -73,7 +73,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_compilation_await",
-            description="Wait for Unity's script compilation to complete. Use this after creating or modifying C# scripts to ensure the code is compiled before using new types or components. Returns compilation status including any errors or warnings. Supports configurable timeout (default 60 seconds).",
+            description="Wait for Unity's script compilation to complete. Use this after creating or modifying C# scripts to ensure the code is compiled before using new types or components. Returns compilation status including any errors or warnings. Supports configurable timeout (default 60 seconds). Auto-reconnects if bridge is disconnected during compilation (no need for separate ping/sleep).",
             inputSchema=compilation_await_schema(),
         ),
         batch_sequential_tool,  # Sequential batch execution with resume capability
@@ -213,7 +213,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, Slider with fill/handle, Toggle with checkmark/label, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(

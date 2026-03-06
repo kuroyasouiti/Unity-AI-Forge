@@ -345,8 +345,15 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                             if (iterator.objectReferenceValue == null)
                                 continue;
 
+                            // Skip nested paths inside UnityEvents (m_PersistentCalls) and
+                            // collection elements (Array.data[]) — comparing the root field type
+                            // against a nested element produces false positives.
+                            var path = iterator.propertyPath;
+                            if (path.Contains(".m_PersistentCalls.") || path.Contains(".Array.data["))
+                                continue;
+
                             // Extract root field name from propertyPath
-                            var rootFieldName = iterator.propertyPath.Split('.')[0];
+                            var rootFieldName = path.Split('.')[0];
                             var fieldInfo = componentType.GetField(rootFieldName,
                                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 

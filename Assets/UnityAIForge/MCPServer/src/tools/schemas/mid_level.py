@@ -349,6 +349,8 @@ def ui_foundation_schema() -> dict[str, Any]:
                         "createText",
                         "createImage",
                         "createInputField",
+                        "createSlider",
+                        "createToggle",
                         "createScrollView",
                         "addLayoutGroup",
                         "createFromTemplate",
@@ -415,6 +417,32 @@ def ui_foundation_schema() -> dict[str, Any]:
                 "placeholder": {
                     "type": "string",
                     "description": "Placeholder text for InputField.",
+                },
+                # Slider parameters
+                "minValue": {
+                    "type": "number",
+                    "description": "Slider minimum value (default: 0).",
+                },
+                "maxValue": {
+                    "type": "number",
+                    "description": "Slider maximum value (default: 1).",
+                },
+                "value": {
+                    "type": "number",
+                    "description": "Slider initial value (default: 0).",
+                },
+                "wholeNumbers": {
+                    "type": "boolean",
+                    "description": "Restrict slider to whole numbers (default: false).",
+                },
+                # Toggle parameters
+                "isOn": {
+                    "type": "boolean",
+                    "description": "Toggle initial state (default: true).",
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Label text for Toggle.",
                 },
                 # ScrollView parameters
                 "horizontal": {
@@ -881,7 +909,6 @@ def tilemap_bundle_schema() -> dict[str, Any]:
         },
         ["operation"],
     )
-
 
 
 def ui_state_schema() -> dict[str, Any]:

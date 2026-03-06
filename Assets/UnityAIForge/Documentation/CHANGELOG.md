@@ -5,6 +5,26 @@ Unity-AI-Forgeのすべての注目すべき変更はこのファイルに記録
 このフォーマットは[Keep a Changelog](https://keepachangelog.com/ja/1.0.0/)に基づいており、
 このプロジェクトは[Semantic Versioning](https://semver.org/lang/ja/)に準拠しています。
 
+## [2.18.0] - 2026-03-07
+
+### 追加
+
+- **`unity_ui_foundation` に createSlider / createToggle 操作を追加**
+  - `createSlider`: Background / Fill Area / Fill / Handle Slide Area / Handle の完全な階層を自動生成。minValue / maxValue / value / wholeNumbers / color パラメータ対応
+  - `createToggle`: Background / Checkmark / Label（TMP対応）の階層を自動生成。isOn / label / color パラメータ対応
+
+### 改善
+
+- **`unity_compilation_await` 自動再接続**: ブリッジ切断時に最大15秒間リコネクトをポーリングし、外部C#編集によるドメインリロード後も安定動作
+- **`unity_component_crud` inspect のコレクション展開**: SerializeValue で IList を再帰展開（深度2まで）、UnityEngine.Object を `$ref` パス付きで返却、Vector2Int / Vector3Int 対応
+- **`unity_validate_integrity` typeMismatch 誤検出修正**: UnityEvent 内部パス（`.m_PersistentCalls.`）およびコレクション要素パス（`.Array.data[`）をスキップし、誤検出を排除
+- **UI 作成時のオーバーフロー警告**: `unity_ui_foundation` の全 create 操作後に LayoutGroup のオーバーフローを自動検出し、警告を付加
+
+### ドキュメント
+
+- `system_instructions.md`: createSlider / createToggle の使用例を追加
+- `tool_definitions.py`: compilation_await と ui_foundation の説明文を更新
+
 ## [2.17.0] - 2026-03-06
 
 ### 修正

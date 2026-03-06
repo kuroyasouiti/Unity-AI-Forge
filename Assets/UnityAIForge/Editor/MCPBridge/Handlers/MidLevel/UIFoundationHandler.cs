@@ -25,6 +25,8 @@ namespace MCP.Editor.Handlers
             "createText",
             "createImage",
             "createInputField",
+            "createSlider",
+            "createToggle",
             "createScrollView",
             "addLayoutGroup",
             "createFromTemplate",
@@ -43,7 +45,7 @@ namespace MCP.Editor.Handlers
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
-            return operation switch
+            var result = operation switch
             {
                 "createCanvas" => CreateCanvas(payload),
                 "createPanel" => CreatePanel(payload),
@@ -51,6 +53,8 @@ namespace MCP.Editor.Handlers
                 "createText" => CreateText(payload),
                 "createImage" => CreateImage(payload),
                 "createInputField" => CreateInputField(payload),
+                "createSlider" => CreateSlider(payload),
+                "createToggle" => CreateToggle(payload),
                 "createScrollView" => CreateScrollView(payload),
                 "addLayoutGroup" => AddLayoutGroup(payload),
                 "createFromTemplate" => CreateFromTemplate(payload),
@@ -61,6 +65,16 @@ namespace MCP.Editor.Handlers
                 "toggle" => ToggleVisibility(payload),
                 _ => throw new InvalidOperationException($"Unsupported UI foundation operation: {operation}"),
             };
+
+            // Post-process: check for layout overflow on create operations
+            if (operation.StartsWith("create") && operation != "createCanvas" &&
+                result is Dictionary<string, object> dict && dict.TryGetValue("path", out var pathObj))
+            {
+                var go = GameObject.Find(pathObj as string);
+                if (go != null) AddOverflowWarning(dict, go);
+            }
+
+            return result;
         }
 
         #region Create Canvas
@@ -515,6 +529,205 @@ namespace MCP.Editor.Handlers
 
             EditorSceneManager.MarkSceneDirty(inputGo.scene);
             return CreateSuccessResponse(("path", BuildGameObjectPath(inputGo)));
+        }
+
+        #endregion
+
+        #region Create Slider
+
+        private object CreateSlider(Dictionary<string, object> payload)
+        {
+            var name = GetString(payload, "name") ?? "Slider";
+            var parentPath = GetString(payload, "parentPath");
+
+            if (string.IsNullOrEmpty(parentPath))
+                throw new InvalidOperationException("parentPath is required for createSlider.");
+
+            var parent = ResolveGameObject(parentPath);
+
+            // Create main slider object
+            var sliderGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(sliderGo, "Create Slider");
+            sliderGo.transform.SetParent(parent.transform, false);
+
+            var sliderRect = sliderGo.GetComponent<RectTransform>();
+            var isStretch = ApplyAnchorPreset(sliderRect, payload);
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 160f);
+                var height = GetFloat(payload, "height", 20f);
+                sliderRect.sizeDelta = new Vector2(width, height);
+            }
+
+            var slider = Undo.AddComponent<Slider>(sliderGo);
+
+            // Background
+            var bgGo = new GameObject("Background", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(bgGo, "Create Slider Background");
+            bgGo.transform.SetParent(sliderGo.transform, false);
+            var bgRect = bgGo.GetComponent<RectTransform>();
+            bgRect.anchorMin = new Vector2(0, 0.25f);
+            bgRect.anchorMax = new Vector2(1, 0.75f);
+            bgRect.sizeDelta = Vector2.zero;
+            var bgImage = Undo.AddComponent<Image>(bgGo);
+            bgImage.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+
+            // Fill Area
+            var fillAreaGo = new GameObject("Fill Area", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(fillAreaGo, "Create Slider Fill Area");
+            fillAreaGo.transform.SetParent(sliderGo.transform, false);
+            var fillAreaRect = fillAreaGo.GetComponent<RectTransform>();
+            fillAreaRect.anchorMin = new Vector2(0, 0.25f);
+            fillAreaRect.anchorMax = new Vector2(1, 0.75f);
+            fillAreaRect.offsetMin = new Vector2(5, 0);
+            fillAreaRect.offsetMax = new Vector2(-15, 0);
+
+            var fillGo = new GameObject("Fill", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(fillGo, "Create Slider Fill");
+            fillGo.transform.SetParent(fillAreaGo.transform, false);
+            var fillRect = fillGo.GetComponent<RectTransform>();
+            fillRect.sizeDelta = new Vector2(10, 0);
+            var fillImage = Undo.AddComponent<Image>(fillGo);
+            fillImage.color = new Color(0.3f, 0.6f, 1f, 1f);
+
+            // Handle Slide Area
+            var handleAreaGo = new GameObject("Handle Slide Area", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(handleAreaGo, "Create Slider Handle Area");
+            handleAreaGo.transform.SetParent(sliderGo.transform, false);
+            var handleAreaRect = handleAreaGo.GetComponent<RectTransform>();
+            handleAreaRect.anchorMin = Vector2.zero;
+            handleAreaRect.anchorMax = Vector2.one;
+            handleAreaRect.offsetMin = new Vector2(10, 0);
+            handleAreaRect.offsetMax = new Vector2(-10, 0);
+
+            var handleGo = new GameObject("Handle", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(handleGo, "Create Slider Handle");
+            handleGo.transform.SetParent(handleAreaGo.transform, false);
+            var handleRect = handleGo.GetComponent<RectTransform>();
+            handleRect.sizeDelta = new Vector2(20, 0);
+            var handleImage = Undo.AddComponent<Image>(handleGo);
+            handleImage.color = Color.white;
+
+            // Wire slider references
+            slider.fillRect = fillRect;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            slider.minValue = GetFloat(payload, "minValue", 0f);
+            slider.maxValue = GetFloat(payload, "maxValue", 1f);
+            slider.value = GetFloat(payload, "value", 0f);
+            slider.wholeNumbers = GetBool(payload, "wholeNumbers", false);
+
+            // Apply color to fill if specified
+            if (payload.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
+                fillImage.color = GetColorFromDict(colorDict, fillImage.color);
+
+            EditorSceneManager.MarkSceneDirty(sliderGo.scene);
+            return CreateSuccessResponse(("path", BuildGameObjectPath(sliderGo)));
+        }
+
+        #endregion
+
+        #region Create Toggle
+
+        private object CreateToggle(Dictionary<string, object> payload)
+        {
+            var name = GetString(payload, "name") ?? "Toggle";
+            var parentPath = GetString(payload, "parentPath");
+
+            if (string.IsNullOrEmpty(parentPath))
+                throw new InvalidOperationException("parentPath is required for createToggle.");
+
+            var parent = ResolveGameObject(parentPath);
+
+            var toggleGo = new GameObject(name, typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(toggleGo, "Create Toggle");
+            toggleGo.transform.SetParent(parent.transform, false);
+
+            var toggleRect = toggleGo.GetComponent<RectTransform>();
+            var isStretch = ApplyAnchorPreset(toggleRect, payload);
+            if (!isStretch)
+            {
+                var width = GetFloat(payload, "width", 160f);
+                var height = GetFloat(payload, "height", 20f);
+                toggleRect.sizeDelta = new Vector2(width, height);
+            }
+
+            var toggle = Undo.AddComponent<Toggle>(toggleGo);
+
+            // Background (checkbox area)
+            var bgGo = new GameObject("Background", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(bgGo, "Create Toggle Background");
+            bgGo.transform.SetParent(toggleGo.transform, false);
+            var bgRect = bgGo.GetComponent<RectTransform>();
+            bgRect.anchorMin = new Vector2(0, 0);
+            bgRect.anchorMax = new Vector2(0, 1);
+            bgRect.sizeDelta = new Vector2(20, 0);
+            bgRect.anchoredPosition = new Vector2(10, 0);
+            var bgImage = Undo.AddComponent<Image>(bgGo);
+            bgImage.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+
+            // Checkmark
+            var checkGo = new GameObject("Checkmark", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(checkGo, "Create Toggle Checkmark");
+            checkGo.transform.SetParent(bgGo.transform, false);
+            var checkRect = checkGo.GetComponent<RectTransform>();
+            checkRect.anchorMin = new Vector2(0.1f, 0.1f);
+            checkRect.anchorMax = new Vector2(0.9f, 0.9f);
+            checkRect.sizeDelta = Vector2.zero;
+            var checkImage = Undo.AddComponent<Image>(checkGo);
+            checkImage.color = new Color(0.3f, 0.8f, 0.3f, 1f);
+
+            // Label
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            Undo.RegisterCreatedObjectUndo(labelGo, "Create Toggle Label");
+            labelGo.transform.SetParent(toggleGo.transform, false);
+            var labelRect = labelGo.GetComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0, 0);
+            labelRect.anchorMax = new Vector2(1, 1);
+            labelRect.offsetMin = new Vector2(25, 0);
+            labelRect.offsetMax = Vector2.zero;
+
+            var labelPayload = new Dictionary<string, object>
+            {
+                { "text", GetString(payload, "label") ?? GetString(payload, "text") ?? "Toggle" },
+                { "fontSize", GetInt(payload, "fontSize", 14) },
+                { "color", new Dictionary<string, object> { { "r", 1 }, { "g", 1 }, { "b", 1 }, { "a", 1 } } }
+            };
+            if (TryAddTextMeshPro(labelGo, labelPayload))
+            {
+                // TMP added — set left alignment
+                var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+                if (tmpType != null)
+                {
+                    var tmp = labelGo.GetComponent(tmpType);
+                    var alignProp = tmpType.GetProperty("alignment");
+                    if (tmp != null && alignProp != null)
+                    {
+                        var alignType = Type.GetType("TMPro.TextAlignmentOptions, Unity.TextMeshPro");
+                        if (alignType != null)
+                            alignProp.SetValue(tmp, Enum.Parse(alignType, "MidlineLeft"));
+                    }
+                }
+            }
+            else
+            {
+                var labelText = Undo.AddComponent<Text>(labelGo);
+                labelText.text = GetString(payload, "label") ?? GetString(payload, "text") ?? "Toggle";
+                labelText.fontSize = GetInt(payload, "fontSize", 14);
+                labelText.alignment = TextAnchor.MiddleLeft;
+                labelText.color = Color.white;
+            }
+
+            // Wire toggle references
+            toggle.targetGraphic = bgImage;
+            toggle.graphic = checkImage;
+            toggle.isOn = GetBool(payload, "isOn", true);
+
+            if (payload.TryGetValue("color", out var colorObj) && colorObj is Dictionary<string, object> colorDict)
+                bgImage.color = GetColorFromDict(colorDict, bgImage.color);
+
+            EditorSceneManager.MarkSceneDirty(toggleGo.scene);
+            return CreateSuccessResponse(("path", BuildGameObjectPath(toggleGo)));
         }
 
         #endregion
@@ -1888,6 +2101,66 @@ namespace MCP.Editor.Handlers
                 default:
                     throw new InvalidOperationException(
                         $"Unknown anchorPreset: '{preset}'. Use 'topLeft', 'topCenter', 'topRight', 'middleLeft', 'middleCenter', 'middleRight', 'bottomLeft', 'bottomCenter', 'bottomRight', or 'stretchAll'.");
+            }
+        }
+
+        /// <summary>
+        /// Checks if adding a child to a parent with a LayoutGroup causes overflow.
+        /// Returns a warning string or null.
+        /// </summary>
+        private string CheckLayoutOverflow(GameObject child)
+        {
+            if (child == null || child.transform.parent == null) return null;
+
+            var parentGo = child.transform.parent.gameObject;
+            var parentRect = parentGo.GetComponent<RectTransform>();
+            if (parentRect == null) return null;
+
+            var layoutGroup = parentGo.GetComponent<LayoutGroup>();
+            if (layoutGroup == null) return null;
+
+            // Force layout rebuild to get accurate sizes
+            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRect);
+
+            float available, required;
+
+            if (layoutGroup is HorizontalLayoutGroup)
+            {
+                available = parentRect.rect.width;
+                required = LayoutUtility.GetPreferredWidth(parentRect);
+            }
+            else if (layoutGroup is VerticalLayoutGroup)
+            {
+                available = parentRect.rect.height;
+                required = LayoutUtility.GetPreferredHeight(parentRect);
+            }
+            else
+            {
+                return null; // Grid layouts auto-wrap
+            }
+
+            if (required > available && available > 0)
+            {
+                var axis = layoutGroup is HorizontalLayoutGroup ? "width" : "height";
+                return $"Layout overflow: {parentGo.name} content {axis} ({required:F0}px) exceeds container ({available:F0}px). " +
+                       $"Consider increasing the container size or adding a ScrollView.";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Adds overflow warning to response if applicable.
+        /// </summary>
+        private void AddOverflowWarning(Dictionary<string, object> response, GameObject child)
+        {
+            var warning = CheckLayoutOverflow(child);
+            if (warning != null)
+            {
+                if (response.TryGetValue("warning", out var existing))
+                    response["warning"] = existing + "\n" + warning;
+                else
+                    response["warning"] = warning;
             }
         }
 

@@ -115,7 +115,9 @@ def register_tools(server: Server) -> None:
 
                     if not bridge_manager.is_connected():
                         is_compiling = True
-                        logger.info("Bridge disconnected during polling - assuming compilation started")
+                        logger.info(
+                            "Bridge disconnected during polling - assuming compilation started"
+                        )
                         break
 
                     try:

@@ -102,6 +102,12 @@ class BridgeManager:
         is temporarily disconnected (which is common during Unity domain reload).
         It will wait for reconnection and the bridge:restarted message.
 
+        If the bridge is disconnected and no compilation is in progress, this method
+        will wait up to ``reconnect_timeout`` seconds for the bridge to reconnect
+        before giving up.  This handles the common case where an external C# file
+        edit triggers recompilation and disconnects the bridge before the
+        ``compilation:started`` message arrives.
+
         Args:
             timeout_seconds: Maximum time to wait in seconds (default: 60, increased from 30)
 
@@ -130,10 +136,19 @@ class BridgeManager:
             During compilation, Unity may disconnect the bridge due to domain reload.
             This is expected behavior and this method will wait for reconnection.
         """
-        # If we're not connected and not in a compilation state (e.g. disconnected
-        # during domain reload), there's nothing to wait for — fail immediately.
+        # If disconnected and not in a known compilation state, wait briefly for
+        # the bridge to reconnect (BridgeConnector auto-reconnects).  This covers
+        # the case where an external file edit triggers Unity recompilation and
+        # the bridge drops before we receive ``compilation:started``.
         if not self.is_connected() and not self._is_compiling:
-            raise RuntimeError("Unity bridge is not connected")
+            reconnect_timeout = min(15, timeout_seconds)
+            logger.info(
+                "Bridge disconnected (not compiling) – waiting up to %ds for reconnection",
+                reconnect_timeout,
+            )
+            reconnected = await self._wait_for_reconnection(reconnect_timeout)
+            if not reconnected and not self._is_compiling:
+                raise RuntimeError("Unity bridge is not connected")
 
         # If connected or disconnected during active compilation, proceed to wait.
         # During domain reload Unity disconnects temporarily and reconnects with
@@ -351,12 +366,15 @@ class BridgeManager:
                                     f"Compilation did not complete within {w.timeout_seconds} seconds."
                                 )
                             )
+
                     return on_timeout
 
                 waiter.timeout_handle = loop.call_later(
                     waiter.timeout_seconds, make_timeout_callback(waiter)
                 )
-                logger.debug("Reset compilation timeout for waiter (timeout=%ds)", waiter.timeout_seconds)
+                logger.debug(
+                    "Reset compilation timeout for waiter (timeout=%ds)", waiter.timeout_seconds
+                )
 
     def _handle_compilation_complete(self, message: dict[str, Any]) -> None:
         """Handle compilation:complete message from Unity bridge."""
@@ -494,6 +512,21 @@ class BridgeManager:
             if not pending.future.done():
                 pending.future.set_exception(error)
             self._pending_commands.pop(command_id, None)
+
+    async def _wait_for_reconnection(self, timeout: float) -> bool:
+        """Poll ``is_connected`` until the bridge reconnects or *timeout* elapses."""
+        interval = 0.5
+        elapsed = 0.0
+        while elapsed < timeout:
+            await asyncio.sleep(interval)
+            elapsed += interval
+            if self.is_connected():
+                logger.info("Bridge reconnected after %.1fs", elapsed)
+                return True
+            if self._is_compiling:
+                logger.info("Compilation detected during reconnect wait (%.1fs)", elapsed)
+                return True
+        return False
 
     def _ensure_socket(self) -> ClientConnection:
         socket = self._socket

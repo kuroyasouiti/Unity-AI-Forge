@@ -787,7 +787,7 @@ namespace MCP.Editor.Handlers
         /// <summary>
         /// Serializes a value to a JSON-compatible type.
         /// </summary>
-        private object SerializeValue(object value)
+        private object SerializeValue(object value, int depth = 0)
         {
             if (value == null)
                 return null;
@@ -798,11 +798,42 @@ namespace MCP.Editor.Handlers
             if (value is Vector2 v2)
                 return new { x = v2.x, y = v2.y };
 
+            if (value is Vector2Int v2i)
+                return new { x = v2i.x, y = v2i.y };
+
+            if (value is Vector3Int v3i)
+                return new { x = v3i.x, y = v3i.y, z = v3i.z };
+
             if (value is Color color)
                 return new { r = color.r, g = color.g, b = color.b, a = color.a };
 
             if (value is Quaternion quat)
                 return new { x = quat.x, y = quat.y, z = quat.z, w = quat.w };
+
+            if (value is UnityEngine.Object uobj)
+            {
+                if (uobj == null) return null;
+                var assetPath = UnityEditor.AssetDatabase.GetAssetPath(uobj);
+                if (!string.IsNullOrEmpty(assetPath))
+                    return new Dictionary<string, object> { ["$ref"] = assetPath, ["name"] = uobj.name };
+                return uobj.name;
+            }
+
+            // Expand collections (List<T>, arrays) up to a reasonable depth
+            if (depth < 2 && value is System.Collections.IList list)
+            {
+                var result = new List<object>(list.Count);
+                for (int i = 0; i < list.Count; i++)
+                    result.Add(SerializeValue(list[i], depth + 1));
+                return result;
+            }
+
+            var t = value.GetType();
+            if (t.IsPrimitive || value is string || value is decimal)
+                return value;
+
+            if (t.IsEnum)
+                return value.ToString();
 
             return value.ToString();
         }

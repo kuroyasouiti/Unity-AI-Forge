@@ -239,6 +239,8 @@ unity_ui_foundation(operation='createPanel', name='Overlay', parentPath='GameUI'
 unity_ui_foundation(operation='createPanel', name='Menu', parentPath='Canvas', layoutType='Vertical', spacing=20)
 unity_ui_foundation(operation='createText', name='Title', parentPath='Canvas/Menu', text='Game', fontSize=32)
 unity_ui_foundation(operation='createButton', name='StartBtn', parentPath='Canvas/Menu', text='Start')
+unity_ui_foundation(operation='createSlider', name='VolumeSlider', parentPath='Canvas/Menu', minValue=0, maxValue=1, value=0.5)
+unity_ui_foundation(operation='createToggle', name='MuteToggle', parentPath='Canvas/Menu', label='Mute', isOn=False)
 
 # 表示切替 (show/hide/toggle)
 unity_ui_foundation(operation='show', targetPath='Canvas/Menu')
