@@ -172,7 +172,7 @@ unity_asset_crud(operation='create',
 
 企画書が完成したら、以下の順序で進みます:
 
-1. **設計フェーズ** (`game_workflow_guide(phase='design')`) - デザインパターン選定・UML設計
+1. **設計フェーズ** (`game_workflow_guide(phase='design')`) - デザインパターン選定・技術設計
 2. **プロジェクト初期設定** (`game_workflow_guide(phase='project_setup')`) - タグ・レイヤー・フォルダ構造
 3. **プロトタイプ** (`game_workflow_guide(phase='prototype')`) - コアループの動作検証
 

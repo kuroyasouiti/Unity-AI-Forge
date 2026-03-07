@@ -1,18 +1,17 @@
 # 設計 ワークフローガイド (Unity-AI-Forge v{VERSION})
 
-デザインパターン選定とUML設計。企画書の要件を技術設計に落とし込み、クラス構造・状態遷移・シーケンスを明確にするためのガイドです。
+デザインパターン選定ガイド。企画書の要件を技術設計に落とし込み、クラス構造・状態遷移・通信フローを明確にします。
 
 ---
 
 ## 概要
 
-設計フェーズの目的は「どう作るか」を技術的に明確にすることです。企画書で定義したメカニクス・シーン構成をもとに、適切なデザインパターンを選定し、UML図でクラス構造・状態遷移・通信フローを設計します。ここでの設計がプロトタイプ以降のコード品質を決定します。
+設計フェーズの目的は「どう作るか」を技術的に明確にすることです。企画書で定義したメカニクス・シーン構成をもとに、適切なデザインパターンを選定し、クラス構造・状態遷移・通信フローを設計します。ここでの設計がプロトタイプ以降のコード品質を決定します。
 
 **設計フェーズの原則:**
 - 企画書のメカニクス一覧をもとにパターンを選定する
 - Unity の特性（コンポーネント指向・SerializeField・ScriptableObject）を活かす
 - 過度な抽象化を避け、必要最小限の設計にとどめる
-- Mermaid 形式で UML を書き、プロジェクト内に保存する
 - `class_dependency_graph` の概念を事前設計に反映する
 
 ---
@@ -198,32 +197,6 @@ void OnDamageDealt(ActionResult result)
 }
 ```
 
-**UML 上の表記:**
-
-```mermaid
-classDiagram
-    class ActionResult {
-        <<data>>
-        +ActionType type
-        +int value
-        +bool isCritical
-        +bool targetDefeated
-    }
-    class CombatCalculator {
-        <<proto>>
-        +Execute(cmd) ActionResult
-    }
-    class BattlePresenter {
-        <<beta>>
-        +Present(ActionResult)
-        -PlayAnimation()
-        -PlayVFX()
-        -ShowDamageNumber()
-    }
-    CombatCalculator ..> ActionResult : produces
-    BattlePresenter ..> ActionResult : consumes
-```
-
 **適するジャンル:**
 - ターン制RPG・SRPG（離散的なアクション → 演出キュー）
 - カードゲーム（カード効果解決 → 演出キュー）
@@ -303,31 +276,6 @@ StageSelect Scene                    Battle Scene
 ※ シーン単体テスト可能（SO をモックとしてセット可能）
 ```
 
-**UML 上の表記**: シーン間共有の Model は `<<shared>>` ステレオタイプを付与し、
-DataContainer か カスタム SO かを明記する。
-
-```mermaid
-classDiagram
-    class SelectedStageData {
-        <<shared>>
-        <<DataContainer>>
-        +int stageId
-        +string difficulty
-    }
-    class PlayerProgress {
-        <<shared>>
-        <<ScriptableObject>>
-        +int level
-        +int experience
-        +List~string~ unlockedStages
-        +AddExperience(int)
-        +IsStageUnlocked(string) bool
-    }
-    StageSelector --> SelectedStageData : writes
-    BattleManager --> SelectedStageData : reads
-    GameManager --> PlayerProgress : reads/writes
-```
-
 **注意点**:
 - DataContainer は `resetOnPlay=False` でシーン遷移後もデータを保持する
 - ロジック（メソッド）が必要なモデルは DataContainer ではなくカスタム SO にする
@@ -335,189 +283,31 @@ classDiagram
 
 ---
 
-## Mermaid UML 設計ガイド
-
-設計書はMermaid形式で記述し、プロジェクト内に保存します。
-
-### クラス図
-
-```mermaid
-classDiagram
-    class GameManager {
-        +static Instance
-        +GameState currentState
-        +StartGame()
-        +PauseGame()
-        +GameOver()
-    }
-    class PlayerController {
-        -float moveSpeed
-        -int currentHP
-        +Move(Vector2)
-        +Jump()
-        +TakeDamage(int)
-    }
-    class EnemyController {
-        -EnemyData data
-        -EnemyState state
-        +Chase(Transform)
-        +Attack()
-        +TakeDamage(int)
-    }
-    class EnemyData {
-        <<ScriptableObject>>
-        +string enemyName
-        +int maxHP
-        +float moveSpeed
-    }
-
-    GameManager --> PlayerController : manages
-    GameManager --> EnemyController : manages
-    EnemyController --> EnemyData : references
-```
-
-### ステート図
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Running : Move Input
-    Running --> Idle : Stop Input
-    Idle --> Jumping : Jump Input
-    Running --> Jumping : Jump Input
-    Jumping --> Idle : Land
-    Idle --> Attacking : Attack Input
-    Running --> Attacking : Attack Input
-    Attacking --> Idle : Animation End
-    Idle --> Hurt : Take Damage
-    Running --> Hurt : Take Damage
-    Hurt --> Idle : Recovery
-    Hurt --> Dead : HP <= 0
-    Dead --> [*]
-```
-
-### シーケンス図
-
-```mermaid
-sequenceDiagram
-    participant Player
-    participant GameManager
-    participant Enemy
-    participant UI
-
-    Player->>Enemy: Attack (collision)
-    Enemy->>Enemy: TakeDamage(10)
-    Enemy->>GameManager: OnEnemyDefeated(enemy)
-    GameManager->>GameManager: AddScore(100)
-    GameManager->>UI: OnScoreChanged(score)
-    UI->>UI: UpdateScoreText()
-```
-
-### コンポーネント図
-
-```mermaid
-graph TB
-    subgraph Boot Scene
-        BootManager
-    end
-    subgraph Managers Scene
-        GameManager
-        AudioManager
-        SaveManager
-    end
-    subgraph GameHUD Scene
-        HUDCanvas
-    end
-    subgraph Level Scene
-        PlayerController
-        EnemySpawner
-        LevelManager
-    end
-
-    BootManager -->|Load Additive| GameManager
-    BootManager -->|Load| LevelManager
-    LevelManager -->|Load Additive| HUDCanvas
-    PlayerController -->|event| GameManager
-    GameManager -->|event| HUDCanvas
-    GameManager -->|Save| SaveManager
-    GameManager -->|Play BGM| AudioManager
-```
-
----
-
 ## フェーズ別実装マッピング
 
-UML設計は最終形を描くだけでなく、**どのフェーズで何を実装するか**を事前に決めることが重要です。企画書のマイルストーン定義（`game_workflow_guide(phase='planning')`）と対応させて、クラスや状態に実装フェーズを割り当てます。
+設計は最終形を描くだけでなく、**どのフェーズで何を実装するか**を事前に決めることが重要です。企画書のマイルストーン定義（`game_workflow_guide(phase='planning')`）と対応させて、クラスや状態に実装フェーズを割り当てます。
 
 ### マッピングの原則
 
-| フェーズ | 実装する範囲 | UML上のマーク |
-|---------|------------|-------------|
+| フェーズ | 実装する範囲 | マーク |
+|---------|------------|--------|
 | **プロトタイプ** | コアループに必要な最小クラス・状態のみ | `<<proto>>` |
 | **アルファ** | ゲームロジック完成に必要なクラス・SO・イベント | `<<alpha>>` |
 | **ベータ** | 演出・Presentation層のクラス | `<<beta>>` |
 
-### フェーズ注釈付きクラス図の例
+### フェーズ割り当ての例
 
-```mermaid
-classDiagram
-    class GameManager {
-        <<alpha>>
-        +static Instance
-        +GameState currentState
-        +StartGame()
-        +PauseGame()
-        +GameOver()
-    }
-    class PlayerController {
-        <<proto>>
-        -float moveSpeed
-        -int currentHP
-        +Move(Vector2)
-        +Jump()
-        +TakeDamage(int)
-    }
-    class EnemyController {
-        <<proto>>
-        -EnemyState state
-        +Chase(Transform)
-        +Attack()
-    }
-    class EnemyData {
-        <<alpha>>
-        <<ScriptableObject>>
-        +string enemyName
-        +int maxHP
-        +float moveSpeed
-    }
-
-    GameManager --> PlayerController : manages
-    GameManager --> EnemyController : manages
-    EnemyController --> EnemyData : references
 ```
-
-### フェーズ注釈付きステート図の例
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle : <<proto>>
-    Idle --> Running : Move Input <<proto>>
-    Running --> Idle : Stop Input <<proto>>
-    Idle --> Jumping : Jump Input <<proto>>
-    Jumping --> Idle : Land <<proto>>
-    Idle --> Attacking : Attack Input <<alpha>>
-    Attacking --> Idle : Animation End <<alpha>>
-    Idle --> Hurt : Take Damage <<alpha>>
-    Hurt --> Idle : Recovery <<alpha>>
-    Hurt --> Dead : HP <= 0 <<alpha>>
-    Dead --> [*]
+<<proto>> PlayerController, EnemyController（最小限の移動・攻撃）
+<<alpha>> GameManager, EnemyData(SO), スコア・HP管理、状態遷移の完成
+<<beta>>  BattlePresenter, VFX・SFX演出、カメラ演出
 ```
 
 ### マッピング手順
 
-1. **クラス図の全クラスに `<<proto>>` / `<<alpha>>` / `<<beta>>` を付与**する
-2. **ステート図の遷移にフェーズを注釈**する（プロトタイプでは最小限の遷移のみ実装）
-3. **シーケンス図でプロトタイプ範囲を明示**する（ハードコード値で動かす部分 vs SO化する部分）
+1. **全クラスに `<<proto>>` / `<<alpha>>` / `<<beta>>` を割り当て**る
+2. **状態遷移のフェーズ範囲を決める**（プロトタイプでは最小限の遷移のみ実装）
+3. **プロトタイプ範囲を明示**する（ハードコード値で動かす部分 vs SO化する部分）
 4. **企画書のマイルストーン検証基準と照合**する
 
 ### 注意点
@@ -531,22 +321,24 @@ stateDiagram-v2
 ## 設計ドキュメントの保存
 
 ```python
-# クラス図を含む設計ドキュメントを保存
+# 設計ドキュメントを保存
 unity_asset_crud(operation='create',
-    assetPath='Assets/Documents/ClassDiagram.md',
-    content='''# クラス設計
+    assetPath='Assets/Documents/Design.md',
+    content='''# 設計書
 
-## クラス図
-```mermaid
-classDiagram
-    ...
-```
+## デザインパターン
+- Singleton: GameManager, AudioManager
+- State Machine: PlayerController, EnemyAI
+- Observer: HP変化→UI更新、スコア→HUD
 
-## 状態遷移図
-```mermaid
-stateDiagram-v2
-    ...
-```
+## フェーズ別実装マッピング
+- <<proto>> PlayerController, EnemyController
+- <<alpha>> GameManager, EnemyData(SO), イベント通知
+- <<beta>> BattlePresenter, VFX/SFX演出
+
+## シーン間共有データ
+- SelectedStageData (DataContainer): ステージ選択→バトル
+- PlayerProgress (カスタムSO): レベル・経験値
 ''')
 ```
 
@@ -583,16 +375,9 @@ stateDiagram-v2
 - [ ] 各共有データに DataContainer / カスタムSO / EventChannel のパターンを割り当てた
 - [ ] static クラスによるグローバル状態がないことを確認した
 
-### UML図
-- [ ] クラス図を作成した（主要クラスとその関係）
-- [ ] シーン間共有モデルに `<<shared>>` ステレオタイプを付与した
-- [ ] ステート図を作成した（プレイヤー/敵/ゲーム状態）
-- [ ] シーケンス図を作成した（主要なインタラクション）
-- [ ] コンポーネント図を作成した（シーン間関係）
-
 ### フェーズ別実装マッピング
-- [ ] 全クラスに `<<proto>>` / `<<alpha>>` / `<<beta>>` のフェーズ注釈を付与した
-- [ ] ステート図の遷移にプロトタイプ範囲を明示した
+- [ ] 全クラスに `<<proto>>` / `<<alpha>>` / `<<beta>>` のフェーズを割り当てた
+- [ ] 状態遷移のプロトタイプ範囲を決定した
 - [ ] 企画書のマイルストーン検証基準と照合した
 
 ### パッケージ
