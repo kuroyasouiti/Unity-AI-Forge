@@ -356,6 +356,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                         "createFromTemplate",
                         "inspect",
                         "inspectTree",
+                        "extractDesignContext",
                         "show",
                         "hide",
                         "toggle",
@@ -367,7 +368,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                 },
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path for addLayoutGroup/show/hide/toggle/inspect/inspectTree operations.",
+                    "description": "Target GameObject path for addLayoutGroup/show/hide/toggle/inspect/inspectTree/extractDesignContext operations.",
                 },
                 "name": {"type": "string", "description": "UI element name."},
                 "renderMode": {
@@ -672,7 +673,11 @@ def ui_foundation_schema() -> dict[str, Any]:
                 },
                 "maxDepth": {
                     "type": "integer",
-                    "description": "Maximum depth for inspectTree (default: 10).",
+                    "description": "Maximum depth for inspectTree (default: 10) / extractDesignContext (default: 20).",
+                },
+                "includeInactive": {
+                    "type": "boolean",
+                    "description": "Include inactive GameObjects in extractDesignContext (default: false).",
                 },
             },
         },
@@ -1500,6 +1505,7 @@ def ui_convert_schema() -> dict[str, Any]:
                         "toUITK",
                         "toUGUI",
                         "extractStyles",
+                        "extractTokens",
                     ],
                     "description": (
                         "UI conversion operation.\n"
@@ -1507,7 +1513,10 @@ def ui_convert_schema() -> dict[str, Any]:
                         "element mapping, warnings, and unsupported elements\n"
                         "- toUITK: Convert UGUI Canvas hierarchy to UXML + USS files\n"
                         "- toUGUI: Convert UXML file to UGUI Canvas hierarchy in scene\n"
-                        "- extractStyles: Extract styles from UGUI Canvas hierarchy to USS file only"
+                        "- extractStyles: Extract styles from UGUI Canvas hierarchy to USS file only\n"
+                        "- extractTokens: Scan UGUI hierarchy and extract deduplicated design tokens "
+                        "(color palette, font sizes, font families, spacing, element sizes) "
+                        "with usage counts and near-duplicate detection"
                     ),
                 },
                 "sourceType": {

@@ -198,6 +198,7 @@ namespace MCP.Editor.Tests
             Assert.Contains("touchTargetAudit", ops);
             Assert.Contains("eventSystemAudit", ops);
             Assert.Contains("textOverflowAudit", ops);
+            Assert.Contains("styleConsistencyAudit", ops);
         }
 
         [Test]
@@ -232,6 +233,13 @@ namespace MCP.Editor.Tests
             Assert.IsTrue(summary.ContainsKey("touchTargetIssues"), "Summary should contain 'touchTargetIssues'");
             Assert.IsTrue(summary.ContainsKey("eventSystemIssues"), "Summary should contain 'eventSystemIssues'");
             Assert.IsTrue(summary.ContainsKey("textOverflowIssues"), "Summary should contain 'textOverflowIssues'");
+        }
+
+        [Test]
+        public void StyleConsistencyAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("styleConsistencyAudit"));
+            TestUtilities.AssertSuccess(result);
         }
     }
 }

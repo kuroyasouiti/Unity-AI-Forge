@@ -32,6 +32,7 @@ namespace MCP.Editor.Handlers
             "createFromTemplate",
             "inspect",
             "inspectTree",
+            "extractDesignContext",
             "show",
             "hide",
             "toggle",
@@ -60,6 +61,7 @@ namespace MCP.Editor.Handlers
                 "createFromTemplate" => CreateFromTemplate(payload),
                 "inspect" => InspectUI(payload),
                 "inspectTree" => InspectTree(payload),
+                "extractDesignContext" => ExtractDesignContext(payload),
                 "show" => SetVisibility(payload, true),
                 "hide" => SetVisibility(payload, false),
                 "toggle" => ToggleVisibility(payload),
@@ -2631,6 +2633,364 @@ namespace MCP.Editor.Handlers
                 ["b"] = (float)System.Math.Round(c.b, 4),
                 ["a"] = (float)System.Math.Round(c.a, 4)
             };
+        }
+
+        #endregion
+
+        #region Extract Design Context
+
+        private object ExtractDesignContext(Dictionary<string, object> payload)
+        {
+            var targetPath = GetString(payload, "targetPath");
+            if (string.IsNullOrEmpty(targetPath))
+                throw new InvalidOperationException("targetPath is required for extractDesignContext operation.");
+
+            var target = ResolveGameObject(targetPath);
+            var maxDepth = GetInt(payload, "maxDepth", 20);
+            var includeInactive = GetBool(payload, "includeInactive", false);
+
+            var elementsByType = new Dictionary<string, int>();
+            int totalElements = 0;
+            int maxDepthReached = 0;
+
+            var structure = ExtractDesignContextElement(target, maxDepth, 0, includeInactive,
+                elementsByType, ref totalElements, ref maxDepthReached);
+
+            // Build summary
+            var summary = new Dictionary<string, object>
+            {
+                ["totalElements"] = totalElements,
+                ["elementsByType"] = elementsByType,
+                ["maxDepthReached"] = maxDepthReached,
+                ["hasEventSystem"] = UnityEngine.Object.FindObjectOfType<EventSystem>() != null
+            };
+
+            // Canvas settings if root has Canvas
+            var canvas = target.GetComponent<Canvas>();
+            if (canvas == null)
+                canvas = target.GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                var canvasSettings = new Dictionary<string, object>
+                {
+                    ["renderMode"] = canvas.renderMode.ToString()
+                };
+                var scaler = canvas.GetComponent<CanvasScaler>();
+                if (scaler != null)
+                {
+                    canvasSettings["scalerMode"] = scaler.uiScaleMode.ToString();
+                    canvasSettings["referenceResolution"] = new Dictionary<string, object>
+                    {
+                        ["x"] = scaler.referenceResolution.x,
+                        ["y"] = scaler.referenceResolution.y
+                    };
+                }
+                summary["canvasSettings"] = canvasSettings;
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["summary"] = summary,
+                ["structure"] = structure
+            };
+        }
+
+        private Dictionary<string, object> ExtractDesignContextElement(
+            GameObject go, int maxDepth, int currentDepth, bool includeInactive,
+            Dictionary<string, int> elementsByType, ref int totalElements, ref int maxDepthReached)
+        {
+            totalElements++;
+            if (currentDepth > maxDepthReached) maxDepthReached = currentDepth;
+
+            var result = new Dictionary<string, object>
+            {
+                ["name"] = go.name,
+                ["path"] = BuildGameObjectPath(go),
+                ["active"] = go.activeSelf
+            };
+
+            // Determine type
+            string elementType = DetectElementType(go);
+            result["type"] = elementType;
+            elementsByType[elementType] = elementsByType.TryGetValue(elementType, out var count) ? count + 1 : 1;
+
+            // RectTransform
+            var rect = go.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                result["rectTransform"] = new Dictionary<string, object>
+                {
+                    ["anchoredPosition"] = new Dictionary<string, object> { ["x"] = rect.anchoredPosition.x, ["y"] = rect.anchoredPosition.y },
+                    ["sizeDelta"] = new Dictionary<string, object> { ["x"] = rect.sizeDelta.x, ["y"] = rect.sizeDelta.y },
+                    ["anchorMin"] = new Dictionary<string, object> { ["x"] = rect.anchorMin.x, ["y"] = rect.anchorMin.y },
+                    ["anchorMax"] = new Dictionary<string, object> { ["x"] = rect.anchorMax.x, ["y"] = rect.anchorMax.y },
+                    ["pivot"] = new Dictionary<string, object> { ["x"] = rect.pivot.x, ["y"] = rect.pivot.y }
+                };
+            }
+
+            // Layout (full info)
+            ExtractLayoutInfo(go, result);
+
+            // Typography
+            ExtractTypographyInfo(go, result);
+
+            // Visual (Image)
+            ExtractVisualInfo(go, result);
+
+            // Interaction (Selectable/Button)
+            ExtractInteractionInfo(go, result);
+
+            // CanvasGroup
+            var canvasGroup = go.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                result["canvasGroup"] = new Dictionary<string, object>
+                {
+                    ["alpha"] = canvasGroup.alpha,
+                    ["interactable"] = canvasGroup.interactable,
+                    ["blocksRaycasts"] = canvasGroup.blocksRaycasts,
+                    ["ignoreParentGroups"] = canvasGroup.ignoreParentGroups
+                };
+            }
+
+            // Mask
+            if (go.GetComponent<Mask>() != null)
+                result["mask"] = "Mask";
+            else if (go.GetComponent<RectMask2D>() != null)
+                result["mask"] = "RectMask2D";
+
+            // Children
+            if (currentDepth < maxDepth)
+            {
+                var children = new List<Dictionary<string, object>>();
+                for (int i = 0; i < go.transform.childCount; i++)
+                {
+                    var child = go.transform.GetChild(i).gameObject;
+                    if (!includeInactive && !child.activeSelf) continue;
+                    children.Add(ExtractDesignContextElement(child, maxDepth, currentDepth + 1,
+                        includeInactive, elementsByType, ref totalElements, ref maxDepthReached));
+                }
+                if (children.Count > 0)
+                    result["children"] = children;
+            }
+
+            return result;
+        }
+
+        private static string DetectElementType(GameObject go)
+        {
+            if (go.GetComponent<Button>() != null) return "button";
+            if (go.GetComponent<InputField>() != null) return "inputField";
+            if (go.GetComponent<Toggle>() != null) return "toggle";
+            if (go.GetComponent<Slider>() != null) return "slider";
+            if (go.GetComponent<Dropdown>() != null) return "dropdown";
+            if (go.GetComponent<ScrollRect>() != null) return "scrollView";
+            if (go.GetComponent<Canvas>() != null) return "canvas";
+
+            // Text / TMP
+            if (go.GetComponent<Text>() != null) return "text";
+            var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+            if (tmpType != null && go.GetComponent(tmpType) != null) return "text";
+
+            // RawImage before Image (Image is more common as background)
+            var rawImgType = typeof(UnityEngine.UI.RawImage);
+            if (go.GetComponent(rawImgType) != null) return "rawImage";
+            if (go.GetComponent<Image>() != null) return "panel";
+
+            return "container";
+        }
+
+        private static void ExtractLayoutInfo(GameObject go, Dictionary<string, object> result)
+        {
+            var hLayout = go.GetComponent<HorizontalLayoutGroup>();
+            var vLayout = go.GetComponent<VerticalLayoutGroup>();
+            var gridLayout = go.GetComponent<GridLayoutGroup>();
+
+            if (hLayout != null)
+            {
+                result["layout"] = new Dictionary<string, object>
+                {
+                    ["type"] = "Horizontal",
+                    ["spacing"] = hLayout.spacing,
+                    ["padding"] = PaddingToDict(hLayout.padding),
+                    ["childAlignment"] = hLayout.childAlignment.ToString(),
+                    ["childControlWidth"] = hLayout.childControlWidth,
+                    ["childControlHeight"] = hLayout.childControlHeight,
+                    ["childForceExpandWidth"] = hLayout.childForceExpandWidth,
+                    ["childForceExpandHeight"] = hLayout.childForceExpandHeight
+                };
+            }
+            else if (vLayout != null)
+            {
+                result["layout"] = new Dictionary<string, object>
+                {
+                    ["type"] = "Vertical",
+                    ["spacing"] = vLayout.spacing,
+                    ["padding"] = PaddingToDict(vLayout.padding),
+                    ["childAlignment"] = vLayout.childAlignment.ToString(),
+                    ["childControlWidth"] = vLayout.childControlWidth,
+                    ["childControlHeight"] = vLayout.childControlHeight,
+                    ["childForceExpandWidth"] = vLayout.childForceExpandWidth,
+                    ["childForceExpandHeight"] = vLayout.childForceExpandHeight
+                };
+            }
+            else if (gridLayout != null)
+            {
+                result["layout"] = new Dictionary<string, object>
+                {
+                    ["type"] = "Grid",
+                    ["spacing"] = new Dictionary<string, object> { ["x"] = gridLayout.spacing.x, ["y"] = gridLayout.spacing.y },
+                    ["padding"] = PaddingToDict(gridLayout.padding),
+                    ["childAlignment"] = gridLayout.childAlignment.ToString(),
+                    ["cellSize"] = new Dictionary<string, object> { ["x"] = gridLayout.cellSize.x, ["y"] = gridLayout.cellSize.y },
+                    ["constraint"] = gridLayout.constraint.ToString(),
+                    ["constraintCount"] = gridLayout.constraintCount,
+                    ["startCorner"] = gridLayout.startCorner.ToString(),
+                    ["startAxis"] = gridLayout.startAxis.ToString()
+                };
+            }
+        }
+
+        private static Dictionary<string, object> PaddingToDict(RectOffset padding)
+        {
+            return new Dictionary<string, object>
+            {
+                ["left"] = padding.left,
+                ["right"] = padding.right,
+                ["top"] = padding.top,
+                ["bottom"] = padding.bottom
+            };
+        }
+
+        private static void ExtractTypographyInfo(GameObject go, Dictionary<string, object> result)
+        {
+            var text = go.GetComponent<Text>();
+            if (text != null)
+            {
+                var typo = new Dictionary<string, object>
+                {
+                    ["fontSize"] = text.fontSize,
+                    ["fontStyle"] = text.fontStyle.ToString(),
+                    ["fontColor"] = ColorToDict(text.color),
+                    ["alignment"] = text.alignment.ToString(),
+                    ["lineSpacing"] = text.lineSpacing,
+                    ["richText"] = text.supportRichText,
+                    ["overflowMode"] = text.horizontalOverflow.ToString()
+                };
+                if (text.font != null)
+                    typo["fontFamily"] = text.font.name;
+                result["typography"] = typo;
+                return;
+            }
+
+            // TMP via reflection
+            var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+            if (tmpType == null) return;
+            var tmp = go.GetComponent(tmpType);
+            if (tmp == null) return;
+
+            var typoDict = new Dictionary<string, object>();
+
+            var fontSizeProp = tmpType.GetProperty("fontSize");
+            if (fontSizeProp != null) typoDict["fontSize"] = fontSizeProp.GetValue(tmp);
+
+            var fontStyleProp = tmpType.GetProperty("fontStyle");
+            if (fontStyleProp != null) typoDict["fontStyle"] = fontStyleProp.GetValue(tmp).ToString();
+
+            var colorProp = tmpType.GetProperty("color");
+            if (colorProp != null) typoDict["fontColor"] = ColorToDict((Color)colorProp.GetValue(tmp));
+
+            var alignProp = tmpType.GetProperty("alignment");
+            if (alignProp != null) typoDict["alignment"] = alignProp.GetValue(tmp).ToString();
+
+            var lineSpacingProp = tmpType.GetProperty("lineSpacing");
+            if (lineSpacingProp != null) typoDict["lineSpacing"] = lineSpacingProp.GetValue(tmp);
+
+            var richTextProp = tmpType.GetProperty("richText");
+            if (richTextProp != null) typoDict["richText"] = richTextProp.GetValue(tmp);
+
+            var overflowProp = tmpType.GetProperty("overflowMode");
+            if (overflowProp != null) typoDict["overflowMode"] = overflowProp.GetValue(tmp).ToString();
+
+            var fontProp = tmpType.GetProperty("font");
+            if (fontProp != null)
+            {
+                var font = fontProp.GetValue(tmp);
+                if (font != null)
+                {
+                    var fontNameProp = font.GetType().GetProperty("name");
+                    if (fontNameProp != null) typoDict["fontFamily"] = fontNameProp.GetValue(font);
+                }
+            }
+
+            if (typoDict.Count > 0)
+                result["typography"] = typoDict;
+        }
+
+        private static void ExtractVisualInfo(GameObject go, Dictionary<string, object> result)
+        {
+            var image = go.GetComponent<Image>();
+            if (image != null)
+            {
+                var visual = new Dictionary<string, object>
+                {
+                    ["backgroundColor"] = ColorToDict(image.color),
+                    ["imageType"] = image.type.ToString(),
+                    ["raycastTarget"] = image.raycastTarget
+                };
+                if (image.sprite != null)
+                    visual["backgroundSprite"] = AssetDatabase.GetAssetPath(image.sprite);
+                if (image.material != null && image.material != image.defaultMaterial)
+                    visual["material"] = image.material.name;
+                result["visual"] = visual;
+                return;
+            }
+
+            var rawImgType = typeof(UnityEngine.UI.RawImage);
+            var rawImg = go.GetComponent(rawImgType) as RawImage;
+            if (rawImg != null)
+            {
+                var visual = new Dictionary<string, object>
+                {
+                    ["backgroundColor"] = ColorToDict(rawImg.color),
+                    ["imageType"] = "RawImage",
+                    ["raycastTarget"] = rawImg.raycastTarget
+                };
+                if (rawImg.texture != null)
+                    visual["texture"] = AssetDatabase.GetAssetPath(rawImg.texture);
+                result["visual"] = visual;
+            }
+        }
+
+        private static void ExtractInteractionInfo(GameObject go, Dictionary<string, object> result)
+        {
+            var selectable = go.GetComponent<Selectable>();
+            if (selectable == null) return;
+
+            var interaction = new Dictionary<string, object>
+            {
+                ["interactable"] = selectable.interactable,
+                ["navigationMode"] = selectable.navigation.mode.ToString(),
+                ["transitionType"] = selectable.transition.ToString()
+            };
+
+            if (selectable.transition == Selectable.Transition.ColorTint)
+            {
+                var cb = selectable.colors;
+                interaction["colorBlock"] = new Dictionary<string, object>
+                {
+                    ["normal"] = ColorToDict(cb.normalColor),
+                    ["highlighted"] = ColorToDict(cb.highlightedColor),
+                    ["pressed"] = ColorToDict(cb.pressedColor),
+                    ["selected"] = ColorToDict(cb.selectedColor),
+                    ["disabled"] = ColorToDict(cb.disabledColor),
+                    ["colorMultiplier"] = cb.colorMultiplier,
+                    ["fadeDuration"] = cb.fadeDuration
+                };
+            }
+
+            result["interaction"] = interaction;
         }
 
         #endregion

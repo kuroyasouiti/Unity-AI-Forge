@@ -1574,5 +1574,258 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             }
             return issues;
         }
+
+        /// <summary>
+        /// Find cross-element design consistency issues in the UI hierarchy.
+        /// Inspired by Figma MCP's design system rules concept.
+        /// </summary>
+        public List<IntegrityIssue> FindStyleConsistencyIssues(string rootPath = null)
+        {
+            var gameObjects = GetTargetGameObjects(rootPath);
+            var issues = new List<IntegrityIssue>();
+
+            // Collect data for cross-element analysis
+            var buttonNormalColors = new Dictionary<Color, List<string>>();
+            var fontSizes = new Dictionary<int, List<string>>();
+            var spacingValues = new HashSet<float>();
+            var siblingAnchorGroups = new Dictionary<Transform, List<(GameObject go, string anchorPattern)>>();
+
+            foreach (var go in gameObjects)
+            {
+                var path = GetGameObjectPath(go);
+
+                // 1. Button color variation
+                var button = go.GetComponent<Button>();
+                if (button != null && button.transition == Selectable.Transition.ColorTint)
+                {
+                    var normalColor = button.colors.normalColor;
+                    // Round to avoid floating point noise
+                    var key = new Color(
+                        Mathf.Round(normalColor.r * 100f) / 100f,
+                        Mathf.Round(normalColor.g * 100f) / 100f,
+                        Mathf.Round(normalColor.b * 100f) / 100f,
+                        Mathf.Round(normalColor.a * 100f) / 100f);
+                    if (!buttonNormalColors.ContainsKey(key))
+                        buttonNormalColors[key] = new List<string>();
+                    buttonNormalColors[key].Add(path);
+                }
+
+                // 2. Font size collection
+                var text = go.GetComponent<Text>();
+                if (text != null)
+                {
+                    if (!fontSizes.ContainsKey(text.fontSize))
+                        fontSizes[text.fontSize] = new List<string>();
+                    fontSizes[text.fontSize].Add(path);
+                }
+                else
+                {
+                    var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+                    if (tmpType != null)
+                    {
+                        var tmp = go.GetComponent(tmpType);
+                        if (tmp != null)
+                        {
+                            var fsProp = tmpType.GetProperty("fontSize");
+                            if (fsProp != null)
+                            {
+                                int fs = (int)Math.Round(Convert.ToSingle(fsProp.GetValue(tmp)));
+                                if (!fontSizes.ContainsKey(fs))
+                                    fontSizes[fs] = new List<string>();
+                                fontSizes[fs].Add(path);
+                            }
+                        }
+                    }
+                }
+
+                // 3. Spacing values
+                var hLayout = go.GetComponent<HorizontalLayoutGroup>();
+                if (hLayout != null) spacingValues.Add(hLayout.spacing);
+                var vLayout = go.GetComponent<VerticalLayoutGroup>();
+                if (vLayout != null) spacingValues.Add(vLayout.spacing);
+                var gridLayout = go.GetComponent<GridLayoutGroup>();
+                if (gridLayout != null)
+                {
+                    spacingValues.Add(gridLayout.spacing.x);
+                    spacingValues.Add(gridLayout.spacing.y);
+                }
+
+                // 4. No-op CanvasGroup
+                var cg = go.GetComponent<CanvasGroup>();
+                if (cg != null && Math.Abs(cg.alpha - 1f) < 0.001f &&
+                    cg.interactable && cg.blocksRaycasts && !cg.ignoreParentGroups)
+                {
+                    issues.Add(new IntegrityIssue
+                    {
+                        Type = "noOpCanvasGroup",
+                        Severity = "info",
+                        GameObjectPath = path,
+                        ComponentType = "CanvasGroup",
+                        Message = "CanvasGroup has default values (alpha=1, interactable=true, blocksRaycasts=true) and has no effect",
+                        Suggestion = "Remove the CanvasGroup if it's not needed, or adjust its properties"
+                    });
+                }
+
+                // 5. Missing interaction feedback
+                var selectable = go.GetComponent<Selectable>();
+                if (selectable != null && selectable.transition == Selectable.Transition.None)
+                {
+                    issues.Add(new IntegrityIssue
+                    {
+                        Type = "missingInteractionFeedback",
+                        Severity = "warning",
+                        GameObjectPath = path,
+                        ComponentType = selectable.GetType().Name,
+                        Message = "Interactive element has Transition.None — no visual feedback on hover/press",
+                        Suggestion = "Set transition to ColorTint, SpriteSwap, or Animation for better UX"
+                    });
+                }
+
+                // 6. Unnecessary raycast target
+                var image = go.GetComponent<Image>();
+                if (image != null && image.raycastTarget && selectable == null)
+                {
+                    // Check if parent has ScrollRect (valid use case for raycast blocking)
+                    bool hasScrollParent = false;
+                    var parent = go.transform.parent;
+                    while (parent != null)
+                    {
+                        if (parent.GetComponent<ScrollRect>() != null) { hasScrollParent = true; break; }
+                        parent = parent.parent;
+                    }
+                    if (!hasScrollParent)
+                    {
+                        issues.Add(new IntegrityIssue
+                        {
+                            Type = "unnecessaryRaycastTarget",
+                            Severity = "info",
+                            GameObjectPath = path,
+                            ComponentType = "Image",
+                            Message = "Image has raycastTarget=true but no Selectable component — may waste raycast processing",
+                            Suggestion = "Set raycastTarget to false if this Image doesn't need to receive input events"
+                        });
+                    }
+                }
+
+                // 7. Collect sibling anchor patterns (for inconsistency check below)
+                var rect = go.GetComponent<RectTransform>();
+                if (rect != null && go.transform.parent != null)
+                {
+                    var parentTransform = go.transform.parent;
+                    // Only check if parent has no LayoutGroup (layout groups control positioning)
+                    if (parentTransform.GetComponent<HorizontalLayoutGroup>() == null &&
+                        parentTransform.GetComponent<VerticalLayoutGroup>() == null &&
+                        parentTransform.GetComponent<GridLayoutGroup>() == null)
+                    {
+                        string anchorPattern = ClassifyAnchorPattern(rect);
+                        if (!siblingAnchorGroups.ContainsKey(parentTransform))
+                            siblingAnchorGroups[parentTransform] = new List<(GameObject, string)>();
+                        siblingAnchorGroups[parentTransform].Add((go, anchorPattern));
+                    }
+                }
+            }
+
+            // Cross-element checks
+
+            // 1. Excessive button color variation
+            if (buttonNormalColors.Count > 3)
+            {
+                var colorList = new List<string>();
+                foreach (var kvp in buttonNormalColors)
+                    colorList.Add($"#{(int)(kvp.Key.r * 255):X2}{(int)(kvp.Key.g * 255):X2}{(int)(kvp.Key.b * 255):X2} ({kvp.Value.Count} buttons)");
+
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "excessiveButtonColorVariation",
+                    Severity = "warning",
+                    GameObjectPath = rootPath ?? "(scene-wide)",
+                    Message = $"Found {buttonNormalColors.Count} distinct button normal colors: {string.Join(", ", colorList)}",
+                    Suggestion = "Standardize button colors to 2-3 variants (primary, secondary, danger) for design consistency"
+                });
+            }
+
+            // 2. Font size scale violation
+            if (fontSizes.Count > 2)
+            {
+                var sortedSizes = new List<int>(fontSizes.Keys);
+                sortedSizes.Sort();
+                for (int i = 0; i < sortedSizes.Count - 2; i++)
+                {
+                    float ratio1 = (float)sortedSizes[i + 1] / sortedSizes[i];
+                    float ratio2 = (float)sortedSizes[i + 2] / sortedSizes[i + 1];
+                    if (ratio1 > 0 && ratio2 > 0 && Math.Abs(ratio1 - ratio2) / ratio1 > 0.5f)
+                    {
+                        issues.Add(new IntegrityIssue
+                        {
+                            Type = "fontSizeScaleViolation",
+                            Severity = "info",
+                            GameObjectPath = rootPath ?? "(scene-wide)",
+                            Message = $"Font sizes [{sortedSizes[i]}, {sortedSizes[i + 1]}, {sortedSizes[i + 2]}] do not follow a consistent scale ratio",
+                            Suggestion = "Consider using a modular type scale (e.g., 1.25x ratio: 12, 15, 19, 24, 30)"
+                        });
+                        break;
+                    }
+                }
+            }
+
+            // 3. Spacing inconsistency
+            var nonZeroSpacings = new List<float>();
+            foreach (var s in spacingValues)
+                if (s > 0) nonZeroSpacings.Add(s);
+            if (nonZeroSpacings.Count > 4)
+            {
+                nonZeroSpacings.Sort();
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "spacingInconsistency",
+                    Severity = "warning",
+                    GameObjectPath = rootPath ?? "(scene-wide)",
+                    Message = $"Found {nonZeroSpacings.Count} distinct spacing values: {string.Join(", ", nonZeroSpacings)}",
+                    Suggestion = "Standardize spacing to a consistent scale (e.g., 4, 8, 12, 16, 24)"
+                });
+            }
+
+            // 7. Inconsistent anchor patterns among siblings
+            foreach (var kvp in siblingAnchorGroups)
+            {
+                var siblings = kvp.Value;
+                if (siblings.Count < 2) continue;
+
+                var patterns = new HashSet<string>();
+                foreach (var (go, pattern) in siblings)
+                    patterns.Add(pattern);
+
+                if (patterns.Count > 2)
+                {
+                    var parentPath = GetGameObjectPath(kvp.Key.gameObject);
+                    issues.Add(new IntegrityIssue
+                    {
+                        Type = "inconsistentSiblingAnchors",
+                        Severity = "info",
+                        GameObjectPath = parentPath,
+                        Message = $"Children use {patterns.Count} different anchor patterns: {string.Join(", ", patterns)}",
+                        Suggestion = "Consider using consistent anchor patterns for siblings, or add a LayoutGroup for automatic arrangement"
+                    });
+                }
+            }
+
+            return issues;
+        }
+
+        private static string ClassifyAnchorPattern(RectTransform rect)
+        {
+            bool stretchH = Math.Abs(rect.anchorMin.x - rect.anchorMax.x) > 0.01f;
+            bool stretchV = Math.Abs(rect.anchorMin.y - rect.anchorMax.y) > 0.01f;
+            if (stretchH && stretchV) return "stretchAll";
+            if (stretchH) return "stretchHorizontal";
+            if (stretchV) return "stretchVertical";
+
+            // Point anchor — classify by position
+            float x = rect.anchorMin.x;
+            float y = rect.anchorMin.y;
+            string h = x < 0.33f ? "left" : x > 0.67f ? "right" : "center";
+            string v = y < 0.33f ? "bottom" : y > 0.67f ? "top" : "middle";
+            return $"{v}{char.ToUpper(h[0])}{h.Substring(1)}";
+        }
     }
 }

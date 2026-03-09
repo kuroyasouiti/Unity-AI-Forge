@@ -39,6 +39,7 @@ namespace MCP.Editor.Tests
             Assert.Contains("createImage", ops);
             Assert.Contains("inspect", ops);
             Assert.Contains("inspectTree", ops);
+            Assert.Contains("extractDesignContext", ops);
             Assert.Contains("show", ops);
             Assert.Contains("hide", ops);
             Assert.Contains("toggle", ops);
@@ -101,6 +102,40 @@ namespace MCP.Editor.Tests
             Assert.IsNotNull(cg, "CanvasGroup should be added");
             Assert.AreEqual(0.8f, cg.alpha, 0.01f);
             Assert.IsTrue(cg.ignoreParentGroups);
+        }
+
+        [Test]
+        public void ExtractDesignContext_MissingTargetPath_ReturnsError()
+        {
+            TestUtilities.AssertError(_handler.Execute(
+                TestUtilities.CreatePayload("extractDesignContext")));
+        }
+
+        [Test]
+        public void ExtractDesignContext_WithCanvas_ReturnsStructure()
+        {
+            _handler.Execute(TestUtilities.CreatePayload("createCanvas", ("name", "EDCCanvas")));
+            var canvas = GameObject.Find("EDCCanvas");
+            if (canvas != null) _tracker.Track(canvas);
+
+            _handler.Execute(TestUtilities.CreatePayload("createButton",
+                ("name", "EDCButton"),
+                ("parentPath", "EDCCanvas"),
+                ("text", "Test")));
+
+            var result = _handler.Execute(TestUtilities.CreatePayload("extractDesignContext",
+                ("targetPath", "EDCCanvas")));
+            TestUtilities.AssertSuccess(result);
+
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.IsTrue(dict.ContainsKey("summary"));
+            Assert.IsTrue(dict.ContainsKey("structure"));
+
+            var summary = dict["summary"] as Dictionary<string, object>;
+            Assert.IsNotNull(summary);
+            Assert.IsTrue((int)summary["totalElements"] >= 2);
+            Assert.IsTrue(summary.ContainsKey("elementsByType"));
         }
 
     }

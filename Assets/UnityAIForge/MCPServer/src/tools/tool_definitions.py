@@ -214,7 +214,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, Slider with fill/handle, Toggle with checkmark/label, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, Slider with fill/handle, Toggle with checkmark/label, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. extractDesignContext exports comprehensive UI hierarchy with typography (fontFamily, fontSize, fontStyle, alignment, lineSpacing, overflowMode), visual properties (backgroundColor, sprite, imageType, material), interaction states (navigationMode, transitionType, colorBlock with all 5 states), and a summary (totalElements, elementsByType, canvasSettings) — designed for AI design-to-code workflows. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(
@@ -331,7 +331,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- toUGUI: Convert UXML file to UGUI Canvas hierarchy in scene. Parses UXML + referenced USS, creates "
                 "Canvas with mapped UGUI elements (Button, Text, Image, Slider, ScrollRect, etc.).\n"
                 "- extractStyles: Extract styles from UGUI Canvas hierarchy to a standalone USS file without conversion. "
-                "Useful for creating a USS baseline from existing UGUI styling.\n\n"
+                "Useful for creating a USS baseline from existing UGUI styling.\n"
+                "- extractTokens: Scan UGUI hierarchy and extract deduplicated design tokens — color palette, font sizes, "
+                "font families, spacing values, element sizes — with usage counts and near-duplicate detection. "
+                "Returns a consolidated design system inventory, not per-element styles.\n\n"
                 "**Recommended workflow:** analyze → review report → toUITK/toUGUI → manual adjustments.\n\n"
                 "**sourceType (for analyze):** ugui (Canvas→UITK) or uitk (UXML→UGUI).\n"
                 "**Limitations:** UnityEvent callbacks, Animator-driven UI, and custom components require manual migration."
@@ -529,7 +532,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- nullAssetAudit: Detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets\n"
                 "- touchTargetAudit: Detect interactive UI elements (Button, Toggle, Slider) smaller than 44x44 minimum touch target size\n"
                 "- eventSystemAudit: Detect scenes with Canvas/UIDocument but no EventSystem, or duplicate EventSystems\n"
-                "- textOverflowAudit: Detect Text/TextMeshPro elements where content exceeds RectTransform bounds\n\n"
+                "- textOverflowAudit: Detect Text/TextMeshPro elements where content exceeds RectTransform bounds\n"
+                "- styleConsistencyAudit: Detect cross-element design consistency issues (button color variation, "
+                "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
+                "unnecessary raycast targets, inconsistent sibling anchor patterns)\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
                 "Returns a flat issue list with type, severity (error/warning), gameObjectPath, message, and optional suggestion. "
