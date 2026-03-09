@@ -25,14 +25,13 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void SupportedOperations_Contains5Ops()
+        public void SupportedOperations_Contains4Ops()
         {
             var ops = _handler.SupportedOperations.ToList();
-            Assert.AreEqual(5, ops.Count);
+            Assert.AreEqual(4, ops.Count);
             Assert.Contains("create", ops);
-            Assert.Contains("update", ops);
+            Assert.Contains("createMultiple", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("delete", ops);
             Assert.Contains("find", ops);
         }
 
@@ -82,11 +81,20 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void EventChannel_UnsupportedOp_ReturnsError()
+        public void EventChannel_Create_WithAutoCreateAsset_SetsFlag()
         {
-            var result = Execute(_handler, "update",
-                ("dataType", "eventChannel"));
-            AssertError(result, "not supported");
+            var result = Execute(_handler, "create",
+                ("dataType", "eventChannel"),
+                ("dataId", "AutoAssetEvent"),
+                ("eventType", "void"),
+                ("assetPath", "Assets/Data/AutoAssetEvent.asset"),
+                ("autoCreateAsset", true));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.IsTrue(dict.ContainsKey("autoCreateAsset"));
+            Assert.AreEqual(true, dict["autoCreateAsset"]);
+            TrackScriptPath(dict["channelScriptPath"]?.ToString());
         }
 
         #endregion
@@ -131,6 +139,209 @@ namespace MCP.Editor.Tests
             Assert.IsNotNull(dict);
             Assert.IsTrue(dict.ContainsKey("scriptPath"));
             TrackScriptPath(dict["scriptPath"]?.ToString());
+        }
+
+        [Test]
+        public void DataContainer_Create_WithAutoCreateAsset_SetsFlag()
+        {
+            var result = Execute(_handler, "create",
+                ("dataType", "dataContainer"),
+                ("dataId", "AutoContainerStats"),
+                ("fields", new List<object>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["name"] = "hp",
+                        ["fieldType"] = "int",
+                        ["defaultValue"] = 50
+                    }
+                }),
+                ("assetPath", "Assets/Data/AutoContainerStats.asset"),
+                ("autoCreateAsset", true));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.AreEqual(true, dict["autoCreateAsset"]);
+            TrackScriptPath(dict["scriptPath"]?.ToString());
+        }
+
+        #endregion
+
+        #region RuntimeSet
+
+        [Test]
+        public void RuntimeSet_Create_WithAutoCreateAsset_SetsFlag()
+        {
+            var result = Execute(_handler, "create",
+                ("dataType", "runtimeSet"),
+                ("dataId", "AutoSetEnemies"),
+                ("elementType", "GameObject"),
+                ("assetPath", "Assets/Data/AutoSetEnemies.asset"),
+                ("autoCreateAsset", true));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.AreEqual(true, dict["autoCreateAsset"]);
+            TrackScriptPath(dict["scriptPath"]?.ToString());
+        }
+
+        #endregion
+
+        #region CreateMultiple
+
+        [Test]
+        public void CreateMultiple_MissingDataType_ReturnsError()
+        {
+            var result = Execute(_handler, "createMultiple");
+            AssertError(result, "dataType");
+        }
+
+        [Test]
+        public void CreateMultiple_MissingItems_ReturnsError()
+        {
+            var result = Execute(_handler, "createMultiple",
+                ("dataType", "eventChannel"));
+            AssertError(result, "items");
+        }
+
+        [Test]
+        public void CreateMultiple_EmptyItems_ReturnsError()
+        {
+            var result = Execute(_handler, "createMultiple",
+                ("dataType", "eventChannel"),
+                ("items", new List<object>()));
+            AssertError(result, "items");
+        }
+
+        [Test]
+        public void CreateMultiple_EventChannels_CreatesAll()
+        {
+            var items = new List<object>
+            {
+                new Dictionary<string, object>
+                {
+                    ["dataId"] = "MultiEvent1",
+                    ["eventType"] = "void"
+                },
+                new Dictionary<string, object>
+                {
+                    ["dataId"] = "MultiEvent2",
+                    ["eventType"] = "int"
+                }
+            };
+            var result = Execute(_handler, "createMultiple",
+                ("dataType", "eventChannel"),
+                ("items", items));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.AreEqual(2, dict["createdCount"]);
+            Assert.AreEqual(0, dict["errorCount"]);
+
+            // Track generated scripts for cleanup
+            var created = dict["created"] as List<Dictionary<string, object>>;
+            Assert.IsNotNull(created);
+            foreach (var item in created)
+            {
+                if (item.ContainsKey("channelScriptPath"))
+                    TrackScriptPath(item["channelScriptPath"]?.ToString());
+            }
+        }
+
+        [Test]
+        public void CreateMultiple_DataContainers_CreatesAll()
+        {
+            var items = new List<object>
+            {
+                new Dictionary<string, object>
+                {
+                    ["dataId"] = "MultiData1",
+                    ["fields"] = new List<object>
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["name"] = "score",
+                            ["fieldType"] = "int",
+                            ["defaultValue"] = 0
+                        }
+                    }
+                },
+                new Dictionary<string, object>
+                {
+                    ["dataId"] = "MultiData2",
+                    ["fields"] = new List<object>
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["name"] = "speed",
+                            ["fieldType"] = "float",
+                            ["defaultValue"] = 5.0f
+                        }
+                    }
+                }
+            };
+            var result = Execute(_handler, "createMultiple",
+                ("dataType", "dataContainer"),
+                ("items", items));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.AreEqual(2, dict["createdCount"]);
+
+            var created = dict["created"] as List<Dictionary<string, object>>;
+            Assert.IsNotNull(created);
+            foreach (var item in created)
+            {
+                if (item.ContainsKey("scriptPath"))
+                    TrackScriptPath(item["scriptPath"]?.ToString());
+            }
+        }
+
+        [Test]
+        public void CreateMultiple_UnsupportedDataType_ReturnsError()
+        {
+            var items = new List<object>
+            {
+                new Dictionary<string, object>
+                {
+                    ["poolId"] = "test"
+                }
+            };
+            var result = Execute(_handler, "createMultiple",
+                ("dataType", "pool"),
+                ("items", items));
+            AssertSuccess(result); // Succeeds at batch level, but errors are tracked
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.AreEqual(0, dict["createdCount"]);
+            Assert.IsTrue((int)dict["errorCount"] > 0);
+        }
+
+        [Test]
+        public void CreateMultiple_InheritsSharedScriptOutputDir()
+        {
+            var items = new List<object>
+            {
+                new Dictionary<string, object>
+                {
+                    ["dataId"] = "SharedDirEvent1",
+                    ["eventType"] = "void"
+                }
+            };
+            var result = Execute(_handler, "createMultiple",
+                ("dataType", "eventChannel"),
+                ("items", items),
+                ("scriptOutputDir", "Assets/Scripts/Custom"));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.AreEqual(1, dict["createdCount"]);
+
+            var created = dict["created"] as List<Dictionary<string, object>>;
+            foreach (var item in created)
+            {
+                if (item.ContainsKey("channelScriptPath"))
+                    TrackScriptPath(item["channelScriptPath"]?.ToString());
+            }
         }
 
         #endregion

@@ -27,6 +27,8 @@ namespace MCP.Editor.Handlers
             "createPanelSettings",
             "createFromTemplate",
             "validateDependencies",
+            "auditUSS",
+            "auditUXML",
         };
 
         private static readonly XNamespace UiNs = "UnityEngine.UIElements";
@@ -59,6 +61,8 @@ namespace MCP.Editor.Handlers
                 "createPanelSettings" => CreatePanelSettings(payload),
                 "createFromTemplate" => CreateFromTemplate(payload),
                 "validateDependencies" => ValidateDependenciesOp(payload),
+                "auditUSS" => AuditUSS(payload),
+                "auditUXML" => AuditUXML(payload),
                 _ => throw new InvalidOperationException($"Unsupported uitkAsset operation: {operation}"),
             };
         }
@@ -1082,6 +1086,271 @@ namespace MCP.Editor.Handlers
             dict["issues"] = issues;
             dict["isValid"] = issues.Count == 0;
             return dict;
+        }
+
+        #endregion
+
+        #region AuditUSS
+
+        private object AuditUSS(Dictionary<string, object> payload)
+        {
+            var assetPath = GetString(payload, "assetPath");
+            var searchPath = GetString(payload, "searchPath");
+
+            var files = new List<string>();
+            if (!string.IsNullOrEmpty(searchPath))
+            {
+                var guids = AssetDatabase.FindAssets("", new[] { searchPath });
+                foreach (var guid in guids)
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    if (path.EndsWith(".uss", StringComparison.OrdinalIgnoreCase))
+                        files.Add(path);
+                }
+            }
+            else if (!string.IsNullOrEmpty(assetPath))
+            {
+                files.Add(assetPath);
+            }
+            else
+            {
+                throw new InvalidOperationException("'assetPath' or 'searchPath' is required for auditUSS");
+            }
+
+            var allIssues = new List<Dictionary<string, object>>();
+
+            foreach (var filePath in files)
+            {
+                if (!File.Exists(filePath)) continue;
+                var content = File.ReadAllText(filePath);
+                AuditUSSContent(filePath, content, allIssues);
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["operation"] = "auditUSS",
+                ["files"] = files.Count,
+                ["issues"] = allIssues,
+                ["issueCount"] = allIssues.Count,
+                ["isClean"] = allIssues.Count == 0
+            };
+        }
+
+        private void AuditUSSContent(string filePath, string content, List<Dictionary<string, object>> issues)
+        {
+            // Parse all selectors from USS
+            var selectorPattern = new Regex(@"([^{}]+?)\s*\{([^}]*)\}", RegexOptions.Multiline);
+            var matches = selectorPattern.Matches(content);
+
+            var selectors = new Dictionary<string, string>(); // selector -> properties
+            var baseSelectors = new HashSet<string>();
+
+            foreach (Match m in matches)
+            {
+                var selector = m.Groups[1].Value.Trim();
+                var props = m.Groups[2].Value.Trim();
+                selectors[selector] = props;
+
+                // Extract base selector (without pseudo-class)
+                var colonIdx = selector.IndexOf(':');
+                var baseSel = colonIdx >= 0 ? selector.Substring(0, colonIdx) : selector;
+                baseSelectors.Add(baseSel);
+            }
+
+            // Check button-like selectors for missing pseudo-classes
+            var buttonPattern = new Regex(@"btn|button", RegexOptions.IgnoreCase);
+            var requiredPseudos = new[] { ":hover", ":active", ":focus", ":disabled" };
+
+            foreach (var baseSel in baseSelectors)
+            {
+                if (!buttonPattern.IsMatch(baseSel)) continue;
+                if (!selectors.ContainsKey(baseSel)) continue; // Only check if base rule exists
+
+                var missingPseudos = new List<string>();
+                foreach (var pseudo in requiredPseudos)
+                {
+                    if (!selectors.ContainsKey(baseSel + pseudo))
+                        missingPseudos.Add(pseudo);
+                }
+
+                if (missingPseudos.Count > 0)
+                {
+                    issues.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = "uss_missingPseudo",
+                        ["severity"] = "warning",
+                        ["file"] = filePath,
+                        ["selector"] = baseSel,
+                        ["message"] = $"Button selector '{baseSel}' is missing pseudo-classes: {string.Join(", ", missingPseudos)}",
+                        ["suggestion"] = $"Add {string.Join(", ", missingPseudos)} rules for better interaction feedback"
+                    });
+                }
+
+                // Check transition on base selector when :hover exists
+                if (selectors.ContainsKey(baseSel + ":hover") && selectors.ContainsKey(baseSel))
+                {
+                    var baseProps = selectors[baseSel];
+                    if (!baseProps.Contains("transition"))
+                    {
+                        issues.Add(new Dictionary<string, object>
+                        {
+                            ["type"] = "uss_noTransition",
+                            ["severity"] = "info",
+                            ["file"] = filePath,
+                            ["selector"] = baseSel,
+                            ["message"] = $"'{baseSel}' has :hover but no transition property for smooth animation",
+                            ["suggestion"] = "Add 'transition-property' and 'transition-duration' to the base selector"
+                        });
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region AuditUXML
+
+        private object AuditUXML(Dictionary<string, object> payload)
+        {
+            var assetPath = GetString(payload, "assetPath");
+            var searchPath = GetString(payload, "searchPath");
+
+            var files = new List<string>();
+            if (!string.IsNullOrEmpty(searchPath))
+            {
+                var guids = AssetDatabase.FindAssets("", new[] { searchPath });
+                foreach (var guid in guids)
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    if (path.EndsWith(".uxml", StringComparison.OrdinalIgnoreCase))
+                        files.Add(path);
+                }
+            }
+            else if (!string.IsNullOrEmpty(assetPath))
+            {
+                files.Add(assetPath);
+            }
+            else
+            {
+                throw new InvalidOperationException("'assetPath' or 'searchPath' is required for auditUXML");
+            }
+
+            var allIssues = new List<Dictionary<string, object>>();
+
+            foreach (var filePath in files)
+            {
+                if (!File.Exists(filePath)) continue;
+                try
+                {
+                    var doc = XDocument.Load(filePath);
+                    AuditUXMLContent(filePath, doc, allIssues);
+                }
+                catch (Exception ex)
+                {
+                    allIssues.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = "uxml_parseError",
+                        ["severity"] = "error",
+                        ["file"] = filePath,
+                        ["message"] = $"Failed to parse UXML: {ex.Message}"
+                    });
+                }
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["operation"] = "auditUXML",
+                ["files"] = files.Count,
+                ["issues"] = allIssues,
+                ["issueCount"] = allIssues.Count,
+                ["isClean"] = allIssues.Count == 0
+            };
+        }
+
+        private void AuditUXMLContent(string filePath, XDocument doc, List<Dictionary<string, object>> issues)
+        {
+            var sizePattern = new Regex(@"(?:^|;\s*)(?:width|height)\s*:\s*(\d+)px", RegexOptions.IgnoreCase);
+            var minHeightPattern = new Regex(@"min-height\s*:", RegexOptions.IgnoreCase);
+            var widthPercentPattern = new Regex(@"width\s*:\s*[\d.]+%", RegexOptions.IgnoreCase);
+            var maxWidthPattern = new Regex(@"max-width\s*:", RegexOptions.IgnoreCase);
+
+            foreach (var el in doc.Descendants())
+            {
+                var localName = el.Name.LocalName;
+                var nameAttr = el.Attribute("name")?.Value ?? "";
+                var styleAttr = el.Attribute("style")?.Value ?? "";
+                var elementId = !string.IsNullOrEmpty(nameAttr) ? nameAttr : localName;
+
+                // Check: Button/Toggle with small fixed size
+                if (localName == "Button" || localName == "Toggle")
+                {
+                    var widthMatch = Regex.Match(styleAttr, @"width\s*:\s*(\d+)px", RegexOptions.IgnoreCase);
+                    var heightMatch = Regex.Match(styleAttr, @"height\s*:\s*(\d+)px", RegexOptions.IgnoreCase);
+
+                    if (widthMatch.Success && int.Parse(widthMatch.Groups[1].Value) < 44)
+                    {
+                        issues.Add(new Dictionary<string, object>
+                        {
+                            ["type"] = "uxml_smallButton",
+                            ["severity"] = "warning",
+                            ["file"] = filePath,
+                            ["element"] = elementId,
+                            ["message"] = $"'{elementId}' width ({widthMatch.Groups[1].Value}px) is below 44px touch target minimum",
+                            ["suggestion"] = "Increase width to at least 44px for reliable touch/click input"
+                        });
+                    }
+                    if (heightMatch.Success && int.Parse(heightMatch.Groups[1].Value) < 44)
+                    {
+                        issues.Add(new Dictionary<string, object>
+                        {
+                            ["type"] = "uxml_smallButton",
+                            ["severity"] = "warning",
+                            ["file"] = filePath,
+                            ["element"] = elementId,
+                            ["message"] = $"'{elementId}' height ({heightMatch.Groups[1].Value}px) is below 44px touch target minimum",
+                            ["suggestion"] = "Increase height to at least 44px for reliable touch/click input"
+                        });
+                    }
+                }
+
+                // Check: Fixed width without responsive fallback
+                if (sizePattern.IsMatch(styleAttr) && !widthPercentPattern.IsMatch(styleAttr) && !maxWidthPattern.IsMatch(styleAttr))
+                {
+                    var widthMatch = Regex.Match(styleAttr, @"width\s*:\s*(\d+)px", RegexOptions.IgnoreCase);
+                    if (widthMatch.Success)
+                    {
+                        int width = int.Parse(widthMatch.Groups[1].Value);
+                        if (width > 400)  // Only flag large fixed widths
+                        {
+                            issues.Add(new Dictionary<string, object>
+                            {
+                                ["type"] = "uxml_fixedWidth",
+                                ["severity"] = "info",
+                                ["file"] = filePath,
+                                ["element"] = elementId,
+                                ["message"] = $"'{elementId}' has fixed width ({width}px) without max-width or percentage fallback",
+                                ["suggestion"] = "Consider adding 'max-width' and 'width: NN%' for responsive layout"
+                            });
+                        }
+                    }
+                }
+
+                // Check: Dynamic containers (ListView, ScrollView) without min-height
+                if ((localName == "ListView" || localName == "ScrollView") && !minHeightPattern.IsMatch(styleAttr))
+                {
+                    issues.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = "uxml_noMinHeight",
+                        ["severity"] = "info",
+                        ["file"] = filePath,
+                        ["element"] = elementId,
+                        ["message"] = $"'{elementId}' ({localName}) has no min-height — may collapse when empty",
+                        ["suggestion"] = "Add 'min-height: NNpx' to ensure the element remains visible when empty"
+                    });
+                }
+            }
         }
 
         #endregion

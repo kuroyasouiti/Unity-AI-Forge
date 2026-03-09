@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 42 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI (unified), and GameKit Data (unified). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 41 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI (unified), and GameKit Data (unified). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Requirements
 

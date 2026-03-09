@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,6 +15,9 @@ public class {{CLASS_NAME}} : ScriptableObject
 
     private readonly List<{{ELEMENT_TYPE}}> items = new List<{{ELEMENT_TYPE}}>();
 
+    /// <summary>Invoked when items are added or removed.</summary>
+    public event Action OnChanged;
+
     public string DataId => dataId;
     public IReadOnlyList<{{ELEMENT_TYPE}}> Items => items;
     public int Count => items.Count;
@@ -24,7 +28,10 @@ public class {{CLASS_NAME}} : ScriptableObject
     public void Register({{ELEMENT_TYPE}} item)
     {
         if (item != null && !items.Contains(item))
+        {
             items.Add(item);
+            OnChanged?.Invoke();
+        }
     }
 
     /// <summary>
@@ -32,7 +39,8 @@ public class {{CLASS_NAME}} : ScriptableObject
     /// </summary>
     public void Unregister({{ELEMENT_TYPE}} item)
     {
-        items.Remove(item);
+        if (items.Remove(item))
+            OnChanged?.Invoke();
     }
 
     /// <summary>
@@ -56,7 +64,11 @@ public class {{CLASS_NAME}} : ScriptableObject
     /// </summary>
     public void Clear()
     {
-        items.Clear();
+        if (items.Count > 0)
+        {
+            items.Clear();
+            OnChanged?.Invoke();
+        }
     }
 
     private void OnEnable()

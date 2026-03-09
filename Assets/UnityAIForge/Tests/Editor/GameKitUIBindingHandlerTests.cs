@@ -29,9 +29,11 @@ namespace MCP.Editor.Tests
         {
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("create", ops);
-            Assert.Contains("update", ops);
+            Assert.Contains("createMultiple", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("delete", ops);
+            Assert.Contains("setRange", ops);
+            Assert.Contains("refresh", ops);
+            Assert.Contains("findByBindingId", ops);
         }
 
         [Test]
@@ -72,5 +74,69 @@ namespace MCP.Editor.Tests
             AssertSuccess(result);
             AssertScriptContainsClass(result, "MyBinding");
         }
+
+        #region CreateMultiple
+
+        [Test]
+        public void CreateMultiple_MissingBindings_ReturnsError()
+        {
+            var go = TrackGameObject(new GameObject("BindMultiErr"));
+            var result = Execute(_handler, "createMultiple",
+                ("targetPath", "BindMultiErr"));
+            AssertError(result, "bindings");
+        }
+
+        [Test]
+        public void CreateMultiple_EmptyBindings_ReturnsError()
+        {
+            var go = TrackGameObject(new GameObject("BindMultiEmpty"));
+            var result = Execute(_handler, "createMultiple",
+                ("targetPath", "BindMultiEmpty"),
+                ("bindings", new List<object>()));
+            AssertError(result, "bindings");
+        }
+
+        [Test]
+        public void CreateMultiple_CreatesAllBindings()
+        {
+            var go = TrackGameObject(new GameObject("BindMultiTarget"));
+            var bindings = new List<object>
+            {
+                new Dictionary<string, object>
+                {
+                    ["bindingId"] = "multi_bind_1",
+                    ["sourceType"] = "health",
+                    ["sourceId"] = "player_hp"
+                },
+                new Dictionary<string, object>
+                {
+                    ["bindingId"] = "multi_bind_2",
+                    ["sourceType"] = "economy",
+                    ["sourceId"] = "gold_mgr",
+                    ["targetProperty"] = "gold"
+                }
+            };
+            var result = Execute(_handler, "createMultiple",
+                ("targetPath", "BindMultiTarget"),
+                ("bindings", bindings));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.IsTrue(dict.ContainsKey("createdCount"));
+            Assert.AreEqual(2, dict["createdCount"]);
+
+            // Track generated scripts for cleanup
+            var created = dict["created"] as List<Dictionary<string, object>>;
+            if (created != null)
+            {
+                foreach (var item in created)
+                {
+                    if (item.ContainsKey("scriptPath"))
+                        TrackScriptPath(item["scriptPath"]?.ToString());
+                }
+            }
+        }
+
+        #endregion
     }
 }

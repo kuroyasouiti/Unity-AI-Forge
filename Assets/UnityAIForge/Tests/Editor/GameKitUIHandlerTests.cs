@@ -28,7 +28,7 @@ namespace MCP.Editor.Tests
         public void SupportedOperations_ContainsAll33Ops()
         {
             var ops = _handler.SupportedOperations.ToList();
-            Assert.AreEqual(33, ops.Count, $"Expected 33 operations, got {ops.Count}: {string.Join(", ", ops)}");
+            Assert.AreEqual(34, ops.Count, $"Expected 34 operations, got {ops.Count}: {string.Join(", ", ops)}");
         }
 
         [Test]

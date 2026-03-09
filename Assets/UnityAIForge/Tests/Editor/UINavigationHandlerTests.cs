@@ -29,9 +29,9 @@ namespace MCP.Editor.Tests
             Assert.Contains("configure", ops);
             Assert.Contains("setExplicit", ops);
             Assert.Contains("autoSetup", ops);
+            Assert.Contains("createGroup", ops);
+            Assert.Contains("setFirstSelected", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("reset", ops);
-            Assert.Contains("disable", ops);
         }
 
         [Test]

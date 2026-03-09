@@ -446,6 +446,10 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "uiOverflowAudit",
                         "uiOverlapAudit",
                         "nullAssetAudit",
+                        "touchTargetAudit",
+                        "eventSystemAudit",
+                        "textOverflowAudit",
+                        "styleConsistencyAudit",
                     ],
                     "description": (
                         "Integrity check operation. "
@@ -460,7 +464,13 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'requiredFieldAudit': detect null SerializedFields that are used in code without null guards. "
                         "'uiOverflowAudit': detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow). "
                         "'uiOverlapAudit': detect UI sibling overlap issues (same-position children without LayoutGroup, interactive element overlaps, raycast blocking). "
-                        "'nullAssetAudit': detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets."
+                        "'nullAssetAudit': detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets. "
+                        "'touchTargetAudit': detect interactive UI elements (Button, Toggle, Slider) smaller than 44x44 minimum touch target size. "
+                        "'eventSystemAudit': detect scenes with Canvas/UIDocument but no EventSystem, or duplicate EventSystems. "
+                        "'textOverflowAudit': detect Text/TextMeshPro elements where content exceeds RectTransform bounds. "
+                        "'styleConsistencyAudit': detect cross-element design consistency issues — excessive button color variation, "
+                        "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
+                        "unnecessary raycast targets, and inconsistent anchor patterns among siblings. "
                     ),
                 },
                 "rootPath": {

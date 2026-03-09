@@ -44,6 +44,7 @@ from tools.schemas import (
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
+    ui_convert_schema,
     ui_foundation_schema,
     ui_navigation_schema,
     ui_state_schema,
@@ -55,7 +56,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 41 MCP tool definitions."""
+    """Return the list of all 42 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -73,7 +74,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_compilation_await",
-            description="Wait for Unity's script compilation to complete. Use this after creating or modifying C# scripts to ensure the code is compiled before using new types or components. Returns compilation status including any errors or warnings. Supports configurable timeout (default 60 seconds).",
+            description="Wait for Unity's script compilation to complete. Use this after creating or modifying C# scripts to ensure the code is compiled before using new types or components. Returns compilation status including any errors or warnings. Supports configurable timeout (default 60 seconds). Auto-reconnects if bridge is disconnected during compilation (no need for separate ping/sleep).",
             inputSchema=compilation_await_schema(),
         ),
         batch_sequential_tool,  # Sequential batch execution with resume capability
@@ -213,7 +214,7 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_ui_foundation",
-            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
+            description="Mid-level UI foundation for UGUI: create complete UI elements with single commands (Canvas with EventSystem, Panel with Image, Button with Text child, Text with styling, Image with sprite support, InputField with placeholder, Slider with fill/handle, Toggle with checkmark/label, ScrollView with Viewport/Content/Scrollbars). Supports addLayoutGroup (Horizontal/Vertical/Grid) with full configuration, ContentSizeFitter, and UI templates (dialog/hud/menu/statusBar/inventoryGrid). createPanel supports addCanvasGroup option. Visibility control: show/hide/toggle always uses CanvasGroup (alpha, interactable, blocksRaycasts). GameObjects remain active; SetActive is not used. inspectTree exports recursive UI hierarchy as JSON. inspect reports single element properties. extractDesignContext exports comprehensive UI hierarchy with typography (fontFamily, fontSize, fontStyle, alignment, lineSpacing, overflowMode), visual properties (backgroundColor, sprite, imageType, material), interaction states (navigationMode, transitionType, colorBlock with all 5 states), and a summary (totalElements, elementsByType, canvasSettings) — designed for AI design-to-code workflows. Supports render modes, anchor presets, automatic sizing, and color configuration. For updateLayoutGroup/removeLayoutGroup/configureCanvasGroup, use component_crud directly.",
             inputSchema=ui_foundation_schema(),
         ),
         types.Tool(
@@ -300,7 +301,9 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- inspectUSS: Parse USS file and return rules with selectors/properties\n"
                 "- createPanelSettings: Create PanelSettings ScriptableObject asset\n"
                 "- createFromTemplate: Generate UXML+USS from built-in templates (menu, dialog, hud, settings, inventory)\n"
-                "- validateDependencies: Validate UXML references (Style src, Template src) and report missing files\n\n"
+                "- validateDependencies: Validate UXML references (Style src, Template src) and report missing files\n"
+                "- auditUSS: Check USS files for missing pseudo-classes (:active/:focus/:disabled) on button selectors and missing transitions\n"
+                "- auditUXML: Check UXML files for layout issues (small button sizes, fixed widths without responsive fallback, missing min-height on dynamic containers)\n\n"
                 "**Dependency Validation:** createUXML, createFromTemplate, and inspectUXML automatically include "
                 "dependency validation results (dependencies, issues, isValid) in their responses. Use validateDependencies "
                 "for standalone validation of any UXML file.\n\n"
@@ -314,6 +317,29 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Pair with unity_uitk_document to assign generated assets to scene objects."
             ),
             inputSchema=uitk_asset_schema(),
+        ),
+        types.Tool(
+            name="unity_ui_convert",
+            description=(
+                "Mid-level UGUI ↔ UI Toolkit conversion: analyze, convert, and extract styles between "
+                "Canvas-based UGUI and UI Toolkit (UXML/USS).\n\n"
+                "**Operations:**\n"
+                "- analyze: Non-destructive analysis of a UGUI Canvas or UITK UXML file. Reports convertible elements, "
+                "warnings, unsupported items, and estimated accuracy. Use before conversion to understand scope.\n"
+                "- toUITK: Convert UGUI Canvas hierarchy to UXML + USS files. Traverses Canvas tree, maps elements to "
+                "UITK equivalents, extracts styles to USS, generates UXML with class references.\n"
+                "- toUGUI: Convert UXML file to UGUI Canvas hierarchy in scene. Parses UXML + referenced USS, creates "
+                "Canvas with mapped UGUI elements (Button, Text, Image, Slider, ScrollRect, etc.).\n"
+                "- extractStyles: Extract styles from UGUI Canvas hierarchy to a standalone USS file without conversion. "
+                "Useful for creating a USS baseline from existing UGUI styling.\n"
+                "- extractTokens: Scan UGUI hierarchy and extract deduplicated design tokens — color palette, font sizes, "
+                "font families, spacing values, element sizes — with usage counts and near-duplicate detection. "
+                "Returns a consolidated design system inventory, not per-element styles.\n\n"
+                "**Recommended workflow:** analyze → review report → toUITK/toUGUI → manual adjustments.\n\n"
+                "**sourceType (for analyze):** ugui (Canvas→UITK) or uitk (UXML→UGUI).\n"
+                "**Limitations:** UnityEvent callbacks, Animator-driven UI, and custom components require manual migration."
+            ),
+            inputSchema=ui_convert_schema(),
         ),
         # ── Visual ─────────────────────────────────────────────────
         types.Tool(
@@ -503,7 +529,13 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- requiredFieldAudit: Detect null SerializedFields that are used in code without null guards\n"
                 "- uiOverflowAudit: Detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow)\n"
                 "- uiOverlapAudit: Detect UI sibling overlap (same-position without LayoutGroup, interactive overlap, raycast blocking)\n"
-                "- nullAssetAudit: Detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets\n\n"
+                "- nullAssetAudit: Detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets\n"
+                "- touchTargetAudit: Detect interactive UI elements (Button, Toggle, Slider) smaller than 44x44 minimum touch target size\n"
+                "- eventSystemAudit: Detect scenes with Canvas/UIDocument but no EventSystem, or duplicate EventSystems\n"
+                "- textOverflowAudit: Detect Text/TextMeshPro elements where content exceeds RectTransform bounds\n"
+                "- styleConsistencyAudit: Detect cross-element design consistency issues (button color variation, "
+                "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
+                "unnecessary raycast targets, inconsistent sibling anchor patterns)\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
                 "Returns a flat issue list with type, severity (error/warning), gameObjectPath, message, and optional suggestion. "

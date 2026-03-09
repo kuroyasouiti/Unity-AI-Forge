@@ -36,9 +36,10 @@ namespace MCP.Editor.Tests
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("create", ops);
             Assert.Contains("update", ops);
-            Assert.Contains("inspect", ops);
-            Assert.Contains("delete", ops);
+            Assert.Contains("setTexture", ops);
+            Assert.Contains("setColor", ops);
             Assert.Contains("applyPreset", ops);
+            Assert.Contains("inspect", ops);
             Assert.Contains("listPresets", ops);
         }
 

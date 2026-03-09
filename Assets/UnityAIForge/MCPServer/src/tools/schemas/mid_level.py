@@ -349,11 +349,14 @@ def ui_foundation_schema() -> dict[str, Any]:
                         "createText",
                         "createImage",
                         "createInputField",
+                        "createSlider",
+                        "createToggle",
                         "createScrollView",
                         "addLayoutGroup",
                         "createFromTemplate",
                         "inspect",
                         "inspectTree",
+                        "extractDesignContext",
                         "show",
                         "hide",
                         "toggle",
@@ -365,7 +368,7 @@ def ui_foundation_schema() -> dict[str, Any]:
                 },
                 "targetPath": {
                     "type": "string",
-                    "description": "Target GameObject path for addLayoutGroup/show/hide/toggle/inspect/inspectTree operations.",
+                    "description": "Target GameObject path for addLayoutGroup/show/hide/toggle/inspect/inspectTree/extractDesignContext operations.",
                 },
                 "name": {"type": "string", "description": "UI element name."},
                 "renderMode": {
@@ -415,6 +418,32 @@ def ui_foundation_schema() -> dict[str, Any]:
                 "placeholder": {
                     "type": "string",
                     "description": "Placeholder text for InputField.",
+                },
+                # Slider parameters
+                "minValue": {
+                    "type": "number",
+                    "description": "Slider minimum value (default: 0).",
+                },
+                "maxValue": {
+                    "type": "number",
+                    "description": "Slider maximum value (default: 1).",
+                },
+                "value": {
+                    "type": "number",
+                    "description": "Slider initial value (default: 0).",
+                },
+                "wholeNumbers": {
+                    "type": "boolean",
+                    "description": "Restrict slider to whole numbers (default: false).",
+                },
+                # Toggle parameters
+                "isOn": {
+                    "type": "boolean",
+                    "description": "Toggle initial state (default: true).",
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Label text for Toggle.",
                 },
                 # ScrollView parameters
                 "horizontal": {
@@ -644,7 +673,11 @@ def ui_foundation_schema() -> dict[str, Any]:
                 },
                 "maxDepth": {
                     "type": "integer",
-                    "description": "Maximum depth for inspectTree (default: 10).",
+                    "description": "Maximum depth for inspectTree (default: 10) / extractDesignContext (default: 20).",
+                },
+                "includeInactive": {
+                    "type": "boolean",
+                    "description": "Include inactive GameObjects in extractDesignContext (default: false).",
                 },
             },
         },
@@ -883,7 +916,6 @@ def tilemap_bundle_schema() -> dict[str, Any]:
     )
 
 
-
 def ui_state_schema() -> dict[str, Any]:
     """Schema for the unity_ui_state MCP tool."""
     return schema_with_required(
@@ -1045,12 +1077,18 @@ def uitk_asset_schema() -> dict[str, Any]:
                         "createPanelSettings",
                         "createFromTemplate",
                         "validateDependencies",
+                        "auditUSS",
+                        "auditUXML",
                     ],
                     "description": "UI Toolkit asset operation.",
                 },
                 "assetPath": {
                     "type": "string",
                     "description": "Asset file path (e.g., 'Assets/UI/main.uxml').",
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": "Folder path to scan for USS/UXML files (e.g., 'Assets/UI/USS'). Alternative to assetPath for batch auditing.",
                 },
                 "elements": {
                     "type": "array",
@@ -1447,6 +1485,88 @@ def navmesh_bundle_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": ["All", "Volume", "Children"],
                     "description": "NavMeshSurface object collection mode (default: All).",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
+def ui_convert_schema() -> dict[str, Any]:
+    """Schema for the unity_ui_convert MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyze",
+                        "toUITK",
+                        "toUGUI",
+                        "extractStyles",
+                        "extractTokens",
+                    ],
+                    "description": (
+                        "UI conversion operation.\n"
+                        "- analyze: Analyze UGUI or UITK source and report conversion feasibility, "
+                        "element mapping, warnings, and unsupported elements\n"
+                        "- toUITK: Convert UGUI Canvas hierarchy to UXML + USS files\n"
+                        "- toUGUI: Convert UXML file to UGUI Canvas hierarchy in scene\n"
+                        "- extractStyles: Extract styles from UGUI Canvas hierarchy to USS file only\n"
+                        "- extractTokens: Scan UGUI hierarchy and extract deduplicated design tokens "
+                        "(color palette, font sizes, font families, spacing, element sizes) "
+                        "with usage counts and near-duplicate detection"
+                    ),
+                },
+                "sourceType": {
+                    "type": "string",
+                    "enum": ["ugui", "uitk"],
+                    "description": (
+                        "Source UI framework type (required for analyze).\n"
+                        "- ugui: Analyze Canvas hierarchy for conversion to UI Toolkit (UXML/USS)\n"
+                        "- uitk: Analyze UXML file for conversion to UGUI (Canvas)"
+                    ),
+                },
+                "sourcePath": {
+                    "type": "string",
+                    "description": (
+                        "Source path.\n"
+                        "- For ugui/toUITK/extractStyles: GameObject path of the Canvas (e.g., 'Canvas', 'BattleCanvas')\n"
+                        "- For uitk/toUGUI: Asset path of the UXML file (e.g., 'Assets/UI/Menu.uxml')"
+                    ),
+                },
+                "outputDir": {
+                    "type": "string",
+                    "description": (
+                        "Output directory for toUITK operation (default: 'Assets/UI/Generated')."
+                    ),
+                },
+                "outputName": {
+                    "type": "string",
+                    "description": (
+                        "Output file name (without extension) for toUITK operation (default: 'ConvertedUI')."
+                    ),
+                },
+                "outputPath": {
+                    "type": "string",
+                    "description": (
+                        "Output USS file path for extractStyles operation (e.g., 'Assets/UI/extracted.uss')."
+                    ),
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": (
+                        "Parent GameObject path for toUGUI operation. "
+                        "Empty string for scene root (default: '')."
+                    ),
+                },
+                "canvasRenderMode": {
+                    "type": "string",
+                    "enum": ["screenSpaceOverlay", "screenSpaceCamera", "worldSpace"],
+                    "description": (
+                        "Canvas render mode for toUGUI operation (default: 'screenSpaceOverlay')."
+                    ),
                 },
             },
         },

@@ -10,7 +10,7 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 4. **ツール優先順位: High-Level → Mid-Level → Low-Level**
 5. **UI優先設計**: UIから実装し、ロジックは後
 6. **PDCA遵守**: Plan(inspect/graph) → Do(実行) → Check(validate_integrity/console_log) → Act(修正)
-7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作
+7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作。**最適化**: `createMultiple` で同種スクリプトを一括生成すれば1回の待ちで済む。`batch_sequential` は自動でコンパイル待ちを注入する
 8. **物理設定のベストプラクティス**: Layer Collision Matrixで不要な衝突を除外、高速オブジェクトのCollision DetectionはContinuousに設定
 9. **ゲーム操作/メニュー切替には `ui_state` を使用**: gameplay ↔ pause、gameplay ↔ inventory 等の画面モード切替は `unity_ui_state` の `defineState` + `applyState` で管理。`createStateGroup` で排他制御
 10. **UI表示制御はCanvasGroupのみ**: `SetActive` は使わず `CanvasGroup`（alpha/interactable/blocksRaycasts）で制御。GameObjectは常にアクティブ状態を維持
@@ -77,14 +77,14 @@ unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath=
 | **GameKit UI (1)** UIシステム | unity_gamekit_ui (widgetType: command, binding, list, slot, selection) |
 | **GameKit Data (1)** データ・プール | unity_gamekit_data (dataType: pool, eventChannel, dataContainer, runtimeSet) |
 
-### Mid-Level (18) - バッチ操作・プリセット
+### Mid-Level (19) - バッチ操作・プリセット
 
 | カテゴリ | ツール |
 |---------|-------|
 | Transform | unity_transform_batch, unity_rectTransform_batch |
 | Camera | unity_camera_bundle |
 | Physics | unity_physics_bundle, unity_navmesh_bundle |
-| UI (UGUI) | unity_ui_foundation, unity_ui_state, unity_ui_navigation |
+| UI (UGUI) | unity_ui_foundation, unity_ui_state, unity_ui_navigation, unity_ui_convert |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
 | Input | unity_input_profile |
 | 2D | unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle |
@@ -106,7 +106,7 @@ unity_ping, unity_compilation_await, unity_event_wiring, unity_playmode_control,
 |-------|---------|-----------|
 | **Plan** | 現状把握・影響調査（初回はプロジェクト状態チェックも実施） | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)`, `projectSettings_crud(read, player)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
-| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
+| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `validate_integrity(styleConsistencyAudit)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
 | **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `playmode_control(play/stop)` |
 
 ---
@@ -119,6 +119,7 @@ unity_validate_integrity(operation='all')                    # 全チェック
 unity_validate_integrity(operation='typeCheck')              # 型ミスマッチ検出
 unity_validate_integrity(operation='report', scope='build_scenes')  # 複数シーンレポート
 unity_validate_integrity(operation='checkPrefab', prefabPath='Assets/Prefabs/Player.prefab')  # Prefab検証
+unity_validate_integrity(operation='styleConsistencyAudit')  # UIデザイン一貫性（色・フォント・スペーシング）
 
 # クラスカタログ（型の列挙・詳細）
 unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
@@ -201,8 +202,15 @@ unity_gamekit_data(dataType='dataContainer', operation='create', dataId='Selecte
     {'name': 'stageIndex', 'fieldType': 'int', 'defaultValue': 1}
 ], resetOnPlay=False, assetPath='Assets/Data/SelectedStage.asset')
 
-# ランタイムセット（自動登録/解除パターン）
+# ランタイムセット（自動登録/解除パターン、OnChanged イベント付き）
 unity_gamekit_data(dataType='runtimeSet', operation='create', dataId='ActiveEnemies', elementType='GameObject')
+
+# 一括生成（createMultiple）→ 1回のコンパイル待ちで済む
+unity_gamekit_data(dataType='eventChannel', operation='createMultiple', items=[
+    {'dataId': 'OnPlayerDeath', 'eventType': 'void', 'assetPath': 'Assets/Data/Events/OnPlayerDeath.asset', 'autoCreateAsset': True},
+    {'dataId': 'OnDamage', 'eventType': 'float', 'assetPath': 'Assets/Data/Events/OnDamage.asset', 'autoCreateAsset': True}
+])
+# autoCreateAsset=True: コンパイル完了後に .asset も自動生成
 ```
 
 ---
@@ -234,11 +242,14 @@ unity_ui_foundation(operation='createCanvas', name='GameUI')
 unity_ui_foundation(operation='createButton', name='Btn', parentPath='GameUI', text='Click')
 unity_ui_foundation(operation='addLayoutGroup', targetPath='GameUI/Panel', layoutType='Vertical', spacing=10)
 unity_ui_foundation(operation='createPanel', name='Overlay', parentPath='GameUI', addCanvasGroup=True, ignoreParentGroups=True)
+unity_ui_foundation(operation='extractDesignContext', targetPath='Canvas')  # UI階層の包括的デザイン情報取得
 
 # UI要素の個別作成
 unity_ui_foundation(operation='createPanel', name='Menu', parentPath='Canvas', layoutType='Vertical', spacing=20)
 unity_ui_foundation(operation='createText', name='Title', parentPath='Canvas/Menu', text='Game', fontSize=32)
 unity_ui_foundation(operation='createButton', name='StartBtn', parentPath='Canvas/Menu', text='Start')
+unity_ui_foundation(operation='createSlider', name='VolumeSlider', parentPath='Canvas/Menu', minValue=0, maxValue=1, value=0.5)
+unity_ui_foundation(operation='createToggle', name='MuteToggle', parentPath='Canvas/Menu', label='Mute', isOn=False)
 
 # 表示切替 (show/hide/toggle)
 unity_ui_foundation(operation='show', targetPath='Canvas/Menu')
@@ -271,6 +282,11 @@ unity_uitk_asset(operation='createUXML', assetPath='Assets/UI/Menu.uxml', elemen
 unity_uitk_asset(operation='createUSS', assetPath='Assets/UI/Menu.uss', rules=[...])
 unity_uitk_asset(operation='createFromTemplate', template='menu', assetPath='Assets/UI/Menu')  # menu|dialog|hud|settings|inventory
 unity_uitk_document(operation='create', gameObjectPath='UI/Menu', uxmlPath='Assets/UI/Menu.uxml')
+
+# UI変換・デザイントークン
+unity_ui_convert(operation='extractTokens', sourcePath='Canvas')  # 色・フォント・スペーシングのトークン抽出
+unity_ui_convert(operation='analyze', sourcePath='Canvas')  # UGUI→UITK変換分析
+unity_ui_convert(operation='extractStyles', sourcePath='Canvas')  # USS スタイル抽出
 
 # マテリアル (preset: unlit|lit|transparent|cutout|fade|sprite|ui|emissive|metallic|glass)
 unity_material_bundle(operation='create', materialPath='Assets/Mat/P.mat', shader='Standard')
@@ -339,6 +355,13 @@ unity_gameobject_crud(operation='findMultiple', pattern='Enemy*', maxResults=100
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='UnityEngine.Rigidbody2D', propertyChanges={'gravityScale':0})
 unity_component_crud(operation='inspect', gameObjectPath='Player', componentType='*', includeProperties=True)
 # Unity Object参照: {'$ref':'Assets/Materials/P.mat'} or {'$ref':'Canvas/Panel/Button'}
+# クロスシーン一括更新（複数シーンの参照を一度に設定。現在のシーンは自動保存→復帰）
+unity_component_crud(operation='crossSceneUpdate', updates=[
+    {'scenePath':'Assets/Scenes/Home.unity', 'gameObjectPath':'HomeUI', 'componentType':'HomeUI',
+     'propertyChanges':{'data':{'$ref':'Assets/Data/Config.asset'}}},
+    {'scenePath':'Assets/Scenes/Game.unity', 'gameObjectPath':'GameUI', 'componentType':'GameUI',
+     'propertyChanges':{'data':{'$ref':'Assets/Data/Config.asset'}}}
+])
 
 # Asset
 unity_asset_crud(operation='create', assetPath='Assets/Scripts/Player.cs', content='...')

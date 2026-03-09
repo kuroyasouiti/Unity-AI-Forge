@@ -16,6 +16,7 @@ namespace MCP.Editor.CodeGen
         {
             // Delay one frame to ensure all assemblies are fully loaded
             EditorApplication.delayCall += ProcessPendingAttachments;
+            EditorApplication.delayCall += ProcessPendingAssetCreation;
         }
 
         private static void ProcessPendingAttachments()
@@ -76,6 +77,64 @@ namespace MCP.Editor.CodeGen
 
             // Clear the pending flag
             entry.pendingAttach = false;
+            tracker.Register(entry);
+        }
+
+        private static void ProcessPendingAssetCreation()
+        {
+            var tracker = GeneratedScriptTracker.Instance;
+            if (tracker == null) return;
+
+            var pending = tracker.FindPendingAssetCreation().ToList();
+            foreach (var entry in pending)
+            {
+                try
+                {
+                    CreateAssetForEntry(entry, tracker);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[PendingComponentAttacher] Failed to create asset for '{entry.className}' at '{entry.pendingAssetPath}': {ex.Message}");
+                }
+            }
+        }
+
+        private static void CreateAssetForEntry(GeneratedScriptTracker.Entry entry, GeneratedScriptTracker tracker)
+        {
+            var type = ScriptGenerator.ResolveGeneratedType(entry.className);
+            if (type == null)
+                return; // Type not compiled yet — leave pending for next reload
+
+            if (!typeof(ScriptableObject).IsAssignableFrom(type))
+            {
+                // Not a ScriptableObject — clear the pending path
+                entry.pendingAssetPath = null;
+                tracker.Register(entry);
+                return;
+            }
+
+            var assetPath = entry.pendingAssetPath;
+
+            // Check if asset already exists at the path
+            if (AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath) != null)
+            {
+                entry.pendingAssetPath = null;
+                tracker.Register(entry);
+                return;
+            }
+
+            // Ensure directory exists
+            var dir = System.IO.Path.GetDirectoryName(assetPath);
+            if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                System.IO.Directory.CreateDirectory(dir);
+
+            var instance = ScriptableObject.CreateInstance(type);
+            AssetDatabase.CreateAsset(instance, assetPath);
+            AssetDatabase.SaveAssets();
+
+            Debug.Log($"[PendingComponentAttacher] Auto-created ScriptableObject asset '{entry.className}' at '{assetPath}'");
+
+            entry.pendingAssetPath = null;
             tracker.Register(entry);
         }
 

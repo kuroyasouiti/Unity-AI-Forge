@@ -42,6 +42,7 @@ from tools.schemas import (
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
+    ui_convert_schema,
     ui_foundation_schema,
     ui_navigation_schema,
     ui_state_schema,
@@ -76,6 +77,7 @@ ALL_SCHEMA_FUNCTIONS = [
     ("tilemap_bundle", tilemap_bundle_schema),
     ("uitk_document", uitk_document_schema),
     ("uitk_asset", uitk_asset_schema),
+    ("ui_convert", ui_convert_schema),
     ("sprite2d_bundle", sprite2d_bundle_schema),
     ("animation2d_bundle", animation2d_bundle_schema),
     ("animation3d_bundle", animation3d_bundle_schema),
@@ -166,6 +168,57 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 40, (
-            f"Expected 40 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 41, (
+            f"Expected 41 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )
+
+
+class TestNewFeatureSchemas:
+    """Verify schemas for newly added features."""
+
+    def test_component_manage_has_crossSceneUpdate(self) -> None:
+        schema = component_manage_schema()
+        ops = schema["properties"]["operation"]["enum"]
+        assert "crossSceneUpdate" in ops
+
+    def test_component_manage_has_updates_property(self) -> None:
+        schema = component_manage_schema()
+        assert "updates" in schema["properties"]
+        updates = schema["properties"]["updates"]
+        assert updates["type"] == "array"
+        # Verify items have required scenePath, gameObjectPath, etc.
+        items_required = updates["items"]["required"]
+        assert "scenePath" in items_required
+        assert "gameObjectPath" in items_required
+        assert "componentType" in items_required
+        assert "propertyChanges" in items_required
+
+    def test_component_manage_operation_required_only(self) -> None:
+        """crossSceneUpdate doesn't need top-level componentType, so required should be ['operation']."""
+        schema = component_manage_schema()
+        assert schema["required"] == ["operation"]
+
+    def test_gamekit_data_has_createMultiple(self) -> None:
+        schema = gamekit_data_schema()
+        ops = schema["properties"]["operation"]["enum"]
+        assert "createMultiple" in ops
+
+    def test_gamekit_data_has_autoCreateAsset(self) -> None:
+        schema = gamekit_data_schema()
+        assert "autoCreateAsset" in schema["properties"]
+        assert schema["properties"]["autoCreateAsset"]["type"] == "boolean"
+
+    def test_gamekit_data_has_items(self) -> None:
+        schema = gamekit_data_schema()
+        assert "items" in schema["properties"]
+        assert schema["properties"]["items"]["type"] == "array"
+
+    def test_gamekit_ui_has_createMultiple(self) -> None:
+        schema = gamekit_ui_schema()
+        ops = schema["properties"]["operation"]["enum"]
+        assert "createMultiple" in ops
+
+    def test_gamekit_ui_has_bindings(self) -> None:
+        schema = gamekit_ui_schema()
+        assert "bindings" in schema["properties"]
+        assert schema["properties"]["bindings"]["type"] == "array"

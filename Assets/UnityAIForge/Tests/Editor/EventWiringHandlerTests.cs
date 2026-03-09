@@ -34,10 +34,9 @@ namespace MCP.Editor.Tests
         {
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("wire", ops);
-            Assert.Contains("unwire", ops);
             Assert.Contains("inspect", ops);
             Assert.Contains("listEvents", ops);
-            Assert.Contains("clearEvent", ops);
+            Assert.Contains("wireMultiple", ops);
         }
 
         [Test]

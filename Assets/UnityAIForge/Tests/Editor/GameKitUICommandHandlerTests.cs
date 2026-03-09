@@ -31,7 +31,6 @@ namespace MCP.Editor.Tests
             Assert.Contains("createCommandPanel", ops);
             Assert.Contains("addCommand", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("delete", ops);
         }
 
         [Test]
