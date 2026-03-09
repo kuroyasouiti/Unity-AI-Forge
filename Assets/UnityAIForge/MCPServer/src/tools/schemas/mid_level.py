@@ -1485,3 +1485,81 @@ def navmesh_bundle_schema() -> dict[str, Any]:
         },
         ["operation"],
     )
+
+
+def ui_convert_schema() -> dict[str, Any]:
+    """Schema for the unity_ui_convert MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "analyze",
+                        "toUITK",
+                        "toUGUI",
+                        "extractStyles",
+                    ],
+                    "description": (
+                        "UI conversion operation.\n"
+                        "- analyze: Analyze UGUI or UITK source and report conversion feasibility, "
+                        "element mapping, warnings, and unsupported elements\n"
+                        "- toUITK: Convert UGUI Canvas hierarchy to UXML + USS files\n"
+                        "- toUGUI: Convert UXML file to UGUI Canvas hierarchy in scene\n"
+                        "- extractStyles: Extract styles from UGUI Canvas hierarchy to USS file only"
+                    ),
+                },
+                "sourceType": {
+                    "type": "string",
+                    "enum": ["ugui", "uitk"],
+                    "description": (
+                        "Source UI framework type (required for analyze).\n"
+                        "- ugui: Analyze Canvas hierarchy for conversion to UI Toolkit (UXML/USS)\n"
+                        "- uitk: Analyze UXML file for conversion to UGUI (Canvas)"
+                    ),
+                },
+                "sourcePath": {
+                    "type": "string",
+                    "description": (
+                        "Source path.\n"
+                        "- For ugui/toUITK/extractStyles: GameObject path of the Canvas (e.g., 'Canvas', 'BattleCanvas')\n"
+                        "- For uitk/toUGUI: Asset path of the UXML file (e.g., 'Assets/UI/Menu.uxml')"
+                    ),
+                },
+                "outputDir": {
+                    "type": "string",
+                    "description": (
+                        "Output directory for toUITK operation (default: 'Assets/UI/Generated')."
+                    ),
+                },
+                "outputName": {
+                    "type": "string",
+                    "description": (
+                        "Output file name (without extension) for toUITK operation (default: 'ConvertedUI')."
+                    ),
+                },
+                "outputPath": {
+                    "type": "string",
+                    "description": (
+                        "Output USS file path for extractStyles operation (e.g., 'Assets/UI/extracted.uss')."
+                    ),
+                },
+                "parentPath": {
+                    "type": "string",
+                    "description": (
+                        "Parent GameObject path for toUGUI operation. "
+                        "Empty string for scene root (default: '')."
+                    ),
+                },
+                "canvasRenderMode": {
+                    "type": "string",
+                    "enum": ["screenSpaceOverlay", "screenSpaceCamera", "worldSpace"],
+                    "description": (
+                        "Canvas render mode for toUGUI operation (default: 'screenSpaceOverlay')."
+                    ),
+                },
+            },
+        },
+        ["operation"],
+    )

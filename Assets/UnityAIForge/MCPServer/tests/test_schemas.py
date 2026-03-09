@@ -42,6 +42,7 @@ from tools.schemas import (
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
+    ui_convert_schema,
     ui_foundation_schema,
     ui_navigation_schema,
     ui_state_schema,
@@ -76,6 +77,7 @@ ALL_SCHEMA_FUNCTIONS = [
     ("tilemap_bundle", tilemap_bundle_schema),
     ("uitk_document", uitk_document_schema),
     ("uitk_asset", uitk_asset_schema),
+    ("ui_convert", ui_convert_schema),
     ("sprite2d_bundle", sprite2d_bundle_schema),
     ("animation2d_bundle", animation2d_bundle_schema),
     ("animation3d_bundle", animation3d_bundle_schema),
@@ -166,8 +168,8 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 40, (
-            f"Expected 40 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 41, (
+            f"Expected 41 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )
 
 

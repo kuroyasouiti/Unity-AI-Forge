@@ -1,6 +1,6 @@
 """Single source of truth for MCP tool name to Unity bridge name mapping.
 
-All 41 MCP tools (except ``unity_batch_sequential_execute``, which is handled
+All 42 MCP tools (except ``unity_batch_sequential_execute``, which is handled
 separately) are listed here.  Both ``register_tools.py`` and
 ``batch_sequential.py`` import from this module so that name mappings are
 never duplicated.
@@ -35,6 +35,8 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     # ── Mid-Level UI Toolkit ────────────────────────────────
     "unity_uitk_document": "uitkDocument",
     "unity_uitk_asset": "uitkAsset",
+    # ── Mid-Level UI Convert ─────────────────────────────
+    "unity_ui_convert": "uiConvert",
     # ── Mid-Level Visual ────────────────────────────────────
     "unity_sprite2d_bundle": "sprite2DBundle",
     "unity_animation2d_bundle": "animation2DBundle",

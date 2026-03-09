@@ -131,6 +131,9 @@ namespace MCP.Editor.Base
             CommandHandlerFactory.Register("uitkDocument", new UITKDocumentHandler());
             CommandHandlerFactory.Register("uitkAsset", new UITKAssetHandler());
 
+            // UI Convert
+            CommandHandlerFactory.Register("uiConvert", new UIConvertHandler());
+
             // Physics & NavMesh
             CommandHandlerFactory.Register("physicsBundle", new PhysicsBundleHandler());
             CommandHandlerFactory.Register("navmeshBundle", new NavMeshBundleHandler());

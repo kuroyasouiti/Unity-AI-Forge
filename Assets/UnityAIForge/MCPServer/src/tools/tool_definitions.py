@@ -44,6 +44,7 @@ from tools.schemas import (
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
+    ui_convert_schema,
     ui_foundation_schema,
     ui_navigation_schema,
     ui_state_schema,
@@ -55,7 +56,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 41 MCP tool definitions."""
+    """Return the list of all 42 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -316,6 +317,26 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Pair with unity_uitk_document to assign generated assets to scene objects."
             ),
             inputSchema=uitk_asset_schema(),
+        ),
+        types.Tool(
+            name="unity_ui_convert",
+            description=(
+                "Mid-level UGUI ↔ UI Toolkit conversion: analyze, convert, and extract styles between "
+                "Canvas-based UGUI and UI Toolkit (UXML/USS).\n\n"
+                "**Operations:**\n"
+                "- analyze: Non-destructive analysis of a UGUI Canvas or UITK UXML file. Reports convertible elements, "
+                "warnings, unsupported items, and estimated accuracy. Use before conversion to understand scope.\n"
+                "- toUITK: Convert UGUI Canvas hierarchy to UXML + USS files. Traverses Canvas tree, maps elements to "
+                "UITK equivalents, extracts styles to USS, generates UXML with class references.\n"
+                "- toUGUI: Convert UXML file to UGUI Canvas hierarchy in scene. Parses UXML + referenced USS, creates "
+                "Canvas with mapped UGUI elements (Button, Text, Image, Slider, ScrollRect, etc.).\n"
+                "- extractStyles: Extract styles from UGUI Canvas hierarchy to a standalone USS file without conversion. "
+                "Useful for creating a USS baseline from existing UGUI styling.\n\n"
+                "**Recommended workflow:** analyze → review report → toUITK/toUGUI → manual adjustments.\n\n"
+                "**sourceType (for analyze):** ugui (Canvas→UITK) or uitk (UXML→UGUI).\n"
+                "**Limitations:** UnityEvent callbacks, Animator-driven UI, and custom components require manual migration."
+            ),
+            inputSchema=ui_convert_schema(),
         ),
         # ── Visual ─────────────────────────────────────────────────
         types.Tool(
