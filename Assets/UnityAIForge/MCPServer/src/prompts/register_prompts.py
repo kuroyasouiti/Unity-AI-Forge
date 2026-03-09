@@ -34,21 +34,23 @@ def register_prompts(server: Server) -> None:
     ) -> types.GetPromptResult:
         """Get a prompt by name with arguments."""
         if name not in PROMPT_ARG_NAME:
-            raise ValueError(f"不明なプロンプト名です: {name}")
+            raise ValueError(f"Unknown prompt name: {name}")
 
         arg_name = PROMPT_ARG_NAME[name]
         valid_values = PROMPT_VALID_VALUES[name]
 
         if not arguments or arg_name not in arguments:
             raise ValueError(
-                f"引数 '{arg_name}' は必須です。" f" 選択肢: {', '.join(valid_values)}"
+                f"Argument '{arg_name}' is required."
+                f" Valid values: {', '.join(valid_values)}"
             )
 
         arg_value = arguments[arg_name]
 
         if arg_value not in valid_values:
             raise ValueError(
-                f"'{arg_value}' は無効な値です。" f" 選択肢: {', '.join(valid_values)}"
+                f"'{arg_value}' is not a valid value."
+                f" Valid values: {', '.join(valid_values)}"
             )
 
         template_key = (name, arg_value)
