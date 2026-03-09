@@ -62,6 +62,7 @@ unity_validate_integrity(operation='textOverflowAudit')    # テキスト溢れ
 unity_validate_integrity(operation='uiOverflowAudit')      # レイアウト溢れ
 unity_validate_integrity(operation='uiOverlapAudit')       # 要素重なり・レイキャスト
 unity_validate_integrity(operation='canvasGroupAudit')     # CanvasGroup競合
+unity_validate_integrity(operation='styleConsistencyAudit') # デザイン一貫性（色・フォント・スペーシング）
 ```
 
 | チェック | 検出内容 | 重要度 |
@@ -72,6 +73,7 @@ unity_validate_integrity(operation='canvasGroupAudit')     # CanvasGroup競合
 | uiOverflowAudit | LayoutGroup/sizeDeltaによる溢れ | warning |
 | uiOverlapAudit | 同座標兄弟・レイキャストブロック | warning/error |
 | canvasGroupAudit | 親alpha=0による子要素ブロック | warning/error |
+| styleConsistencyAudit | ボタン色3種超・フォントサイズ不規則・スペーシング不統一・トランジション未設定・不要raycastTarget・無効CanvasGroup・アンカー混在 | warning/info |
 
 ---
 
@@ -116,6 +118,12 @@ unity_scene_crud(operation='inspect', includeHierarchy=True, includeComponents=T
 
 # シーン固有の全チェック
 unity_validate_integrity(operation='all')
+
+# UI階層の包括的なデザインコンテキスト取得（タイポグラフィ・ビジュアル・インタラクション情報）
+unity_ui_foundation(operation='extractDesignContext', targetPath='Canvas')
+
+# デザイントークン抽出（色・フォントサイズ・スペーシングの使用状況と不整合検出）
+unity_ui_convert(operation='extractTokens', sourcePath='Canvas')
 
 # UIナビゲーション確認（キーボード/ゲームパッド操作）
 unity_ui_navigation(operation='inspect', rootPath='Canvas')
