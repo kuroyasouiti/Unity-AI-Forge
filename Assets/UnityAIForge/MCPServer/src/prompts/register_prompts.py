@@ -41,16 +41,14 @@ def register_prompts(server: Server) -> None:
 
         if not arguments or arg_name not in arguments:
             raise ValueError(
-                f"Argument '{arg_name}' is required."
-                f" Valid values: {', '.join(valid_values)}"
+                f"Argument '{arg_name}' is required." f" Valid values: {', '.join(valid_values)}"
             )
 
         arg_value = arguments[arg_name]
 
         if arg_value not in valid_values:
             raise ValueError(
-                f"'{arg_value}' is not a valid value."
-                f" Valid values: {', '.join(valid_values)}"
+                f"'{arg_value}' is not a valid value." f" Valid values: {', '.join(valid_values)}"
             )
 
         template_key = (name, arg_value)

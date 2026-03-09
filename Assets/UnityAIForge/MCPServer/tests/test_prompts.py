@@ -186,23 +186,23 @@ class TestRegisterPrompts:
     @pytest.mark.asyncio
     async def test_get_prompt_unknown_name_raises(self) -> None:
         _, handlers = self._capture_handlers()
-        with pytest.raises(ValueError, match="不明なプロンプト名です"):
+        with pytest.raises(ValueError, match="Unknown prompt name"):
             await handlers["get_prompt"]("nonexistent", {})
 
     @pytest.mark.asyncio
     async def test_get_prompt_missing_argument_raises(self) -> None:
         _, handlers = self._capture_handlers()
-        with pytest.raises(ValueError, match="引数 'genre' は必須です"):
+        with pytest.raises(ValueError, match="Argument 'genre' is required"):
             await handlers["get_prompt"]("game_genre_guide", {})
 
     @pytest.mark.asyncio
     async def test_get_prompt_none_arguments_raises(self) -> None:
         _, handlers = self._capture_handlers()
-        with pytest.raises(ValueError, match="引数 'genre' は必須です"):
+        with pytest.raises(ValueError, match="Argument 'genre' is required"):
             await handlers["get_prompt"]("game_genre_guide", None)
 
     @pytest.mark.asyncio
     async def test_get_prompt_invalid_value_raises(self) -> None:
         _, handlers = self._capture_handlers()
-        with pytest.raises(ValueError, match="無効な値です"):
+        with pytest.raises(ValueError, match="is not a valid value"):
             await handlers["get_prompt"]("game_genre_guide", {"genre": "invalid_genre"})
