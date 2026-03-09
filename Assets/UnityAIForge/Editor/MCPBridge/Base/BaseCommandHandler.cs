@@ -219,11 +219,13 @@ namespace MCP.Editor.Base
         /// 指定された操作がコンパイル待機を必要とするか判定します。
         /// 派生クラスでオーバーライドして個別のロジックを実装できます。
         /// </summary>
+        /// <summary>Read-only operations that never require compilation wait.</summary>
+        private static readonly string[] ReadOnlyOperations = { "inspect", "list", "find", "findMultiple", "inspectMultiple" };
+
         protected virtual bool RequiresCompilationWait(string operation)
         {
             // デフォルトでは読み取り専用操作はコンパイル待機不要
-            var readOnlyOperations = new[] { "inspect", "list", "find", "findMultiple", "inspectMultiple" };
-            return !readOnlyOperations.Contains(operation);
+            return !ReadOnlyOperations.Contains(operation);
         }
         
         /// <summary>

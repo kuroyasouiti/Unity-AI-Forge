@@ -205,7 +205,7 @@ def _run_with_uv(config: uvicorn.Config) -> bool:
         return False
 
     try:
-        run(_serve(config))  # type: ignore[arg-type]
+        run(_serve(config))
     except TypeError:
         logger.warning("python 'uv.run' signature incompatible; falling back to asyncio")
         return False

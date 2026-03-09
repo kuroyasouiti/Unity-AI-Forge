@@ -234,7 +234,7 @@ async def execute_batch_sequential(
             idx = state.current_index
             operation = state.operations[idx]
 
-            original_tool_name = operation.get("tool")
+            original_tool_name: str = operation.get("tool", "")
             arguments = operation.get("arguments", {})
 
             # Resolve MCP tool name to internal bridge tool name

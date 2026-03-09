@@ -19,7 +19,7 @@ def get_batch_queue_resources() -> list[Resource]:
     """Get batch queue resource definitions."""
     return [
         Resource(
-            uri="batch://queue/status",
+            uri="batch://queue/status",  # type: ignore[arg-type]
             name="Batch Queue Status",
             description="Current status of sequential batch execution queue",
             mimeType="application/json",
