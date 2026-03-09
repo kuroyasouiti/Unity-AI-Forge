@@ -27,6 +27,7 @@ namespace MCP.Editor.Handlers
             "toUITK",
             "toUGUI",
             "extractStyles",
+            "extractTokens",
         };
 
         public override IEnumerable<string> SupportedOperations => Operations;
@@ -40,6 +41,7 @@ namespace MCP.Editor.Handlers
                 "toUITK" => ConvertToUITK(payload),
                 "toUGUI" => ConvertToUGUI(payload),
                 "extractStyles" => ExtractStylesOp(payload),
+                "extractTokens" => ExtractTokens(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
 
@@ -1432,6 +1434,337 @@ namespace MCP.Editor.Handlers
 
             float score = (convertible * 1.0f + warnings * 0.5f) / total * 100f;
             return $"{score:F0}%";
+        }
+
+        #endregion
+
+        #region Extract Tokens
+
+        private object ExtractTokens(Dictionary<string, object> payload)
+        {
+            var sourcePath = GetString(payload, "sourcePath");
+            if (string.IsNullOrEmpty(sourcePath))
+                throw new InvalidOperationException("'sourcePath' is required for extractTokens.");
+
+            var root = ResolveGameObject(sourcePath);
+
+            var colorEntries = new List<TokenEntry<Color>>();
+            var fontSizeEntries = new List<TokenEntry<float>>();
+            var fontFamilyEntries = new List<TokenEntry<string>>();
+            var spacingEntries = new List<TokenEntry<float>>();
+            var sizeEntries = new List<TokenEntry<Vector2>>();
+
+            CollectTokensRecursive(root, colorEntries, fontSizeEntries, fontFamilyEntries, spacingEntries, sizeEntries);
+
+            // Deduplicate and build output
+            var colors = DeduplicateColors(colorEntries);
+            var fontSizes = DeduplicateNumeric(fontSizeEntries, "fontSize");
+            var fontFamilies = DeduplicateStrings(fontFamilyEntries);
+            var spacingValues = DeduplicateNumeric(spacingEntries, "spacing");
+            var sizes = DeduplicateSizes(sizeEntries);
+            var inconsistencies = DetectInconsistencies(colorEntries, fontSizeEntries);
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["sourcePath"] = BuildGameObjectPath(root),
+                ["colors"] = colors,
+                ["fontSizes"] = fontSizes,
+                ["fontFamilies"] = fontFamilies,
+                ["spacingValues"] = spacingValues,
+                ["sizes"] = sizes,
+                ["inconsistencies"] = inconsistencies,
+                ["tokenCounts"] = new Dictionary<string, object>
+                {
+                    ["colors"] = colors.Count,
+                    ["fontSizes"] = fontSizes.Count,
+                    ["fontFamilies"] = fontFamilies.Count,
+                    ["spacingValues"] = spacingValues.Count,
+                    ["sizes"] = sizes.Count
+                }
+            };
+        }
+
+        private struct TokenEntry<T>
+        {
+            public T Value;
+            public string Category;
+            public string Path;
+        }
+
+        private void CollectTokensRecursive(
+            GameObject go,
+            List<TokenEntry<Color>> colors,
+            List<TokenEntry<float>> fontSizes,
+            List<TokenEntry<string>> fontFamilies,
+            List<TokenEntry<float>> spacings,
+            List<TokenEntry<Vector2>> sizes)
+        {
+            var path = BuildGameObjectPath(go);
+
+            // Colors from Image
+            var image = go.GetComponent<UnityEngine.UI.Image>();
+            if (image != null)
+                colors.Add(new TokenEntry<Color> { Value = image.color, Category = "background", Path = path });
+
+            // Colors from Text
+            var text = go.GetComponent<Text>();
+            if (text != null)
+            {
+                colors.Add(new TokenEntry<Color> { Value = text.color, Category = "text", Path = path });
+                fontSizes.Add(new TokenEntry<float> { Value = text.fontSize, Category = "fontSize", Path = path });
+                if (text.font != null)
+                    fontFamilies.Add(new TokenEntry<string> { Value = text.font.name, Category = "fontFamily", Path = path });
+            }
+
+            // TMP text
+            var tmpType = Type.GetType("TMPro.TextMeshProUGUI, Unity.TextMeshPro");
+            if (tmpType != null)
+            {
+                var tmp = go.GetComponent(tmpType);
+                if (tmp != null)
+                {
+                    var colorProp = tmpType.GetProperty("color");
+                    if (colorProp != null)
+                        colors.Add(new TokenEntry<Color> { Value = (Color)colorProp.GetValue(tmp), Category = "text", Path = path });
+
+                    var fontSizeProp = tmpType.GetProperty("fontSize");
+                    if (fontSizeProp != null)
+                        fontSizes.Add(new TokenEntry<float> { Value = Convert.ToSingle(fontSizeProp.GetValue(tmp)), Category = "fontSize", Path = path });
+
+                    var fontProp = tmpType.GetProperty("font");
+                    if (fontProp != null)
+                    {
+                        var font = fontProp.GetValue(tmp);
+                        if (font != null)
+                        {
+                            var nameProp = font.GetType().GetProperty("name");
+                            if (nameProp != null)
+                                fontFamilies.Add(new TokenEntry<string> { Value = (string)nameProp.GetValue(font), Category = "fontFamily", Path = path });
+                        }
+                    }
+                }
+            }
+
+            // Button color block
+            var button = go.GetComponent<UnityEngine.UI.Button>();
+            if (button != null && button.transition == Selectable.Transition.ColorTint)
+            {
+                var cb = button.colors;
+                colors.Add(new TokenEntry<Color> { Value = cb.normalColor, Category = "buttonNormal", Path = path });
+                colors.Add(new TokenEntry<Color> { Value = cb.highlightedColor, Category = "buttonHighlighted", Path = path });
+                colors.Add(new TokenEntry<Color> { Value = cb.pressedColor, Category = "buttonPressed", Path = path });
+                colors.Add(new TokenEntry<Color> { Value = cb.selectedColor, Category = "buttonSelected", Path = path });
+                colors.Add(new TokenEntry<Color> { Value = cb.disabledColor, Category = "buttonDisabled", Path = path });
+            }
+
+            // Layout spacing
+            var hLayout = go.GetComponent<HorizontalLayoutGroup>();
+            if (hLayout != null)
+            {
+                spacings.Add(new TokenEntry<float> { Value = hLayout.spacing, Category = "spacing", Path = path });
+                AddPaddingTokens(hLayout.padding, spacings, path);
+            }
+            var vLayout = go.GetComponent<VerticalLayoutGroup>();
+            if (vLayout != null)
+            {
+                spacings.Add(new TokenEntry<float> { Value = vLayout.spacing, Category = "spacing", Path = path });
+                AddPaddingTokens(vLayout.padding, spacings, path);
+            }
+            var gridLayout = go.GetComponent<GridLayoutGroup>();
+            if (gridLayout != null)
+            {
+                spacings.Add(new TokenEntry<float> { Value = gridLayout.spacing.x, Category = "spacing", Path = path });
+                spacings.Add(new TokenEntry<float> { Value = gridLayout.spacing.y, Category = "spacing", Path = path });
+                AddPaddingTokens(gridLayout.padding, spacings, path);
+            }
+
+            // Sizes from RectTransform
+            var rect = go.GetComponent<RectTransform>();
+            if (rect != null && (rect.sizeDelta.x > 0 || rect.sizeDelta.y > 0))
+                sizes.Add(new TokenEntry<Vector2> { Value = rect.sizeDelta, Category = "sizeDelta", Path = path });
+
+            // Recurse children
+            for (int i = 0; i < go.transform.childCount; i++)
+                CollectTokensRecursive(go.transform.GetChild(i).gameObject, colors, fontSizes, fontFamilies, spacings, sizes);
+        }
+
+        private static void AddPaddingTokens(RectOffset padding, List<TokenEntry<float>> spacings, string path)
+        {
+            if (padding.left > 0)
+                spacings.Add(new TokenEntry<float> { Value = padding.left, Category = "padding", Path = path });
+            if (padding.right > 0)
+                spacings.Add(new TokenEntry<float> { Value = padding.right, Category = "padding", Path = path });
+            if (padding.top > 0)
+                spacings.Add(new TokenEntry<float> { Value = padding.top, Category = "padding", Path = path });
+            if (padding.bottom > 0)
+                spacings.Add(new TokenEntry<float> { Value = padding.bottom, Category = "padding", Path = path });
+        }
+
+        private static string ColorToHex(Color c)
+        {
+            return $"#{(int)(c.r * 255):X2}{(int)(c.g * 255):X2}{(int)(c.b * 255):X2}" +
+                   (c.a < 1f ? $"{(int)(c.a * 255):X2}" : "");
+        }
+
+        private static float ColorDistance(Color a, Color b)
+        {
+            float dr = a.r - b.r, dg = a.g - b.g, db = a.b - b.b, da = a.a - b.a;
+            return Mathf.Sqrt(dr * dr + dg * dg + db * db + da * da);
+        }
+
+        private static List<Dictionary<string, object>> DeduplicateColors(List<TokenEntry<Color>> entries)
+        {
+            var groups = new List<(Color color, string category, List<string> paths)>();
+
+            foreach (var entry in entries)
+            {
+                var found = false;
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    if (ColorDistance(groups[i].color, entry.Value) < 0.001f && groups[i].category == entry.Category)
+                    {
+                        groups[i].paths.Add(entry.Path);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    groups.Add((entry.Value, entry.Category, new List<string> { entry.Path }));
+            }
+
+            return groups.Select(g => new Dictionary<string, object>
+            {
+                ["value"] = new Dictionary<string, object>
+                {
+                    ["r"] = (float)Math.Round(g.color.r, 4),
+                    ["g"] = (float)Math.Round(g.color.g, 4),
+                    ["b"] = (float)Math.Round(g.color.b, 4),
+                    ["a"] = (float)Math.Round(g.color.a, 4)
+                },
+                ["hex"] = ColorToHex(g.color),
+                ["category"] = g.category,
+                ["usageCount"] = g.paths.Count,
+                ["usedBy"] = (object)(g.paths.Count <= 5 ? g.paths : g.paths.Take(5).ToList())
+            }).ToList();
+        }
+
+        private static List<Dictionary<string, object>> DeduplicateNumeric(List<TokenEntry<float>> entries, string categoryLabel)
+        {
+            var groups = entries
+                .GroupBy(e => Mathf.Round(e.Value * 10f) / 10f)
+                .Select(g => new Dictionary<string, object>
+                {
+                    ["value"] = g.First().Value,
+                    ["usageCount"] = g.Count(),
+                    ["usedBy"] = (object)(g.Count() <= 5
+                        ? g.Select(e => e.Path).Distinct().ToList()
+                        : g.Select(e => e.Path).Distinct().Take(5).ToList())
+                })
+                .OrderByDescending(d => (int)d["usageCount"])
+                .ToList();
+
+            return groups;
+        }
+
+        private static List<Dictionary<string, object>> DeduplicateStrings(List<TokenEntry<string>> entries)
+        {
+            return entries
+                .GroupBy(e => e.Value)
+                .Select(g => new Dictionary<string, object>
+                {
+                    ["name"] = g.Key,
+                    ["usageCount"] = g.Count(),
+                    ["usedBy"] = (object)(g.Count() <= 5
+                        ? g.Select(e => e.Path).Distinct().ToList()
+                        : g.Select(e => e.Path).Distinct().Take(5).ToList())
+                })
+                .OrderByDescending(d => (int)d["usageCount"])
+                .ToList();
+        }
+
+        private static List<Dictionary<string, object>> DeduplicateSizes(List<TokenEntry<Vector2>> entries)
+        {
+            return entries
+                .GroupBy(e => new Vector2(Mathf.Round(e.Value.x), Mathf.Round(e.Value.y)))
+                .Select(g => new Dictionary<string, object>
+                {
+                    ["width"] = g.Key.x,
+                    ["height"] = g.Key.y,
+                    ["usageCount"] = g.Count(),
+                    ["usedBy"] = (object)(g.Count() <= 5
+                        ? g.Select(e => e.Path).Distinct().ToList()
+                        : g.Select(e => e.Path).Distinct().Take(5).ToList())
+                })
+                .OrderByDescending(d => (int)d["usageCount"])
+                .ToList();
+        }
+
+        private static List<Dictionary<string, object>> DetectInconsistencies(
+            List<TokenEntry<Color>> colorEntries, List<TokenEntry<float>> fontSizeEntries)
+        {
+            var issues = new List<Dictionary<string, object>>();
+
+            // Near-duplicate colors (distance < 0.02 but not identical)
+            var uniqueColors = colorEntries
+                .GroupBy(e => e.Category)
+                .SelectMany(catGroup =>
+                {
+                    var deduped = new List<(Color color, List<string> paths)>();
+                    foreach (var entry in catGroup)
+                    {
+                        bool found = false;
+                        for (int i = 0; i < deduped.Count; i++)
+                        {
+                            if (ColorDistance(deduped[i].color, entry.Value) < 0.001f)
+                            {
+                                deduped[i].paths.Add(entry.Path);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) deduped.Add((entry.Value, new List<string> { entry.Path }));
+                    }
+                    return deduped.Select(d => (color: d.color, paths: d.paths, category: catGroup.Key));
+                })
+                .ToList();
+
+            for (int i = 0; i < uniqueColors.Count; i++)
+            {
+                for (int j = i + 1; j < uniqueColors.Count; j++)
+                {
+                    if (uniqueColors[i].category != uniqueColors[j].category) continue;
+                    float dist = ColorDistance(uniqueColors[i].color, uniqueColors[j].color);
+                    if (dist > 0.001f && dist < 0.02f)
+                    {
+                        issues.Add(new Dictionary<string, object>
+                        {
+                            ["type"] = "nearDuplicateColor",
+                            ["category"] = uniqueColors[i].category,
+                            ["values"] = new List<string> { ColorToHex(uniqueColors[i].color), ColorToHex(uniqueColors[j].color) },
+                            ["suggestion"] = "Consider unifying these similar colors for design consistency."
+                        });
+                    }
+                }
+            }
+
+            // Near-duplicate font sizes (within 1px)
+            var uniqueFontSizes = fontSizeEntries.Select(e => e.Value).Distinct().OrderBy(v => v).ToList();
+            for (int i = 0; i < uniqueFontSizes.Count - 1; i++)
+            {
+                float diff = uniqueFontSizes[i + 1] - uniqueFontSizes[i];
+                if (diff > 0 && diff <= 1f)
+                {
+                    issues.Add(new Dictionary<string, object>
+                    {
+                        ["type"] = "nearDuplicateFontSize",
+                        ["values"] = new List<float> { uniqueFontSizes[i], uniqueFontSizes[i + 1] },
+                        ["suggestion"] = "Consider standardizing these similar font sizes."
+                    });
+                }
+            }
+
+            return issues;
         }
 
         #endregion

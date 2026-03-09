@@ -30,6 +30,7 @@ namespace MCP.Editor.Tests
             Assert.Contains("toUITK", ops);
             Assert.Contains("toUGUI", ops);
             Assert.Contains("extractStyles", ops);
+            Assert.Contains("extractTokens", ops);
         }
 
         [Test]
@@ -125,6 +126,14 @@ namespace MCP.Editor.Tests
                 _handler.Execute(TestUtilities.CreatePayload("extractStyles",
                     ("sourcePath", "Canvas"))),
                 "outputPath");
+        }
+
+        [Test]
+        public void ExtractTokens_MissingSourcePath_ReturnsError()
+        {
+            TestUtilities.AssertError(
+                _handler.Execute(TestUtilities.CreatePayload("extractTokens")),
+                "sourcePath");
         }
     }
 }

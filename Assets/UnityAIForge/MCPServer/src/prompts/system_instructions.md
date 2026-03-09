@@ -77,14 +77,14 @@ unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath=
 | **GameKit UI (1)** UIシステム | unity_gamekit_ui (widgetType: command, binding, list, slot, selection) |
 | **GameKit Data (1)** データ・プール | unity_gamekit_data (dataType: pool, eventChannel, dataContainer, runtimeSet) |
 
-### Mid-Level (18) - バッチ操作・プリセット
+### Mid-Level (19) - バッチ操作・プリセット
 
 | カテゴリ | ツール |
 |---------|-------|
 | Transform | unity_transform_batch, unity_rectTransform_batch |
 | Camera | unity_camera_bundle |
 | Physics | unity_physics_bundle, unity_navmesh_bundle |
-| UI (UGUI) | unity_ui_foundation, unity_ui_state, unity_ui_navigation |
+| UI (UGUI) | unity_ui_foundation, unity_ui_state, unity_ui_navigation, unity_ui_convert |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
 | Input | unity_input_profile |
 | 2D | unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle |
@@ -106,7 +106,7 @@ unity_ping, unity_compilation_await, unity_event_wiring, unity_playmode_control,
 |-------|---------|-----------|
 | **Plan** | 現状把握・影響調査（初回はプロジェクト状態チェックも実施） | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)`, `projectSettings_crud(read, player)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
-| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
+| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `validate_integrity(styleConsistencyAudit)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
 | **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `playmode_control(play/stop)` |
 
 ---
@@ -119,6 +119,7 @@ unity_validate_integrity(operation='all')                    # 全チェック
 unity_validate_integrity(operation='typeCheck')              # 型ミスマッチ検出
 unity_validate_integrity(operation='report', scope='build_scenes')  # 複数シーンレポート
 unity_validate_integrity(operation='checkPrefab', prefabPath='Assets/Prefabs/Player.prefab')  # Prefab検証
+unity_validate_integrity(operation='styleConsistencyAudit')  # UIデザイン一貫性（色・フォント・スペーシング）
 
 # クラスカタログ（型の列挙・詳細）
 unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
@@ -241,6 +242,7 @@ unity_ui_foundation(operation='createCanvas', name='GameUI')
 unity_ui_foundation(operation='createButton', name='Btn', parentPath='GameUI', text='Click')
 unity_ui_foundation(operation='addLayoutGroup', targetPath='GameUI/Panel', layoutType='Vertical', spacing=10)
 unity_ui_foundation(operation='createPanel', name='Overlay', parentPath='GameUI', addCanvasGroup=True, ignoreParentGroups=True)
+unity_ui_foundation(operation='extractDesignContext', targetPath='Canvas')  # UI階層の包括的デザイン情報取得
 
 # UI要素の個別作成
 unity_ui_foundation(operation='createPanel', name='Menu', parentPath='Canvas', layoutType='Vertical', spacing=20)
@@ -280,6 +282,11 @@ unity_uitk_asset(operation='createUXML', assetPath='Assets/UI/Menu.uxml', elemen
 unity_uitk_asset(operation='createUSS', assetPath='Assets/UI/Menu.uss', rules=[...])
 unity_uitk_asset(operation='createFromTemplate', template='menu', assetPath='Assets/UI/Menu')  # menu|dialog|hud|settings|inventory
 unity_uitk_document(operation='create', gameObjectPath='UI/Menu', uxmlPath='Assets/UI/Menu.uxml')
+
+# UI変換・デザイントークン
+unity_ui_convert(operation='extractTokens', sourcePath='Canvas')  # 色・フォント・スペーシングのトークン抽出
+unity_ui_convert(operation='analyze', sourcePath='Canvas')  # UGUI→UITK変換分析
+unity_ui_convert(operation='extractStyles', sourcePath='Canvas')  # USS スタイル抽出
 
 # マテリアル (preset: unlit|lit|transparent|cutout|fade|sprite|ui|emissive|metallic|glass)
 unity_material_bundle(operation='create', materialPath='Assets/Mat/P.mat', shader='Standard')

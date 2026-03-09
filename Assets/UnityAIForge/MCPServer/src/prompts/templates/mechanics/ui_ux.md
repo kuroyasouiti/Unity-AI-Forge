@@ -713,6 +713,66 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 
 ---
 
+## UI デザイン解析・トークン抽出
+
+### UI 階層の包括的エクスポート（extractDesignContext）
+
+実装済みのUIを解析し、タイポグラフィ・ビジュアル・インタラクション・レイアウト情報を
+一括取得します。AIによるUI改善提案やコード生成のコンテキストとして使用します。
+
+```python
+# Canvas 以下の全UI要素を包括的に取得
+unity_ui_foundation(
+    operation="extractDesignContext",
+    targetPath="GameCanvas",
+    maxDepth=20,
+    includeInactive=False
+)
+# 返却値: summary（要素数・種類別カウント・Canvas設定）+ tree（再帰的な要素ツリー）
+# 各要素: typography（フォント・サイズ・色・配置）、visual（背景色・スプライト・画像タイプ）、
+#         interaction（トランジション・カラーブロック・ナビゲーション）、layout（LayoutGroup設定）
+```
+
+### デザイントークン抽出（extractTokens）
+
+UIで使用されている色・フォントサイズ・フォントファミリー・スペーシング・不透明度を
+重複排除して抽出し、暗黙のデザインシステムを可視化します。
+
+```python
+# デザイントークンの抽出（近似色の不整合も検出）
+unity_ui_convert(
+    operation="extractTokens",
+    sourcePath="GameCanvas",
+    colorTolerance=0.02
+)
+# 返却値: tokens（色・フォントサイズ・フォントファミリー・スペーシング・不透明度の一覧と使用箇所）
+#         inconsistencies（近似色や近似フォントサイズの不整合検出）
+#         summary（ユニーク数の集計）
+```
+
+### デザイン一貫性チェック（styleConsistencyAudit）
+
+UIの横断的な一貫性を検証します。個別要素のチェック（touchTargetAudit等）とは異なり、
+要素間の比較によるデザインシステム違反を検出します。
+
+```python
+# デザイン一貫性の監査
+unity_validate_integrity(
+    operation="styleConsistencyAudit",
+    rootPath="GameCanvas"
+)
+# 検出項目:
+# - ボタン色が3種類を超える不統一
+# - フォントサイズスケールの不規則性
+# - スペーシング値が4種類を超える不統一
+# - Selectable のトランジション未設定
+# - 非インタラクティブ Image の不要な raycastTarget
+# - デフォルト値のみの無効な CanvasGroup
+# - 兄弟要素間のアンカー戦略の混在
+```
+
+---
+
 ## 注意点・落とし穴
 
 1. **コード生成後のコンパイル待ち**
@@ -759,4 +819,5 @@ unity_compilation_await(operation="await", timeoutSeconds=30)
 | `unity_uitk_document` | UI Toolkit UIDocument の管理 |
 | `unity_uitk_asset` | UXML・USS アセットの生成 |
 | `unity_compilation_await` | コード生成後のコンパイル完了待ち |
-| `unity_validate_integrity` | UI スクリプトの整合性チェック |
+| `unity_ui_convert` | UGUI↔UITK変換・スタイル抽出・デザイントークン抽出 |
+| `unity_validate_integrity` | UI スクリプトの整合性チェック・デザイン一貫性監査 |
