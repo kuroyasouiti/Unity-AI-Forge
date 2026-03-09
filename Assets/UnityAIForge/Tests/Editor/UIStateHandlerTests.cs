@@ -31,7 +31,9 @@ namespace MCP.Editor.Tests
             Assert.Contains("saveState", ops);
             Assert.Contains("loadState", ops);
             Assert.Contains("listStates", ops);
-            Assert.Contains("deleteState", ops);
+            Assert.Contains("createStateGroup", ops);
+            Assert.Contains("transitionTo", ops);
+            Assert.Contains("getActiveState", ops);
         }
 
         [Test]

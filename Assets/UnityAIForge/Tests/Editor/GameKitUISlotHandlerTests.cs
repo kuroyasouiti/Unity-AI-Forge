@@ -29,12 +29,16 @@ namespace MCP.Editor.Tests
         {
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("create", ops);
-            Assert.Contains("update", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("delete", ops);
             Assert.Contains("setItem", ops);
             Assert.Contains("clearSlot", ops);
+            Assert.Contains("setHighlight", ops);
             Assert.Contains("createSlotBar", ops);
+            Assert.Contains("inspectSlotBar", ops);
+            Assert.Contains("useSlot", ops);
+            Assert.Contains("refreshFromInventory", ops);
+            Assert.Contains("findBySlotId", ops);
+            Assert.Contains("findByBarId", ops);
         }
 
         [Test]

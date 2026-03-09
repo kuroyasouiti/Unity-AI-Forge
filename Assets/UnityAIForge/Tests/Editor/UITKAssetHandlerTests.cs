@@ -38,8 +38,9 @@ namespace MCP.Editor.Tests
             Assert.Contains("createUSS", ops);
             Assert.Contains("inspectUXML", ops);
             Assert.Contains("inspectUSS", ops);
-            Assert.Contains("updateUXML", ops);
-            Assert.Contains("updateUSS", ops);
+            Assert.Contains("createPanelSettings", ops);
+            Assert.Contains("createFromTemplate", ops);
+            Assert.Contains("validateDependencies", ops);
         }
 
         [Test]

@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "inspect", "find"
+            "create", "createMultiple", "inspect", "find"
         };
 
         private readonly GameKitPoolHandler _poolHandler = new();
@@ -26,10 +26,14 @@ namespace MCP.Editor.Handlers.HighLevel
         public override IEnumerable<string> SupportedOperations => Operations;
 
         protected override bool RequiresCompilationWait(string operation) =>
-            operation == "create";
+            operation == "create" || operation == "createMultiple";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
+            // createMultiple: batch-create multiple items of the same dataType
+            if (operation == "createMultiple")
+                return CreateMultiple(payload);
+
             var dataType = GetString(payload, "dataType");
             if (string.IsNullOrEmpty(dataType))
                 return CreateFailureResponse("'dataType' is required. Use: pool, eventChannel, dataContainer, runtimeSet");
@@ -163,11 +167,26 @@ namespace MCP.Editor.Handlers.HighLevel
                 }
             }
 
-            // If assetPath is provided, note that the asset must be created after compilation
             if (!string.IsNullOrEmpty(assetPath))
             {
                 result["assetPath"] = assetPath;
-                result["note"] = "After compilation, create the ScriptableObject asset using unity_scriptableObject_crud with typeName='" + channelClassName + "'.";
+
+                var autoCreate = GetBool(payload, "autoCreateAsset", false);
+                if (autoCreate)
+                {
+                    var entry = GeneratedScriptTracker.Instance.FindByComponentId(dataId);
+                    if (entry != null)
+                    {
+                        entry.pendingAssetPath = assetPath;
+                        GeneratedScriptTracker.Instance.Register(entry);
+                    }
+                    result["autoCreateAsset"] = true;
+                    result["note"] = "ScriptableObject asset will be auto-created at '" + assetPath + "' after compilation.";
+                }
+                else
+                {
+                    result["note"] = "After compilation, create the ScriptableObject asset using unity_scriptableObject_crud with typeName='" + channelClassName + "'.";
+                }
             }
 
             return result;
@@ -229,7 +248,23 @@ namespace MCP.Editor.Handlers.HighLevel
             if (!string.IsNullOrEmpty(assetPath))
             {
                 result["assetPath"] = assetPath;
-                result["note"] = "After compilation, create the ScriptableObject asset using unity_scriptableObject_crud with typeName='" + className + "'.";
+
+                var autoCreate = GetBool(payload, "autoCreateAsset", false);
+                if (autoCreate)
+                {
+                    var entry = GeneratedScriptTracker.Instance.FindByComponentId(dataId);
+                    if (entry != null)
+                    {
+                        entry.pendingAssetPath = assetPath;
+                        GeneratedScriptTracker.Instance.Register(entry);
+                    }
+                    result["autoCreateAsset"] = true;
+                    result["note"] = "ScriptableObject asset will be auto-created at '" + assetPath + "' after compilation.";
+                }
+                else
+                {
+                    result["note"] = "After compilation, create the ScriptableObject asset using unity_scriptableObject_crud with typeName='" + className + "'.";
+                }
             }
 
             return result;
@@ -343,7 +378,23 @@ namespace MCP.Editor.Handlers.HighLevel
             if (!string.IsNullOrEmpty(assetPath))
             {
                 result["assetPath"] = assetPath;
-                result["note"] = "After compilation, create the ScriptableObject asset using unity_scriptableObject_crud with typeName='" + className + "'.";
+
+                var autoCreate = GetBool(payload, "autoCreateAsset", false);
+                if (autoCreate)
+                {
+                    var entry = GeneratedScriptTracker.Instance.FindByComponentId(dataId);
+                    if (entry != null)
+                    {
+                        entry.pendingAssetPath = assetPath;
+                        GeneratedScriptTracker.Instance.Register(entry);
+                    }
+                    result["autoCreateAsset"] = true;
+                    result["note"] = "ScriptableObject asset will be auto-created at '" + assetPath + "' after compilation.";
+                }
+                else
+                {
+                    result["note"] = "After compilation, create the ScriptableObject asset using unity_scriptableObject_crud with typeName='" + className + "'.";
+                }
             }
 
             return result;
@@ -434,6 +485,64 @@ namespace MCP.Editor.Handlers.HighLevel
             }
 
             return CreateSuccessResponse(("found", false), ("dataId", dataId));
+        }
+
+        #endregion
+
+        #region CreateMultiple
+
+        private object CreateMultiple(Dictionary<string, object> payload)
+        {
+            var dataType = GetString(payload, "dataType");
+            if (string.IsNullOrEmpty(dataType))
+                return CreateFailureResponse("'dataType' is required for createMultiple.");
+
+            if (!payload.TryGetValue("items", out var itemsObj) || itemsObj is not List<object> items || items.Count == 0)
+                return CreateFailureResponse("'items' array is required for createMultiple and must not be empty.");
+
+            var results = new List<Dictionary<string, object>>();
+            var errors = new List<string>();
+
+            foreach (var itemObj in items)
+            {
+                if (itemObj is not Dictionary<string, object> itemPayload)
+                {
+                    errors.Add("Invalid item format (expected object).");
+                    continue;
+                }
+
+                // Merge shared properties (scriptOutputDir) into each item
+                if (!itemPayload.ContainsKey("scriptOutputDir") && payload.ContainsKey("scriptOutputDir"))
+                    itemPayload["scriptOutputDir"] = payload["scriptOutputDir"];
+
+                try
+                {
+                    object result = dataType switch
+                    {
+                        "eventChannel" => CreateEventChannel(itemPayload),
+                        "dataContainer" => CreateDataContainer(itemPayload),
+                        "runtimeSet" => CreateRuntimeSet(itemPayload),
+                        _ => throw new InvalidOperationException(
+                            $"createMultiple is not supported for dataType '{dataType}'. Use: eventChannel, dataContainer, runtimeSet")
+                    };
+
+                    if (result is Dictionary<string, object> dict)
+                        results.Add(dict);
+                }
+                catch (Exception ex)
+                {
+                    var dataId = itemPayload.TryGetValue("dataId", out var id) ? id?.ToString() : "unknown";
+                    errors.Add($"{dataId}: {ex.Message}");
+                }
+            }
+
+            return CreateSuccessResponse(
+                ("created", results),
+                ("createdCount", results.Count),
+                ("errorCount", errors.Count),
+                ("errors", errors),
+                ("requiresCompilationWait", results.Count > 0)
+            );
         }
 
         #endregion

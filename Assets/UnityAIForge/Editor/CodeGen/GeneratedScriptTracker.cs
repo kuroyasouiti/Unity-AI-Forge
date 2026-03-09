@@ -38,6 +38,9 @@ namespace MCP.Editor.CodeGen
 
             /// <summary>True if the component needs to be attached after next compilation.</summary>
             public bool pendingAttach;
+
+            /// <summary>Asset path for auto-creating ScriptableObject after compilation (empty = skip).</summary>
+            public string pendingAssetPath;
         }
 
         [SerializeField]
@@ -126,6 +129,12 @@ namespace MCP.Editor.CodeGen
         public IEnumerable<Entry> FindPendingAttach()
         {
             return entries.Where(e => e.pendingAttach);
+        }
+
+        /// <summary>Finds all entries with pending ScriptableObject asset creation.</summary>
+        public IEnumerable<Entry> FindPendingAssetCreation()
+        {
+            return entries.Where(e => !string.IsNullOrEmpty(e.pendingAssetPath));
         }
 
         /// <summary>Checks whether a class name is already registered.</summary>

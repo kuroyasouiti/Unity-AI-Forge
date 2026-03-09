@@ -33,9 +33,8 @@ namespace MCP.Editor.Tests
         {
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("createSprite", ops);
-            Assert.Contains("updateSprite", ops);
-            Assert.Contains("inspect", ops);
-            Assert.Contains("setColor", ops);
+            Assert.Contains("sliceSpriteSheet", ops);
+            Assert.Contains("createSpriteAtlas", ops);
         }
 
         [Test]

@@ -42,6 +42,7 @@ WORKFLOW_OPTIONS: list[str] = [
     "release",
     "testing",
     "scene_structure",
+    "feature_implementation",
 ]
 
 # --- Prompt definitions ---

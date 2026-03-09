@@ -171,6 +171,7 @@ def component_manage_schema() -> dict[str, Any]:
                         "removeMultiple",
                         "updateMultiple",
                         "inspectMultiple",
+                        "crossSceneUpdate",
                     ],
                     "description": "Component operation to perform.",
                 },
@@ -220,9 +221,41 @@ def component_manage_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Stop batch operation on first error (default: true).",
                 },
+                "updates": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "scenePath": {
+                                "type": "string",
+                                "description": "Scene file path (e.g., 'Assets/Scenes/Level1.unity').",
+                            },
+                            "gameObjectPath": {
+                                "type": "string",
+                                "description": "Target GameObject hierarchy path within the scene.",
+                            },
+                            "componentType": {
+                                "type": "string",
+                                "description": "Component type name.",
+                            },
+                            "propertyChanges": {
+                                "type": "object",
+                                "additionalProperties": True,
+                                "description": "Property values to set.",
+                            },
+                        },
+                        "required": [
+                            "scenePath",
+                            "gameObjectPath",
+                            "componentType",
+                            "propertyChanges",
+                        ],
+                    },
+                    "description": "Array of cross-scene component updates for crossSceneUpdate operation. Auto-loads/saves each scene.",
+                },
             },
         },
-        ["operation", "componentType"],
+        ["operation"],
     )
 
 

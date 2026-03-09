@@ -17,7 +17,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "inspect",
+            "create", "createMultiple", "inspect",
             "setRange", "refresh", "findByBindingId"
         };
 
@@ -26,13 +26,14 @@ namespace MCP.Editor.Handlers.HighLevel
         public override IEnumerable<string> SupportedOperations => Operations;
 
         protected override bool RequiresCompilationWait(string operation) =>
-            operation == "create";
+            operation == "create" || operation == "createMultiple";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
             return operation switch
             {
                 "create" => CreateBinding(payload),
+                "createMultiple" => CreateMultipleBindings(payload),
                 "inspect" => InspectBinding(payload),
                 "setRange" => SetRange(payload),
                 "refresh" => RefreshBinding(payload),
@@ -108,6 +109,51 @@ namespace MCP.Editor.Handlers.HighLevel
             result["elementName"] = elementName;
 
             return result;
+        }
+
+        private object CreateMultipleBindings(Dictionary<string, object> payload)
+        {
+            if (!payload.TryGetValue("bindings", out var bindingsObj) ||
+                bindingsObj is not List<object> bindings || bindings.Count == 0)
+                throw new InvalidOperationException("'bindings' array is required for createMultiple and must not be empty.");
+
+            var results = new List<Dictionary<string, object>>();
+            var errors = new List<string>();
+
+            // Inherit shared targetPath if individual items don't specify it
+            var sharedTargetPath = GetString(payload, "targetPath");
+
+            foreach (var bindingObj in bindings)
+            {
+                if (bindingObj is not Dictionary<string, object> bindingPayload)
+                {
+                    errors.Add("Invalid binding format (expected object).");
+                    continue;
+                }
+
+                if (!bindingPayload.ContainsKey("targetPath") && !string.IsNullOrEmpty(sharedTargetPath))
+                    bindingPayload["targetPath"] = sharedTargetPath;
+
+                try
+                {
+                    var result = CreateBinding(bindingPayload);
+                    if (result is Dictionary<string, object> dict)
+                        results.Add(dict);
+                }
+                catch (Exception ex)
+                {
+                    var bindingId = bindingPayload.TryGetValue("bindingId", out var id) ? id?.ToString() : "unknown";
+                    errors.Add($"{bindingId}: {ex.Message}");
+                }
+            }
+
+            return CreateSuccessResponse(
+                ("created", results),
+                ("createdCount", results.Count),
+                ("errorCount", errors.Count),
+                ("errors", errors),
+                ("requiresCompilationWait", results.Count > 0)
+            );
         }
 
         #endregion

@@ -28,6 +28,7 @@ def gamekit_ui_schema() -> dict[str, Any]:
                     "enum": [
                         # common
                         "create",
+                        "createMultiple",
                         "inspect",
                         # command-specific
                         "createCommandPanel",
@@ -191,6 +192,15 @@ def gamekit_ui_schema() -> dict[str, Any]:
                 "smoothSpeed": {
                     "type": "number",
                     "description": "Smooth transition speed (default: 5.0).",
+                },
+                "bindings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": True,
+                        "description": "Binding definition (same properties as single create: bindingId, sourceType, etc.).",
+                    },
+                    "description": "Array of bindings for createMultiple operation (widgetType='binding'). Each uses same properties as single create.",
                 },
                 # ── list properties ────────────────────────────────────
                 "listId": {"type": "string", "description": "Unique list identifier."},
@@ -411,8 +421,8 @@ def gamekit_data_schema() -> dict[str, Any]:
                 },
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "inspect", "find"],
-                    "description": "Operation to perform.",
+                    "enum": ["create", "createMultiple", "inspect", "find"],
+                    "description": "Operation to perform. 'createMultiple' generates multiple scripts in one call (single compilation wait).",
                 },
                 # ── shared ─────────────────────────────────────────────
                 "targetPath": {
@@ -500,6 +510,19 @@ def gamekit_data_schema() -> dict[str, Any]:
                 "elementType": {
                     "type": "string",
                     "description": "Fully qualified type name for RuntimeSet elements (default: GameObject).",
+                },
+                "autoCreateAsset": {
+                    "type": "boolean",
+                    "description": "Auto-create ScriptableObject .asset file after compilation (default: false). Requires assetPath.",
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": True,
+                        "description": "Item definition (same properties as single create: dataId, eventType, fields, etc.).",
+                    },
+                    "description": "Array of items for createMultiple operation. Each item uses the same properties as single create.",
                 },
                 "scriptOutputDir": {
                     "type": "string",

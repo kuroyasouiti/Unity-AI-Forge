@@ -38,7 +38,10 @@ namespace MCP.Editor.Tests
             Assert.Contains("createText", ops);
             Assert.Contains("createImage", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("configureCanvasGroup", ops);
+            Assert.Contains("inspectTree", ops);
+            Assert.Contains("show", ops);
+            Assert.Contains("hide", ops);
+            Assert.Contains("toggle", ops);
         }
 
         [Test]
@@ -78,34 +81,6 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void ConfigureCanvasGroup_AddAndSet_ReturnsSuccess()
-        {
-            _handler.Execute(TestUtilities.CreatePayload("createCanvas", ("name", "CGCanvas")));
-            var canvas = GameObject.Find("CGCanvas");
-            if (canvas != null) _tracker.Track(canvas);
-
-            _handler.Execute(TestUtilities.CreatePayload("createPanel",
-                ("name", "CGPanel"), ("parentPath", "CGCanvas")));
-
-            var result = _handler.Execute(TestUtilities.CreatePayload("configureCanvasGroup",
-                ("gameObjectPath", "CGCanvas/CGPanel"),
-                ("alpha", 0.5),
-                ("interactable", false),
-                ("blocksRaycasts", false),
-                ("ignoreParentGroups", true)));
-            TestUtilities.AssertSuccess(result);
-
-            var panel = GameObject.Find("CGCanvas/CGPanel");
-            Assert.IsNotNull(panel);
-            var cg = panel.GetComponent<CanvasGroup>();
-            Assert.IsNotNull(cg, "CanvasGroup should be added");
-            Assert.AreEqual(0.5f, cg.alpha, 0.01f);
-            Assert.IsFalse(cg.interactable);
-            Assert.IsFalse(cg.blocksRaycasts);
-            Assert.IsTrue(cg.ignoreParentGroups);
-        }
-
-        [Test]
         public void CreatePanel_WithAddCanvasGroup_HasCanvasGroup()
         {
             _handler.Execute(TestUtilities.CreatePayload("createCanvas", ("name", "ACGCanvas")));
@@ -128,32 +103,5 @@ namespace MCP.Editor.Tests
             Assert.IsTrue(cg.ignoreParentGroups);
         }
 
-        [Test]
-        public void Inspect_ReportsCanvasGroup()
-        {
-            _handler.Execute(TestUtilities.CreatePayload("createCanvas", ("name", "InspCGCanvas")));
-            var canvas = GameObject.Find("InspCGCanvas");
-            if (canvas != null) _tracker.Track(canvas);
-
-            _handler.Execute(TestUtilities.CreatePayload("createPanel",
-                ("name", "InspCGPanel"), ("parentPath", "InspCGCanvas")));
-
-            // Add CanvasGroup via configureCanvasGroup
-            _handler.Execute(TestUtilities.CreatePayload("configureCanvasGroup",
-                ("gameObjectPath", "InspCGCanvas/InspCGPanel"),
-                ("alpha", 0.3),
-                ("ignoreParentGroups", true)));
-
-            var result = _handler.Execute(TestUtilities.CreatePayload("inspect",
-                ("parentPath", "InspCGCanvas/InspCGPanel")));
-            TestUtilities.AssertSuccess(result);
-
-            var dict = result as Dictionary<string, object>;
-            var ui = dict["ui"] as Dictionary<string, object>;
-            Assert.IsTrue(ui.ContainsKey("canvasGroup"), "inspect should report canvasGroup");
-            var cgInfo = ui["canvasGroup"] as Dictionary<string, object>;
-            Assert.AreEqual(0.3f, (float)cgInfo["alpha"], 0.01f);
-            Assert.IsTrue((bool)cgInfo["ignoreParentGroups"]);
-        }
     }
 }

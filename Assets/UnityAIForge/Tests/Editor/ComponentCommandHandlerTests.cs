@@ -40,6 +40,7 @@ namespace MCP.Editor.Tests
             Assert.Contains("update", ops);
             Assert.Contains("inspect", ops);
             Assert.Contains("addMultiple", ops);
+            Assert.Contains("crossSceneUpdate", ops);
         }
 
         [Test]
@@ -170,6 +171,25 @@ namespace MCP.Editor.Tests
                 ("propertyChanges", new Dictionary<string, object> { ["test"] = 1 })));
 
             TestUtilities.AssertError(result, "Wildcard '*' is not supported for update operations");
+        }
+
+        #endregion
+
+        #region CrossSceneUpdate Tests
+
+        [Test]
+        public void CrossSceneUpdate_MissingUpdates_ReturnsError()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("crossSceneUpdate"));
+            TestUtilities.AssertError(result, "updates");
+        }
+
+        [Test]
+        public void CrossSceneUpdate_EmptyUpdates_ReturnsError()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("crossSceneUpdate",
+                ("updates", new List<object>())));
+            TestUtilities.AssertError(result, "updates");
         }
 
         #endregion

@@ -44,13 +44,16 @@ class TestPromptDefinitions:
             assert prompt.arguments[0].required is True
 
     def test_genre_options_count(self) -> None:
-        assert len(GENRE_OPTIONS) == 6
+        assert len(GENRE_OPTIONS) == 7
 
     def test_mechanic_options_count(self) -> None:
         assert len(MECHANIC_OPTIONS) == 9
 
     def test_workflow_options_count(self) -> None:
-        assert len(WORKFLOW_OPTIONS) == 9
+        assert len(WORKFLOW_OPTIONS) == 10
+
+    def test_feature_implementation_in_workflow_options(self) -> None:
+        assert "feature_implementation" in WORKFLOW_OPTIONS
 
     def test_template_map_covers_all_options(self) -> None:
         """Every (prompt_name, option) pair must have a template path."""
@@ -95,7 +98,7 @@ class TestTemplateLoader:
 
     def test_list_available_templates(self) -> None:
         templates = list_available_templates()
-        assert len(templates) == 24
+        assert len(templates) == 26
         assert "genre/platformer_2d.md" in templates
         assert "mechanics/state_machine.md" in templates
         assert "workflow/planning.md" in templates

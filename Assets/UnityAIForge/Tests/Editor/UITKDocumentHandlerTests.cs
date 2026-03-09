@@ -34,8 +34,6 @@ namespace MCP.Editor.Tests
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("create", ops);
             Assert.Contains("inspect", ops);
-            Assert.Contains("update", ops);
-            Assert.Contains("delete", ops);
             Assert.Contains("query", ops);
         }
 

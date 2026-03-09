@@ -10,7 +10,7 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 4. **ツール優先順位: High-Level → Mid-Level → Low-Level**
 5. **UI優先設計**: UIから実装し、ロジックは後
 6. **PDCA遵守**: Plan(inspect/graph) → Do(実行) → Check(validate_integrity/console_log) → Act(修正)
-7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作
+7. **コンパイル待ち必須**: コード生成ツール(GameKit create操作, asset_crud create *.cs)使用後は必ず `compilation_await(await)` を実行してから次の操作。**最適化**: `createMultiple` で同種スクリプトを一括生成すれば1回の待ちで済む。`batch_sequential` は自動でコンパイル待ちを注入する
 8. **物理設定のベストプラクティス**: Layer Collision Matrixで不要な衝突を除外、高速オブジェクトのCollision DetectionはContinuousに設定
 9. **ゲーム操作/メニュー切替には `ui_state` を使用**: gameplay ↔ pause、gameplay ↔ inventory 等の画面モード切替は `unity_ui_state` の `defineState` + `applyState` で管理。`createStateGroup` で排他制御
 10. **UI表示制御はCanvasGroupのみ**: `SetActive` は使わず `CanvasGroup`（alpha/interactable/blocksRaycasts）で制御。GameObjectは常にアクティブ状態を維持
@@ -201,8 +201,15 @@ unity_gamekit_data(dataType='dataContainer', operation='create', dataId='Selecte
     {'name': 'stageIndex', 'fieldType': 'int', 'defaultValue': 1}
 ], resetOnPlay=False, assetPath='Assets/Data/SelectedStage.asset')
 
-# ランタイムセット（自動登録/解除パターン）
+# ランタイムセット（自動登録/解除パターン、OnChanged イベント付き）
 unity_gamekit_data(dataType='runtimeSet', operation='create', dataId='ActiveEnemies', elementType='GameObject')
+
+# 一括生成（createMultiple）→ 1回のコンパイル待ちで済む
+unity_gamekit_data(dataType='eventChannel', operation='createMultiple', items=[
+    {'dataId': 'OnPlayerDeath', 'eventType': 'void', 'assetPath': 'Assets/Data/Events/OnPlayerDeath.asset', 'autoCreateAsset': True},
+    {'dataId': 'OnDamage', 'eventType': 'float', 'assetPath': 'Assets/Data/Events/OnDamage.asset', 'autoCreateAsset': True}
+])
+# autoCreateAsset=True: コンパイル完了後に .asset も自動生成
 ```
 
 ---
@@ -341,6 +348,13 @@ unity_gameobject_crud(operation='findMultiple', pattern='Enemy*', maxResults=100
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='UnityEngine.Rigidbody2D', propertyChanges={'gravityScale':0})
 unity_component_crud(operation='inspect', gameObjectPath='Player', componentType='*', includeProperties=True)
 # Unity Object参照: {'$ref':'Assets/Materials/P.mat'} or {'$ref':'Canvas/Panel/Button'}
+# クロスシーン一括更新（複数シーンの参照を一度に設定。現在のシーンは自動保存→復帰）
+unity_component_crud(operation='crossSceneUpdate', updates=[
+    {'scenePath':'Assets/Scenes/Home.unity', 'gameObjectPath':'HomeUI', 'componentType':'HomeUI',
+     'propertyChanges':{'data':{'$ref':'Assets/Data/Config.asset'}}},
+    {'scenePath':'Assets/Scenes/Game.unity', 'gameObjectPath':'GameUI', 'componentType':'GameUI',
+     'propertyChanges':{'data':{'$ref':'Assets/Data/Config.asset'}}}
+])
 
 # Asset
 unity_asset_crud(operation='create', assetPath='Assets/Scripts/Player.cs', content='...')

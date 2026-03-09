@@ -22,6 +22,7 @@ from mcp.types import TextContent, Tool
 
 from bridge.bridge_manager import BridgeManager
 from tools.tool_registry import resolve_tool_name
+from utils.alert import play_compilation_alert
 
 logger = logging.getLogger(__name__)
 
@@ -342,6 +343,57 @@ async def execute_batch_sequential(
                         "message": f"Execution stopped at operation {idx + 1} due to exception. Use resume=true to continue.",
                         "last_error": error_msg,
                     }
+
+            # Auto-inject compilation wait if the operation requires it
+            needs_compile = False
+            if isinstance(response, dict) and response.get("requiresCompilationWait"):
+                needs_compile = True
+            # Also detect C# script operations via asset_crud
+            if original_tool_name == "unity_asset_crud":
+                op = arguments.get("operation", "")
+                ap = arguments.get("assetPath", "")
+                if op in ("create", "update", "delete") and ap.lower().endswith(".cs"):
+                    needs_compile = True
+
+            if needs_compile:
+                # Check if next operation also generates code (batch them)
+                next_idx = idx + 1
+                next_also_generates = False
+                if next_idx < len(state.operations):
+                    next_op = state.operations[next_idx]
+                    next_tool = next_op.get("tool", "")
+                    next_args = next_op.get("arguments", {})
+                    next_operation = next_args.get("operation", "")
+                    # Same tool with create/createMultiple → batch, skip await
+                    if next_tool == original_tool_name and next_operation in (
+                        "create",
+                        "createMultiple",
+                    ):
+                        next_also_generates = True
+                    # asset_crud with .cs → batch
+                    if next_tool == "unity_asset_crud" and next_args.get(
+                        "assetPath", ""
+                    ).lower().endswith(".cs"):
+                        if next_args.get("operation", "") in ("create", "update", "delete"):
+                            next_also_generates = True
+
+                if not next_also_generates:
+                    logger.info(
+                        "Auto-injecting compilation wait after operation %d/%d (%s)",
+                        idx + 1,
+                        len(state.operations),
+                        original_tool_name,
+                    )
+                    play_compilation_alert()
+                    try:
+                        await bridge_client.await_compilation(timeout_seconds=60)
+                        logger.info("Compilation completed after operation %d", idx + 1)
+                    except Exception as compile_exc:
+                        logger.warning(
+                            "Compilation wait failed after operation %d: %s",
+                            idx + 1,
+                            compile_exc,
+                        )
 
             # Move to next operation
             state.current_index += 1

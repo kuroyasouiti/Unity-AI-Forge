@@ -5,6 +5,7 @@ using System.Reflection;
 using MCP.Editor.Base;
 using MCP.Editor.Interfaces;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace MCP.Editor.Handlers
@@ -46,7 +47,8 @@ namespace MCP.Editor.Handlers
             "addMultiple",
             "removeMultiple",
             "updateMultiple",
-            "inspectMultiple"
+            "inspectMultiple",
+            "crossSceneUpdate"
         };
         
         #endregion
@@ -71,6 +73,7 @@ namespace MCP.Editor.Handlers
                 "removeMultiple" => RemoveMultipleComponents(payload),
                 "updateMultiple" => UpdateMultipleComponents(payload),
                 "inspectMultiple" => InspectMultipleComponents(payload),
+                "crossSceneUpdate" => CrossSceneUpdate(payload),
                 _ => throw new InvalidOperationException($"Unknown component operation: {operation}")
             };
         }
@@ -889,6 +892,126 @@ namespace MCP.Editor.Handlers
             }
 
             return null;
+        }
+
+        #endregion
+
+        #region Cross-Scene Update
+
+        private object CrossSceneUpdate(Dictionary<string, object> payload)
+        {
+            if (!payload.TryGetValue("updates", out var updatesObj) ||
+                updatesObj is not List<object> updates || updates.Count == 0)
+                throw new InvalidOperationException("'updates' array is required for crossSceneUpdate.");
+
+            // Save current scene state
+            var currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            var currentScenePath = currentScene.path;
+            if (currentScene.isDirty)
+                EditorSceneManager.SaveScene(currentScene);
+
+            var results = new List<Dictionary<string, object>>();
+            var errors = new List<string>();
+
+            // Group updates by scene
+            var sceneGroups = new Dictionary<string, List<Dictionary<string, object>>>();
+            foreach (var updateObj in updates)
+            {
+                if (updateObj is not Dictionary<string, object> update) continue;
+                var scenePath = update.TryGetValue("scenePath", out var sp) ? sp?.ToString() : null;
+                if (string.IsNullOrEmpty(scenePath))
+                {
+                    errors.Add("Each update must have a 'scenePath' field.");
+                    continue;
+                }
+                if (!sceneGroups.ContainsKey(scenePath))
+                    sceneGroups[scenePath] = new List<Dictionary<string, object>>();
+                sceneGroups[scenePath].Add(update);
+            }
+
+            // Process each scene
+            foreach (var kvp in sceneGroups)
+            {
+                var scenePath = kvp.Key;
+                var sceneUpdates = kvp.Value;
+
+                try
+                {
+                    if (!System.IO.File.Exists(scenePath))
+                    {
+                        errors.Add($"Scene not found: {scenePath}");
+                        continue;
+                    }
+
+                    var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+                    foreach (var update in sceneUpdates)
+                    {
+                        try
+                        {
+                            var goPath = update.TryGetValue("gameObjectPath", out var gp) ? gp?.ToString() : null;
+                            var compType = update.TryGetValue("componentType", out var ct) ? ct?.ToString() : null;
+                            var propChanges = update.TryGetValue("propertyChanges", out var pc)
+                                ? pc as Dictionary<string, object> : null;
+
+                            if (string.IsNullOrEmpty(goPath) || string.IsNullOrEmpty(compType) || propChanges == null)
+                            {
+                                errors.Add($"[{scenePath}] Update requires gameObjectPath, componentType, and propertyChanges.");
+                                continue;
+                            }
+
+                            var go = GameObject.Find(goPath);
+                            if (go == null)
+                            {
+                                errors.Add($"[{scenePath}] GameObject not found: {goPath}");
+                                continue;
+                            }
+
+                            var type = ResolveType(compType);
+                            var component = go.GetComponent(type);
+                            if (component == null)
+                            {
+                                errors.Add($"[{scenePath}] Component '{compType}' not found on '{goPath}'");
+                                continue;
+                            }
+
+                            Undo.RecordObject(component, $"CrossScene Update {compType}");
+                            var applyResult = _propertyApplier.ApplyProperties(component, propChanges);
+                            EditorUtility.SetDirty(component);
+
+                            results.Add(new Dictionary<string, object>
+                            {
+                                ["scenePath"] = scenePath,
+                                ["gameObjectPath"] = goPath,
+                                ["componentType"] = type.FullName,
+                                ["updated"] = applyResult.Updated
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"[{scenePath}] {ex.Message}");
+                        }
+                    }
+
+                    // Save the modified scene
+                    EditorSceneManager.SaveScene(scene);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"[{scenePath}] Failed to load scene: {ex.Message}");
+                }
+            }
+
+            // Restore original scene
+            if (!string.IsNullOrEmpty(currentScenePath) && System.IO.File.Exists(currentScenePath))
+                EditorSceneManager.OpenScene(currentScenePath, OpenSceneMode.Single);
+
+            return CreateSuccessResponse(
+                ("updatedCount", results.Count),
+                ("errorCount", errors.Count),
+                ("results", results),
+                ("errors", errors)
+            );
         }
 
         #endregion

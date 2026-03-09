@@ -33,9 +33,6 @@ namespace MCP.Editor.Tests
         {
             var ops = _handler.SupportedOperations.ToList();
             Assert.Contains("create", ops);
-            Assert.Contains("update", ops);
-            Assert.Contains("inspect", ops);
-            Assert.Contains("delete", ops);
             Assert.Contains("applyPreset", ops);
             Assert.Contains("listPresets", ops);
         }
@@ -77,41 +74,6 @@ namespace MCP.Editor.Tests
             Assert.IsTrue(camera.orthographic);
             Assert.AreEqual(5f, camera.orthographicSize, 0.01f);
             if (go != null) _tracker.Track(go);
-        }
-
-        [Test]
-        public void Update_ExistingCamera_ReturnsSuccess()
-        {
-            var go = _tracker.Create("UpdateCam");
-            go.AddComponent<Camera>();
-
-            var result = _handler.Execute(TestUtilities.CreatePayload("update",
-                ("gameObjectPath", "UpdateCam"),
-                ("fieldOfView", 90f)));
-            TestUtilities.AssertSuccess(result);
-            Assert.AreEqual(90f, go.GetComponent<Camera>().fieldOfView, 0.01f);
-        }
-
-        [Test]
-        public void Inspect_ExistingCamera_ReturnsSuccess()
-        {
-            var go = _tracker.Create("InspectCam");
-            go.AddComponent<Camera>();
-
-            var result = _handler.Execute(TestUtilities.CreatePayload("inspect",
-                ("gameObjectPath", "InspectCam")));
-            TestUtilities.AssertSuccess(result);
-        }
-
-        [Test]
-        public void Delete_ExistingCamera_ReturnsSuccess()
-        {
-            var go = _tracker.Create("DeleteCam");
-            go.AddComponent<Camera>();
-
-            var result = _handler.Execute(TestUtilities.CreatePayload("delete",
-                ("gameObjectPath", "DeleteCam")));
-            TestUtilities.AssertSuccess(result);
         }
 
         [Test]

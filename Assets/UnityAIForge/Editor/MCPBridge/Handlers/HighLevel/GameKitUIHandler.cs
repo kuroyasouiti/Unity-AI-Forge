@@ -16,7 +16,7 @@ namespace MCP.Editor.Handlers.HighLevel
         private static readonly string[] Operations =
         {
             // common CRUD
-            "create", "inspect",
+            "create", "createMultiple", "inspect",
             // command
             "createCommandPanel", "addCommand",
             // binding
@@ -47,7 +47,7 @@ namespace MCP.Editor.Handlers.HighLevel
         public override IEnumerable<string> SupportedOperations => Operations;
 
         protected override bool RequiresCompilationWait(string operation) =>
-            operation is "create" or "createCommandPanel" or "createSlotBar";
+            operation is "create" or "createMultiple" or "createCommandPanel" or "createSlotBar";
 
         protected override object ExecuteOperation(string operation, Dictionary<string, object> payload)
         {
