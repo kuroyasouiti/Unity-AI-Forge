@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Literal, NotRequired, TypedDict
+import sys
+from typing import Any, Literal, TypedDict
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 
 class ComponentSummary(TypedDict, total=False):

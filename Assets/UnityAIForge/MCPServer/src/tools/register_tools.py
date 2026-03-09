@@ -191,7 +191,7 @@ def register_tools(server: Server) -> None:
 
         if name == "unity_asset_crud":
             # Handle asset CRUD operations
-            result = await _call_bridge_tool("assetManage", args)
+            asset_result = await _call_bridge_tool("assetManage", args)
 
             # Check if we need to wait for compilation (C# script creation/update/deletion)
             operation = args.get("operation")
@@ -215,27 +215,26 @@ def register_tools(server: Server) -> None:
                         compilation_result.get("elapsedSeconds", 0),
                     )
 
-                    if isinstance(result[0].text, str):
+                    first = asset_result[0]
+                    if isinstance(first, types.TextContent):
                         import json
 
                         try:
-                            result_data = json.loads(result[0].text)
+                            result_data = json.loads(first.text)
                             result_data["compilation"] = compilation_result
-                            result[0].text = as_pretty_json(result_data)
+                            first.text = as_pretty_json(result_data)
                         except (json.JSONDecodeError, AttributeError):
-                            result[
-                                0
-                            ].text += f"\n\nCompilation: {as_pretty_json(compilation_result)}"
+                            first.text += f"\n\nCompilation: {as_pretty_json(compilation_result)}"
 
                 except TimeoutError as exc:
                     logger.warning("Compilation wait timed out: %s", exc)
                 except Exception as exc:
                     logger.warning("Error while waiting for compilation: %s", exc)
 
-            return result
+            return asset_result
 
         if name == "unity_batch_sequential_execute":
-            return await handle_batch_sequential(args, bridge_manager)
+            return list(await handle_batch_sequential(args, bridge_manager))
 
         # ── Standard bridge tools (dict lookup) ─────────────────────
         bridge_name = TOOL_NAME_TO_BRIDGE.get(name)

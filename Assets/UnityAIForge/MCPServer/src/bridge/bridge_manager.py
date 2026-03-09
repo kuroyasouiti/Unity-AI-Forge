@@ -223,7 +223,7 @@ class BridgeManager:
 
     async def send_ping(self) -> None:
         socket = self._socket
-        if not _is_socket_open(socket):
+        if socket is None or not _is_socket_open(socket):
             return
 
         message: ServerMessage = {
@@ -265,13 +265,13 @@ class BridgeManager:
     async def _handle_message(self, message: BridgeNotificationMessage) -> None:
         message_type = message.get("type")
         if message_type == "hello":
-            await self._handle_hello(message)
+            await self._handle_hello(message)  # type: ignore[arg-type]
         elif message_type == "heartbeat":
-            self._handle_heartbeat(message)
+            self._handle_heartbeat(message)  # type: ignore[arg-type]
         elif message_type == "context:update":
-            self._handle_context_update(message)
+            self._handle_context_update(message)  # type: ignore[arg-type]
         elif message_type == "command:result":
-            self._handle_command_result(message)
+            self._handle_command_result(message)  # type: ignore[arg-type]
         elif message_type == "compilation:started":
             self._handle_compilation_started(message)
         elif message_type == "compilation:progress":
@@ -279,7 +279,7 @@ class BridgeManager:
         elif message_type == "compilation:complete":
             self._handle_compilation_complete(message)
         elif message_type == "bridge:restarted":
-            self._handle_bridge_restarted(message)
+            self._handle_bridge_restarted(message)  # type: ignore[arg-type]
         else:
             logger.warning("Received unsupported bridge message: %s", message_type)
 
@@ -452,7 +452,7 @@ class BridgeManager:
     async def _send_client_info(self) -> None:
         """Send client information to Unity bridge."""
         socket = self._socket
-        if not _is_socket_open(socket):
+        if socket is None or not _is_socket_open(socket):
             return
 
         client_info: ClientInfo = get_client_info()
@@ -530,7 +530,7 @@ class BridgeManager:
 
     def _ensure_socket(self) -> ClientConnection:
         socket = self._socket
-        if not _is_socket_open(socket):
+        if socket is None or not _is_socket_open(socket):
             raise RuntimeError("Unity bridge is not connected")
         return socket
 
