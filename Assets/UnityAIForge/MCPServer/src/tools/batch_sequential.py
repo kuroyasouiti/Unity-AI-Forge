@@ -22,7 +22,6 @@ from mcp.types import TextContent, Tool
 
 from bridge.bridge_manager import BridgeManager
 from tools.tool_registry import resolve_tool_name
-from utils.alert import play_compilation_alert
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +383,6 @@ async def execute_batch_sequential(
                         len(state.operations),
                         original_tool_name,
                     )
-                    play_compilation_alert()
                     try:
                         await bridge_client.await_compilation(timeout_seconds=60)
                         logger.info("Compilation completed after operation %d", idx + 1)

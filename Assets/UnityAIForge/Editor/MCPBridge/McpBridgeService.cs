@@ -1339,6 +1339,9 @@ namespace MCP.Editor
                 {
                     MainThreadActions.Enqueue(SendCompilationStartedMessage);
                 }
+
+                // Play alert sound so the user knows compilation wait has started
+                EditorApplication.Beep();
             }
 
             _isCompiling = true;

@@ -20,7 +20,6 @@ from logger import logger
 from tools.batch_sequential import handle_batch_sequential
 from tools.tool_definitions import get_tool_definitions
 from tools.tool_registry import TOOL_NAME_TO_BRIDGE
-from utils.alert import play_compilation_alert
 from utils.json_utils import as_pretty_json
 
 
@@ -165,7 +164,6 @@ def register_tools(server: Server) -> None:
                 remaining_timeout,
                 bridge_manager.is_connected(),
             )
-            play_compilation_alert()
 
             try:
                 compilation_result = await bridge_manager.await_compilation(remaining_timeout)
@@ -203,7 +201,6 @@ def register_tools(server: Server) -> None:
                     asset_path,
                     operation,
                 )
-                play_compilation_alert()
 
                 try:
                     compilation_result = await bridge_manager.await_compilation(timeout_seconds=60)

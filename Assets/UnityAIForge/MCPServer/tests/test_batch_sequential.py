@@ -312,36 +312,35 @@ class TestAutoCompilationInjection:
         mock_bridge_manager.await_compilation = AsyncMock()
 
         with patch("tools.batch_sequential.STATE_FILE", temp_state_file):
-            with patch("tools.batch_sequential.play_compilation_alert"):
-                from tools import batch_sequential
+            from tools import batch_sequential
 
-                batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
+            batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
 
-                operations = [
-                    {
-                        "tool": "unity_asset_crud",
-                        "arguments": {
-                            "operation": "create",
-                            "assetPath": "Assets/Scripts/Test.cs",
-                            "content": "class Test {}",
-                        },
+            operations = [
+                {
+                    "tool": "unity_asset_crud",
+                    "arguments": {
+                        "operation": "create",
+                        "assetPath": "Assets/Scripts/Test.cs",
+                        "content": "class Test {}",
                     },
-                    {
-                        "tool": "unity_ping",
-                        "arguments": {},
-                    },
-                ]
+                },
+                {
+                    "tool": "unity_ping",
+                    "arguments": {},
+                },
+            ]
 
-                result = await execute_batch_sequential(
-                    bridge_client=mock_bridge_manager,
-                    operations=operations,
-                    resume=False,
-                    stop_on_error=True,
-                )
+            result = await execute_batch_sequential(
+                bridge_client=mock_bridge_manager,
+                operations=operations,
+                resume=False,
+                stop_on_error=True,
+            )
 
-                assert result["success"] is True
-                # await_compilation should have been called after the .cs create
-                mock_bridge_manager.await_compilation.assert_called_once()
+            assert result["success"] is True
+            # await_compilation should have been called after the .cs create
+            mock_bridge_manager.await_compilation.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_auto_inject_skips_for_consecutive_creates(
@@ -358,44 +357,43 @@ class TestAutoCompilationInjection:
         mock_bridge_manager.await_compilation = AsyncMock()
 
         with patch("tools.batch_sequential.STATE_FILE", temp_state_file):
-            with patch("tools.batch_sequential.play_compilation_alert"):
-                from tools import batch_sequential
+            from tools import batch_sequential
 
-                batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
+            batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
 
-                operations = [
-                    {
-                        "tool": "unity_asset_crud",
-                        "arguments": {
-                            "operation": "create",
-                            "assetPath": "Assets/Scripts/A.cs",
-                            "content": "class A {}",
-                        },
+            operations = [
+                {
+                    "tool": "unity_asset_crud",
+                    "arguments": {
+                        "operation": "create",
+                        "assetPath": "Assets/Scripts/A.cs",
+                        "content": "class A {}",
                     },
-                    {
-                        "tool": "unity_asset_crud",
-                        "arguments": {
-                            "operation": "create",
-                            "assetPath": "Assets/Scripts/B.cs",
-                            "content": "class B {}",
-                        },
+                },
+                {
+                    "tool": "unity_asset_crud",
+                    "arguments": {
+                        "operation": "create",
+                        "assetPath": "Assets/Scripts/B.cs",
+                        "content": "class B {}",
                     },
-                    {
-                        "tool": "unity_ping",
-                        "arguments": {},
-                    },
-                ]
+                },
+                {
+                    "tool": "unity_ping",
+                    "arguments": {},
+                },
+            ]
 
-                result = await execute_batch_sequential(
-                    bridge_client=mock_bridge_manager,
-                    operations=operations,
-                    resume=False,
-                    stop_on_error=True,
-                )
+            result = await execute_batch_sequential(
+                bridge_client=mock_bridge_manager,
+                operations=operations,
+                resume=False,
+                stop_on_error=True,
+            )
 
-                assert result["success"] is True
-                # Should only inject once (after the second .cs, before ping)
-                assert mock_bridge_manager.await_compilation.call_count == 1
+            assert result["success"] is True
+            # Should only inject once (after the second .cs, before ping)
+            assert mock_bridge_manager.await_compilation.call_count == 1
 
     @pytest.mark.asyncio
     async def test_auto_inject_for_requires_compilation_wait_response(
@@ -415,73 +413,30 @@ class TestAutoCompilationInjection:
         mock_bridge_manager.await_compilation = AsyncMock()
 
         with patch("tools.batch_sequential.STATE_FILE", temp_state_file):
-            with patch("tools.batch_sequential.play_compilation_alert"):
-                from tools import batch_sequential
+            from tools import batch_sequential
 
-                batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
+            batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
 
-                operations = [
-                    {
-                        "tool": "unity_gamekit_data",
-                        "arguments": {"operation": "create", "dataType": "eventChannel"},
-                    },
-                    {
-                        "tool": "unity_ping",
-                        "arguments": {},
-                    },
-                ]
+            operations = [
+                {
+                    "tool": "unity_gamekit_data",
+                    "arguments": {"operation": "create", "dataType": "eventChannel"},
+                },
+                {
+                    "tool": "unity_ping",
+                    "arguments": {},
+                },
+            ]
 
-                result = await execute_batch_sequential(
-                    bridge_client=mock_bridge_manager,
-                    operations=operations,
-                    resume=False,
-                    stop_on_error=True,
-                )
+            result = await execute_batch_sequential(
+                bridge_client=mock_bridge_manager,
+                operations=operations,
+                resume=False,
+                stop_on_error=True,
+            )
 
-                assert result["success"] is True
-                mock_bridge_manager.await_compilation.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_compilation_alert_called(
-        self, mock_bridge_manager: MagicMock, tmp_path: Path
-    ) -> None:
-        """play_compilation_alert should be called when compilation wait is triggered."""
-        from tools.batch_sequential import execute_batch_sequential
-
-        temp_state_file = tmp_path / ".batch_queue_state.json"
-
-        mock_bridge_manager.send_command = AsyncMock(
-            return_value={"success": True, "result": {}}
-        )
-        mock_bridge_manager.await_compilation = AsyncMock()
-
-        with patch("tools.batch_sequential.STATE_FILE", temp_state_file):
-            mock_alert = MagicMock()
-            with patch("tools.batch_sequential.play_compilation_alert", mock_alert):
-                from tools import batch_sequential
-
-                batch_sequential._batch_manager = batch_sequential.BatchQueueManager()
-
-                operations = [
-                    {
-                        "tool": "unity_asset_crud",
-                        "arguments": {
-                            "operation": "create",
-                            "assetPath": "Assets/Scripts/Alert.cs",
-                            "content": "class Alert {}",
-                        },
-                    },
-                ]
-
-                result = await execute_batch_sequential(
-                    bridge_client=mock_bridge_manager,
-                    operations=operations,
-                    resume=False,
-                    stop_on_error=True,
-                )
-
-                assert result["success"] is True
-                mock_alert.assert_called_once()
+            assert result["success"] is True
+            mock_bridge_manager.await_compilation.assert_called_once()
 
 
 class TestHandleBatchSequential:
