@@ -190,5 +190,48 @@ namespace MCP.Editor.Tests
             Assert.IsTrue(summary.ContainsKey("uiOverflowIssues"), "Summary should contain 'uiOverflowIssues'");
             Assert.IsTrue(summary.ContainsKey("nullAssetIssues"), "Summary should contain 'nullAssetIssues'");
         }
+
+        [Test]
+        public void SupportedOperations_ContainsUIAuditOps()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("touchTargetAudit", ops);
+            Assert.Contains("eventSystemAudit", ops);
+            Assert.Contains("textOverflowAudit", ops);
+        }
+
+        [Test]
+        public void TouchTargetAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("touchTargetAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void EventSystemAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("eventSystemAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void TextOverflowAudit_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("textOverflowAudit"));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void All_IncludesUIAuditChecksInSummary()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("all"));
+            TestUtilities.AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var summary = dict["summary"] as Dictionary<string, int>;
+            Assert.IsNotNull(summary, "Summary should be a Dictionary<string, int>");
+            Assert.IsTrue(summary.ContainsKey("touchTargetIssues"), "Summary should contain 'touchTargetIssues'");
+            Assert.IsTrue(summary.ContainsKey("eventSystemIssues"), "Summary should contain 'eventSystemIssues'");
+            Assert.IsTrue(summary.ContainsKey("textOverflowIssues"), "Summary should contain 'textOverflowIssues'");
+        }
     }
 }

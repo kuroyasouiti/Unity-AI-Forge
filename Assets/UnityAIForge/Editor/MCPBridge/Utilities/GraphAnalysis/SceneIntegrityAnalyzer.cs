@@ -546,6 +546,18 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             summary["nullAssetIssues"] = nullAssetIssues.Count;
             allIssues.AddRange(nullAssetIssues);
 
+            var touchTargetIssues = FindTouchTargetIssues(rootPath);
+            summary["touchTargetIssues"] = touchTargetIssues.Count;
+            allIssues.AddRange(touchTargetIssues);
+
+            var eventSystemIssues = FindEventSystemIssues(rootPath);
+            summary["eventSystemIssues"] = eventSystemIssues.Count;
+            allIssues.AddRange(eventSystemIssues);
+
+            var textOverflowIssues = FindTextOverflowIssues(rootPath);
+            summary["textOverflowIssues"] = textOverflowIssues.Count;
+            allIssues.AddRange(textOverflowIssues);
+
             return (allIssues, summary);
         }
 
@@ -1396,5 +1408,171 @@ namespace MCP.Editor.Utilities.GraphAnalysis
         }
 
         #endregion
+
+        /// <summary>
+        /// Find interactive UI elements (Selectable) that are too small for touch input.
+        /// Minimum recommended size is 44x44 units.
+        /// </summary>
+        public List<IntegrityIssue> FindTouchTargetIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+            const float minSize = 44f;
+
+            foreach (var go in gameObjects)
+            {
+                var selectable = go.GetComponent<UnityEngine.UI.Selectable>();
+                if (selectable == null) continue;
+
+                var rt = go.GetComponent<RectTransform>();
+                if (rt == null) continue;
+
+                var rect = rt.rect;
+                if (rect.width < minSize || rect.height < minSize)
+                {
+                    issues.Add(new IntegrityIssue
+                    {
+                        Type = "touchTarget_tooSmall",
+                        Severity = "warning",
+                        GameObjectPath = GetGameObjectPath(go),
+                        ComponentType = selectable.GetType().Name,
+                        Message = $"'{go.name}' size ({rect.width:F0}x{rect.height:F0}) is below minimum touch target ({minSize}x{minSize})",
+                        Suggestion = $"Increase RectTransform size to at least {minSize}x{minSize} for reliable touch input"
+                    });
+                }
+            }
+            return issues;
+        }
+
+        /// <summary>
+        /// Find scenes with UI elements (Canvas or UIDocument) but no EventSystem.
+        /// Also detects duplicate EventSystems.
+        /// </summary>
+        public List<IntegrityIssue> FindEventSystemIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            var rootObjects = scene.GetRootGameObjects();
+
+            bool hasCanvas = false;
+            bool hasUIDocument = false;
+            int eventSystemCount = 0;
+
+            foreach (var root in rootObjects)
+            {
+                if (root.GetComponentInChildren<Canvas>(true) != null) hasCanvas = true;
+                if (root.GetComponentInChildren<UnityEngine.UIElements.UIDocument>(true) != null) hasUIDocument = true;
+                var esList = root.GetComponentsInChildren<UnityEngine.EventSystems.EventSystem>(true);
+                eventSystemCount += esList.Length;
+            }
+
+            if ((hasCanvas || hasUIDocument) && eventSystemCount == 0)
+            {
+                string uiType = hasCanvas && hasUIDocument ? "Canvas and UIDocument" : hasCanvas ? "Canvas" : "UIDocument";
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "eventSystem_missing",
+                    Severity = "error",
+                    GameObjectPath = "/" + scene.name,
+                    Message = $"Scene '{scene.name}' has {uiType} but no EventSystem",
+                    Suggestion = "Add an EventSystem GameObject (GameObject > UI > Event System)"
+                });
+            }
+
+            if (eventSystemCount > 1)
+            {
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "eventSystem_duplicate",
+                    Severity = "warning",
+                    GameObjectPath = "/" + scene.name,
+                    Message = $"Scene '{scene.name}' has {eventSystemCount} EventSystem components (expected 1)",
+                    Suggestion = "Remove duplicate EventSystem GameObjects — only one should exist per scene"
+                });
+            }
+
+            return issues;
+        }
+
+        /// <summary>
+        /// Find Text/TextMeshPro elements where content may overflow the RectTransform bounds.
+        /// Checks preferredWidth/Height against rect size when overflow mode allows it.
+        /// </summary>
+        public List<IntegrityIssue> FindTextOverflowIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            foreach (var go in gameObjects)
+            {
+                var rt = go.GetComponent<RectTransform>();
+                if (rt == null) continue;
+                var rect = rt.rect;
+                if (rect.width <= 0 || rect.height <= 0) continue;
+
+                // Check TMPro.TextMeshProUGUI via reflection (avoid hard dependency)
+                var tmp = go.GetComponent("TextMeshProUGUI");
+                if (tmp == null) tmp = go.GetComponent("TextMeshPro");
+                if (tmp != null)
+                {
+                    var tmpType = tmp.GetType();
+                    var overflowProp = tmpType.GetProperty("overflowMode");
+                    var prefWProp = tmpType.GetProperty("preferredWidth");
+                    var prefHProp = tmpType.GetProperty("preferredHeight");
+                    var textProp = tmpType.GetProperty("text");
+
+                    if (overflowProp != null && prefWProp != null && prefHProp != null && textProp != null)
+                    {
+                        string text = textProp.GetValue(tmp) as string;
+                        if (string.IsNullOrEmpty(text)) continue;
+
+                        int overflow = (int)overflowProp.GetValue(tmp);
+                        // 0 = Overflow (not clipped)
+                        if (overflow == 0)
+                        {
+                            float prefW = (float)prefWProp.GetValue(tmp);
+                            float prefH = (float)prefHProp.GetValue(tmp);
+                            if (prefW > rect.width * 1.1f || prefH > rect.height * 1.1f)
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "textOverflow_exceeds",
+                                    Severity = "warning",
+                                    GameObjectPath = GetGameObjectPath(go),
+                                    ComponentType = "TextMeshProUGUI",
+                                    Message = $"Text preferred size ({prefW:F0}x{prefH:F0}) exceeds RectTransform ({rect.width:F0}x{rect.height:F0})",
+                                    Suggestion = "Set overflowMode to Truncate/Ellipsis, increase RectTransform size, or reduce font size"
+                                });
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // Check legacy UnityEngine.UI.Text
+                var text2 = go.GetComponent<UnityEngine.UI.Text>();
+                if (text2 != null && !string.IsNullOrEmpty(text2.text))
+                {
+                    if (text2.horizontalOverflow == HorizontalWrapMode.Overflow || text2.verticalOverflow == VerticalWrapMode.Overflow)
+                    {
+                        float prefW = text2.preferredWidth;
+                        float prefH = text2.preferredHeight;
+                        if (prefW > rect.width * 1.1f || prefH > rect.height * 1.1f)
+                        {
+                            issues.Add(new IntegrityIssue
+                            {
+                                Type = "textOverflow_exceeds",
+                                Severity = "warning",
+                                GameObjectPath = GetGameObjectPath(go),
+                                ComponentType = "Text",
+                                Message = $"Text preferred size ({prefW:F0}x{prefH:F0}) exceeds RectTransform ({rect.width:F0}x{rect.height:F0})",
+                                Suggestion = "Set overflow to Wrap/Truncate, increase RectTransform size, or reduce font size"
+                            });
+                        }
+                    }
+                }
+            }
+            return issues;
+        }
     }
 }

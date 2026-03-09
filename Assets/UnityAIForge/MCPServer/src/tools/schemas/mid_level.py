@@ -1072,12 +1072,18 @@ def uitk_asset_schema() -> dict[str, Any]:
                         "createPanelSettings",
                         "createFromTemplate",
                         "validateDependencies",
+                        "auditUSS",
+                        "auditUXML",
                     ],
                     "description": "UI Toolkit asset operation.",
                 },
                 "assetPath": {
                     "type": "string",
                     "description": "Asset file path (e.g., 'Assets/UI/main.uxml').",
+                },
+                "searchPath": {
+                    "type": "string",
+                    "description": "Folder path to scan for USS/UXML files (e.g., 'Assets/UI/USS'). Alternative to assetPath for batch auditing.",
                 },
                 "elements": {
                     "type": "array",

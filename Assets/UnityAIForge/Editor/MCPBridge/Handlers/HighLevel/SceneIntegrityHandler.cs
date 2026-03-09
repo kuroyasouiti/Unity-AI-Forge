@@ -29,7 +29,10 @@ namespace MCP.Editor.Handlers.HighLevel
             "requiredFieldAudit",
             "uiOverflowAudit",
             "uiOverlapAudit",
-            "nullAssetAudit"
+            "nullAssetAudit",
+            "touchTargetAudit",
+            "eventSystemAudit",
+            "textOverflowAudit"
         };
 
         public override string Category => "sceneIntegrity";
@@ -59,6 +62,9 @@ namespace MCP.Editor.Handlers.HighLevel
                 "uiOverflowAudit" => BuildResponse(operation, analyzer.FindUIOverflowIssues(rootPath)),
                 "uiOverlapAudit" => BuildResponse(operation, analyzer.FindUIOverlapIssues(rootPath)),
                 "nullAssetAudit" => BuildResponse(operation, analyzer.FindNullAssetFieldIssues(GetString(payload, "searchPath"))),
+                "touchTargetAudit" => BuildResponse(operation, analyzer.FindTouchTargetIssues(rootPath)),
+                "eventSystemAudit" => BuildResponse(operation, analyzer.FindEventSystemIssues(rootPath)),
+                "textOverflowAudit" => BuildResponse(operation, analyzer.FindTextOverflowIssues(rootPath)),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
             };
         }

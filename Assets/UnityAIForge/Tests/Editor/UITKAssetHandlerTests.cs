@@ -89,5 +89,29 @@ namespace MCP.Editor.Tests
                 })));
             TestUtilities.AssertSuccess(result);
         }
+
+        [Test]
+        public void SupportedOperations_ContainsAuditOps()
+        {
+            var ops = _handler.SupportedOperations.ToList();
+            Assert.Contains("auditUSS", ops);
+            Assert.Contains("auditUXML", ops);
+        }
+
+        [Test]
+        public void AuditUSS_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("auditUSS",
+                ("searchPath", "Assets/UI/USS")));
+            TestUtilities.AssertSuccess(result);
+        }
+
+        [Test]
+        public void AuditUXML_ReturnsSuccess()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("auditUXML",
+                ("searchPath", "Assets/UI/UXML")));
+            TestUtilities.AssertSuccess(result);
+        }
     }
 }
