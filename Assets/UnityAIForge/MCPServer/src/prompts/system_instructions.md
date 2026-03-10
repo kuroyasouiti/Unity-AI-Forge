@@ -313,6 +313,7 @@ unity_event_wiring(operation='listEvents', gameObjectPath='Button')
 # プレイモード (operation: play|pause|unpause|stop|step|getState|captureState|waitForScene)
 unity_playmode_control(operation='play')
 unity_playmode_control(operation='captureState', targets=['Player', 'GameManager'], includeConsole=True)  # ランタイム状態取得
+unity_playmode_control(operation='captureState', targets=['GameManager'], includeSerializedFields=True)  # private フィールド読み取り（_score, _currentWave 等）
 unity_playmode_control(operation='waitForScene', sceneName='Level2')  # シーン読込待機（ポーリング）
 
 # コンソールログ (operation: getRecent|getErrors|getWarnings|getCompilationErrors|getSummary|clear|snapshot|diff|filter)
@@ -325,6 +326,11 @@ unity_console_log(operation='filter', severity=['error'], keyword='NullRef')  # 
 # 物理プリセット (preset: platformer2D|topDown2D|fps3D|thirdPerson3D|space|racing)
 unity_physics_bundle(operation='applyPreset', gameObjectPath='Player', preset='platformer2D')
 unity_physics_bundle(operation='setCollisionMatrix', layerA='Player', layerB='PlayerBullet', ignore=True)
+unity_physics_bundle(operation='setCollisionMatrixBatch', is2D=True, pairs=[
+    {'layerA': 'PlayerBullet', 'layerB': 'Player', 'ignore': True},
+    {'layerA': 'EnemyBullet', 'layerB': 'Enemy', 'ignore': True},
+    {'layerA': 'PlayerBullet', 'layerB': 'EnemyBullet', 'ignore': True},
+])  # 一括設定（推奨）
 unity_physics_bundle(operation='createPhysicsMaterial', materialPath='Assets/Physics/Bouncy.physicMaterial', bounciness=0.8)
 unity_physics_bundle(operation='createPhysicsMaterial2D', materialPath='Assets/Physics/Slippery.physicsMaterial2D', friction=0.1)
 unity_physics_bundle(operation='inspect', gameObjectPath='Player')
@@ -350,6 +356,9 @@ unity_scene_crud(operation='load', scenePath='Assets/Scenes/Level1.unity')
 unity_gameobject_crud(operation='create', name='Player', parentPath='Characters',
     components=[{'type':'UnityEngine.Rigidbody2D','properties':{'gravityScale':0}}])
 unity_gameobject_crud(operation='findMultiple', pattern='Enemy*', maxResults=100)
+# matchMode: exact|contains|wildcard|regex（デフォルト: contains）
+# exact を使うと 'Boss' が 'BossHPBar' にマッチしない
+unity_gameobject_crud(operation='deleteMultiple', pattern='Boss', matchMode='exact')
 
 # Component（componentType='*'で全取得、*Multiple操作でバッチ処理）
 unity_component_crud(operation='add', gameObjectPath='Player', componentType='UnityEngine.Rigidbody2D', propertyChanges={'gravityScale':0})
@@ -373,6 +382,12 @@ unity_scriptableObject_crud(operation='create', typeName='MyGame.Config', assetP
 # Prefab
 unity_prefab_crud(operation='create', gameObjectPath='Player', prefabPath='Assets/Prefabs/Player.prefab')
 unity_prefab_crud(operation='instantiate', prefabPath='Assets/Prefabs/Enemy.prefab', parentPath='Enemies', position={'x':0,'y':0,'z':5})
+# Prefab直接編集（instantiate不要）
+unity_prefab_crud(operation='editAsset', prefabPath='Assets/Prefabs/Enemy.prefab',
+    tag='Enemy', layer='Enemy', componentChanges=[{'componentType':'CircleCollider2D','propertyChanges':{'isTrigger':True}}])
+# 複数Prefab一括編集
+unity_prefab_crud(operation='editMultiple', prefabPaths=['Assets/Prefabs/Enemies/Basic.prefab','Assets/Prefabs/Enemies/Fast.prefab'],
+    tag='Enemy', layer='Enemy')
 
 # ProjectSettings (category: player|quality|time|physics|physics2d|audio|editor|tagsLayers)
 unity_projectSettings_crud(operation='write', category='tagsLayers', property='addTag', value='Enemy')

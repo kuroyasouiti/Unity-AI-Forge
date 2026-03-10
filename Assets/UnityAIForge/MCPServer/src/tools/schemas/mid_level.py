@@ -698,12 +698,16 @@ def input_profile_schema() -> dict[str, Any]:
                 "gameObjectPath": {"type": "string", "description": "Target GameObject path."},
                 "preset": {
                     "type": "string",
-                    "enum": ["player", "ui", "vehicle", "custom"],
-                    "description": "Input profile preset type.",
+                    "enum": ["player", "ui", "vehicle", "custom", "shooter2d", "platformer2d"],
+                    "description": (
+                        "For createPlayerInput: notification behavior preset (player/ui/vehicle/custom). "
+                        "For createInputActions: genre preset that auto-generates full action maps with bindings "
+                        "(shooter2d: Move/Shoot/Bomb/SlowMove/Pause, platformer2d: Move/Jump/Attack/Dash/Pause)."
+                    ),
                 },
                 "inputActionsAssetPath": {
                     "type": "string",
-                    "description": "InputActions asset path.",
+                    "description": "InputActions asset path (must end with .inputactions).",
                 },
                 "defaultActionMap": {"type": "string", "description": "Default action map name."},
                 "notificationBehavior": {
@@ -716,6 +720,74 @@ def input_profile_schema() -> dict[str, Any]:
                     ],
                     "description": "Input notification behavior.",
                 },
+                "actionMaps": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Action map name (e.g., 'Player').",
+                            },
+                            "actions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "type": {
+                                            "type": "string",
+                                            "enum": ["Button", "Value", "PassThrough"],
+                                        },
+                                        "valueType": {
+                                            "type": "string",
+                                            "description": "Expected control type for Value actions (e.g., 'Vector2').",
+                                        },
+                                        "bindings": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "path": {
+                                                        "type": "string",
+                                                        "description": "Input binding path (e.g., '<Keyboard>/z').",
+                                                    },
+                                                },
+                                            },
+                                            "description": "Simple bindings for this action.",
+                                        },
+                                        "compositeBindings": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string",
+                                                        "description": "Composite name (e.g., 'WASD').",
+                                                    },
+                                                    "compositeType": {
+                                                        "type": "string",
+                                                        "description": "Composite type (e.g., '2DVector', '1DAxis').",
+                                                    },
+                                                    "parts": {
+                                                        "type": "object",
+                                                        "additionalProperties": {"type": "string"},
+                                                        "description": "Composite parts (e.g., {up: '<Keyboard>/w', down: '<Keyboard>/s', left: '<Keyboard>/a', right: '<Keyboard>/d'}).",
+                                                    },
+                                                },
+                                            },
+                                            "description": "Composite bindings (e.g., 2DVector for WASD movement).",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "description": (
+                        "Action maps with full action and binding definitions for createInputActions. "
+                        "Writes a complete .inputactions JSON file. Supports simple bindings and composite bindings (2DVector, 1DAxis)."
+                    ),
+                },
                 "actions": {
                     "type": "array",
                     "items": {
@@ -726,7 +798,7 @@ def input_profile_schema() -> dict[str, Any]:
                             "binding": {"type": "string"},
                         },
                     },
-                    "description": "Custom action definitions.",
+                    "description": "Legacy: simple action definitions. Prefer actionMaps for full control.",
                 },
             },
         },
@@ -1272,6 +1344,7 @@ def physics_bundle_schema() -> dict[str, Any]:
                     "enum": [
                         "applyPreset",
                         "setCollisionMatrix",
+                        "setCollisionMatrixBatch",
                         "createPhysicsMaterial",
                         "createPhysicsMaterial2D",
                         "inspect",
@@ -1348,6 +1421,28 @@ def physics_bundle_schema() -> dict[str, Any]:
                 "assignTo": {
                     "type": "string",
                     "description": "GameObject path to assign created material to its collider.",
+                },
+                "pairs": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "layerA": {
+                                "type": "string",
+                                "description": "First layer name.",
+                            },
+                            "layerB": {
+                                "type": "string",
+                                "description": "Second layer name.",
+                            },
+                            "ignore": {
+                                "type": "boolean",
+                                "description": "Whether to ignore collisions (default: true).",
+                            },
+                        },
+                        "required": ["layerA", "layerB"],
+                    },
+                    "description": "Array of layer pairs for setCollisionMatrixBatch. Set multiple collision pairs in one call.",
                 },
             },
         },

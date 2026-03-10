@@ -252,6 +252,7 @@ namespace MCP.Editor.Handlers
 
             var targetPaths = GetStringList(payload, "targets");
             bool includeConsole = GetBool(payload, "includeConsole", false);
+            bool includeSerializedFields = GetBool(payload, "includeSerializedFields", false);
 
             // Active scenes
             var activeScenes = new List<Dictionary<string, object>>();
@@ -290,7 +291,7 @@ namespace MCP.Editor.Handlers
                         .Select(c => c.GetType().Name)
                         .ToList();
 
-                    targetsResult.Add(new Dictionary<string, object>
+                    var targetInfo = new Dictionary<string, object>
                     {
                         ["path"] = path,
                         ["found"] = true,
@@ -298,7 +299,68 @@ namespace MCP.Editor.Handlers
                         ["position"] = new Dictionary<string, object> { ["x"] = pos.x, ["y"] = pos.y, ["z"] = pos.z },
                         ["rotation"] = new Dictionary<string, object> { ["x"] = rot.x, ["y"] = rot.y, ["z"] = rot.z },
                         ["components"] = componentNames
-                    });
+                    };
+
+                    // Read serialized fields via reflection if requested
+                    if (includeSerializedFields)
+                    {
+                        var fieldsData = new List<Dictionary<string, object>>();
+                        foreach (var comp in go.GetComponents<Component>())
+                        {
+                            if (comp == null) continue;
+                            var compType = comp.GetType();
+                            // Skip built-in Unity components (Transform, etc.)
+                            if (compType.Namespace != null && compType.Namespace.StartsWith("UnityEngine")) continue;
+
+                            var compFields = new Dictionary<string, object>
+                            {
+                                ["component"] = compType.Name
+                            };
+                            var fieldValues = new Dictionary<string, object>();
+
+                            var fields = compType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                            foreach (var fi in fields)
+                            {
+                                // Include public fields and private fields with [SerializeField]
+                                bool isPublic = fi.IsPublic;
+                                bool hasSerializeField = fi.GetCustomAttribute(typeof(UnityEngine.SerializeField)) != null;
+                                if (!isPublic && !hasSerializeField) continue;
+
+                                try
+                                {
+                                    var val = fi.GetValue(comp);
+                                    fieldValues[fi.Name] = ConvertFieldValue(val);
+                                }
+                                catch
+                                {
+                                    fieldValues[fi.Name] = "<error reading>";
+                                }
+                            }
+
+                            // Also read properties (public getters)
+                            var properties = compType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly);
+                            foreach (var pi in properties)
+                            {
+                                if (!pi.CanRead || pi.GetIndexParameters().Length > 0) continue;
+                                try
+                                {
+                                    var val = pi.GetValue(comp);
+                                    fieldValues[pi.Name] = ConvertFieldValue(val);
+                                }
+                                catch
+                                {
+                                    // Skip properties that throw
+                                }
+                            }
+
+                            compFields["fields"] = fieldValues;
+                            fieldsData.Add(compFields);
+                        }
+
+                        targetInfo["serializedFields"] = fieldsData;
+                    }
+
+                    targetsResult.Add(targetInfo);
                 }
             }
 
@@ -486,6 +548,39 @@ namespace MCP.Editor.Handlers
                 ("failed", failCount),
                 ("allPassed", failCount == 0)
             );
+        }
+
+        /// <summary>
+        /// Convert a field value to a JSON-serializable representation.
+        /// </summary>
+        private static object ConvertFieldValue(object val)
+        {
+            if (val == null) return null;
+
+            var type = val.GetType();
+
+            // Primitives and strings
+            if (type.IsPrimitive || val is string || val is decimal)
+                return val;
+
+            // Enum
+            if (type.IsEnum)
+                return val.ToString();
+
+            // Vector types
+            if (val is Vector2 v2) return new Dictionary<string, object> { ["x"] = v2.x, ["y"] = v2.y };
+            if (val is Vector3 v3) return new Dictionary<string, object> { ["x"] = v3.x, ["y"] = v3.y, ["z"] = v3.z };
+            if (val is Color c) return new Dictionary<string, object> { ["r"] = c.r, ["g"] = c.g, ["b"] = c.b, ["a"] = c.a };
+
+            // Unity Object reference
+            if (val is UnityEngine.Object uObj)
+                return uObj != null ? uObj.name : null;
+
+            // Collections
+            if (val is System.Collections.ICollection col)
+                return $"[Collection: count={col.Count}]";
+
+            return val.ToString();
         }
 
         /// <summary>

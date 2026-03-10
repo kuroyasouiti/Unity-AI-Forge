@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using MCP.Editor.Base;
+using MCP.Editor.Interfaces;
 using UnityEditor;
 using UnityEngine;
 
@@ -25,8 +27,17 @@ namespace MCP.Editor.Handlers
             "instantiate",
             "unpack",
             "applyOverrides",
-            "revertOverrides"
+            "revertOverrides",
+            "editAsset",
+            "editMultiple"
         };
+
+        private readonly IPropertyApplier _propertyApplier;
+
+        public PrefabCommandHandler()
+        {
+            _propertyApplier = new ComponentPropertyApplier();
+        }
         
         #endregion
         
@@ -49,6 +60,8 @@ namespace MCP.Editor.Handlers
                 "unpack" => UnpackPrefab(payload),
                 "applyOverrides" => ApplyPrefabOverrides(payload),
                 "revertOverrides" => RevertPrefabOverrides(payload),
+                "editAsset" => EditPrefabAsset(payload),
+                "editMultiple" => EditMultiplePrefabs(payload),
                 _ => throw new InvalidOperationException($"Unknown prefab operation: {operation}")
             };
         }
@@ -345,8 +358,168 @@ namespace MCP.Editor.Handlers
             );
         }
         
+        /// <summary>
+        /// Edits a prefab asset directly without instantiating it in the scene.
+        /// Supports: tag, layer, componentChanges (add/update components), removeComponents.
+        /// </summary>
+        private object EditPrefabAsset(Dictionary<string, object> payload)
+        {
+            var prefabPath = GetString(payload, "prefabPath");
+            if (string.IsNullOrEmpty(prefabPath))
+                throw new InvalidOperationException("prefabPath is required for editAsset.");
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab == null)
+                throw new InvalidOperationException($"Prefab not found: {prefabPath}");
+
+            var updated = new List<string>();
+
+            // Use PrefabUtility.LoadPrefabContents / SaveAsPrefabAsset for direct editing
+            var contentsRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                // Set tag
+                if (payload.ContainsKey("tag"))
+                {
+                    contentsRoot.tag = GetString(payload, "tag");
+                    updated.Add("tag");
+                }
+
+                // Set layer (by name or number)
+                if (payload.ContainsKey("layer"))
+                {
+                    var layerValue = payload["layer"];
+                    int layer;
+                    if (layerValue is string layerName)
+                    {
+                        layer = LayerMask.NameToLayer(layerName);
+                        if (layer < 0)
+                            throw new InvalidOperationException($"Layer not found: {layerName}");
+                    }
+                    else
+                    {
+                        layer = GetInt(payload, "layer");
+                    }
+                    contentsRoot.layer = layer;
+                    updated.Add("layer");
+                }
+
+                // Apply component property changes
+                if (payload.TryGetValue("componentChanges", out var changesObj) && changesObj is List<object> changesList)
+                {
+                    foreach (var item in changesList)
+                    {
+                        if (item is not Dictionary<string, object> change) continue;
+                        var componentType = change.ContainsKey("componentType") ? change["componentType"]?.ToString() : null;
+                        if (string.IsNullOrEmpty(componentType)) continue;
+
+                        var type = ResolveType(componentType);
+                        var component = contentsRoot.GetComponent(type);
+
+                        // Add component if not present
+                        if (component == null)
+                        {
+                            component = contentsRoot.AddComponent(type);
+                            updated.Add($"added:{componentType}");
+                        }
+
+                        if (change.TryGetValue("propertyChanges", out var propsObj) && propsObj is Dictionary<string, object> props && props.Count > 0)
+                        {
+                            _propertyApplier.ApplyProperties(component, props);
+                            updated.Add($"updated:{componentType}");
+                        }
+                    }
+                }
+
+                // Remove components
+                if (payload.TryGetValue("removeComponents", out var removeObj) && removeObj is List<object> removeList)
+                {
+                    foreach (var item in removeList)
+                    {
+                        var typeName = item?.ToString();
+                        if (string.IsNullOrEmpty(typeName)) continue;
+                        var type = ResolveType(typeName);
+                        var component = contentsRoot.GetComponent(type);
+                        if (component != null)
+                        {
+                            UnityEngine.Object.DestroyImmediate(component);
+                            updated.Add($"removed:{typeName}");
+                        }
+                    }
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(contentsRoot, prefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contentsRoot);
+            }
+
+            AssetDatabase.Refresh();
+
+            return CreateSuccessResponse(
+                ("prefabPath", prefabPath),
+                ("updated", updated),
+                ("message", $"Prefab edited directly: {string.Join(", ", updated)}")
+            );
+        }
+
+        /// <summary>
+        /// Edits multiple prefab assets with the same changes.
+        /// Accepts prefabPaths array + shared tag/layer/componentChanges.
+        /// </summary>
+        private object EditMultiplePrefabs(Dictionary<string, object> payload)
+        {
+            var prefabPaths = GetStringList(payload, "prefabPaths");
+            if (prefabPaths == null || prefabPaths.Count == 0)
+                throw new InvalidOperationException("prefabPaths array is required for editMultiple.");
+
+            var results = new List<Dictionary<string, object>>();
+            int successCount = 0;
+            int errorCount = 0;
+
+            foreach (var path in prefabPaths)
+            {
+                try
+                {
+                    // Build per-prefab payload with same shared properties
+                    var perPrefabPayload = new Dictionary<string, object>(payload)
+                    {
+                        ["prefabPath"] = path
+                    };
+                    perPrefabPayload.Remove("prefabPaths");
+
+                    var result = EditPrefabAsset(perPrefabPayload) as Dictionary<string, object>;
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["prefabPath"] = path,
+                        ["success"] = true,
+                        ["updated"] = result?.ContainsKey("updated") == true ? result["updated"] : new List<string>()
+                    });
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["prefabPath"] = path,
+                        ["success"] = false,
+                        ["error"] = ex.Message
+                    });
+                    errorCount++;
+                }
+            }
+
+            return CreateSuccessResponse(
+                ("results", results),
+                ("totalCount", prefabPaths.Count),
+                ("successCount", successCount),
+                ("errorCount", errorCount)
+            );
+        }
+
         #endregion
-        
+
         #region Helper Methods
 
         // GetGameObjectPath is inherited from BaseCommandHandler as BuildGameObjectPath

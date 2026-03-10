@@ -76,6 +76,15 @@ def playmode_control_schema() -> dict[str, Any]:
                     "description": "Include console log summary in captureState (default: false).",
                     "default": False,
                 },
+                "includeSerializedFields": {
+                    "type": "boolean",
+                    "description": (
+                        "Include serialized field values of custom MonoBehaviours in captureState (default: false). "
+                        "Reads public fields, [SerializeField] private fields, and public properties via reflection. "
+                        "Useful for inspecting runtime state (e.g., _currentWave, _score, _currentLives)."
+                    ),
+                    "default": False,
+                },
                 "sceneName": {
                     "type": "string",
                     "description": "Scene name or path to wait for in waitForScene operation.",

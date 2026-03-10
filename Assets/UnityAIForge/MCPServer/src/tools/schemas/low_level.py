@@ -119,7 +119,16 @@ def game_object_manage_schema() -> dict[str, Any]:
                 },
                 "useRegex": {
                     "type": "boolean",
-                    "description": "Interpret pattern as regex instead of wildcard.",
+                    "description": "Interpret pattern as regex instead of wildcard. Legacy: prefer matchMode.",
+                },
+                "matchMode": {
+                    "type": "string",
+                    "enum": ["exact", "contains", "wildcard", "regex"],
+                    "description": "Pattern matching mode for batch operations (default: 'contains'). "
+                    "'exact': name must equal pattern exactly. "
+                    "'contains': name contains pattern (default, same as wildcard). "
+                    "'wildcard': supports * and ? wildcards. "
+                    "'regex': full regex matching.",
                 },
                 "includeComponents": {
                     "type": "boolean",
@@ -485,6 +494,8 @@ def prefab_manage_schema() -> dict[str, Any]:
                         "unpack",
                         "applyOverrides",
                         "revertOverrides",
+                        "editAsset",
+                        "editMultiple",
                     ],
                     "description": "Prefab operation to perform.",
                 },
@@ -526,6 +537,43 @@ def prefab_manage_schema() -> dict[str, Any]:
                 "includeOverrides": {
                     "type": "boolean",
                     "description": "Include override information in inspect operation.",
+                },
+                "tag": {
+                    "type": "string",
+                    "description": "Tag to set on prefab root (editAsset/editMultiple).",
+                },
+                "layer": {
+                    "oneOf": [{"type": "integer"}, {"type": "string"}],
+                    "description": "Layer to set on prefab root by name or number (editAsset/editMultiple).",
+                },
+                "componentChanges": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "componentType": {
+                                "type": "string",
+                                "description": "Component type name (e.g., 'Rigidbody2D'). Added if not present.",
+                            },
+                            "propertyChanges": {
+                                "type": "object",
+                                "additionalProperties": True,
+                                "description": "Property values to set on the component.",
+                            },
+                        },
+                        "required": ["componentType"],
+                    },
+                    "description": "Components to add/update on prefab (editAsset/editMultiple). Component is added if missing.",
+                },
+                "removeComponents": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Component type names to remove from prefab (editAsset/editMultiple).",
+                },
+                "prefabPaths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Array of prefab asset paths for editMultiple operation.",
                 },
             },
         },

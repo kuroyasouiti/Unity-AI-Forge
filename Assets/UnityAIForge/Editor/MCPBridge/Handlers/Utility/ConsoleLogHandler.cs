@@ -23,9 +23,13 @@ namespace MCP.Editor.Handlers
         private static readonly MethodInfo StartGettingEntriesMethod;
         private static readonly MethodInfo EndGettingEntriesMethod;
 
-        // Snapshot state for diff operations
+        // Snapshot state for diff operations — persisted to EditorPrefs across domain reloads
         private static List<Dictionary<string, object>> _snapshotLogs;
         private static int _snapshotTotalCount;
+
+        // Key for EditorPrefs persistence
+        private const string SnapshotMaxIndexKey = "MCP_ConsoleLog_SnapshotMaxIndex";
+        private const string SnapshotCountKey = "MCP_ConsoleLog_SnapshotCount";
 
         static ConsoleLogHandler()
         {
@@ -226,6 +230,16 @@ namespace MCP.Editor.Handlers
             _snapshotLogs = logs;
             _snapshotTotalCount = logs.Count;
 
+            // Persist snapshot max index to EditorPrefs for domain reload survival
+            int maxIdx = -1;
+            foreach (var log in logs)
+            {
+                if (log.ContainsKey("index") && log["index"] is int idx && idx > maxIdx)
+                    maxIdx = idx;
+            }
+            EditorPrefs.SetInt(SnapshotMaxIndexKey, maxIdx);
+            EditorPrefs.SetInt(SnapshotCountKey, _snapshotTotalCount);
+
             return CreateSuccessResponse(
                 ("snapshotCount", _snapshotTotalCount),
                 ("message", $"Snapshot taken with {_snapshotTotalCount} log entries")
@@ -237,6 +251,22 @@ namespace MCP.Editor.Handlers
         /// </summary>
         private object HandleDiff(Dictionary<string, object> payload)
         {
+            // Recover snapshot from EditorPrefs if static state was lost (domain reload)
+            if (_snapshotLogs == null && EditorPrefs.HasKey(SnapshotMaxIndexKey))
+            {
+                _snapshotTotalCount = EditorPrefs.GetInt(SnapshotCountKey, 0);
+                // Reconstruct minimal snapshot data for diff to work
+                _snapshotLogs = new List<Dictionary<string, object>>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["index"] = EditorPrefs.GetInt(SnapshotMaxIndexKey, -1),
+                        ["message"] = "(recovered snapshot marker)",
+                        ["type"] = "log"
+                    }
+                };
+            }
+
             if (_snapshotLogs == null)
             {
                 return new Dictionary<string, object>

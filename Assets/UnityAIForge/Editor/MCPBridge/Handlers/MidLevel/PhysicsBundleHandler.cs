@@ -17,6 +17,7 @@ namespace MCP.Editor.Handlers
         {
             "applyPreset",
             "setCollisionMatrix",
+            "setCollisionMatrixBatch",
             "createPhysicsMaterial",
             "createPhysicsMaterial2D",
             "inspect"
@@ -30,6 +31,7 @@ namespace MCP.Editor.Handlers
             {
                 "applyPreset" => HandleApplyPreset(payload),
                 "setCollisionMatrix" => HandleSetCollisionMatrix(payload),
+                "setCollisionMatrixBatch" => HandleSetCollisionMatrixBatch(payload),
                 "createPhysicsMaterial" => HandleCreatePhysicsMaterial(payload),
                 "createPhysicsMaterial2D" => HandleCreatePhysicsMaterial2D(payload),
                 "inspect" => HandleInspect(payload),
@@ -176,6 +178,79 @@ namespace MCP.Editor.Handlers
                 ("ignore", ignore),
                 ("is2D", is2D),
                 ("message", $"Collision between '{layerA}' and '{layerB}' {(ignore ? "ignored" : "enabled")} ({(is2D ? "2D" : "3D")})")
+            );
+        }
+
+        private object HandleSetCollisionMatrixBatch(Dictionary<string, object> payload)
+        {
+            var pairs = GetListFromPayload(payload, "pairs");
+            if (pairs == null || pairs.Count == 0)
+                throw new ArgumentException("Required parameter missing: pairs (array of {layerA, layerB, ignore?})");
+
+            var is2D = GetBool(payload, "is2D", false);
+            var results = new List<Dictionary<string, object>>();
+            int successCount = 0;
+            int errorCount = 0;
+
+            foreach (var item in pairs)
+            {
+                if (item is not Dictionary<string, object> pair) continue;
+
+                var layerA = pair.ContainsKey("layerA") ? pair["layerA"]?.ToString() : null;
+                var layerB = pair.ContainsKey("layerB") ? pair["layerB"]?.ToString() : null;
+                var ignore = pair.ContainsKey("ignore") ? Convert.ToBoolean(pair["ignore"]) : true;
+
+                if (string.IsNullOrEmpty(layerA) || string.IsNullOrEmpty(layerB))
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["layerA"] = layerA ?? "",
+                        ["layerB"] = layerB ?? "",
+                        ["success"] = false,
+                        ["error"] = "layerA and layerB are required"
+                    });
+                    errorCount++;
+                    continue;
+                }
+
+                int indexA = LayerMask.NameToLayer(layerA);
+                int indexB = LayerMask.NameToLayer(layerB);
+
+                if (indexA < 0 || indexB < 0)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["layerA"] = layerA,
+                        ["layerB"] = layerB,
+                        ["success"] = false,
+                        ["error"] = $"Layer not found: {(indexA < 0 ? layerA : layerB)}"
+                    });
+                    errorCount++;
+                    continue;
+                }
+
+                if (is2D)
+                    Physics2D.IgnoreLayerCollision(indexA, indexB, ignore);
+                else
+                    Physics.IgnoreLayerCollision(indexA, indexB, ignore);
+
+                results.Add(new Dictionary<string, object>
+                {
+                    ["layerA"] = layerA,
+                    ["layerB"] = layerB,
+                    ["ignore"] = ignore,
+                    ["success"] = true
+                });
+                successCount++;
+            }
+
+            return CreateSuccessResponse(
+                ("results", results),
+                ("is2D", is2D),
+                ("totalCount", pairs.Count),
+                ("successCount", successCount),
+                ("errorCount", errorCount),
+                ("message", $"{successCount} collision pairs configured ({(is2D ? "2D" : "3D")})")
             );
         }
 

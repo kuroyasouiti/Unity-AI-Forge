@@ -410,13 +410,14 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var includeComponents = GetBool(payload, "includeComponents", false);
-            
+            var matchMode = GetString(payload, "matchMode", "contains");
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
-            var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
+
+            var gameObjects = FindWithMatchMode(pattern, matchMode, useRegex, maxResults);
             
             var results = gameObjects.Select(go =>
             {
@@ -455,13 +456,14 @@ namespace MCP.Editor.Handlers
             var pattern = GetString(payload, "pattern");
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
-            
+            var matchMode = GetString(payload, "matchMode", "contains");
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
-            var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
+
+            var gameObjects = FindWithMatchMode(pattern, matchMode, useRegex, maxResults);
             var deleted = new List<string>();
             
             foreach (var go in gameObjects)
@@ -487,13 +489,14 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var includeComponents = GetBool(payload, "includeComponents", false);
-            
+            var matchMode = GetString(payload, "matchMode", "contains");
+
             if (string.IsNullOrEmpty(pattern))
             {
                 throw new InvalidOperationException("pattern parameter is required");
             }
-            
-            var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
+
+            var gameObjects = FindWithMatchMode(pattern, matchMode, useRegex, maxResults);
             
             var results = gameObjects.Select(go =>
             {
@@ -533,6 +536,39 @@ namespace MCP.Editor.Handlers
         #endregion
         
         #region Helper Methods
+
+        /// <summary>
+        /// Finds GameObjects using the specified match mode.
+        /// </summary>
+        /// <param name="pattern">Pattern to match against.</param>
+        /// <param name="matchMode">exact, contains (default), wildcard, or regex.</param>
+        /// <param name="useRegex">Legacy flag; if true, overrides matchMode to regex.</param>
+        /// <param name="maxResults">Maximum results to return.</param>
+        private List<GameObject> FindWithMatchMode(string pattern, string matchMode, bool useRegex, int maxResults)
+        {
+            // Legacy: useRegex=true overrides matchMode
+            if (useRegex) matchMode = "regex";
+
+            switch (matchMode?.ToLowerInvariant())
+            {
+                case "exact":
+                    // Find only objects whose name exactly matches the pattern
+                    return UnityEngine.Object.FindObjectsOfType<GameObject>(true)
+                        .Where(go => go.name == pattern)
+                        .Take(maxResults)
+                        .ToList();
+
+                case "wildcard":
+                    return FindGameObjectsByPattern(pattern, false, maxResults).ToList();
+
+                case "regex":
+                    return FindGameObjectsByPattern(pattern, true, maxResults).ToList();
+
+                case "contains":
+                default:
+                    return FindGameObjectsByPattern(pattern, false, maxResults).ToList();
+            }
+        }
 
         /// <summary>
         /// Gets the PrimitiveType from a template name (case-insensitive).

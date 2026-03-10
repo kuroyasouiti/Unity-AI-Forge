@@ -95,23 +95,11 @@ unity_projectSettings_crud(operation='write', category='physics2D',
 unity_projectSettings_crud(operation='write', category='tagsLayers',
     property='tags', value=['Player', 'Enemy', 'PlayerBullet', 'EnemyBullet', 'PowerUp'])
 
-# Input Profile（シューター向け）
+# Input Profile（シューター向け — shooter2d プリセットで一発生成）
 unity_input_profile(operation='createInputActions',
-    assetName='ShooterInput',
-    outputPath='Assets/Settings',
-    actionMaps=[
-        {'name': 'Player', 'actions': [
-            {'name': 'Move', 'type': 'Value', 'valueType': 'Vector2',
-             'bindings': [{'path': '<Gamepad>/leftStick'},
-                          {'path': '<Keyboard>/arrows'}]},
-            {'name': 'Fire', 'type': 'Button',
-             'bindings': [{'path': '<Keyboard>/z'},
-                          {'path': '<Gamepad>/buttonSouth'}]},
-            {'name': 'Bomb', 'type': 'Button',
-             'bindings': [{'path': '<Keyboard>/x'},
-                          {'path': '<Gamepad>/buttonWest'}]},
-        ]}
-    ])
+    inputActionsAssetPath='Assets/Settings/ShooterInput.inputactions',
+    preset='shooter2d')
+# → Move(WASD+Arrows), Shoot(Z), Bomb(X), SlowMove(LShift), Pause(Esc) が自動生成
 ```
 
 ### Step 2: プレイヤー自機
@@ -174,6 +162,29 @@ unity_prefab_crud(operation='create', gameObjectPath='EnemyBullet',
 unity_asset_crud(operation='create',
     assetPath='Assets/Scripts/Projectile/BulletPool.cs')
 unity_compilation_await(operation='await')
+```
+
+### Step 3.5: プレハブのレイヤー・タグ一括設定
+
+```python
+# editMultiple で複数プレハブのタグ・レイヤーを一括設定（instantiate不要）
+unity_prefab_crud(operation='editMultiple',
+    prefabPaths=[
+        'Assets/Prefabs/Bullets/PlayerBullet.prefab',
+        'Assets/Prefabs/Bullets/PlayerBulletWide.prefab',
+    ],
+    tag='PlayerBullet', layer='PlayerBullet',
+    componentChanges=[
+        {'componentType': 'CircleCollider2D',
+         'propertyChanges': {'isTrigger': True}}
+    ])
+
+unity_prefab_crud(operation='editMultiple',
+    prefabPaths=[
+        'Assets/Prefabs/Bullets/EnemyBullet.prefab',
+        'Assets/Prefabs/Bullets/EnemyBulletAimed.prefab',
+    ],
+    tag='EnemyBullet', layer='EnemyBullet')
 ```
 
 ### Step 4: ウェーブデータ（ScriptableObject）
@@ -295,8 +306,17 @@ unity_validate_integrity(operation='all')
 
 - **オブジェクトプーリング**: 弾・敵・VFX は必ずプーリングを使うこと。
   Instantiate/Destroy の繰り返しはフレームスパイクの原因になる。
-- **物理レイヤー衝突マトリクス**: PlayerBullet と EnemyBullet が互いに衝突しないよう
-  `unity_projectSettings_crud` で Layer Collision Matrix を設定すること。
+- **物理レイヤー衝突マトリクス**: `unity_physics_bundle(operation='setCollisionMatrixBatch')` で
+  一括設定が効率的。PlayerBullet-EnemyBullet, Player-PlayerBullet 等の不要衝突を除外すること。
+  ```python
+  unity_physics_bundle(operation='setCollisionMatrixBatch', is2D=True, pairs=[
+      {'layerA': 'PlayerBullet', 'layerB': 'Player', 'ignore': True},
+      {'layerA': 'PlayerBullet', 'layerB': 'PlayerBullet', 'ignore': True},
+      {'layerA': 'EnemyBullet', 'layerB': 'Enemy', 'ignore': True},
+      {'layerA': 'EnemyBullet', 'layerB': 'EnemyBullet', 'ignore': True},
+      {'layerA': 'PlayerBullet', 'layerB': 'EnemyBullet', 'ignore': True},
+  ])
+  ```
 - **弾の数上限**: プールサイズを超えて発射しようとすると弾が無視される。
   ボスの弾幕フェーズでは poolSize を多めに確保する。
 - **スクロール背景**: スクロール背景の移動はスクリプトで行い、

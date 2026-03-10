@@ -44,6 +44,7 @@ WORKFLOW_OPTIONS: list[str] = [
     "scene_structure",
     "feature_implementation",
     "ui_review",
+    "prefab_quality_check",
 ]
 
 # --- Prompt definitions ---

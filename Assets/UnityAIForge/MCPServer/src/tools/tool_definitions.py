@@ -103,7 +103,9 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- stop: Stop play mode\n"
                 "- step: Step one frame (while paused)\n"
                 "- getState: Get current play mode state (stopped/playing/paused)\n"
-                "- captureState: Capture runtime state of specified GameObjects (position, rotation, components). Requires play mode.\n"
+                "- captureState: Capture runtime state of specified GameObjects (position, rotation, components). "
+                "With includeSerializedFields=true, reads private [SerializeField] fields and public properties "
+                "of custom MonoBehaviours via reflection (e.g., _currentWave, _score, _currentLives). Requires play mode.\n"
                 "- waitForScene: Check if a scene is loaded by name/path. Poll until loaded=true for scene transitions.\n"
                 "- validateState: Validate runtime manager state — check MonoBehaviours exist and collections meet minimum counts (requires play mode).\n\n"
                 "Essential for LLMs to execute and test games autonomously."
@@ -125,7 +127,8 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- snapshot: Take a snapshot of current logs for later diff comparison\n"
                 "- diff: Compare current logs against last snapshot, returning only new entries. Supports severity/keyword filters.\n"
                 "- filter: Filter all logs by severity array and/or keyword regex pattern\n\n"
-                "**Snapshot workflow:** snapshot → (make changes / play test) → diff → fix issues → repeat.\n\n"
+                "**Snapshot workflow:** snapshot → (make changes / play test) → diff → fix issues → repeat.\n"
+                "**Domain reload safe:** Snapshot survives play mode transitions (persisted to EditorPrefs).\n\n"
                 "Essential for LLMs to debug and fix issues autonomously."
             ),
             inputSchema=console_log_schema(),
@@ -138,7 +141,14 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_gameobject_crud",
-            description="Full GameObject lifecycle management: create (with templates like Cube/Sphere/Player/Enemy, and optional auto-attach components with properties), delete, move (reparent), rename, duplicate, update (tag/layer/active/static), inspect (with optional component details), and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). Use 'components' array on create to auto-attach components: [{type: 'UnityEngine.Rigidbody2D', properties: {gravityScale: 0}}]. Supports regex pattern matching for batch operations.",
+            description=(
+                "Full GameObject lifecycle management: create (with templates and auto-attach components), delete, move, rename, "
+                "duplicate, update (tag/layer/active/static), inspect, and batch operations (findMultiple/deleteMultiple/inspectMultiple).\n\n"
+                "**Batch matchMode**: 'exact' (name must equal pattern), 'contains' (default, name-contains), "
+                "'wildcard' (supports * and ?), 'regex' (full regex). Use 'exact' to avoid accidental matches "
+                "(e.g., matchMode='exact', pattern='Boss' won't match 'BossHPBar').\n\n"
+                "Use 'components' array on create to auto-attach: [{type: 'Rigidbody2D', properties: {gravityScale: 0}}]."
+            ),
             inputSchema=game_object_manage_schema(),
         ),
         types.Tool(
@@ -183,7 +193,17 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_prefab_crud",
-            description="Complete prefab workflow management: create prefabs from scene GameObjects, update existing prefabs, inspect prefab contents and overrides, instantiate prefabs into scenes with custom position/rotation, unpack prefab instances (completely or outermost only), apply instance overrides back to prefab, or revert instance changes. Essential for creating reusable game objects (enemies, pickups, UI elements, buildings). Use 'create' to save GameObjects as prefabs, 'instantiate' to spawn prefab instances, 'applyOverrides' to update prefab from modified instance.",
+            description=(
+                "Complete prefab workflow management: create, update, inspect, instantiate, unpack, applyOverrides, revertOverrides, "
+                "editAsset (direct prefab editing without scene instantiation), editMultiple (batch edit multiple prefabs).\n\n"
+                "**editAsset**: Edit a prefab asset directly — set tag, layer, add/update/remove components with property changes. "
+                "No need to instantiate→modify→apply→delete. Example: editAsset with tag='Enemy', layer='Enemy', "
+                "componentChanges=[{componentType:'Rigidbody2D', propertyChanges:{gravityScale:0}}].\n\n"
+                "**editMultiple**: Apply the same tag/layer/component changes to multiple prefabs at once. "
+                "Pass prefabPaths array + shared tag/layer/componentChanges.\n\n"
+                "Use 'create' to save GameObjects as prefabs, 'instantiate' to spawn instances, "
+                "'applyOverrides' to update from modified instance, 'editAsset'/'editMultiple' for direct asset editing."
+            ),
             inputSchema=prefab_manage_schema(),
         ),
         types.Tool(
@@ -219,7 +239,19 @@ def get_tool_definitions() -> list[types.Tool]:
         ),
         types.Tool(
             name="unity_input_profile",
-            description="Mid-level input system setup: create PlayerInput component with New Input System, configure action maps (player: move/jump/fire, ui: navigate/submit/cancel, vehicle: accelerate/brake/steer), set up notification behaviors (sendMessages/broadcastMessages/invokeUnityEvents/invokeCSharpEvents), and define custom actions with bindings. Automatically generates or uses existing InputActions assets. Essential for setting up player input handling with Unity's modern Input System. Use presets for quick setup or 'custom' for full control.",
+            description=(
+                "Mid-level input system setup with New Input System.\n\n"
+                "**Operations:**\n"
+                "- createPlayerInput: Add PlayerInput component to GameObject with preset notification behavior\n"
+                "- createInputActions: Generate .inputactions JSON file with full action maps, bindings, and composite bindings\n"
+                "- inspect: Inspect PlayerInput component state\n\n"
+                "**Genre Presets for createInputActions:** "
+                "'shooter2d' (Move/Shoot/Bomb/SlowMove/Pause with WASD+Arrows+Gamepad), "
+                "'platformer2d' (Move/Jump/Attack/Dash/Pause with WASD+Arrows+Gamepad).\n\n"
+                "**Custom actionMaps**: Define action maps with actions, simple bindings, and composite bindings "
+                "(2DVector for WASD, 1DAxis for triggers). Writes a complete .inputactions JSON file that Unity can load.\n\n"
+                "Essential for setting up player input. Use genre presets for quick setup or actionMaps for full control."
+            ),
             inputSchema=input_profile_schema(),
         ),
         types.Tool(
@@ -428,7 +460,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Mid-level physics configuration: apply physics presets, configure collision matrices, and create physics materials.\n\n"
                 "**Operations:**\n"
                 "- applyPreset: Apply physics preset to GameObject (platformer2D, topDown2D, fps3D, thirdPerson3D, space, racing)\n"
-                "- setCollisionMatrix: Configure layer collision matrix (Physics or Physics2D)\n"
+                "- setCollisionMatrix: Configure single layer collision pair (Physics or Physics2D)\n"
+                "- setCollisionMatrixBatch: Configure multiple layer collision pairs in one call. "
+                "Pass pairs=[{layerA, layerB, ignore?}, ...] and is2D=true/false. "
+                "Much faster than multiple setCollisionMatrix calls.\n"
                 "- createPhysicsMaterial: Create PhysicMaterial asset (3D) with friction/bounciness\n"
                 "- createPhysicsMaterial2D: Create PhysicsMaterial2D asset with friction/bounciness\n"
                 "- inspect: View current Rigidbody/Collider/PhysicsMaterial configuration\n\n"
