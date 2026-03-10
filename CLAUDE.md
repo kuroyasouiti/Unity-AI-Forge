@@ -97,12 +97,12 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `ScriptableObjectCommandHandler.cs` - ScriptableObject management
 - `VectorSpriteConvertHandler.cs` - Vector/primitive to sprite conversion
 
-**MidLevel/** (21 handlers) - Batch operations, presets, visual control, and UI Toolkit:
+**MidLevel/** (19 handlers) - Presets, creation, and analysis for Unity standard components:
 - `TransformBatchHandler.cs` - Transform batch operations (arrange, rename patterns)
 - `RectTransformBatchHandler.cs` - UI RectTransform batch (anchors, alignment, distribution)
 - `CameraBundleHandler.cs` - Camera CRUD with presets (default, orthographic2D, firstPerson, thirdPerson, topDown, splitScreen, minimap, uiCamera)
 - `UIFoundationHandler.cs` - UGUI element creation (Canvas, Button, Text, ScrollView, etc.)
-- `UIHierarchyHandler.cs` - Declarative UI hierarchy from JSON definitions
+- `UIConvertHandler.cs` - UGUI ↔ UI Toolkit conversion analysis and design token extraction
 - `UIStateHandler.cs` - UI state management (define/apply/save/load states)
 - `UINavigationHandler.cs` - Keyboard/gamepad navigation setup
 - `InputProfileHandler.cs` - New Input System setup with action maps
