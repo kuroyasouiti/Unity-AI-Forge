@@ -65,8 +65,8 @@ namespace MCP.Editor.Base
                 // ミドルレベルツールのハンドラーを登録
                 RegisterMidLevelHandlers();
 
-                // 開発サイクル・ビジュアル制御ツールのハンドラーを登録
-                RegisterDevCycleAndVisualHandlers();
+                // 開発サイクル基盤ツールのハンドラーを登録
+                RegisterDevCycleHandlers();
 
                 // ハイレベルツールのハンドラーを登録
                 RegisterHighLevelHandlers();
@@ -137,24 +137,23 @@ namespace MCP.Editor.Base
             // Physics & NavMesh
             CommandHandlerFactory.Register("physicsBundle", new PhysicsBundleHandler());
             CommandHandlerFactory.Register("navmeshBundle", new NavMeshBundleHandler());
-        }
 
-        /// <summary>
-        /// 開発サイクル基盤・ビジュアル制御ツールのハンドラーを登録します。
-        /// </summary>
-        private static void RegisterDevCycleAndVisualHandlers()
-        {
-            // 開発サイクル基盤
-            CommandHandlerFactory.Register("playModeControl", new PlayModeControlHandler());
-            CommandHandlerFactory.Register("consoleLog", new ConsoleLogHandler());
-
-            // ビジュアル制御
+            // Visual control
             CommandHandlerFactory.Register("materialBundle", new MaterialBundleHandler());
             CommandHandlerFactory.Register("lightBundle", new LightBundleHandler());
             CommandHandlerFactory.Register("particleBundle", new ParticleBundleHandler());
 
-            // アニメーション・イベント
+            // Animation 3D
             CommandHandlerFactory.Register("animation3DBundle", new Animation3DBundleHandler());
+        }
+
+        /// <summary>
+        /// 開発サイクル基盤ツールのハンドラーを登録します。
+        /// </summary>
+        private static void RegisterDevCycleHandlers()
+        {
+            CommandHandlerFactory.Register("playModeControl", new PlayModeControlHandler());
+            CommandHandlerFactory.Register("consoleLog", new ConsoleLogHandler());
             CommandHandlerFactory.Register("eventWiring", new EventWiringHandler());
         }
 
