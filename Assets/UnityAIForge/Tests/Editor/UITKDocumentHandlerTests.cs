@@ -3,6 +3,7 @@ using System.Linq;
 using MCP.Editor.Handlers;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace MCP.Editor.Tests
 {
@@ -47,6 +48,20 @@ namespace MCP.Editor.Tests
         public void Execute_UnsupportedOperation_ReturnsError()
         {
             TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
+        }
+
+        [Test]
+        public void Create_Default_HasUIDocumentComponent()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("create",
+                ("name", "TestUIDoc"))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
+
+            Assert.IsTrue(result.ContainsKey("gameObjectPath"));
+            var go = GameObject.Find("TestUIDoc");
+            Assert.IsNotNull(go);
+            Assert.IsNotNull(go.GetComponent<UIDocument>(), "UIDocument component should exist");
+            _tracker.Track(go);
         }
     }
 }

@@ -61,8 +61,11 @@ namespace MCP.Editor.Handlers
             int width = GetInt(payload, "width", 256);
             int height = GetInt(payload, "height", 256);
             Color color = GetColor(payload, "color", Color.white);
+            Color outlineColor = GetColor(payload, "outlineColor", Color.clear);
+            int outlineWidth = GetInt(payload, "outlineWidth", 0);
             string outputPath = GetString(payload, "outputPath", null);
             int sides = GetInt(payload, "sides", 6); // For polygon
+            bool hasOutline = outlineWidth > 0 && outlineColor.a > 0;
 
             if (string.IsNullOrEmpty(outputPath))
             {
@@ -99,6 +102,25 @@ namespace MCP.Editor.Handlers
 
             Vector2 center = new Vector2(width / 2f, height / 2f);
 
+            // Pre-compute shape parameters for outline distance calculation
+            string primitiveLower = primitiveType.ToLower();
+            float shapeRadius = Mathf.Min(width, height) / 2f * 0.9f;
+            Vector2[] triVerts = null;
+            if (primitiveLower == "triangle")
+            {
+                triVerts = new[]
+                {
+                    center + new Vector2(0, shapeRadius),
+                    center + new Vector2(-shapeRadius * 0.866f, -shapeRadius * 0.5f),
+                    center + new Vector2(shapeRadius * 0.866f, -shapeRadius * 0.5f)
+                };
+            }
+            Vector2[] polyVerts = null;
+            if (primitiveLower == "polygon")
+            {
+                polyVerts = GetPolygonVertices(center, shapeRadius, sides);
+            }
+
             // Draw primitive shape
             for (int y = 0; y < height; y++)
             {
@@ -107,11 +129,10 @@ namespace MCP.Editor.Handlers
                     Vector2 point = new Vector2(x, y);
                     bool isInside = false;
 
-                    switch (primitiveType.ToLower())
+                    switch (primitiveLower)
                     {
                         case "circle":
-                            float radius = Mathf.Min(width, height) / 2f * 0.9f;
-                            isInside = Vector2.Distance(point, center) <= radius;
+                            isInside = Vector2.Distance(point, center) <= shapeRadius;
                             break;
 
                         case "square":
@@ -123,23 +144,25 @@ namespace MCP.Editor.Handlers
                             break;
 
                         case "triangle":
-                            // Equilateral triangle pointing up
-                            float triRadius = Mathf.Min(width, height) / 2f * 0.9f;
-                            Vector2 p1 = center + new Vector2(0, triRadius);
-                            Vector2 p2 = center + new Vector2(-triRadius * 0.866f, -triRadius * 0.5f);
-                            Vector2 p3 = center + new Vector2(triRadius * 0.866f, -triRadius * 0.5f);
-                            isInside = IsPointInTriangle(point, p1, p2, p3);
+                            isInside = IsPointInTriangle(point, triVerts[0], triVerts[1], triVerts[2]);
                             break;
 
                         case "polygon":
-                            float polyRadius = Mathf.Min(width, height) / 2f * 0.9f;
-                            isInside = IsPointInPolygon(point, center, polyRadius, sides);
+                            isInside = IsPointInPolygon(point, center, shapeRadius, sides);
                             break;
                     }
 
                     if (isInside)
                     {
-                        pixels[y * width + x] = color;
+                        if (hasOutline)
+                        {
+                            float dist = DistanceToShapeBorder(point, primitiveLower, center, shapeRadius, width, height, triVerts, polyVerts, sides);
+                            pixels[y * width + x] = dist <= outlineWidth ? outlineColor : color;
+                        }
+                        else
+                        {
+                            pixels[y * width + x] = color;
+                        }
                     }
                 }
             }
@@ -326,7 +349,10 @@ namespace MCP.Editor.Handlers
             int width = GetInt(payload, "width", 256);
             int height = GetInt(payload, "height", 256);
             Color color = GetColor(payload, "color", Color.white);
+            Color outlineColor = GetColor(payload, "outlineColor", Color.clear);
+            int outlineWidth = GetInt(payload, "outlineWidth", 0);
             string outputPath = GetString(payload, "outputPath", null);
+            bool hasOutline = outlineWidth > 0 && outlineColor.a > 0;
 
             if (string.IsNullOrEmpty(outputPath))
             {
@@ -353,10 +379,26 @@ namespace MCP.Editor.Handlers
             // Create solid color texture
             Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             Color[] pixels = new Color[width * height];
-            
+
             for (int i = 0; i < pixels.Length; i++)
             {
                 pixels[i] = color;
+            }
+
+            // Draw outline border if specified
+            if (hasOutline)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (x < outlineWidth || x >= width - outlineWidth ||
+                            y < outlineWidth || y >= height - outlineWidth)
+                        {
+                            pixels[y * width + x] = outlineColor;
+                        }
+                    }
+                }
             }
             
             texture.SetPixels(pixels);
@@ -485,6 +527,66 @@ namespace MCP.Editor.Handlers
         private float Sign(Vector2 p1, Vector2 p2, Vector2 p3)
         {
             return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+        }
+
+        private float DistanceToShapeBorder(Vector2 point, string shape, Vector2 center, float radius,
+            int width, int height, Vector2[] triVerts, Vector2[] polyVerts, int sides)
+        {
+            switch (shape)
+            {
+                case "circle":
+                    return radius - Vector2.Distance(point, center);
+
+                case "square":
+                case "rectangle":
+                    float halfW = width * 0.45f;
+                    float halfH = height * 0.45f;
+                    float dx = halfW - Mathf.Abs(point.x - center.x);
+                    float dy = halfH - Mathf.Abs(point.y - center.y);
+                    return Mathf.Min(dx, dy);
+
+                case "triangle":
+                    return DistanceToPolygonBorder(point, triVerts);
+
+                case "polygon":
+                    return DistanceToPolygonBorder(point, polyVerts);
+
+                default:
+                    return float.MaxValue;
+            }
+        }
+
+        private float DistanceToPolygonBorder(Vector2 point, Vector2[] vertices)
+        {
+            float minDist = float.MaxValue;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector2 a = vertices[i];
+                Vector2 b = vertices[(i + 1) % vertices.Length];
+                float dist = DistanceToLineSegment(point, a, b);
+                if (dist < minDist) minDist = dist;
+            }
+            return minDist;
+        }
+
+        private float DistanceToLineSegment(Vector2 p, Vector2 a, Vector2 b)
+        {
+            Vector2 ab = b - a;
+            float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Vector2.Dot(ab, ab));
+            Vector2 closest = a + ab * t;
+            return Vector2.Distance(p, closest);
+        }
+
+        private Vector2[] GetPolygonVertices(Vector2 center, float radius, int sides)
+        {
+            Vector2[] verts = new Vector2[sides];
+            float angleStep = 360f / sides * Mathf.Deg2Rad;
+            for (int i = 0; i < sides; i++)
+            {
+                float angle = i * angleStep;
+                verts[i] = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            }
+            return verts;
         }
 
         private bool IsPointInPolygon(Vector2 point, Vector2 center, float radius, int sides)

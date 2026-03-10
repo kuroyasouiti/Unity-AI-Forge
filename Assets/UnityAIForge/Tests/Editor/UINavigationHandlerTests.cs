@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Handlers;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace MCP.Editor.Tests
 {
@@ -9,12 +11,19 @@ namespace MCP.Editor.Tests
     public class UINavigationHandlerTests
     {
         private UINavigationHandler _handler;
+        private UIFoundationHandler _uiHandler;
+        private GameObjectTracker _tracker;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new UINavigationHandler();
+            _uiHandler = new UIFoundationHandler();
+            _tracker = new GameObjectTracker();
         }
+
+        [TearDown]
+        public void TearDown() => _tracker.Dispose();
 
         [Test]
         public void Category_ReturnsUINavigation()
@@ -44,6 +53,26 @@ namespace MCP.Editor.Tests
         public void Execute_UnsupportedOperation_ReturnsError()
         {
             TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
+        }
+
+        [Test]
+        public void AutoSetup_CanvasWithButtons_ConfiguresNavigation()
+        {
+            _uiHandler.Execute(TestUtilities.CreatePayload("createCanvas", ("name", "NavCanvas")));
+            var canvas = GameObject.Find("NavCanvas");
+            if (canvas != null) _tracker.Track(canvas);
+
+            _uiHandler.Execute(TestUtilities.CreatePayload("createButton",
+                ("name", "NavBtn1"), ("parentPath", "NavCanvas"), ("text", "A")));
+            _uiHandler.Execute(TestUtilities.CreatePayload("createButton",
+                ("name", "NavBtn2"), ("parentPath", "NavCanvas"), ("text", "B")));
+
+            var result = _handler.Execute(TestUtilities.CreatePayload("autoSetup",
+                ("rootPath", "NavCanvas"),
+                ("direction", "vertical"))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
+
+            Assert.IsTrue((int)result["configuredCount"] >= 2);
         }
     }
 }

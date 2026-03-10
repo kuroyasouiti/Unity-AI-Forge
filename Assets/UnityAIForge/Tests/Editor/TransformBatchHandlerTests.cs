@@ -50,27 +50,39 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void ArrangeCircle_ValidObjects_ReturnsSuccess()
+        public void ArrangeCircle_ValidObjects_PositionsChanged()
         {
-            _tracker.Create("C1");
-            _tracker.Create("C2");
-            _tracker.Create("C3");
+            var go1 = _tracker.Create("C1");
+            var go2 = _tracker.Create("C2");
+            var go3 = _tracker.Create("C3");
             var result = _handler.Execute(TestUtilities.CreatePayload("arrangeCircle",
                 ("gameObjectPaths", new List<object> { "C1", "C2", "C3" }),
-                ("radius", 5.0)));
+                ("radius", 5.0))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
+
+            Assert.AreEqual(3, result["count"]);
+            // At least one object should have moved from origin
+            bool anyMoved = go1.transform.position != Vector3.zero ||
+                            go2.transform.position != Vector3.zero ||
+                            go3.transform.position != Vector3.zero;
+            Assert.IsTrue(anyMoved, "Objects should be arranged around circle");
         }
 
         [Test]
-        public void RenameSequential_ValidObjects_ReturnsSuccess()
+        public void RenameSequential_ValidObjects_NamesChanged()
         {
             _tracker.Create("Item1");
             _tracker.Create("Item2");
             var result = _handler.Execute(TestUtilities.CreatePayload("renameSequential",
                 ("gameObjectPaths", new List<object> { "Item1", "Item2" }),
                 ("baseName", "Enemy"),
-                ("startIndex", 1)));
+                ("startIndex", 1))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
+
+            Assert.AreEqual(2, result["count"]);
+            var names = result["names"] as List<string>;
+            Assert.IsNotNull(names);
+            Assert.AreEqual(2, names.Count);
         }
     }
 }

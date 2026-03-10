@@ -51,14 +51,35 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void Create_DirectionalLight_ReturnsSuccess()
+        public void Create_DirectionalLight_HasLightComponent()
         {
             var result = _handler.Execute(TestUtilities.CreatePayload("create",
-                ("gameObjectPath", "TestLight"),
-                ("lightType", "directional")));
+                ("name", "TestLight"),
+                ("lightType", "directional"))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
-            var go = GameObject.Find("TestLight");
-            if (go != null) _tracker.Track(go);
+
+            Assert.IsTrue(result.ContainsKey("gameObjectPath"));
+            var goPath = result["gameObjectPath"].ToString();
+            var go = GameObject.Find(goPath);
+            Assert.IsNotNull(go, $"GameObject should exist at '{goPath}'");
+            var light = go.GetComponent<Light>();
+            Assert.IsNotNull(light, "Light component should exist");
+            Assert.AreEqual(LightType.Directional, light.type);
+            _tracker.Track(go);
+        }
+
+        [Test]
+        public void Create_PointLight_HasCorrectType()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("create",
+                ("name", "PointLight"),
+                ("lightType", "point"))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
+
+            var go = GameObject.Find(result["gameObjectPath"].ToString());
+            Assert.IsNotNull(go);
+            Assert.AreEqual(LightType.Point, go.GetComponent<Light>().type);
+            _tracker.Track(go);
         }
 
         [Test]

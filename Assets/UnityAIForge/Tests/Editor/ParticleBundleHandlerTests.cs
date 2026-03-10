@@ -55,13 +55,27 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void Create_DefaultParticle_ReturnsSuccess()
+        public void Create_DefaultParticle_HasParticleSystem()
         {
             var result = _handler.Execute(TestUtilities.CreatePayload("create",
-                ("gameObjectPath", "TestParticle")));
+                ("name", "TestParticle"))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
-            var go = GameObject.Find("TestParticle");
-            if (go != null) _tracker.Track(go);
+
+            Assert.IsTrue(result.ContainsKey("gameObjectPath"));
+            var go = GameObject.Find(result["gameObjectPath"].ToString());
+            Assert.IsNotNull(go, "Particle GameObject should exist");
+            Assert.IsNotNull(go.GetComponent<ParticleSystem>(), "ParticleSystem component should exist");
+            _tracker.Track(go);
+        }
+
+        [Test]
+        public void Inspect_CreatedParticle_ReturnsSuccess()
+        {
+            var go = _tracker.Create("InspectPS");
+            go.AddComponent<ParticleSystem>();
+            var result = _handler.Execute(TestUtilities.CreatePayload("inspect",
+                ("gameObjectPath", "InspectPS")));
+            TestUtilities.AssertSuccess(result);
         }
 
         [Test]

@@ -91,9 +91,18 @@ namespace MCP.Editor.Tests
                 ("assetPath", assetPath),
                 ("content", "delete me")));
 
-            var result = _handler.Execute(TestUtilities.CreatePayload("delete",
-                ("assetPath", assetPath)));
-            TestUtilities.AssertSuccess(result);
+            // Batch the delete to avoid .csproj sync contention on Windows
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                var result = _handler.Execute(TestUtilities.CreatePayload("delete",
+                    ("assetPath", assetPath)));
+                TestUtilities.AssertSuccess(result);
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+            }
         }
     }
 }

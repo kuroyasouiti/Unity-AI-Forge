@@ -52,13 +52,28 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void ListEvents_ValidObject_ReturnsSuccess()
+        public void ListEvents_ButtonObject_ReturnsOnClick()
         {
             var go = _tracker.Create("EventObj");
             go.AddComponent<Button>();
             var result = _handler.Execute(TestUtilities.CreatePayload("listEvents",
-                ("gameObjectPath", "EventObj")));
+                ("gameObjectPath", "EventObj"))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
+
+            Assert.IsTrue(result.ContainsKey("events"));
+            Assert.IsTrue(result.ContainsKey("eventCount"));
+            Assert.IsTrue((int)result["eventCount"] > 0, "Button should have at least onClick event");
+        }
+
+        [Test]
+        public void ListEvents_EmptyObject_ReturnsZeroEvents()
+        {
+            _tracker.Create("EmptyEventObj");
+            var result = _handler.Execute(TestUtilities.CreatePayload("listEvents",
+                ("gameObjectPath", "EmptyEventObj"))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
+
+            Assert.AreEqual(0, result["eventCount"]);
         }
     }
 }

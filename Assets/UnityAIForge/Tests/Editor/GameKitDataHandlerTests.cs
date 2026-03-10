@@ -123,24 +123,6 @@ namespace MCP.Editor.Tests
             TrackScriptPath(dict["scriptPath"]?.ToString());
         }
 
-        #endregion
-
-        #region RuntimeSet
-
-        [Test]
-        public void RuntimeSet_Create_GeneratesScript()
-        {
-            var result = Execute(_handler, "create",
-                ("dataType", "runtimeSet"),
-                ("dataId", "TestEnemies"),
-                ("elementType", "GameObject"));
-            AssertSuccess(result);
-            var dict = result as Dictionary<string, object>;
-            Assert.IsNotNull(dict);
-            Assert.IsTrue(dict.ContainsKey("scriptPath"));
-            TrackScriptPath(dict["scriptPath"]?.ToString());
-        }
-
         [Test]
         public void DataContainer_Create_WithAutoCreateAsset_SetsFlag()
         {
@@ -168,6 +150,20 @@ namespace MCP.Editor.Tests
         #endregion
 
         #region RuntimeSet
+
+        [Test]
+        public void RuntimeSet_Create_GeneratesScript()
+        {
+            var result = Execute(_handler, "create",
+                ("dataType", "runtimeSet"),
+                ("dataId", "TestEnemies"),
+                ("elementType", "GameObject"));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.IsTrue(dict.ContainsKey("scriptPath"));
+            TrackScriptPath(dict["scriptPath"]?.ToString());
+        }
 
         [Test]
         public void RuntimeSet_Create_WithAutoCreateAsset_SetsFlag()

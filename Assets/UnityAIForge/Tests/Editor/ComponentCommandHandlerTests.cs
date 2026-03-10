@@ -89,15 +89,17 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void Update_Properties_ReturnsSuccess()
+        public void Update_Properties_AppliesValues()
         {
             var go = _tracker.Create("UpdateComp");
-            go.AddComponent<Rigidbody2D>();
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.gravityScale = 1f;
             var result = _handler.Execute(TestUtilities.CreatePayload("update",
                 ("gameObjectPath", "UpdateComp"),
                 ("componentType", "UnityEngine.Rigidbody2D"),
                 ("propertyChanges", new Dictionary<string, object> { ["gravityScale"] = 0 })));
             TestUtilities.AssertSuccess(result);
+            Assert.AreEqual(0f, rb.gravityScale, 0.001f, "gravityScale should be updated to 0");
         }
 
         #region Wildcard Tests

@@ -52,5 +52,23 @@ namespace MCP.Editor.Tests
         {
             TestUtilities.AssertError(_handler.Execute(TestUtilities.CreatePayload("nonExistent")), "not supported");
         }
+
+        [Test]
+        public void SetAnchors_ValidUIObject_UpdatesAnchors()
+        {
+            var canvas = _tracker.Create("RTCanvas");
+            canvas.AddComponent<Canvas>();
+            var child = new GameObject("RTChild", typeof(RectTransform));
+            child.transform.SetParent(canvas.transform);
+            _tracker.Track(child);
+
+            var result = _handler.Execute(TestUtilities.CreatePayload("setAnchors",
+                ("gameObjectPaths", new List<object> { "RTCanvas/RTChild" }),
+                ("anchorMin", new Dictionary<string, object> { ["x"] = 0.0, ["y"] = 0.0 }),
+                ("anchorMax", new Dictionary<string, object> { ["x"] = 1.0, ["y"] = 1.0 }))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
+
+            Assert.AreEqual(1, result["count"]);
+        }
     }
 }

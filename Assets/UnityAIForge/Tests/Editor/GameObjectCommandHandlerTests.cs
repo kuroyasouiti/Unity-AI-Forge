@@ -128,11 +128,12 @@ namespace MCP.Editor.Tests
         {
             _tracker.Create("Original");
             var result = _handler.Execute(TestUtilities.CreatePayload("duplicate",
-                ("gameObjectPath", "Original")));
+                ("gameObjectPath", "Original"))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
 
-            var clone = GameObject.Find("Original(Clone)") ?? GameObject.Find("Original (1)");
-            if (clone != null) _tracker.Track(clone);
+            // Verify duplication via response rather than guessing Unity's naming convention
+            Assert.IsTrue(result.ContainsKey("name") || result.ContainsKey("gameObjectPath"),
+                "Result should contain the duplicated object info");
         }
 
         [Test]

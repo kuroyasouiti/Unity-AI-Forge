@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using MCP.Editor.Handlers;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 
 namespace MCP.Editor.Tests
 {
@@ -56,11 +58,35 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void Create_ValidPath_ReturnsSuccess()
+        public void Create_ValidPath_CreatesMaterialAsset()
         {
+            var matPath = $"{_tempDir}/TestMat.mat";
             var result = _handler.Execute(TestUtilities.CreatePayload("create",
-                ("materialPath", $"{_tempDir}/TestMat.mat")));
+                ("savePath", matPath))) as Dictionary<string, object>;
             TestUtilities.AssertSuccess(result);
+
+            Assert.IsTrue(result.ContainsKey("assetPath"));
+            Assert.IsTrue(result.ContainsKey("shader"));
+            var actualPath = result["assetPath"].ToString();
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(actualPath);
+            Assert.IsNotNull(mat, $"Material asset should exist at '{actualPath}'");
+        }
+
+        [Test]
+        public void Inspect_CreatedMaterial_ReturnsShaderInfo()
+        {
+            var matPath = $"{_tempDir}/InspectMat.mat";
+            var createResult = _handler.Execute(TestUtilities.CreatePayload("create",
+                ("savePath", matPath))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(createResult);
+            var actualPath = createResult["assetPath"].ToString();
+
+            var result = _handler.Execute(TestUtilities.CreatePayload("inspect",
+                ("assetPath", actualPath))) as Dictionary<string, object>;
+            TestUtilities.AssertSuccess(result);
+
+            Assert.IsTrue(result.ContainsKey("shader"));
+            Assert.IsTrue(result.ContainsKey("name"));
         }
 
         [Test]
