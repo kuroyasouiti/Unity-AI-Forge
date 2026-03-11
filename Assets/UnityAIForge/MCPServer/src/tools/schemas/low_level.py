@@ -628,7 +628,7 @@ def vector_sprite_convert_schema() -> dict[str, Any]:
                         "b": {"type": "number", "minimum": 0, "maximum": 1},
                         "a": {"type": "number", "minimum": 0, "maximum": 1},
                     },
-                    "description": "Outline RGBA color (0-1 range). Used with outlineWidth for primitiveToSprite and createColorSprite.",
+                    "description": "Outline RGBA color (0-1 range). Used with outlineWidth for primitiveToSprite and createColorSprite. If omitted when outlineWidth > 0, defaults to a contrasting color based on fill color.",
                 },
                 "outlineWidth": {
                     "type": "integer",
