@@ -61,8 +61,11 @@ namespace MCP.Editor.Handlers
             int width = GetInt(payload, "width", 256);
             int height = GetInt(payload, "height", 256);
             Color color = GetColor(payload, "color", Color.white);
-            Color outlineColor = GetColor(payload, "outlineColor", Color.clear);
             int outlineWidth = GetInt(payload, "outlineWidth", 0);
+            bool outlineColorSpecified = payload.ContainsKey("outlineColor") && payload["outlineColor"] != null;
+            Color outlineColor = outlineColorSpecified
+                ? GetColor(payload, "outlineColor", Color.clear)
+                : (outlineWidth > 0 ? GetContrastingOutlineColor(color) : Color.clear);
             string outputPath = GetString(payload, "outputPath", null);
             int sides = GetInt(payload, "sides", 6); // For polygon
             bool hasOutline = outlineWidth > 0 && outlineColor.a > 0;
@@ -349,8 +352,11 @@ namespace MCP.Editor.Handlers
             int width = GetInt(payload, "width", 256);
             int height = GetInt(payload, "height", 256);
             Color color = GetColor(payload, "color", Color.white);
-            Color outlineColor = GetColor(payload, "outlineColor", Color.clear);
             int outlineWidth = GetInt(payload, "outlineWidth", 0);
+            bool outlineColorSpecified = payload.ContainsKey("outlineColor") && payload["outlineColor"] != null;
+            Color outlineColor = outlineColorSpecified
+                ? GetColor(payload, "outlineColor", Color.clear)
+                : (outlineWidth > 0 ? GetContrastingOutlineColor(color) : Color.clear);
             string outputPath = GetString(payload, "outputPath", null);
             bool hasOutline = outlineWidth > 0 && outlineColor.a > 0;
 
@@ -456,6 +462,12 @@ namespace MCP.Editor.Handlers
                 }
             }
             return defaultValue;
+        }
+
+        private Color GetContrastingOutlineColor(Color fillColor)
+        {
+            float luminance = 0.299f * fillColor.r + 0.587f * fillColor.g + 0.114f * fillColor.b;
+            return luminance > 0.5f ? Color.black : Color.white;
         }
 
         private Color GetColor(Dictionary<string, object> dict, string key, Color defaultValue)

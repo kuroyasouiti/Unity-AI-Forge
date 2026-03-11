@@ -267,6 +267,19 @@ namespace MCP.Editor.Tests
             TestUtilities.AssertSuccess(result);
         }
 
+        [Test]
+        public void PrimitiveToSprite_OutlineWidthWithoutColor_UsesContrastingDefault()
+        {
+            var result = _handler.Execute(TestUtilities.CreatePayload("primitiveToSprite",
+                ("primitiveType", "circle"),
+                ("outputPath", $"{_tempDir}/default_outline_color.png"),
+                ("width", 32),
+                ("height", 32),
+                ("color", new Dictionary<string, object> { ["r"] = 1, ["g"] = 1, ["b"] = 1, ["a"] = 1 }),
+                ("outlineWidth", 3)));
+            TestUtilities.AssertSuccess(result);
+        }
+
         #endregion
 
         #region Sprite Import Settings
