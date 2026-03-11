@@ -40,8 +40,9 @@ def parse_registered_bridge_names(initializer_path: Path) -> dict[str, str]:
     """
     text = initializer_path.read_text(encoding="utf-8")
     # Match: Register("bridgeName", new Namespace.ClassName())
+    # Also match: TryRegister("bridgeName", () => new Namespace.ClassName())
     pattern = re.compile(
-        r'Register\(\s*"([^"]+)"\s*,\s*new\s+([\w.]+)\s*\(\s*\)\s*\)',
+        r'(?:Try)?Register\(\s*"([^"]+)"\s*,\s*(?:\(\)\s*=>\s*)?new\s+([\w.]+)\s*\(\s*\)\s*\)',
     )
     result: dict[str, str] = {}
     for m in pattern.finditer(text):

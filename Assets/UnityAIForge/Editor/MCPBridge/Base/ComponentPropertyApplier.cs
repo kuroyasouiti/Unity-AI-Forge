@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using MCP.Editor.Interfaces;
+using UnityEditor;
 using UnityEngine;
 
 namespace MCP.Editor.Base
@@ -42,6 +43,9 @@ namespace MCP.Editor.Base
             var result = new PropertyApplyResult();
             var type = component.GetType();
 
+            // Record state for Undo before any modifications
+            Undo.RecordObject(component, $"MCP: Set properties on {type.Name}");
+
             foreach (var kvp in propertyChanges)
             {
                 var propertyName = kvp.Key;
@@ -70,6 +74,12 @@ namespace MCP.Editor.Base
                     result.Errors[propertyName] = ex.Message;
                     Debug.LogWarning($"Failed to set property '{propertyName}' on {type.Name}: {ex.Message}");
                 }
+            }
+
+            // Mark dirty so changes are saved and Undo works correctly
+            if (result.Updated.Count > 0)
+            {
+                EditorUtility.SetDirty(component);
             }
 
             return result;

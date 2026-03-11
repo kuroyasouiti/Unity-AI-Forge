@@ -398,15 +398,18 @@ async def execute_batch_sequential(
             _batch_manager.save()
 
         # All operations completed
+        total = len(state.operations)
         _batch_manager.clear()
-
         return {
             "success": len(errors) == 0,
+            "stopped_at_index": None,
             "completed": results,
             "errors": errors,
-            "total_operations": len(operations),
+            "remaining_operations": 0,
+            "total_operations": total,
+            "last_error": None,
             "message": (
-                f"All {len(operations)} operations completed successfully."
+                f"All {total} operations completed successfully."
                 if len(errors) == 0
                 else f"Completed with {len(errors)} error(s)."
             ),

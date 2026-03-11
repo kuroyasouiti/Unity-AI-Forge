@@ -57,10 +57,15 @@ namespace MCP.Editor.Base
             // パスを "/" で分割
             var parts = hierarchyPath.Split('/');
             GameObject current = null;
-            
-            // ルートオブジェクトを検索
-            var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-            current = rootObjects.FirstOrDefault(go => go.name == parts[0]);
+
+            // 全ロード済みシーンのルートオブジェクトを検索
+            for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(s);
+                if (!scene.isLoaded) continue;
+                var match = scene.GetRootGameObjects().FirstOrDefault(go => go.name == parts[0]);
+                if (match != null) { current = match; break; }
+            }
             
             if (current == null)
             {
@@ -155,8 +160,8 @@ namespace MCP.Editor.Base
                 return AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(identifier);
             }
             
-            // GUIDで検索
-            if (identifier.Length == 32 && !identifier.Contains("/"))
+            // GUIDで検索 (32文字の16進数)
+            if (identifier.Length == 32 && !identifier.Contains("/") && IsHexString(identifier))
             {
                 return ResolveByGuid(identifier);
             }
@@ -225,6 +230,17 @@ namespace MCP.Editor.Base
         {
             var asset = TryResolve(path);
             return asset?.GetType();
+        }
+
+        private static bool IsHexString(string s)
+        {
+            for (int i = 0; i < s.Length; i++)
+            {
+                var c = s[i];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+                    return false;
+            }
+            return true;
         }
     }
     

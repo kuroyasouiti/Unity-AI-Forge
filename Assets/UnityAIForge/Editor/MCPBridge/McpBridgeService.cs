@@ -71,7 +71,7 @@ namespace MCP.Editor
         private static readonly ConcurrentQueue<string> IncomingMessages = new();
         private static readonly ConcurrentQueue<PendingSendMessage> PendingSendMessages = new();
         private static readonly Queue<Action> MainThreadActions = new();
-        private static readonly object SendLock = new();
+        private static readonly SemaphoreSlim _sendSemaphore = new(1, 1);
 
         // Thread-safe flags
         private static volatile bool _isCompiling;
@@ -138,7 +138,14 @@ namespace MCP.Editor
         public static event Action<ClientInfo> ClientInfoReceived;
 
         public static McpConnectionState State => _state;
-        public static bool IsConnected => _socket != null && _socket.State == WebSocketState.Open;
+        public static bool IsConnected
+        {
+            get
+            {
+                var s = _socket;
+                return s != null && s.State == WebSocketState.Open;
+            }
+        }
         public static string SessionId => _sessionId;
         public static ClientInfo ConnectedClientInfo => _clientInfo;
         public static int ActualPort => _actualBoundPort;
@@ -265,49 +272,62 @@ namespace MCP.Editor
             var bytes = Encoding.UTF8.GetBytes(json);
             var segment = new ArraySegment<byte>(bytes);
 
-            lock (SendLock)
+            // Capture socket reference to avoid race condition with CloseSocket
+            var socket = _socket;
+            if (socket == null || socket.State != WebSocketState.Open)
             {
-                if (!IsConnected)
+                if (retryCount < MaxSendRetries)
                 {
-                    if (retryCount < MaxSendRetries)
-                    {
-                        QueueForRetry(message, retryCount);
-                    }
+                    QueueForRetry(message, retryCount);
+                }
+                return;
+            }
+
+            // Send on background thread via semaphore to avoid blocking the Unity Editor
+            _ = SendAsyncInternal(socket, segment, message, retryCount);
+        }
+
+        private static async Task SendAsyncInternal(
+            WebSocket socket, ArraySegment<byte> segment,
+            Dictionary<string, object> message, int retryCount)
+        {
+            bool acquired = await _sendSemaphore.WaitAsync(TimeSpan.FromSeconds(5));
+            if (!acquired)
+            {
+                Debug.LogWarning("MCP bridge send timed out waiting for send queue, queuing for retry.");
+                QueueForRetry(message, retryCount);
+                return;
+            }
+
+            try
+            {
+                if (socket.State != WebSocketState.Open)
+                {
+                    QueueForRetry(message, retryCount);
                     return;
                 }
 
-                try
-                {
-                    var sendTask = _socket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
-
-                    if (!sendTask.Wait(TimeSpan.FromSeconds(5)))
-                    {
-                        Debug.LogWarning("MCP bridge send timed out, queuing for retry.");
-                        QueueForRetry(message, retryCount);
-                        return;
-                    }
-
-                    if (sendTask.IsFaulted)
-                    {
-                        throw sendTask.Exception?.InnerException ?? new Exception("Send task faulted");
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    QueueForRetry(message, retryCount);
-                    HandleSocketClosed();
-                }
-                catch (WebSocketException ex)
-                {
-                    Debug.LogError($"MCP bridge WebSocket error: {ex.Message}");
-                    QueueForRetry(message, retryCount);
-                    HandleSocketClosed();
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError($"MCP bridge send error: {ex.Message}");
-                    QueueForRetry(message, retryCount);
-                }
+                await socket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            catch (ObjectDisposedException)
+            {
+                QueueForRetry(message, retryCount);
+                HandleSocketClosed();
+            }
+            catch (WebSocketException ex)
+            {
+                Debug.LogError($"MCP bridge WebSocket error: {ex.Message}");
+                QueueForRetry(message, retryCount);
+                HandleSocketClosed();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"MCP bridge send error: {ex.Message}");
+                QueueForRetry(message, retryCount);
+            }
+            finally
+            {
+                _sendSemaphore.Release();
             }
         }
 

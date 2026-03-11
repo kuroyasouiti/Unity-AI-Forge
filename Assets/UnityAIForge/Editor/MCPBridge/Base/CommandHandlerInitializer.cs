@@ -1,3 +1,4 @@
+using System;
 using MCP.Editor.Handlers;
 using UnityEditor;
 using UnityEngine;
@@ -56,30 +57,40 @@ namespace MCP.Editor.Base
                 // 既存のハンドラーをクリア（再初期化時）
                 CommandHandlerFactory.Clear();
 
+                int failedCount = 0;
+
                 // ユーティリティハンドラーを登録
-                RegisterUtilityHandlers();
+                failedCount += RegisterUtilityHandlers();
 
                 // ローレベルCRUDハンドラーを登録
-                RegisterLowLevelHandlers();
+                failedCount += RegisterLowLevelHandlers();
 
                 // ミドルレベルツールのハンドラーを登録
-                RegisterMidLevelHandlers();
+                failedCount += RegisterMidLevelHandlers();
 
-                // 開発サイクル基盤ツールのハンドラーを登録
-                RegisterDevCycleHandlers();
+                // 開発サイクル・ビジュアル制御ツールのハンドラーを登録
+                failedCount += RegisterDevCycleAndVisualHandlers();
 
                 // ハイレベルツールのハンドラーを登録
-                RegisterHighLevelHandlers();
-                
+                failedCount += RegisterHighLevelHandlers();
+
                 var stats = CommandHandlerFactory.GetStatistics();
                 _hasInitialized = true;
 
-                Debug.Log($"[CommandHandlerInitializer] Initialized {stats["totalHandlers"]} command handlers");
+                if (failedCount > 0)
+                {
+                    Debug.LogWarning($"[CommandHandlerInitializer] Initialized {stats["totalHandlers"]} handlers ({failedCount} failed)");
+                }
+                else
+                {
+                    Debug.Log($"[CommandHandlerInitializer] Initialized {stats["totalHandlers"]} command handlers");
+                }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                Debug.LogError($"[CommandHandlerInitializer] Failed to initialize handlers: {ex.Message}");
+                Debug.LogError($"[CommandHandlerInitializer] Fatal initialization error: {ex.Message}");
                 Debug.LogException(ex);
+                _hasInitialized = true; // Prevent infinite retry loops
             }
             finally
             {
@@ -88,94 +99,122 @@ namespace MCP.Editor.Base
         }
         
         /// <summary>
+        /// 個別ハンドラー登録のヘルパー。失敗してもログを出して他のハンドラーの登録を続行します。
+        /// </summary>
+        private static bool TryRegister(string name, Func<Interfaces.ICommandHandler> factory)
+        {
+            try
+            {
+                CommandHandlerFactory.Register(name, factory());
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[CommandHandlerInitializer] Failed to register '{name}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// ユーティリティハンドラーを登録します（Ping、コンパイル待機）。
         /// </summary>
-        private static void RegisterUtilityHandlers()
+        private static int RegisterUtilityHandlers()
         {
-            CommandHandlerFactory.Register("pingUnityEditor", new PingHandler());
-            CommandHandlerFactory.Register("compilationAwait", new CompilationAwaitHandler());
+            int failed = 0;
+            if (!TryRegister("pingUnityEditor", () => new PingHandler())) failed++;
+            if (!TryRegister("compilationAwait", () => new CompilationAwaitHandler())) failed++;
+            return failed;
         }
 
         /// <summary>
         /// ローレベルCRUDハンドラーを登録します。
         /// </summary>
-        private static void RegisterLowLevelHandlers()
+        private static int RegisterLowLevelHandlers()
         {
-            CommandHandlerFactory.Register("sceneManage", new SceneCommandHandler());
-            CommandHandlerFactory.Register("gameObjectManage", new GameObjectCommandHandler());
-            CommandHandlerFactory.Register("componentManage", new ComponentCommandHandler());
-            CommandHandlerFactory.Register("assetManage", new AssetCommandHandler());
-            CommandHandlerFactory.Register("scriptableObjectManage", new ScriptableObjectCommandHandler());
-            CommandHandlerFactory.Register("prefabManage", new PrefabCommandHandler());
-            CommandHandlerFactory.Register("vectorSpriteConvert", new VectorSpriteConvertHandler());
-            CommandHandlerFactory.Register("projectSettingsManage", new Handlers.Settings.ProjectSettingsManageHandler());
+            int failed = 0;
+            if (!TryRegister("sceneManage", () => new SceneCommandHandler())) failed++;
+            if (!TryRegister("gameObjectManage", () => new GameObjectCommandHandler())) failed++;
+            if (!TryRegister("componentManage", () => new ComponentCommandHandler())) failed++;
+            if (!TryRegister("assetManage", () => new AssetCommandHandler())) failed++;
+            if (!TryRegister("scriptableObjectManage", () => new ScriptableObjectCommandHandler())) failed++;
+            if (!TryRegister("prefabManage", () => new PrefabCommandHandler())) failed++;
+            if (!TryRegister("vectorSpriteConvert", () => new VectorSpriteConvertHandler())) failed++;
+            if (!TryRegister("projectSettingsManage", () => new Handlers.Settings.ProjectSettingsManageHandler())) failed++;
+            return failed;
         }
 
         /// <summary>
         /// ミドルレベルツールのハンドラーを登録します。
         /// </summary>
-        private static void RegisterMidLevelHandlers()
+        private static int RegisterMidLevelHandlers()
         {
-            CommandHandlerFactory.Register("transformBatch", new TransformBatchHandler());
-            CommandHandlerFactory.Register("rectTransformBatch", new RectTransformBatchHandler());
-            CommandHandlerFactory.Register("cameraBundle", new CameraBundleHandler());
-            CommandHandlerFactory.Register("uiFoundation", new UIFoundationHandler());
-            CommandHandlerFactory.Register("uiState", new UIStateHandler());
-            CommandHandlerFactory.Register("uiNavigation", new UINavigationHandler());
-            CommandHandlerFactory.Register("inputProfile", new InputProfileHandler());
-            CommandHandlerFactory.Register("tilemapBundle", new TilemapBundleHandler());
-            CommandHandlerFactory.Register("sprite2DBundle", new Sprite2DBundleHandler());
-            CommandHandlerFactory.Register("animation2DBundle", new Animation2DBundleHandler());
+            int failed = 0;
+            if (!TryRegister("transformBatch", () => new TransformBatchHandler())) failed++;
+            if (!TryRegister("rectTransformBatch", () => new RectTransformBatchHandler())) failed++;
+            if (!TryRegister("cameraBundle", () => new CameraBundleHandler())) failed++;
+            if (!TryRegister("uiFoundation", () => new UIFoundationHandler())) failed++;
+            if (!TryRegister("uiState", () => new UIStateHandler())) failed++;
+            if (!TryRegister("uiNavigation", () => new UINavigationHandler())) failed++;
+            if (!TryRegister("inputProfile", () => new InputProfileHandler())) failed++;
+            if (!TryRegister("tilemapBundle", () => new TilemapBundleHandler())) failed++;
+            if (!TryRegister("sprite2DBundle", () => new Sprite2DBundleHandler())) failed++;
+            if (!TryRegister("animation2DBundle", () => new Animation2DBundleHandler())) failed++;
 
             // UI Toolkit tools
-            CommandHandlerFactory.Register("uitkDocument", new UITKDocumentHandler());
-            CommandHandlerFactory.Register("uitkAsset", new UITKAssetHandler());
+            if (!TryRegister("uitkDocument", () => new UITKDocumentHandler())) failed++;
+            if (!TryRegister("uitkAsset", () => new UITKAssetHandler())) failed++;
 
             // UI Convert
-            CommandHandlerFactory.Register("uiConvert", new UIConvertHandler());
+            if (!TryRegister("uiConvert", () => new UIConvertHandler())) failed++;
 
             // Physics & NavMesh
-            CommandHandlerFactory.Register("physicsBundle", new PhysicsBundleHandler());
-            CommandHandlerFactory.Register("navmeshBundle", new NavMeshBundleHandler());
-
-            // Visual control
-            CommandHandlerFactory.Register("materialBundle", new MaterialBundleHandler());
-            CommandHandlerFactory.Register("lightBundle", new LightBundleHandler());
-            CommandHandlerFactory.Register("particleBundle", new ParticleBundleHandler());
-
-            // Animation 3D
-            CommandHandlerFactory.Register("animation3DBundle", new Animation3DBundleHandler());
+            if (!TryRegister("physicsBundle", () => new PhysicsBundleHandler())) failed++;
+            if (!TryRegister("navmeshBundle", () => new NavMeshBundleHandler())) failed++;
+            return failed;
         }
 
         /// <summary>
-        /// 開発サイクル基盤ツールのハンドラーを登録します。
+        /// 開発サイクル基盤・ビジュアル制御ツールのハンドラーを登録します。
         /// </summary>
-        private static void RegisterDevCycleHandlers()
+        private static int RegisterDevCycleAndVisualHandlers()
         {
-            CommandHandlerFactory.Register("playModeControl", new PlayModeControlHandler());
-            CommandHandlerFactory.Register("consoleLog", new ConsoleLogHandler());
-            CommandHandlerFactory.Register("eventWiring", new EventWiringHandler());
+            int failed = 0;
+            // 開発サイクル基盤
+            if (!TryRegister("playModeControl", () => new PlayModeControlHandler())) failed++;
+            if (!TryRegister("consoleLog", () => new ConsoleLogHandler())) failed++;
+
+            // ビジュアル制御
+            if (!TryRegister("materialBundle", () => new MaterialBundleHandler())) failed++;
+            if (!TryRegister("lightBundle", () => new LightBundleHandler())) failed++;
+            if (!TryRegister("particleBundle", () => new ParticleBundleHandler())) failed++;
+
+            // アニメーション・イベント
+            if (!TryRegister("animation3DBundle", () => new Animation3DBundleHandler())) failed++;
+            if (!TryRegister("eventWiring", () => new EventWiringHandler())) failed++;
+            return failed;
         }
 
         /// <summary>
         /// ハイレベルツールのハンドラーを登録します。
         /// </summary>
-        private static void RegisterHighLevelHandlers()
+        private static int RegisterHighLevelHandlers()
         {
+            int failed = 0;
             // GameKit UI (unified dispatcher → 5 internal sub-handlers)
-            CommandHandlerFactory.Register("gamekitUI", new Handlers.HighLevel.GameKitUIHandler());
+            if (!TryRegister("gamekitUI", () => new Handlers.HighLevel.GameKitUIHandler())) failed++;
 
             // GameKit Data (unified: pool + eventChannel + dataContainer + runtimeSet)
-            CommandHandlerFactory.Register("gamekitData", new Handlers.HighLevel.GameKitDataHandler());
+            if (!TryRegister("gamekitData", () => new Handlers.HighLevel.GameKitDataHandler())) failed++;
 
             // Logic — 整合性検証・依存関係/参照解析・型カタログ
-            CommandHandlerFactory.Register("sceneIntegrity", new Handlers.HighLevel.SceneIntegrityHandler());
-            CommandHandlerFactory.Register("classDependencyGraph", new Handlers.HighLevel.ClassDependencyGraphHandler());
-            CommandHandlerFactory.Register("classCatalog", new Handlers.HighLevel.ClassCatalogHandler());
-            CommandHandlerFactory.Register("sceneReferenceGraph", new Handlers.HighLevel.SceneReferenceGraphHandler());
-            CommandHandlerFactory.Register("sceneRelationshipGraph", new Handlers.HighLevel.SceneRelationshipGraphHandler());
-            CommandHandlerFactory.Register("sceneDependency", new Handlers.HighLevel.SceneDependencyHandler());
-            CommandHandlerFactory.Register("scriptSyntax", new Handlers.HighLevel.ScriptSyntaxHandler());
+            if (!TryRegister("sceneIntegrity", () => new Handlers.HighLevel.SceneIntegrityHandler())) failed++;
+            if (!TryRegister("classDependencyGraph", () => new Handlers.HighLevel.ClassDependencyGraphHandler())) failed++;
+            if (!TryRegister("classCatalog", () => new Handlers.HighLevel.ClassCatalogHandler())) failed++;
+            if (!TryRegister("sceneReferenceGraph", () => new Handlers.HighLevel.SceneReferenceGraphHandler())) failed++;
+            if (!TryRegister("sceneRelationshipGraph", () => new Handlers.HighLevel.SceneRelationshipGraphHandler())) failed++;
+            if (!TryRegister("sceneDependency", () => new Handlers.HighLevel.SceneDependencyHandler())) failed++;
+            if (!TryRegister("scriptSyntax", () => new Handlers.HighLevel.ScriptSyntaxHandler())) failed++;
+            return failed;
         }
     }
 }

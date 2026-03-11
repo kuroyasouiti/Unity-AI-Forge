@@ -28,6 +28,8 @@ from bridge.messages import (
 from logger import logger
 from utils.client_detector import get_client_info
 
+MAX_PENDING_COMMANDS = 100
+
 
 @dataclass
 class PendingCommand:
@@ -193,6 +195,12 @@ class BridgeManager:
     ) -> Any:
         socket = self._ensure_socket()
         loop = asyncio.get_running_loop()
+
+        if len(self._pending_commands) >= MAX_PENDING_COMMANDS:
+            raise RuntimeError(
+                f"Too many pending commands ({MAX_PENDING_COMMANDS}). "
+                "Unity bridge may be unresponsive."
+            )
 
         command_id = uuid4().hex
         future: asyncio.Future[Any] = loop.create_future()
