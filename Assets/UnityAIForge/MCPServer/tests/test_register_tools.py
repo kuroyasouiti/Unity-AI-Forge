@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tools.register_tools import _call_bridge_tool, _ensure_bridge_connected
+from tools.register_tools import _call_bridge_tool, _ensure_bridge_connected, _return_with_notification
 
 
 class TestEnsureBridgeConnected:
@@ -144,7 +144,8 @@ class TestRegisterTools:
         server.list_tools = lambda: lambda f: f
         register_tools(server)
 
-        with patch("tools.register_tools.bridge_manager") as mock_bm:
+        with patch("tools.register_tools.bridge_manager") as mock_bm, \
+             patch("tools.register_tools.notify_tool_result"):
             mock_bm.is_connected.return_value = True
             mock_bm.send_command = AsyncMock(return_value={"success": True})
             result = await call_handler("unity_scene_crud", {"operation": "inspect"})
@@ -152,3 +153,24 @@ class TestRegisterTools:
             mock_bm.send_command.assert_called_once_with(
                 "sceneManage", {"operation": "inspect"}, timeout_ms=45_000
             )
+
+
+class TestReturnWithNotification:
+    """Tests for _return_with_notification helper."""
+
+    def test_calls_notify_and_returns_content(self) -> None:
+        import mcp.types as types
+
+        content = [types.TextContent(type="text", text='{"success": true}')]
+        with patch("tools.register_tools.notify_tool_result") as mock_notify, \
+             patch("tools.register_tools.env") as mock_env:
+            mock_env.notification_mode = "all"
+            result = _return_with_notification("unity_scene_crud", content)
+            assert result is content
+            mock_notify.assert_called_once_with("unity_scene_crud", '{"success": true}', "all")
+
+    def test_empty_content_returns_unchanged(self) -> None:
+        with patch("tools.register_tools.notify_tool_result") as mock_notify:
+            result = _return_with_notification("unity_ping", [])
+            assert result == []
+            mock_notify.assert_not_called()

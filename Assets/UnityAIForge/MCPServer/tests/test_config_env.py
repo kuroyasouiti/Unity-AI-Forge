@@ -87,6 +87,31 @@ class TestParseLogLevel:
         assert _parse_log_level(None) == "info"
 
 
+class TestParseNotificationMode:
+    """Tests for _parse_notification_mode function."""
+
+    def test_valid_modes(self) -> None:
+        from config.env import _parse_notification_mode
+
+        assert _parse_notification_mode("compilation") == "compilation"
+        assert _parse_notification_mode("all") == "all"
+        assert _parse_notification_mode("none") == "none"
+
+    def test_case_insensitive(self) -> None:
+        from config.env import _parse_notification_mode
+
+        assert _parse_notification_mode("COMPILATION") == "compilation"
+        assert _parse_notification_mode("All") == "all"
+        assert _parse_notification_mode("NONE") == "none"
+
+    def test_invalid_returns_compilation(self) -> None:
+        from config.env import _parse_notification_mode
+
+        assert _parse_notification_mode("invalid") == "compilation"
+        assert _parse_notification_mode("") == "compilation"
+        assert _parse_notification_mode(None) == "compilation"
+
+
 class TestLoadBridgeToken:
     """Tests for _load_bridge_token function."""
 

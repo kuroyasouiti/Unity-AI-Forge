@@ -104,6 +104,42 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
+        public void Execute_ParentPathNormalizesToTargetPath()
+        {
+            // When only parentPath is provided, targetPath should be set
+            var go = TrackGameObject(new GameObject("NormPanel"));
+            var result = Execute(_handler, "create",
+                ("widgetType", "list"),
+                ("parentPath", "NormPanel"),
+                ("listId", "norm_list"),
+                ("layout", "vertical"));
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+        }
+
+        [Test]
+        public void Execute_TargetPathNormalizesToParentPath()
+        {
+            // When only targetPath is provided, parentPath should be set
+            var go = TrackGameObject(new GameObject("NormPanel2"));
+            var result = Execute(_handler, "createCommandPanel",
+                ("widgetType", "command"),
+                ("targetPath", "NormPanel2"),
+                ("panelId", "norm_cmd"),
+                ("commands", new List<object>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["name"] = "Act",
+                        ["commandType"] = "action",
+                        ["label"] = "Act"
+                    }
+                }));
+            AssertSuccess(result);
+            AssertScriptGenerated(result);
+        }
+
+        [Test]
         public void Execute_CommandWidget_CreateCommandPanel_GeneratesScript()
         {
             var go = TrackGameObject(new GameObject("CmdPanel"));

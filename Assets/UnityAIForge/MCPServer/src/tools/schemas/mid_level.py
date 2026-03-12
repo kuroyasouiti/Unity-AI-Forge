@@ -1444,6 +1444,10 @@ def physics_bundle_schema() -> dict[str, Any]:
                     },
                     "description": "Array of layer pairs for setCollisionMatrixBatch. Set multiple collision pairs in one call.",
                 },
+                "reportChanges": {
+                    "type": "boolean",
+                    "description": "Return a before/after diff report for applyPreset, showing which properties (tag, layer, components) were changed. Warns if tag/layer were overwritten (default: false).",
+                },
             },
         },
         ["operation"],

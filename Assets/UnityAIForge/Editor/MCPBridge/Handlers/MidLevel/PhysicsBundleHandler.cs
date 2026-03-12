@@ -48,6 +48,26 @@ namespace MCP.Editor.Handlers
             if (string.IsNullOrEmpty(preset))
                 throw new ArgumentException("Required parameter missing: preset");
             var go = ResolveGameObject(goPath);
+            var reportChanges = GetBool(payload, "reportChanges", false);
+
+            // Capture before-state for change report
+            Dictionary<string, object> beforeState = null;
+            if (reportChanges)
+            {
+                beforeState = new Dictionary<string, object>
+                {
+                    { "tag", go.tag },
+                    { "layer", LayerMask.LayerToName(go.layer) },
+                    { "hasRigidbody", go.GetComponent<Rigidbody>() != null },
+                    { "hasRigidbody2D", go.GetComponent<Rigidbody2D>() != null },
+                    { "hasCharacterController", go.GetComponent<CharacterController>() != null },
+                    { "hasBoxCollider", go.GetComponent<BoxCollider>() != null },
+                    { "hasBoxCollider2D", go.GetComponent<BoxCollider2D>() != null },
+                    { "hasCapsuleCollider", go.GetComponent<CapsuleCollider>() != null },
+                    { "hasSphereCollider", go.GetComponent<SphereCollider>() != null },
+                    { "hasCircleCollider2D", go.GetComponent<CircleCollider2D>() != null }
+                };
+            }
 
             switch (preset)
             {
@@ -73,7 +93,41 @@ namespace MCP.Editor.Handlers
                     throw new ArgumentException($"Unknown preset: {preset}. Available: platformer2D, topDown2D, fps3D, thirdPerson3D, space, racing");
             }
 
-            return CreateSuccessResponse(("gameObject", goPath), ("preset", preset));
+            var result = CreateSuccessResponse(("gameObject", goPath), ("preset", preset));
+
+            if (reportChanges && beforeState != null)
+            {
+                var afterState = new Dictionary<string, object>
+                {
+                    { "tag", go.tag },
+                    { "layer", LayerMask.LayerToName(go.layer) },
+                    { "hasRigidbody", go.GetComponent<Rigidbody>() != null },
+                    { "hasRigidbody2D", go.GetComponent<Rigidbody2D>() != null },
+                    { "hasCharacterController", go.GetComponent<CharacterController>() != null },
+                    { "hasBoxCollider", go.GetComponent<BoxCollider>() != null },
+                    { "hasBoxCollider2D", go.GetComponent<BoxCollider2D>() != null },
+                    { "hasCapsuleCollider", go.GetComponent<CapsuleCollider>() != null },
+                    { "hasSphereCollider", go.GetComponent<SphereCollider>() != null },
+                    { "hasCircleCollider2D", go.GetComponent<CircleCollider2D>() != null }
+                };
+
+                var changes = new Dictionary<string, object>();
+                foreach (var kv in beforeState)
+                {
+                    var afterVal = afterState.ContainsKey(kv.Key) ? afterState[kv.Key] : null;
+                    if (!Equals(kv.Value, afterVal))
+                        changes[kv.Key] = new Dictionary<string, object> { { "before", kv.Value }, { "after", afterVal } };
+                }
+                result["changes"] = changes;
+
+                if (beforeState["tag"].ToString() != afterState["tag"].ToString() ||
+                    beforeState["layer"].ToString() != afterState["layer"].ToString())
+                {
+                    result["warning"] = "tag and/or layer may have been affected by preset. Verify and re-set with gameobject_crud(update) if needed.";
+                }
+            }
+
+            return result;
         }
 
         private void ApplyPlatformer2D(GameObject go)

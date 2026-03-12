@@ -541,6 +541,9 @@ def get_tool_definitions() -> list[types.Tool]:
                 "**runtimeSet** — ScriptableObject runtime sets for auto-register/unregister patterns.\n"
                 "  Operations: create, inspect, find\n"
                 "  Configurable: elementType (default: GameObject)\n\n"
+                "**getIntegrationCode** — Returns C# code snippets and MCP wiring commands for integrating\n"
+                "  a generated asset into game scripts. Pass dataType + dataId.\n"
+                "  Returns: SerializeField declarations, Raise/Register/Get calls, Inspector wiring examples.\n\n"
                 "All generated scripts are standalone — no dependency on Unity-AI-Forge package."
             ),
             inputSchema=gamekit_data_schema(),

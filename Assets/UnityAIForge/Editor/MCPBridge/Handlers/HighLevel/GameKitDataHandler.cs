@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using MCP.Editor.Base;
 using MCP.Editor.CodeGen;
@@ -16,7 +17,7 @@ namespace MCP.Editor.Handlers.HighLevel
     {
         private static readonly string[] Operations =
         {
-            "create", "createMultiple", "inspect", "find"
+            "create", "createMultiple", "inspect", "find", "getIntegrationCode"
         };
 
         private readonly GameKitPoolHandler _poolHandler = new();
@@ -33,6 +34,10 @@ namespace MCP.Editor.Handlers.HighLevel
             // createMultiple: batch-create multiple items of the same dataType
             if (operation == "createMultiple")
                 return CreateMultiple(payload);
+
+            // getIntegrationCode: return code snippets for wiring generated assets into game scripts
+            if (operation == "getIntegrationCode")
+                return GetIntegrationCode(payload);
 
             var dataType = GetString(payload, "dataType");
             if (string.IsNullOrEmpty(dataType))
@@ -543,6 +548,117 @@ namespace MCP.Editor.Handlers.HighLevel
                 ("errors", errors),
                 ("requiresCompilationWait", results.Count > 0)
             );
+        }
+
+        #endregion
+
+        #region Integration Code
+
+        private object GetIntegrationCode(Dictionary<string, object> payload)
+        {
+            var dataType = GetString(payload, "dataType");
+            var dataId = GetString(payload, "dataId");
+            if (string.IsNullOrEmpty(dataType) || string.IsNullOrEmpty(dataId))
+                throw new InvalidOperationException("Both 'dataType' and 'dataId' are required for getIntegrationCode.");
+
+            var entry = GeneratedScriptTracker.Instance.FindByComponentId(dataId);
+            var className = entry?.className ?? ScriptGenerator.ToPascalCase(dataId,
+                dataType switch
+                {
+                    "eventChannel" => "EventChannel",
+                    "dataContainer" => "DataContainer",
+                    "runtimeSet" => "RuntimeSet",
+                    "pool" => "Pool",
+                    _ => ""
+                });
+
+            // Find asset path
+            string assetPath = null;
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset == null) continue;
+                var so = new SerializedObject(asset);
+                var prop = so.FindProperty("dataId");
+                if (prop != null && prop.propertyType == SerializedPropertyType.String && prop.stringValue == dataId)
+                {
+                    assetPath = path;
+                    break;
+                }
+            }
+
+            var snippets = new Dictionary<string, string>();
+            var wiringExample = "";
+            var refPath = assetPath ?? $"Assets/Data/{dataId}.asset";
+
+            switch (dataType)
+            {
+                case "eventChannel":
+                    var evtType = entry != null ? DetectEventType(entry.scriptPath) : "void";
+                    var raiseCall = evtType == "void"
+                        ? $"{ToCamelCase(dataId)}Event.Raise();"
+                        : $"{ToCamelCase(dataId)}Event.Raise(value);";
+                    snippets["field"] = $"[SerializeField] private {className} {ToCamelCase(dataId)}Event;";
+                    snippets["raise"] = $"if ({ToCamelCase(dataId)}Event != null) {raiseCall}";
+                    snippets["subscribe"] = $"// OnEnable:\n{ToCamelCase(dataId)}Event.Register(On{ScriptGenerator.ToPascalCase(dataId, "")});\n// OnDisable:\n{ToCamelCase(dataId)}Event.Unregister(On{ScriptGenerator.ToPascalCase(dataId, "")});";
+                    snippets["handler"] = evtType == "void"
+                        ? $"private void On{ScriptGenerator.ToPascalCase(dataId, "")}() {{ /* handle event */ }}"
+                        : $"private void On{ScriptGenerator.ToPascalCase(dataId, "")}({evtType} value) {{ /* handle event */ }}";
+                    wiringExample = $"unity_component_crud(operation='update', gameObjectPath='TARGET', componentType='SCRIPT', propertyChanges={{'{ToCamelCase(dataId)}Event': {{'$ref': '{refPath}'}} }})";
+                    break;
+
+                case "runtimeSet":
+                    snippets["field"] = $"[SerializeField] private {className} {ToCamelCase(dataId)}Set;";
+                    snippets["register"] = $"// OnEnable:\nif ({ToCamelCase(dataId)}Set != null) {ToCamelCase(dataId)}Set.Register(gameObject);";
+                    snippets["unregister"] = $"// OnDisable:\nif ({ToCamelCase(dataId)}Set != null) {ToCamelCase(dataId)}Set.Unregister(gameObject);";
+                    snippets["query"] = $"var items = {ToCamelCase(dataId)}Set.GetAll();\nint count = {ToCamelCase(dataId)}Set.Count;";
+                    wiringExample = $"unity_component_crud(operation='update', gameObjectPath='TARGET', componentType='SCRIPT', propertyChanges={{'{ToCamelCase(dataId)}Set': {{'$ref': '{refPath}'}} }})";
+                    break;
+
+                case "dataContainer":
+                    snippets["field"] = $"[SerializeField] private {className} {ToCamelCase(dataId)};";
+                    snippets["write"] = $"{ToCamelCase(dataId)}.fieldName = newValue;  // direct field access";
+                    snippets["read"] = $"var val = {ToCamelCase(dataId)}.fieldName;  // direct field access";
+                    wiringExample = $"unity_component_crud(operation='update', gameObjectPath='TARGET', componentType='SCRIPT', propertyChanges={{'{ToCamelCase(dataId)}': {{'$ref': '{refPath}'}} }})";
+                    break;
+
+                case "pool":
+                    snippets["get"] = $"var obj = {className}.FindById(\"{dataId}\").Get(position, rotation);";
+                    snippets["release"] = $"var pool = {className}.FindById(\"{dataId}\");\nif (pool != null) pool.Release(gameObject);\nelse Destroy(gameObject);";
+                    snippets["stats"] = $"var stats = {className}.FindById(\"{dataId}\").GetStats();";
+                    wiringExample = "// Pool uses static FindById() — no Inspector wiring needed for consumers.";
+                    break;
+            }
+
+            return CreateSuccessResponse(
+                ("dataType", dataType),
+                ("dataId", dataId),
+                ("className", className),
+                ("assetPath", assetPath ?? "not found"),
+                ("codeSnippets", snippets),
+                ("inspectorWiring", wiringExample)
+            );
+        }
+
+        private static string ToCamelCase(string input)
+        {
+            var pascal = ScriptGenerator.ToPascalCase(input, "");
+            if (string.IsNullOrEmpty(pascal)) return input;
+            return char.ToLower(pascal[0]) + pascal.Substring(1);
+        }
+
+        private static string DetectEventType(string scriptPath)
+        {
+            if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath)) return "void";
+            var content = File.ReadAllText(scriptPath);
+            if (content.Contains("Action<Vector3>")) return "Vector3";
+            if (content.Contains("Action<float>")) return "float";
+            if (content.Contains("Action<int>")) return "int";
+            if (content.Contains("Action<string>")) return "string";
+            if (content.Contains("Action<GameObject>")) return "GameObject";
+            return "void";
         }
 
         #endregion

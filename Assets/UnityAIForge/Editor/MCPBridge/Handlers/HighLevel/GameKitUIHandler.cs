@@ -55,6 +55,9 @@ namespace MCP.Editor.Handlers.HighLevel
             if (string.IsNullOrEmpty(widgetType))
                 return CreateFailureResponse("'widgetType' is required. Use: command, binding, list, slot, selection");
 
+            // Parameter normalization: accept both parentPath and targetPath interchangeably
+            NormalizePathParameters(payload);
+
             var sub = ResolveSubHandler(widgetType);
             if (sub == null)
                 return CreateFailureResponse(
@@ -66,6 +69,24 @@ namespace MCP.Editor.Handlers.HighLevel
                     $"Supported: {string.Join(", ", sub.SupportedOperations)}");
 
             return sub.InvokeOperation(operation, payload);
+        }
+
+        /// <summary>
+        /// Ensures both parentPath and targetPath are available in the payload.
+        /// If only one is provided, copies it to the other so sub-handlers
+        /// can use whichever parameter name they expect.
+        /// </summary>
+        private static void NormalizePathParameters(Dictionary<string, object> payload)
+        {
+            var hasParent = payload.TryGetValue("parentPath", out var parentVal)
+                && parentVal is string ps && !string.IsNullOrEmpty(ps);
+            var hasTarget = payload.TryGetValue("targetPath", out var targetVal)
+                && targetVal is string ts && !string.IsNullOrEmpty(ts);
+
+            if (hasParent && !hasTarget)
+                payload["targetPath"] = payload["parentPath"];
+            else if (hasTarget && !hasParent)
+                payload["parentPath"] = payload["targetPath"];
         }
 
         private BaseCommandHandler ResolveSubHandler(string widgetType)

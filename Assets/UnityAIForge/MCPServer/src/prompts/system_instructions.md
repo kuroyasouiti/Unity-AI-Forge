@@ -16,6 +16,10 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 10. **UI表示制御はCanvasGroupのみ**: `SetActive` は使わず `CanvasGroup`（alpha/interactable/blocksRaycasts）で制御。GameObjectは常にアクティブ状態を維持
 11. **シーン間データはDataContainer(SO)で渡す**: staticクラスではなく `gamekit_data(dataType='dataContainer')` で ScriptableObject を作成し、書き込み側・読み取り側の両方から参照する
 12. **複数兄弟UI要素にはLayoutGroup必須**: 同一親に複数のUI要素を配置する場合、LayoutGroupなしでは重なる
+13. **スクリプト生成順序**: interface/enum → ScriptableObject(データ定義) → 被参照MonoBehaviour → 参照元MonoBehaviour。同一レイヤーは `asset_crud(createMultiple)` で一括生成し `compilation_await` 1回で済ませる
+14. **GameKit統合必須**: GameKit生成(EventChannel/Pool/RuntimeSet/DataContainer)後、手書きスクリプトに `[SerializeField]` 追加 + 呼び出しコード挿入 + `component_crud` でInspector参照設定。**生成だけでは動かない — 統合コードの挿入が必須**
+15. **プリセット後のtag/layer再確認**: `physics_bundle` / `camera_bundle` の preset 適用後は tag/layer が上書きされる可能性あり。適用後に `gameobject_crud(update)` で再設定すること
+16. **Prefab作成はコンパイル後**: カスタムMonoBehaviourを含むPrefabは、`compilation_await` でコンパイル完了を確認してから作成。未コンパイル状態ではコンポーネント付与不可
 
 ---
 
@@ -393,6 +397,68 @@ unity_prefab_crud(operation='editMultiple', prefabPaths=['Assets/Prefabs/Enemies
 unity_projectSettings_crud(operation='write', category='tagsLayers', property='addTag', value='Enemy')
 unity_projectSettings_crud(operation='addSceneToBuild', scenePath='Assets/Scenes/Level1.unity')
 ```
+
+---
+
+## 🔗 GameKit統合チェックリスト（Do→Check間に必須）
+
+GameKit でコード生成した後、以下の統合手順を**必ず**実行すること。
+
+### EventChannel統合
+```python
+# 1. 手書きスクリプトに [SerializeField] を追加
+#    [SerializeField] private OnDamageEventChannel onDamageEvent;
+# 2. 発火側: イベント発生箇所で Raise() を呼ぶ
+#    - void型: onDamageEvent.Raise()
+#    - 型付き: onDamageEvent.Raise(damageValue)  ← eventType に応じた引数
+# 3. 購読側: OnEnable で Register(), OnDisable で Unregister()
+#    onEnemyKillEvent.Register(OnEnemyKilled);
+# 4. Inspector参照を設定
+unity_component_crud(operation='update', gameObjectPath='Player',
+    componentType='PlayerController', propertyChanges={'onDamageEvent': {'$ref': 'Assets/Data/Events/OnDamage.asset'}})
+```
+
+### Pool統合
+```python
+# 1. Fire() や Spawn() で Pool.Get() を使用（Instantiate の代わり）
+#    var bullet = BulletPoolPool.FindById("BulletPool").Get(pos, rot);
+# 2. 回収側: Destroy(gameObject) の代わりに Pool.Release() を使用
+#    BulletPoolPool.FindById("BulletPool").Release(gameObject);
+# 3. Prefab に Pool参照を設定
+unity_prefab_crud(operation='editAsset', prefabPath='Assets/Prefabs/Bullet.prefab',
+    componentChanges=[{'componentType': 'BulletPoolPool', 'propertyChanges': {'prefab': {'$ref': 'Assets/Prefabs/Bullet.prefab'}}}])
+```
+
+### RuntimeSet統合
+```python
+# 1. 対象スクリプトに [SerializeField] private ActiveEnemiesRuntimeSet activeEnemiesSet;
+# 2. OnEnable(): activeEnemiesSet?.Register(gameObject);
+# 3. OnDisable(): activeEnemiesSet?.Unregister(gameObject);
+# 4. Prefab/シーンオブジェクトに参照設定
+unity_prefab_crud(operation='editMultiple', prefabPaths=[...],
+    componentChanges=[{'componentType': 'EnemyAI', 'propertyChanges': {'activeEnemiesSet': {'$ref': 'Assets/Data/RuntimeSets/ActiveEnemies.asset'}}}])
+```
+
+### DataContainer統合
+```python
+# 1. 書き込み側: [SerializeField] private PlayerStatsDataContainer playerStats;
+#    playerStats.currentHP = _currentHP;  (直接フィールドアクセス)
+# 2. 読み取り側: 同じSO参照を持つ別スクリプトから読む
+#    hpLabel.text = $"HP: {playerStats.currentHP}";
+# 3. UIBinding連携: SetValue() でバインディングを更新
+#    PlayerHpUIBinding.FindById("player_hp")?.SetValue(playerStats.currentHP);
+```
+
+### GameKit UIパラメータ対応表
+
+| widgetType | create系操作 | パラメータ | 意味 |
+|-----------|-------------|-----------|------|
+| binding   | create | **targetPath** | バインド先のUI要素パス |
+| list      | create | **targetPath** | リスト配置先 |
+| command   | createCommandPanel | **parentPath** | コマンドパネルの親 |
+| slot      | create | **targetPath** | スロットの配置先 |
+| slot      | createSlotBar | **parentPath** | スロットバーの親 |
+| selection | create | **targetPath** | 選択グループの配置先 |
 
 ---
 

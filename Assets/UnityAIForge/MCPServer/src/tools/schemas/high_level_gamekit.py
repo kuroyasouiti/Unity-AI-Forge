@@ -421,8 +421,8 @@ def gamekit_data_schema() -> dict[str, Any]:
                 },
                 "operation": {
                     "type": "string",
-                    "enum": ["create", "createMultiple", "inspect", "find"],
-                    "description": "Operation to perform. 'createMultiple' generates multiple scripts in one call (single compilation wait).",
+                    "enum": ["create", "createMultiple", "inspect", "find", "getIntegrationCode"],
+                    "description": "Operation to perform. 'createMultiple' generates multiple scripts in one call (single compilation wait). 'getIntegrationCode' returns C# code snippets and MCP wiring commands for integrating a generated asset into game scripts.",
                 },
                 # ── shared ─────────────────────────────────────────────
                 "targetPath": {

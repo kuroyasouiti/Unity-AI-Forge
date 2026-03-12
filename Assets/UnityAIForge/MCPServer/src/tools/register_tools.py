@@ -16,11 +16,13 @@ import mcp.types as types
 from mcp.server import Server
 
 from bridge.bridge_manager import bridge_manager
+from config.env import env
 from logger import logger
 from tools.batch_sequential import handle_batch_sequential
 from tools.tool_definitions import get_tool_definitions
 from tools.tool_registry import TOOL_NAME_TO_BRIDGE
 from utils.json_utils import as_pretty_json
+from utils.notification import notify_tool_result
 
 
 def _ensure_bridge_connected() -> None:
@@ -28,6 +30,15 @@ def _ensure_bridge_connected() -> None:
         raise RuntimeError(
             "Unity bridge is not connected. In the Unity Editor choose Tools/MCP Assistant to start the bridge."
         )
+
+
+def _return_with_notification(
+    tool_name: str, content: list[types.Content]
+) -> list[types.Content]:
+    """Return content to client and play a notification sound if configured."""
+    if content and isinstance(content[0], types.TextContent):
+        notify_tool_result(tool_name, content[0].text, env.notification_mode)
+    return content
 
 
 async def _call_bridge_tool(tool_name: str, payload: dict[str, Any]) -> list[types.Content]:
@@ -146,7 +157,9 @@ def register_tools(server: Server) -> None:
                     unity_status["compilationCompleted"] = True
                     unity_status["waitTimeSeconds"] = poll_elapsed
                     unity_status["message"] = "No compilation detected"
-                    return [types.TextContent(type="text", text=as_pretty_json(unity_status))]
+                    return _return_with_notification(
+                        name, [types.TextContent(type="text", text=as_pretty_json(unity_status))]
+                    )
                 result = {
                     "wasCompiling": False,
                     "compilationCompleted": True,
@@ -155,7 +168,9 @@ def register_tools(server: Server) -> None:
                     "errorCount": 0,
                     "message": "No compilation detected",
                 }
-                return [types.TextContent(type="text", text=as_pretty_json(result))]
+                return _return_with_notification(
+                    name, [types.TextContent(type="text", text=as_pretty_json(result))]
+                )
 
             # Phase 2: Compilation in progress - wait for completion asynchronously
             remaining_timeout = max(1, timeout_seconds - int(poll_elapsed))
@@ -173,7 +188,10 @@ def register_tools(server: Server) -> None:
                     "completed", True
                 )
                 compilation_result["waitTimeSeconds"] = total_elapsed
-                return [types.TextContent(type="text", text=as_pretty_json(compilation_result))]
+                return _return_with_notification(
+                    name,
+                    [types.TextContent(type="text", text=as_pretty_json(compilation_result))],
+                )
             except TimeoutError as exc:
                 total_elapsed = time.time() - start_time
                 result = {
@@ -185,7 +203,9 @@ def register_tools(server: Server) -> None:
                     "timedOut": True,
                     "message": str(exc),
                 }
-                return [types.TextContent(type="text", text=as_pretty_json(result))]
+                return _return_with_notification(
+                    name, [types.TextContent(type="text", text=as_pretty_json(result))]
+                )
 
         if name == "unity_asset_crud":
             # Handle asset CRUD operations
@@ -228,7 +248,7 @@ def register_tools(server: Server) -> None:
                 except Exception as exc:
                     logger.warning("Error while waiting for compilation: %s", exc)
 
-            return asset_result
+            return _return_with_notification(name, asset_result)
 
         if name == "unity_batch_sequential_execute":
             return list(await handle_batch_sequential(args, bridge_manager))
@@ -236,6 +256,6 @@ def register_tools(server: Server) -> None:
         # ── Standard bridge tools (dict lookup) ─────────────────────
         bridge_name = TOOL_NAME_TO_BRIDGE.get(name)
         if bridge_name:
-            return await _call_bridge_tool(bridge_name, args)
+            return _return_with_notification(name, await _call_bridge_tool(bridge_name, args))
 
         raise RuntimeError(f"No handler registered for tool '{name}'.")

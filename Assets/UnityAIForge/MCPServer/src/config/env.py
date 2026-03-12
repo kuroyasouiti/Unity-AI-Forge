@@ -15,6 +15,7 @@ load_dotenv()
 _config_logger = logging.getLogger(__name__)
 
 LogLevel = Literal["fatal", "error", "warn", "info", "debug", "trace", "silent"]
+NotificationMode = Literal["compilation", "all", "none"]
 
 
 def _parse_bool(value: str | None, default: bool) -> bool:
@@ -57,6 +58,16 @@ def _default_editor_log() -> Path:
     return Path(home) / "Library" / "Logs" / "Unity" / "Editor.log"
 
 
+def _parse_notification_mode(value: str | None) -> NotificationMode:
+    normalized = (value or "").strip().lower()
+    allowed: dict[str, NotificationMode] = {
+        "compilation": "compilation",
+        "all": "all",
+        "none": "none",
+    }
+    return allowed.get(normalized, "compilation")
+
+
 def _parse_log_level(value: str | None) -> LogLevel:
     normalized = (value or "").strip().lower()
     allowed: dict[str, LogLevel] = {
@@ -83,6 +94,7 @@ class ServerEnv:
     unity_bridge_port: int
     bridge_reconnect_ms: int
     bridge_token: str | None
+    notification_mode: NotificationMode
 
 
 # CLI argument overrides storage
@@ -218,6 +230,7 @@ def _create_env() -> ServerEnv:
             os.environ.get("MCP_BRIDGE_RECONNECT_MS"), default=5000, minimum=0
         ),
         bridge_token=bridge_token,
+        notification_mode=_parse_notification_mode(os.environ.get("MCP_NOTIFICATION_MODE")),
     )
 
 

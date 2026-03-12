@@ -25,14 +25,15 @@ namespace MCP.Editor.Tests
         }
 
         [Test]
-        public void SupportedOperations_Contains4Ops()
+        public void SupportedOperations_Contains5Ops()
         {
             var ops = _handler.SupportedOperations.ToList();
-            Assert.AreEqual(4, ops.Count);
+            Assert.AreEqual(5, ops.Count);
             Assert.Contains("create", ops);
             Assert.Contains("createMultiple", ops);
             Assert.Contains("inspect", ops);
             Assert.Contains("find", ops);
+            Assert.Contains("getIntegrationCode", ops);
         }
 
         [Test]
@@ -338,6 +339,96 @@ namespace MCP.Editor.Tests
                 if (item.ContainsKey("channelScriptPath"))
                     TrackScriptPath(item["channelScriptPath"]?.ToString());
             }
+        }
+
+        #endregion
+
+        #region GetIntegrationCode
+
+        [Test]
+        public void GetIntegrationCode_MissingDataType_ReturnsError()
+        {
+            var result = Execute(_handler, "getIntegrationCode",
+                ("dataId", "TestEvent"));
+            AssertError(result);
+        }
+
+        [Test]
+        public void GetIntegrationCode_MissingDataId_ReturnsError()
+        {
+            var result = Execute(_handler, "getIntegrationCode",
+                ("dataType", "eventChannel"));
+            AssertError(result);
+        }
+
+        [Test]
+        public void GetIntegrationCode_EventChannel_ReturnsSnippets()
+        {
+            var result = Execute(_handler, "getIntegrationCode",
+                ("dataType", "eventChannel"),
+                ("dataId", "OnPlayerDeath"));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            Assert.IsNotNull(dict);
+            Assert.AreEqual("eventChannel", dict["dataType"]);
+            Assert.AreEqual("OnPlayerDeath", dict["dataId"]);
+            Assert.IsTrue(dict.ContainsKey("className"));
+            Assert.IsTrue(dict.ContainsKey("codeSnippets"));
+            Assert.IsTrue(dict.ContainsKey("inspectorWiring"));
+
+            var snippets = dict["codeSnippets"] as Dictionary<string, string>;
+            Assert.IsNotNull(snippets);
+            Assert.IsTrue(snippets.ContainsKey("field"));
+            Assert.IsTrue(snippets.ContainsKey("raise"));
+            Assert.IsTrue(snippets.ContainsKey("subscribe"));
+            Assert.IsTrue(snippets.ContainsKey("handler"));
+            Assert.IsTrue(snippets["field"].Contains("[SerializeField]"));
+        }
+
+        [Test]
+        public void GetIntegrationCode_DataContainer_ReturnsSnippets()
+        {
+            var result = Execute(_handler, "getIntegrationCode",
+                ("dataType", "dataContainer"),
+                ("dataId", "PlayerStats"));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var snippets = dict["codeSnippets"] as Dictionary<string, string>;
+            Assert.IsNotNull(snippets);
+            Assert.IsTrue(snippets.ContainsKey("field"));
+            Assert.IsTrue(snippets.ContainsKey("write"));
+            Assert.IsTrue(snippets.ContainsKey("read"));
+        }
+
+        [Test]
+        public void GetIntegrationCode_RuntimeSet_ReturnsSnippets()
+        {
+            var result = Execute(_handler, "getIntegrationCode",
+                ("dataType", "runtimeSet"),
+                ("dataId", "ActiveEnemies"));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var snippets = dict["codeSnippets"] as Dictionary<string, string>;
+            Assert.IsNotNull(snippets);
+            Assert.IsTrue(snippets.ContainsKey("field"));
+            Assert.IsTrue(snippets.ContainsKey("register"));
+            Assert.IsTrue(snippets.ContainsKey("unregister"));
+            Assert.IsTrue(snippets.ContainsKey("query"));
+        }
+
+        [Test]
+        public void GetIntegrationCode_Pool_ReturnsSnippets()
+        {
+            var result = Execute(_handler, "getIntegrationCode",
+                ("dataType", "pool"),
+                ("dataId", "BulletPool"));
+            AssertSuccess(result);
+            var dict = result as Dictionary<string, object>;
+            var snippets = dict["codeSnippets"] as Dictionary<string, string>;
+            Assert.IsNotNull(snippets);
+            Assert.IsTrue(snippets.ContainsKey("get"));
+            Assert.IsTrue(snippets.ContainsKey("release"));
+            Assert.IsTrue(snippets.ContainsKey("stats"));
         }
 
         #endregion

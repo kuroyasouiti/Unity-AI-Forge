@@ -222,3 +222,13 @@ class TestNewFeatureSchemas:
         schema = gamekit_ui_schema()
         assert "bindings" in schema["properties"]
         assert schema["properties"]["bindings"]["type"] == "array"
+
+    def test_gamekit_data_has_getIntegrationCode(self) -> None:
+        schema = gamekit_data_schema()
+        ops = schema["properties"]["operation"]["enum"]
+        assert "getIntegrationCode" in ops
+
+    def test_physics_bundle_has_reportChanges(self) -> None:
+        schema = physics_bundle_schema()
+        assert "reportChanges" in schema["properties"]
+        assert schema["properties"]["reportChanges"]["type"] == "boolean"
