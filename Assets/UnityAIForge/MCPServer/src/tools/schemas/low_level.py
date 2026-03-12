@@ -230,6 +230,10 @@ def component_manage_schema() -> dict[str, Any]:
                     "type": "boolean",
                     "description": "Stop batch operation on first error (default: true).",
                 },
+                "parentPath": {
+                    "type": "string",
+                    "description": "Optional parent GameObject path to limit batch operations (updateMultiple/inspectMultiple) to descendants of this parent.",
+                },
                 "updates": {
                     "type": "array",
                     "items": {

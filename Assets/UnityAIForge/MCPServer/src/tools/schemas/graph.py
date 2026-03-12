@@ -450,6 +450,7 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "eventSystemAudit",
                         "textOverflowAudit",
                         "styleConsistencyAudit",
+                        "inputSystemAudit",
                     ],
                     "description": (
                         "Integrity check operation. "
@@ -471,6 +472,9 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'styleConsistencyAudit': detect cross-element design consistency issues — excessive button color variation, "
                         "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
                         "unnecessary raycast targets, and inconsistent anchor patterns among siblings. "
+                        "'inputSystemAudit': detect Input System consistency issues — PlayerInput notificationBehavior vs method signatures "
+                        "(SendMessages expects InputValue, InvokeCSharpEvents expects CallbackContext), action expectedControlType vs "
+                        "binding composite type (1DAxis vs 2DVector), and missing callback methods for input actions. "
                     ),
                 },
                 "rootPath": {

@@ -511,6 +511,7 @@ namespace MCP.Editor.Handlers
             var useRegex = GetBool(payload, "useRegex", false);
             var maxResults = GetInt(payload, "maxResults", 1000);
             var stopOnError = GetBool(payload, "stopOnError", false);
+            var parentPath = GetString(payload, "parentPath");
 
             if (string.IsNullOrEmpty(pattern))
             {
@@ -529,6 +530,15 @@ namespace MCP.Editor.Handlers
 
             var type = ResolveType(componentType);
             var gameObjects = FindGameObjectsByPattern(pattern, useRegex, maxResults).ToList();
+
+            // Filter by parentPath if specified — only include direct or nested children of parent
+            if (!string.IsNullOrEmpty(parentPath))
+            {
+                var parent = ResolveGameObject(parentPath);
+                if (parent == null)
+                    throw new InvalidOperationException($"Parent GameObject not found: {parentPath}");
+                gameObjects = gameObjects.Where(go => go.transform.IsChildOf(parent.transform) && go != parent).ToList();
+            }
             
             var results = new List<Dictionary<string, object>>();
             int successCount = 0;

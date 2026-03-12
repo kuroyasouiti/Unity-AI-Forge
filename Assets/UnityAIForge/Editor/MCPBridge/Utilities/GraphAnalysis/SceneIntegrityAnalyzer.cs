@@ -498,7 +498,8 @@ namespace MCP.Editor.Utilities.GraphAnalysis
                 ["requiredFieldIssues"] = 0,
                 ["uiOverflowIssues"] = 0,
                 ["uiOverlapIssues"] = 0,
-                ["nullAssetIssues"] = 0
+                ["nullAssetIssues"] = 0,
+                ["inputSystemIssues"] = 0
             };
 
             var missingScripts = FindMissingScripts(rootPath);
@@ -557,6 +558,10 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             var textOverflowIssues = FindTextOverflowIssues(rootPath);
             summary["textOverflowIssues"] = textOverflowIssues.Count;
             allIssues.AddRange(textOverflowIssues);
+
+            var inputSystemIssues = FindInputSystemIssues(rootPath);
+            summary["inputSystemIssues"] = inputSystemIssues.Count;
+            allIssues.AddRange(inputSystemIssues);
 
             return (allIssues, summary);
         }
@@ -1810,6 +1815,323 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             }
 
             return issues;
+        }
+
+        /// <summary>
+        /// Find Input System consistency issues between PlayerInput components, .inputactions assets, and C# scripts.
+        /// Checks: notificationBehavior vs method signatures, action expectedControlType vs ReadValue type,
+        /// action names vs callback method names.
+        /// </summary>
+        public List<IntegrityIssue> FindInputSystemIssues(string rootPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var gameObjects = GetTargetGameObjects(rootPath);
+
+            // Find PlayerInput type via reflection (avoid hard dependency on Input System package)
+            var playerInputType = FindTypeByName("UnityEngine.InputSystem.PlayerInput");
+            if (playerInputType == null) return issues; // Input System not installed
+
+            foreach (var go in gameObjects)
+            {
+                var playerInput = go.GetComponent(playerInputType);
+                if (playerInput == null) continue;
+
+                var goPath = GetGameObjectPath(go);
+                var so = new SerializedObject(playerInput);
+
+                // 1. Get notificationBehavior
+                var behaviorProp = so.FindProperty("m_NotificationBehavior");
+                int behavior = behaviorProp != null ? behaviorProp.intValue : -1;
+                // 0=SendMessages, 1=BroadcastMessages, 2=InvokeUnityEvents, 3=InvokeCSharpEvents
+
+                // 2. Get the InputActionAsset reference
+                var actionsProp = so.FindProperty("m_Actions");
+                var actionsAsset = actionsProp?.objectReferenceValue;
+                if (actionsAsset == null)
+                {
+                    issues.Add(new IntegrityIssue
+                    {
+                        Type = "inputSystem_noActionsAsset",
+                        Severity = "error",
+                        GameObjectPath = goPath,
+                        ComponentType = "PlayerInput",
+                        Message = "PlayerInput has no InputActionAsset assigned",
+                        Suggestion = "Assign an .inputactions asset to the PlayerInput component"
+                    });
+                    continue;
+                }
+
+                // 3. Read the .inputactions JSON to extract action definitions
+                var assetPath = AssetDatabase.GetAssetPath(actionsAsset);
+                if (string.IsNullOrEmpty(assetPath) || !File.Exists(assetPath)) continue;
+
+                string json = File.ReadAllText(assetPath);
+                var actions = ParseInputActions(json);
+                if (actions.Count == 0) continue;
+
+                // 4. Get default action map
+                var defaultMapProp = so.FindProperty("m_DefaultActionMap");
+                string defaultMap = defaultMapProp?.stringValue ?? "";
+
+                // 5. Find the target script for callback validation
+                // For SendMessages/BroadcastMessages, callbacks are On{ActionName} methods
+                if (behavior == 0 || behavior == 1)
+                {
+                    // Find MonoBehaviours on same GameObject that might receive messages
+                    var monoBehaviours = go.GetComponents<MonoBehaviour>();
+                    foreach (var action in actions)
+                    {
+                        // Only check actions from default map or if no default map is set
+                        if (!string.IsNullOrEmpty(defaultMap) &&
+                            !string.IsNullOrEmpty(action.MapName) &&
+                            action.MapName != defaultMap)
+                            continue;
+
+                        string expectedMethod = "On" + action.Name;
+                        bool found = false;
+                        System.Type foundOnType = null;
+                        MethodInfo foundMethod = null;
+
+                        foreach (var mb in monoBehaviours)
+                        {
+                            if (mb == null || mb == playerInput) continue;
+                            var type = mb.GetType();
+                            var method = type.GetMethod(expectedMethod,
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                            if (method != null)
+                            {
+                                found = true;
+                                foundOnType = type;
+                                foundMethod = method;
+                                break;
+                            }
+                        }
+
+                        if (!found)
+                        {
+                            issues.Add(new IntegrityIssue
+                            {
+                                Type = "inputSystem_missingCallback",
+                                Severity = "error",
+                                GameObjectPath = goPath,
+                                ComponentType = "PlayerInput",
+                                FieldName = action.Name,
+                                Message = $"No '{expectedMethod}(InputValue)' method found on any MonoBehaviour (notificationBehavior=SendMessages)",
+                                Suggestion = $"Add 'public void {expectedMethod}(InputValue value)' to a MonoBehaviour on '{go.name}'"
+                            });
+                            continue;
+                        }
+
+                        // Check method signature
+                        var parameters = foundMethod.GetParameters();
+                        if (parameters.Length == 1)
+                        {
+                            var paramType = parameters[0].ParameterType;
+                            string paramTypeName = paramType.Name;
+
+                            // SendMessages expects InputValue, not CallbackContext
+                            if (paramTypeName == "CallbackContext" || paramTypeName.Contains("CallbackContext"))
+                            {
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "inputSystem_wrongSignature",
+                                    Severity = "error",
+                                    GameObjectPath = goPath,
+                                    ComponentType = foundOnType.Name,
+                                    FieldName = expectedMethod,
+                                    Message = $"Method '{expectedMethod}' uses InputAction.CallbackContext but PlayerInput is set to SendMessages (expects InputValue)",
+                                    Suggestion = $"Change signature to: public void {expectedMethod}(InputValue value)"
+                                });
+                            }
+
+                            // Check type match: action expectedControlType vs ReadValue<T>
+                            ValidateActionTypeVsParameter(issues, goPath, foundOnType.Name,
+                                expectedMethod, action, paramType);
+                        }
+                    }
+                }
+                else if (behavior == 3) // InvokeCSharpEvents
+                {
+                    // For CSharpEvents, check if any MonoBehaviour subscribes via CallbackContext
+                    var monoBehaviours = go.GetComponents<MonoBehaviour>();
+                    foreach (var action in actions)
+                    {
+                        if (!string.IsNullOrEmpty(defaultMap) &&
+                            !string.IsNullOrEmpty(action.MapName) &&
+                            action.MapName != defaultMap)
+                            continue;
+
+                        string expectedMethod = "On" + action.Name;
+                        foreach (var mb in monoBehaviours)
+                        {
+                            if (mb == null || mb == playerInput) continue;
+                            var type = mb.GetType();
+                            var method = type.GetMethod(expectedMethod,
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                            if (method == null) continue;
+
+                            var parameters = method.GetParameters();
+                            if (parameters.Length == 1)
+                            {
+                                var paramType = parameters[0].ParameterType;
+                                if (paramType.Name == "InputValue" || paramType.Name.Contains("InputValue"))
+                                {
+                                    issues.Add(new IntegrityIssue
+                                    {
+                                        Type = "inputSystem_wrongSignature",
+                                        Severity = "error",
+                                        GameObjectPath = goPath,
+                                        ComponentType = type.Name,
+                                        FieldName = expectedMethod,
+                                        Message = $"Method '{expectedMethod}' uses InputValue but PlayerInput is set to InvokeCSharpEvents (expects InputAction.CallbackContext)",
+                                        Suggestion = $"Change signature to: public void {expectedMethod}(InputAction.CallbackContext ctx)"
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 6. Check action expectedControlType consistency with binding composites
+                foreach (var action in actions)
+                {
+                    if (string.IsNullOrEmpty(action.ExpectedControlType)) continue;
+
+                    if (action.HasVector2Composite && action.ExpectedControlType == "Axis")
+                    {
+                        issues.Add(new IntegrityIssue
+                        {
+                            Type = "inputSystem_typeMismatch",
+                            Severity = "warning",
+                            GameObjectPath = goPath,
+                            ComponentType = "PlayerInput",
+                            FieldName = action.Name,
+                            Message = $"Action '{action.Name}' has expectedControlType 'Axis' but uses a 2DVector composite binding (returns Vector2)",
+                            Suggestion = $"Change the composite to 1DAxis, or change expectedControlType to 'Vector2'"
+                        });
+                    }
+                    else if (action.Has1DAxisComposite && action.ExpectedControlType == "Vector2")
+                    {
+                        issues.Add(new IntegrityIssue
+                        {
+                            Type = "inputSystem_typeMismatch",
+                            Severity = "warning",
+                            GameObjectPath = goPath,
+                            ComponentType = "PlayerInput",
+                            FieldName = action.Name,
+                            Message = $"Action '{action.Name}' has expectedControlType 'Vector2' but uses a 1DAxis composite binding (returns float)",
+                            Suggestion = $"Change the composite to 2DVector, or change expectedControlType to 'Axis'"
+                        });
+                    }
+                }
+            }
+
+            return issues;
+        }
+
+        private void ValidateActionTypeVsParameter(List<IntegrityIssue> issues, string goPath,
+            string componentType, string methodName, InputActionInfo action, System.Type paramType)
+        {
+            // For InputValue parameter, we can't easily determine what Get<T> is called with at static analysis time.
+            // But we can flag obvious mismatches from the action's expectedControlType.
+            // This is best-effort since we'd need full source analysis for Get<T> calls.
+            if (paramType.Name != "InputValue") return;
+
+            // The type check is done via binding composites vs expectedControlType above.
+            // Additional check: warn if Button action might need isPressed instead of Get<float>
+            if (action.ExpectedControlType == "Button" && action.ActionType == "Value")
+            {
+                issues.Add(new IntegrityIssue
+                {
+                    Type = "inputSystem_buttonAsValue",
+                    Severity = "info",
+                    GameObjectPath = goPath,
+                    ComponentType = componentType,
+                    FieldName = methodName,
+                    Message = $"Action '{action.Name}' has expectedControlType 'Button' but type 'Value' — may fire continuously",
+                    Suggestion = "Change action type to 'Button' if you only need press/release events"
+                });
+            }
+        }
+
+        private System.Type FindTypeByName(string fullName)
+        {
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var type = asm.GetType(fullName);
+                if (type != null) return type;
+            }
+            return null;
+        }
+
+        private class InputActionInfo
+        {
+            public string Name;
+            public string MapName;
+            public string ExpectedControlType;
+            public string ActionType; // "Value", "Button", "PassThrough"
+            public bool HasVector2Composite;
+            public bool Has1DAxisComposite;
+        }
+
+        /// <summary>
+        /// Parse .inputactions JSON to extract action names, expected types, and binding composite types.
+        /// Uses simple string parsing to avoid JSON library dependency.
+        /// </summary>
+        private List<InputActionInfo> ParseInputActions(string json)
+        {
+            var actions = new List<InputActionInfo>();
+
+            try
+            {
+                // Parse maps
+                var mapMatches = Regex.Matches(json,
+                    @"""name""\s*:\s*""([^""]+)"".*?""actions""\s*:\s*\[(.*?)\].*?""bindings""\s*:\s*\[(.*?)\]",
+                    RegexOptions.Singleline);
+
+                foreach (Match mapMatch in mapMatches)
+                {
+                    string mapName = mapMatch.Groups[1].Value;
+                    string actionsBlock = mapMatch.Groups[2].Value;
+                    string bindingsBlock = mapMatch.Groups[3].Value;
+
+                    // Parse individual actions
+                    var actionMatches = Regex.Matches(actionsBlock,
+                        @"\{[^{}]*""name""\s*:\s*""([^""]+)""[^{}]*""type""\s*:\s*""([^""]+)""[^{}]*""expectedControlType""\s*:\s*""([^""]*)""[^{}]*\}",
+                        RegexOptions.Singleline);
+
+                    foreach (Match actionMatch in actionMatches)
+                    {
+                        var info = new InputActionInfo
+                        {
+                            Name = actionMatch.Groups[1].Value,
+                            MapName = mapName,
+                            ActionType = actionMatch.Groups[2].Value,
+                            ExpectedControlType = actionMatch.Groups[3].Value
+                        };
+
+                        // Check binding composites for this action
+                        var bindingMatches = Regex.Matches(bindingsBlock,
+                            @"\{[^{}]*""path""\s*:\s*""([^""]+)""[^{}]*""action""\s*:\s*""" + Regex.Escape(info.Name) + @"""[^{}]*""isComposite""\s*:\s*true[^{}]*\}",
+                            RegexOptions.Singleline);
+
+                        foreach (Match bindingMatch in bindingMatches)
+                        {
+                            string path = bindingMatch.Groups[1].Value;
+                            if (path == "2DVector") info.HasVector2Composite = true;
+                            if (path == "1DAxis") info.Has1DAxisComposite = true;
+                        }
+
+                        actions.Add(info);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // If parsing fails, return empty list — non-critical audit
+            }
+
+            return actions;
         }
 
         private static string ClassifyAnchorPattern(RectTransform rect)

@@ -20,6 +20,24 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 14. **GameKit統合必須**: GameKit生成(EventChannel/Pool/RuntimeSet/DataContainer)後、手書きスクリプトに `[SerializeField]` 追加 + 呼び出しコード挿入 + `component_crud` でInspector参照設定。**生成だけでは動かない — 統合コードの挿入が必須**
 15. **プリセット後のtag/layer再確認**: `physics_bundle` / `camera_bundle` の preset 適用後は tag/layer が上書きされる可能性あり。適用後に `gameobject_crud(update)` で再設定すること
 16. **Prefab作成はコンパイル後**: カスタムMonoBehaviourを含むPrefabは、`compilation_await` でコンパイル完了を確認してから作成。未コンパイル状態ではコンポーネント付与不可
+17. **Input System整合性チェック必須**: PlayerInputを使うスクリプト生成・変更の**前に**必ず以下を確認:
+    - `.inputactions` ファイルを読み、各Actionの `expectedControlType` を確認（Axis/Vector2/Button）
+    - `PlayerInput` コンポーネントの `notificationBehavior` を確認（SendMessages=0 / InvokeCSharpEvents=3）
+    - 下表に従いメソッドシグネチャを決定:
+
+    | notificationBehavior | メソッド形式 | 例 |
+    |---------------------|-------------|-----|
+    | SendMessages (0) | `void OnXxx(InputValue value)` | `value.Get<float>()`, `value.isPressed` |
+    | InvokeCSharpEvents (3) | `void OnXxx(InputAction.CallbackContext ctx)` | `ctx.ReadValue<float>()`, `ctx.performed` |
+
+    | expectedControlType | C# 型 |
+    |--------------------|-------|
+    | Axis | `float` (`Get<float>()` / `ReadValue<float>()`) |
+    | Vector2 | `Vector2` (`Get<Vector2>()` / `ReadValue<Vector2>()`) |
+    | Button | `float` / `isPressed` (SendMessages) or `performed`/`canceled` (CSharp) |
+
+    - 変更後は `validate_integrity(inputSystemAudit)` で整合性を検証
+18. **車両・キャラ配置前のコース方向確認**: レーシング等でコース上にオブジェクトを配置する場合、チェックポイント/ウェイポイントの最初の2点をinspectし、CP_0→CP_1の方向に車両の初期回転を合わせる
 
 ---
 

@@ -126,7 +126,7 @@ namespace MCP.Editor.Handlers
                         SetNotificationBehavior(playerInput, "sendMessages");
                         break;
                     case "vehicle":
-                        SetNotificationBehavior(playerInput, "invokeCSharpEvents");
+                        SetNotificationBehavior(playerInput, "sendMessages");
                         break;
                 }
             }
