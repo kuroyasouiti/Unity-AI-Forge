@@ -30,7 +30,8 @@ namespace MCP.Editor.Handlers
             "inspect",
             "findMultiple",
             "deleteMultiple",
-            "inspectMultiple"
+            "inspectMultiple",
+            "forceReimport"
         };
         
         #endregion
@@ -58,6 +59,7 @@ namespace MCP.Editor.Handlers
                 "findMultiple" => FindMultipleAssets(payload),
                 "deleteMultiple" => DeleteMultipleAssets(payload),
                 "inspectMultiple" => InspectMultipleAssets(payload),
+                "forceReimport" => ForceReimportAsset(payload),
                 _ => throw new InvalidOperationException($"Unknown asset operation: {operation}")
             };
         }
@@ -100,12 +102,22 @@ namespace MCP.Editor.Handlers
             File.WriteAllText(assetPath, content ?? string.Empty);
             AssetDatabase.ImportAsset(assetPath);
             AssetDatabase.Refresh(); // Trigger compilation if needed
-            
-            return CreateSuccessResponse(
+
+            var response = CreateSuccessResponse(
                 ("assetPath", assetPath),
                 ("guid", AssetDatabase.AssetPathToGUID(assetPath)),
                 ("message", "Asset created successfully")
             );
+
+            // Scan for legacy Input API usage in C# scripts
+            if (assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(content))
+            {
+                var warnings = ScanForLegacyInputAPI(content);
+                if (warnings.Count > 0)
+                    response["warnings"] = warnings;
+            }
+
+            return response;
         }
         
         /// <summary>
@@ -129,11 +141,21 @@ namespace MCP.Editor.Handlers
             File.WriteAllText(assetPath, content ?? string.Empty);
             AssetDatabase.ImportAsset(assetPath);
             AssetDatabase.Refresh(); // Trigger compilation if needed
-            
-            return CreateSuccessResponse(
+
+            var response = CreateSuccessResponse(
                 ("assetPath", assetPath),
                 ("message", "Asset updated successfully")
             );
+
+            // Scan for legacy Input API usage in C# scripts
+            if (assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(content))
+            {
+                var warnings = ScanForLegacyInputAPI(content);
+                if (warnings.Count > 0)
+                    response["warnings"] = warnings;
+            }
+
+            return response;
         }
         
         /// <summary>
@@ -438,8 +460,82 @@ namespace MCP.Editor.Handlers
         
         #endregion
         
+        #region ForceReimport
+
+        /// <summary>
+        /// Force-reimports an asset at the given path.
+        /// </summary>
+        private object ForceReimportAsset(Dictionary<string, object> payload)
+        {
+            var assetPath = GetString(payload, "assetPath");
+
+            if (string.IsNullOrEmpty(assetPath))
+                throw new InvalidOperationException("assetPath is required");
+
+            if (!File.Exists(assetPath) && !Directory.Exists(assetPath))
+                throw new InvalidOperationException($"Asset not found on disk: {assetPath}");
+
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+            AssetDatabase.Refresh();
+
+            var guid = AssetDatabase.AssetPathToGUID(assetPath);
+
+            return CreateSuccessResponse(
+                ("assetPath", assetPath),
+                ("guid", guid),
+                ("message", "Asset force-reimported successfully")
+            );
+        }
+
+        #endregion
+
         #region Helper Methods
-        
+
+        /// <summary>
+        /// Scans C# content for legacy Input API usage when the New Input System package is installed.
+        /// Returns a list of warning dictionaries with type, line, found pattern, and suggestion.
+        /// </summary>
+        private List<Dictionary<string, object>> ScanForLegacyInputAPI(string content)
+        {
+            var warnings = new List<Dictionary<string, object>>();
+
+            // Check if project uses New Input System
+            var manifestPath = Path.Combine("Packages", "manifest.json");
+            if (!File.Exists(manifestPath)) return warnings;
+            var manifest = File.ReadAllText(manifestPath);
+            if (!manifest.Contains("com.unity.inputsystem")) return warnings;
+
+            var legacyPatterns = new (string pattern, string suggestion)[]
+            {
+                ("Input.GetAxis", "Use Gamepad.current / Keyboard.current (New Input System)"),
+                ("Input.GetButton", "Use InputAction.ReadValue or InputAction.IsPressed"),
+                ("Input.GetKey", "Use Keyboard.current[Key.X].isPressed"),
+                ("Input.GetMouseButton", "Use Mouse.current.leftButton.isPressed"),
+                ("Input.mousePosition", "Use Mouse.current.position.ReadValue()"),
+                ("Input.GetTouch", "Use EnhancedTouch or Touchscreen.current"),
+            };
+
+            var lines = content.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                foreach (var (pattern, suggestion) in legacyPatterns)
+                {
+                    if (lines[i].Contains(pattern))
+                    {
+                        warnings.Add(new Dictionary<string, object>
+                        {
+                            ["type"] = "legacyInputAPI",
+                            ["line"] = i + 1,
+                            ["found"] = pattern,
+                            ["suggestion"] = suggestion
+                        });
+                    }
+                }
+            }
+
+            return warnings;
+        }
+
         /// <summary>
         /// Simple pattern matching with wildcards.
         /// </summary>

@@ -202,6 +202,7 @@ def event_wiring_schema() -> dict[str, Any]:
                         "inspect",
                         "listEvents",
                         "wireMultiple",
+                        "clearEvent",
                     ],
                     "description": "Event wiring operation.",
                 },

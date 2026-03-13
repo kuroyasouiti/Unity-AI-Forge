@@ -84,9 +84,10 @@ def get_tool_definitions() -> list[types.Tool]:
                 "Wire UnityEvents dynamically (Button.onClick, Slider.onValueChanged, etc.).\n\n"
                 "**Operations:**\n"
                 "- wire: Add listener to UnityEvent\n"
-                "- inspect: View event listeners\n"
+                "- inspect: View event listeners (returns mode and argument value for each listener)\n"
                 "- listEvents: List UnityEvent fields on component\n"
-                "- wireMultiple: Wire multiple events at once\n\n"
+                "- wireMultiple: Wire multiple events at once\n"
+                "- clearEvent: Remove all listeners from a UnityEvent\n\n"
                 "**Argument Modes:** Void, Int, Float, String, Bool, Object\n\n"
                 "Supports: Button, Toggle, Slider, InputField, Dropdown, ScrollRect, and custom UnityEvents."
             ),
@@ -178,11 +179,12 @@ def get_tool_definitions() -> list[types.Tool]:
             description=(
                 "Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), "
                 "update (modify file contents), delete, rename, duplicate, inspect (view properties and content), "
-                "updateImporter (modify asset import settings), and batch operations "
-                "(findMultiple/deleteMultiple/inspectMultiple with pattern matching). "
+                "updateImporter (modify asset import settings), forceReimport (re-import assets created by external tools), "
+                "and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). "
                 "Essential for managing scripts, textures, audio, data files, and all Unity assets.\n\n"
                 "**Note:** For .cs files, create/update/delete operations automatically wait for Unity compilation "
-                "to complete and return compilation results — no need to call compilation_await separately."
+                "to complete and return compilation results — no need to call compilation_await separately. "
+                "For .cs files, warns if legacy Input API (Input.GetAxis, etc.) is detected when the project uses the New Input System."
             ),
             inputSchema=asset_manage_schema(),
         ),
@@ -575,7 +577,9 @@ def get_tool_definitions() -> list[types.Tool]:
                 "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
                 "unnecessary raycast targets, inconsistent sibling anchor patterns)\n"
                 "- inputSystemAudit: Detect Input System consistency issues (PlayerInput notificationBehavior vs method signatures, "
-                "action expectedControlType vs binding composite type, missing callback methods)\n\n"
+                "action expectedControlType vs binding composite type, missing callback methods)\n"
+                "- scriptContentAudit: Scan C# scripts for legacy Input API usage (when New Input System is installed), "
+                "obsolete Unity APIs, and empty MonoBehaviours. Use searchPath to limit scope.\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
                 "Returns a flat issue list with type, severity (error/warning), gameObjectPath, message, and optional suggestion. "

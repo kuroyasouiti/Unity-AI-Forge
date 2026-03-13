@@ -34,7 +34,8 @@ namespace MCP.Editor.Handlers.HighLevel
             "eventSystemAudit",
             "textOverflowAudit",
             "styleConsistencyAudit",
-            "inputSystemAudit"
+            "inputSystemAudit",
+            "scriptContentAudit"
         };
 
         public override string Category => "sceneIntegrity";
@@ -69,6 +70,7 @@ namespace MCP.Editor.Handlers.HighLevel
                 "textOverflowAudit" => BuildResponse(operation, analyzer.FindTextOverflowIssues(rootPath)),
                 "styleConsistencyAudit" => BuildResponse(operation, analyzer.FindStyleConsistencyIssues(rootPath)),
                 "inputSystemAudit" => BuildResponse(operation, analyzer.FindInputSystemIssues(rootPath)),
+                "scriptContentAudit" => BuildResponse(operation, analyzer.FindScriptContentIssues(GetString(payload, "searchPath"))),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
             };
         }

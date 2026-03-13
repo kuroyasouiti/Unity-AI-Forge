@@ -2149,5 +2149,131 @@ namespace MCP.Editor.Utilities.GraphAnalysis
             string v = y < 0.33f ? "bottom" : y > 0.67f ? "top" : "middle";
             return $"{v}{char.ToUpper(h[0])}{h.Substring(1)}";
         }
+
+        /// <summary>
+        /// Scan C# scripts for common content issues:
+        /// - Legacy Input API usage when New Input System is installed
+        /// - Obsolete Unity APIs
+        /// - Empty MonoBehaviours (class with no methods)
+        /// </summary>
+        public List<IntegrityIssue> FindScriptContentIssues(string searchPath = null)
+        {
+            var issues = new List<IntegrityIssue>();
+            var path = string.IsNullOrEmpty(searchPath) ? "Assets" : searchPath;
+
+            var guids = AssetDatabase.FindAssets("t:MonoScript", new[] { path });
+            bool isNewInputSystem = IsNewInputSystemProject();
+
+            foreach (var guid in guids)
+            {
+                var scriptPath = AssetDatabase.GUIDToAssetPath(guid);
+                if (!scriptPath.EndsWith(".cs")) continue;
+
+                // Skip editor scripts, test scripts, and packages
+                if (scriptPath.Contains("/Editor/") || scriptPath.Contains("/Tests/")) continue;
+                if (scriptPath.StartsWith("Packages/")) continue;
+
+                try
+                {
+                    var content = System.IO.File.ReadAllText(scriptPath);
+
+                    // 1. Legacy Input API in New Input System project
+                    if (isNewInputSystem)
+                    {
+                        var legacyAPIs = new[]
+                        {
+                            ("Input.GetAxis", "Use Gamepad.current / Keyboard.current"),
+                            ("Input.GetButton", "Use InputAction bindings"),
+                            ("Input.GetKey", "Use Keyboard.current[Key.X].isPressed"),
+                            ("Input.GetMouseButton", "Use Mouse.current.leftButton"),
+                            ("Input.mousePosition", "Use Mouse.current.position.ReadValue()"),
+                            ("Input.GetTouch", "Use EnhancedTouch or Touchscreen.current"),
+                        };
+
+                        foreach (var (api, suggestion) in legacyAPIs)
+                        {
+                            if (content.Contains(api))
+                            {
+                                // Find line number
+                                int lineNum = 1;
+                                int idx = content.IndexOf(api);
+                                for (int i = 0; i < idx; i++)
+                                    if (content[i] == '\n') lineNum++;
+
+                                issues.Add(new IntegrityIssue
+                                {
+                                    Type = "legacyInputAPI",
+                                    Severity = "warning",
+                                    GameObjectPath = scriptPath,
+                                    Message = $"Legacy Input API '{api}' at line {lineNum} — project uses New Input System",
+                                    Suggestion = suggestion
+                                });
+                                break; // One warning per file
+                            }
+                        }
+                    }
+
+                    // 2. Obsolete Unity APIs
+                    var obsoleteAPIs = new[]
+                    {
+                        ("Application.LoadLevel", "Use SceneManager.LoadScene()"),
+                        ("Application.loadedLevel", "Use SceneManager.GetActiveScene()"),
+                        ("GUIText", "Use TextMeshPro or UI.Text"),
+                        ("GUITexture", "Use UI.RawImage"),
+                        ("WWW ", "Use UnityWebRequest"),
+                    };
+
+                    foreach (var (api, suggestion) in obsoleteAPIs)
+                    {
+                        if (content.Contains(api))
+                        {
+                            issues.Add(new IntegrityIssue
+                            {
+                                Type = "obsoleteAPI",
+                                Severity = "warning",
+                                GameObjectPath = scriptPath,
+                                Message = $"Obsolete API '{api.Trim()}' used in {System.IO.Path.GetFileName(scriptPath)}",
+                                Suggestion = suggestion
+                            });
+                        }
+                    }
+
+                    // 3. Empty MonoBehaviour
+                    if (content.Contains(": MonoBehaviour"))
+                    {
+                        bool hasAnyMethod = Regex.IsMatch(content,
+                            @"(public|private|protected|internal)\s+\w[\w<>\[\],\s]*\s+\w+\s*\(");
+                        if (!hasAnyMethod)
+                        {
+                            issues.Add(new IntegrityIssue
+                            {
+                                Type = "emptyMonoBehaviour",
+                                Severity = "info",
+                                GameObjectPath = scriptPath,
+                                Message = $"MonoBehaviour has no methods: {System.IO.Path.GetFileName(scriptPath)}",
+                                Suggestion = "Add lifecycle methods or remove MonoBehaviour base class if not needed"
+                            });
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // Skip unreadable files
+                }
+            }
+
+            return issues;
+        }
+
+        private bool IsNewInputSystemProject()
+        {
+            var manifestPath = System.IO.Path.Combine("Packages", "manifest.json");
+            if (System.IO.File.Exists(manifestPath))
+            {
+                var manifest = System.IO.File.ReadAllText(manifestPath);
+                return manifest.Contains("com.unity.inputsystem");
+            }
+            return false;
+        }
     }
 }

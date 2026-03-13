@@ -20,7 +20,8 @@ namespace MCP.Editor.Handlers
             "wire",
             "inspect",
             "listEvents",
-            "wireMultiple"
+            "wireMultiple",
+            "clearEvent"
         };
 
         public override string Category => "eventWiring";
@@ -39,6 +40,7 @@ namespace MCP.Editor.Handlers
                 "inspect" => HandleInspect(payload),
                 "listEvents" => HandleListEvents(payload),
                 "wireMultiple" => HandleWireMultiple(payload),
+                "clearEvent" => HandleClearEvent(payload),
                 _ => throw new InvalidOperationException($"Unknown operation: {operation}")
             };
         }
@@ -196,6 +198,11 @@ namespace MCP.Editor.Handlers
             var listeners = new List<Dictionary<string, object>>();
             int count = unityEvent.GetPersistentEventCount();
 
+            // Use SerializedObject to read m_Mode and argument values
+            var serializedObject = new SerializedObject(sourceComponent);
+            SerializedProperty eventProperty = FindEventProperty(serializedObject, unityEvent);
+            SerializedProperty callsProperty = eventProperty?.FindPropertyRelative("m_PersistentCalls.m_Calls");
+
             for (int i = 0; i < count; i++)
             {
                 var target = unityEvent.GetPersistentTarget(i);
@@ -215,14 +222,58 @@ namespace MCP.Editor.Handlers
                     targetType = "GameObject";
                 }
 
-                listeners.Add(new Dictionary<string, object>
+                var listenerInfo = new Dictionary<string, object>
                 {
                     ["index"] = i,
                     ["targetPath"] = targetPath,
                     ["targetType"] = targetType,
                     ["method"] = method,
                     ["callState"] = unityEvent.GetPersistentListenerState(i).ToString()
-                });
+                };
+
+                // Read m_Mode and argument from serialized data
+                if (callsProperty != null && i < callsProperty.arraySize)
+                {
+                    var callProp = callsProperty.GetArrayElementAtIndex(i);
+                    var modeProp = callProp.FindPropertyRelative("m_Mode");
+                    if (modeProp != null)
+                    {
+                        int modeValue = modeProp.enumValueIndex;
+                        string modeName = modeValue switch
+                        {
+                            0 => "EventDefined",
+                            1 => "Void",
+                            2 => "Object",
+                            3 => "String",
+                            4 => "Int",
+                            5 => "Float",
+                            6 => "Bool",
+                            _ => $"Unknown({modeValue})"
+                        };
+                        listenerInfo["mode"] = modeName;
+
+                        // Read the argument value based on mode
+                        var argsProp = callProp.FindPropertyRelative("m_Arguments");
+                        if (argsProp != null)
+                        {
+                            object argValue = modeValue switch
+                            {
+                                3 => argsProp.FindPropertyRelative("m_StringArgument")?.stringValue,
+                                4 => argsProp.FindPropertyRelative("m_IntArgument")?.intValue,
+                                5 => argsProp.FindPropertyRelative("m_FloatArgument")?.floatValue,
+                                6 => argsProp.FindPropertyRelative("m_BoolArgument")?.boolValue,
+                                2 => argsProp.FindPropertyRelative("m_ObjectArgument")?.objectReferenceValue?.name,
+                                _ => null
+                            };
+                            if (argValue != null)
+                            {
+                                listenerInfo["argument"] = argValue;
+                            }
+                        }
+                    }
+                }
+
+                listeners.Add(listenerInfo);
             }
 
             return CreateSuccessResponse(
@@ -372,6 +423,74 @@ namespace MCP.Editor.Handlers
                 ("successCount", successCount),
                 ("errorCount", errorCount),
                 ("results", results)
+            );
+        }
+
+        /// <summary>
+        /// Clear all persistent listeners from a UnityEvent.
+        /// </summary>
+        private object HandleClearEvent(Dictionary<string, object> payload)
+        {
+            var sourceData = GetDictFromPayload(payload, "source");
+
+            if (sourceData == null)
+            {
+                throw new ArgumentException("source is required");
+            }
+
+            string sourceGameObjectPath = sourceData.ContainsKey("gameObject") ? sourceData["gameObject"]?.ToString() : "";
+            string sourceComponentType = sourceData.ContainsKey("component") ? sourceData["component"]?.ToString() : "";
+            string eventName = sourceData.ContainsKey("event") ? sourceData["event"]?.ToString() : "";
+
+            var sourceGo = GameObject.Find(sourceGameObjectPath);
+            if (sourceGo == null)
+            {
+                throw new ArgumentException($"Source GameObject not found: {sourceGameObjectPath}");
+            }
+
+            Component sourceComponent = FindComponent(sourceGo, sourceComponentType);
+            if (sourceComponent == null)
+            {
+                throw new ArgumentException($"Source component not found: {sourceComponentType}");
+            }
+
+            var eventField = FindEventField(sourceComponent, eventName);
+            if (eventField == null)
+            {
+                throw new ArgumentException($"Event not found: {eventName}");
+            }
+
+            var unityEvent = eventField.GetValue(sourceComponent) as UnityEventBase;
+            if (unityEvent == null)
+            {
+                throw new ArgumentException($"Event is not a UnityEvent: {eventName}");
+            }
+
+            int previousCount = unityEvent.GetPersistentEventCount();
+
+            // Clear via SerializedObject for reliable persistence
+            var serializedObject = new SerializedObject(sourceComponent);
+            SerializedProperty eventProperty = FindEventProperty(serializedObject, unityEvent);
+            if (eventProperty == null)
+            {
+                throw new InvalidOperationException("Could not find the serialized event property");
+            }
+
+            var callsProperty = eventProperty.FindPropertyRelative("m_PersistentCalls.m_Calls");
+            if (callsProperty == null)
+            {
+                throw new InvalidOperationException("Could not find m_PersistentCalls.m_Calls");
+            }
+
+            callsProperty.ClearArray();
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(sourceComponent);
+
+            return CreateSuccessResponse(
+                ("source", sourceData),
+                ("previousListenerCount", previousCount),
+                ("currentListenerCount", 0),
+                ("message", $"Cleared {previousCount} persistent listener(s)")
             );
         }
 

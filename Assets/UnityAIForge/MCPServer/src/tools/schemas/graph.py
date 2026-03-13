@@ -451,6 +451,7 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "textOverflowAudit",
                         "styleConsistencyAudit",
                         "inputSystemAudit",
+                        "scriptContentAudit",
                     ],
                     "description": (
                         "Integrity check operation. "

@@ -291,11 +291,14 @@ def asset_manage_schema() -> dict[str, Any]:
                         "findMultiple",
                         "deleteMultiple",
                         "inspectMultiple",
+                        "forceReimport",
                     ],
                     "description": (
                         "Asset operation to perform. "
                         "Note: For .cs files, create/update/delete operations automatically wait for "
-                        "Unity compilation to complete — no need to call compilation_await separately."
+                        "Unity compilation to complete — no need to call compilation_await separately. "
+                        "'forceReimport': re-import an asset with ForceUpdate to fix import state "
+                        "(useful when files were created by external tools outside AssetDatabase)."
                     ),
                 },
                 "assetPath": {

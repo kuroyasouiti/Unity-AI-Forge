@@ -209,11 +209,41 @@ namespace MCP.Editor.Handlers
             Undo.RecordObject(component, $"Update {componentType}");
             var result = _propertyApplier.ApplyProperties(component, propertyChanges);
 
-            return CreateSuccessResponse(
+            var response = CreateSuccessResponse(
                 ("gameObjectPath", BuildGameObjectPath(gameObject)),
                 ("componentType", type.FullName),
                 ("updated", result.Updated)
             );
+
+            // Add diagnostic hints when no properties were successfully updated
+            if (result.Updated.Count == 0)
+            {
+                // Include failed info if available
+                if (result.Failed != null && result.Failed.Count > 0)
+                    response["failed"] = result.Failed;
+                if (result.Errors != null && result.Errors.Count > 0)
+                    response["errors"] = result.Errors;
+
+                // List available SerializeField names to help the AI self-correct
+                var availableFields = new List<string>();
+                var so = new SerializedObject(component);
+                var prop = so.GetIterator();
+                if (prop.NextVisible(true))
+                {
+                    do
+                    {
+                        if (prop.name != "m_Script")
+                            availableFields.Add(prop.name);
+                    } while (prop.NextVisible(false));
+                }
+
+                if (availableFields.Count > 0)
+                    response["availableProperties"] = availableFields;
+
+                response["hint"] = "No properties were updated. The field names may not match, or compilation may be pending. Check availableProperties for valid field names.";
+            }
+
+            return response;
         }
         
         /// <summary>

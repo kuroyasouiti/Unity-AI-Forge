@@ -5,7 +5,7 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 ## 🔴 Critical Rules
 
 1. **.metaファイルは絶対に編集しない**（Unity自動管理）
-2. **全Unity操作にMCPツール（unity_*）を使用**
+2. **全Unity操作にMCPツール（unity_*）を使用**（特に .cs ファイルの新規作成・編集は必ず `asset_crud` を使用。外部ファイルツールでの直接書き込みは Unity AssetDatabase に登録されずコンパイルもトリガーされない。`asset_crud(forceReimport)` で復旧可能）
 3. **変更前にinspect操作で対象を確認**
 4. **ツール優先順位: High-Level → Mid-Level → Low-Level**
 5. **UI優先設計**: UIから実装し、ロジックは後
@@ -38,6 +38,7 @@ AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/Hi
 
     - 変更後は `validate_integrity(inputSystemAudit)` で整合性を検証
 18. **車両・キャラ配置前のコース方向確認**: レーシング等でコース上にオブジェクトを配置する場合、チェックポイント/ウェイポイントの最初の2点をinspectし、CP_0→CP_1の方向に車両の初期回転を合わせる
+19. **onClick は Void メソッドを推奨**: `Button.onClick` に String/Int 引数付きメソッドを接続すると引数が保存されない場合がある。代わりに `LaunchPatrol()` のような引数不要のラッパーメソッドを作成し、内部で `LaunchMission("Mission_Patrol")` を呼ぶパターンを使う。`event_wiring(clearEvent)` で古いリスナーを一括削除してから再配線すること
 
 ---
 
@@ -171,6 +172,9 @@ unity_script_syntax(operation='analyzeScript', scriptPath='Assets/Scripts/Player
 unity_script_syntax(operation='findReferences', symbolName='PlayerController', symbolType='class')
 unity_script_syntax(operation='findUnusedCode', searchPath='Assets/Scripts')
 unity_script_syntax(operation='analyzeMetrics', searchPath='Assets/Scripts')
+
+# C#スクリプト内容監査（レガシーInput API, 廃止API, 空MonoBehaviour）
+unity_validate_integrity(operation='scriptContentAudit', searchPath='Assets/Scripts')
 ```
 
 ---
@@ -331,6 +335,8 @@ unity_event_wiring(operation='wire',
     target={'gameObject':'Manager','component':'GameManager','method':'StartGame'})
 unity_event_wiring(operation='wireMultiple', wirings=[...])
 unity_event_wiring(operation='listEvents', gameObjectPath='Button')
+unity_event_wiring(operation='clearEvent',
+    source={'gameObject':'Button','component':'Button','event':'onClick'})  # 全リスナー削除
 
 # プレイモード (operation: play|pause|unpause|stop|step|getState|captureState|waitForScene)
 unity_playmode_control(operation='play')
@@ -397,6 +403,7 @@ unity_component_crud(operation='crossSceneUpdate', updates=[
 # Asset
 unity_asset_crud(operation='create', assetPath='Assets/Scripts/Player.cs', content='...')
 unity_asset_crud(operation='updateImporter', assetPath='Assets/Textures/s.png', propertyChanges={'textureType':'Sprite'})
+unity_asset_crud(operation='forceReimport', assetPath='Assets/Scripts/Player.cs')  # 外部ツールで作成したファイルをUnityに認識させる
 
 # ScriptableObject
 unity_scriptableObject_crud(operation='create', typeName='MyGame.Config', assetPath='Assets/Data/Config.asset', properties={'version':1})
