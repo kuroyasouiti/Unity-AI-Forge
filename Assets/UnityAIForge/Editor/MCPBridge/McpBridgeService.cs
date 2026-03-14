@@ -720,17 +720,39 @@ namespace MCP.Editor
                 {
                     if (_socket.State == WebSocketState.Open)
                     {
-                        _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "shutdown", CancellationToken.None)
-                            .GetAwaiter().GetResult();
+                        // Avoid blocking the main thread with GetAwaiter().GetResult().
+                        // Use Task.Run to perform the close on a thread-pool thread with
+                        // a short timeout so we don't hang if the remote end is unresponsive.
+                        var socketToClose = _socket;
+                        System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                                await socketToClose.CloseAsync(
+                                    WebSocketCloseStatus.NormalClosure, "shutdown", cts.Token);
+                            }
+                            catch (Exception)
+                            {
+                                // Best-effort close; socket will be disposed regardless
+                            }
+                            finally
+                            {
+                                try { socketToClose.Dispose(); } catch { /* ignored */ }
+                            }
+                        });
+                    }
+                    else
+                    {
+                        _socket.Dispose();
                     }
                 }
                 catch (Exception)
                 {
-                    // ignored
+                    try { _socket?.Dispose(); } catch { /* ignored */ }
                 }
                 finally
                 {
-                    _socket.Dispose();
                     _socket = null;
                 }
             }

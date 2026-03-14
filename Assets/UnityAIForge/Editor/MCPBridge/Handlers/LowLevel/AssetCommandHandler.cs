@@ -103,9 +103,17 @@ namespace MCP.Editor.Handlers
             AssetDatabase.ImportAsset(assetPath);
             AssetDatabase.Refresh(); // Trigger compilation if needed
 
+            // Verify asset was imported successfully
+            var guid = AssetDatabase.AssetPathToGUID(assetPath);
+            if (string.IsNullOrEmpty(guid))
+            {
+                throw new InvalidOperationException(
+                    $"Asset was written to disk but Unity failed to import it: {assetPath}");
+            }
+
             var response = CreateSuccessResponse(
                 ("assetPath", assetPath),
-                ("guid", AssetDatabase.AssetPathToGUID(assetPath)),
+                ("guid", guid),
                 ("message", "Asset created successfully")
             );
 
@@ -141,6 +149,13 @@ namespace MCP.Editor.Handlers
             File.WriteAllText(assetPath, content ?? string.Empty);
             AssetDatabase.ImportAsset(assetPath);
             AssetDatabase.Refresh(); // Trigger compilation if needed
+
+            // Verify asset is still recognized after update
+            var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+            if (asset == null && !assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                Debug.LogWarning($"[MCP] Asset updated but could not be loaded: {assetPath}");
+            }
 
             var response = CreateSuccessResponse(
                 ("assetPath", assetPath),

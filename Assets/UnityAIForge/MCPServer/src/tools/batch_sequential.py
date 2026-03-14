@@ -201,11 +201,11 @@ async def execute_batch_sequential(
     Returns:
         Dict with execution results and status
     """
+    # Initialize or resume state (lock held only for state access)
     async with _batch_manager.lock:
         state = _batch_manager.state
         current_time = datetime.utcnow().isoformat()
 
-        # Initialize or resume
         if not resume or not state.operations:
             # Start fresh
             state.operations = operations
@@ -225,34 +225,42 @@ async def execute_batch_sequential(
         state.last_updated = current_time
         _batch_manager.save()
 
-        results: list[dict[str, Any]] = []
-        errors: list[dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
 
-        # Execute operations sequentially
-        while state.current_index < len(state.operations):
+    # Execute operations sequentially (lock released during bridge communication)
+    while True:
+        # Read current operation under lock
+        async with _batch_manager.lock:
+            state = _batch_manager.state
+            if state.current_index >= len(state.operations):
+                break
             idx = state.current_index
             operation = state.operations[idx]
+            total_ops = len(state.operations)
 
-            original_tool_name: str = operation.get("tool", "")
-            arguments = operation.get("arguments", {})
+        original_tool_name: str = operation.get("tool", "")
+        arguments = operation.get("arguments", {})
 
-            # Resolve MCP tool name to internal bridge tool name
-            try:
-                tool_name = resolve_tool_name(original_tool_name)
-            except ValueError as exc:
-                error_msg = str(exc)
-                errors.append(
-                    {
-                        "index": idx,
-                        "tool": original_tool_name,
-                        "error": error_msg,
-                        "exception": True,
-                    }
-                )
+        # Resolve MCP tool name to internal bridge tool name
+        try:
+            tool_name = resolve_tool_name(original_tool_name)
+        except ValueError as exc:
+            error_msg = str(exc)
+            errors.append(
+                {
+                    "index": idx,
+                    "tool": original_tool_name,
+                    "error": error_msg,
+                    "exception": True,
+                }
+            )
+            logger.error("Tool name resolution failed for operation %d: %s", idx + 1, error_msg)
+
+            async with _batch_manager.lock:
+                state = _batch_manager.state
                 state.last_error = error_msg
                 state.last_error_index = idx
-                logger.error("Tool name resolution failed for operation %d: %s", idx + 1, error_msg)
-
                 if stop_on_error:
                     _batch_manager.save()
                     return {
@@ -267,95 +275,102 @@ async def execute_batch_sequential(
                 # Continue to next operation if not stopping on error
                 state.current_index += 1
                 _batch_manager.save()
-                continue
+            continue
 
-            logger.info(
-                "Executing operation %d/%d: %s (resolved: %s)",
-                idx + 1,
-                len(state.operations),
-                original_tool_name,
-                tool_name,
-            )
+        logger.info(
+            "Executing operation %d/%d: %s (resolved: %s)",
+            idx + 1,
+            total_ops,
+            original_tool_name,
+            tool_name,
+        )
 
-            try:
-                # Send operation to Unity bridge
-                response = await bridge_client.send_command(tool_name, arguments)
+        # Send operation to Unity bridge (no lock held)
+        response: dict[str, Any] | None = None
+        try:
+            response = await bridge_client.send_command(tool_name, arguments)
 
-                if response.get("success"):
-                    results.append(
-                        {
-                            "index": idx,
-                            "tool": original_tool_name,
-                            "success": True,
-                            "result": response.get("result"),
-                        }
-                    )
-                    logger.info("Operation %d completed successfully", idx + 1)
-                else:
-                    # Operation failed
-                    error_msg = response.get("error", "Unknown error")
-                    errors.append(
-                        {
-                            "index": idx,
-                            "tool": original_tool_name,
-                            "error": error_msg,
-                        }
-                    )
-                    state.last_error = error_msg
-                    state.last_error_index = idx
-                    logger.error("Operation %d failed: %s", idx + 1, error_msg)
-
-                    if stop_on_error:
-                        _batch_manager.save()
-                        return {
-                            "success": False,
-                            "stopped_at_index": idx,
-                            "completed": results,
-                            "errors": errors,
-                            "remaining_operations": len(state.operations) - state.current_index,
-                            "message": f"Execution stopped at operation {idx + 1} due to error. Use resume=true to continue.",
-                            "last_error": error_msg,
-                        }
-
-            except Exception as exc:
-                error_msg = str(exc)
+            if response.get("success"):
+                results.append(
+                    {
+                        "index": idx,
+                        "tool": original_tool_name,
+                        "success": True,
+                        "result": response.get("result"),
+                    }
+                )
+                logger.info("Operation %d completed successfully", idx + 1)
+            else:
+                # Operation failed
+                error_msg = response.get("error", "Unknown error")
                 errors.append(
                     {
                         "index": idx,
                         "tool": original_tool_name,
                         "error": error_msg,
-                        "exception": True,
                     }
                 )
-                state.last_error = error_msg
-                state.last_error_index = idx
-                logger.exception("Exception in operation %d", idx + 1)
+                logger.error("Operation %d failed: %s", idx + 1, error_msg)
 
                 if stop_on_error:
-                    _batch_manager.save()
+                    async with _batch_manager.lock:
+                        state = _batch_manager.state
+                        state.last_error = error_msg
+                        state.last_error_index = idx
+                        _batch_manager.save()
                     return {
                         "success": False,
                         "stopped_at_index": idx,
                         "completed": results,
                         "errors": errors,
-                        "remaining_operations": len(state.operations) - state.current_index,
-                        "message": f"Execution stopped at operation {idx + 1} due to exception. Use resume=true to continue.",
+                        "remaining_operations": total_ops - idx,
+                        "message": f"Execution stopped at operation {idx + 1} due to error. Use resume=true to continue.",
                         "last_error": error_msg,
                     }
 
-            # Auto-inject compilation wait if the operation requires it
-            needs_compile = False
-            if isinstance(response, dict) and response.get("requiresCompilationWait"):
-                needs_compile = True
-            # Also detect C# script operations via asset_crud
-            if original_tool_name == "unity_asset_crud":
-                op = arguments.get("operation", "")
-                ap = arguments.get("assetPath", "")
-                if op in ("create", "update", "delete") and ap.lower().endswith(".cs"):
-                    needs_compile = True
+        except Exception as exc:
+            error_msg = str(exc)
+            errors.append(
+                {
+                    "index": idx,
+                    "tool": original_tool_name,
+                    "error": error_msg,
+                    "exception": True,
+                }
+            )
+            logger.exception("Exception in operation %d", idx + 1)
 
-            if needs_compile:
-                # Check if next operation also generates code (batch them)
+            if stop_on_error:
+                async with _batch_manager.lock:
+                    state = _batch_manager.state
+                    state.last_error = error_msg
+                    state.last_error_index = idx
+                    _batch_manager.save()
+                return {
+                    "success": False,
+                    "stopped_at_index": idx,
+                    "completed": results,
+                    "errors": errors,
+                    "remaining_operations": total_ops - idx,
+                    "message": f"Execution stopped at operation {idx + 1} due to exception. Use resume=true to continue.",
+                    "last_error": error_msg,
+                }
+
+        # Auto-inject compilation wait if the operation requires it
+        needs_compile = False
+        if isinstance(response, dict) and response.get("requiresCompilationWait"):
+            needs_compile = True
+        # Also detect C# script operations via asset_crud
+        if original_tool_name == "unity_asset_crud":
+            op = arguments.get("operation", "")
+            ap = arguments.get("assetPath", "")
+            if op in ("create", "update", "delete") and ap.lower().endswith(".cs"):
+                needs_compile = True
+
+        if needs_compile:
+            # Check if next operation also generates code (batch them)
+            async with _batch_manager.lock:
+                state = _batch_manager.state
                 next_idx = idx + 1
                 next_also_generates = False
                 if next_idx < len(state.operations):
@@ -376,44 +391,49 @@ async def execute_batch_sequential(
                         if next_args.get("operation", "") in ("create", "update", "delete"):
                             next_also_generates = True
 
-                if not next_also_generates:
-                    logger.info(
-                        "Auto-injecting compilation wait after operation %d/%d (%s)",
+            if not next_also_generates:
+                logger.info(
+                    "Auto-injecting compilation wait after operation %d/%d (%s)",
+                    idx + 1,
+                    total_ops,
+                    original_tool_name,
+                )
+                try:
+                    await bridge_client.await_compilation(timeout_seconds=60)
+                    logger.info("Compilation completed after operation %d", idx + 1)
+                except Exception as compile_exc:
+                    logger.warning(
+                        "Compilation wait failed after operation %d: %s",
                         idx + 1,
-                        len(state.operations),
-                        original_tool_name,
+                        compile_exc,
                     )
-                    try:
-                        await bridge_client.await_compilation(timeout_seconds=60)
-                        logger.info("Compilation completed after operation %d", idx + 1)
-                    except Exception as compile_exc:
-                        logger.warning(
-                            "Compilation wait failed after operation %d: %s",
-                            idx + 1,
-                            compile_exc,
-                        )
 
-            # Move to next operation
+        # Move to next operation (under lock)
+        async with _batch_manager.lock:
+            state = _batch_manager.state
             state.current_index += 1
             _batch_manager.save()
 
-        # All operations completed
+    # All operations completed
+    async with _batch_manager.lock:
+        state = _batch_manager.state
         total = len(state.operations)
         _batch_manager.clear()
-        return {
-            "success": len(errors) == 0,
-            "stopped_at_index": None,
-            "completed": results,
-            "errors": errors,
-            "remaining_operations": 0,
-            "total_operations": total,
-            "last_error": None,
-            "message": (
-                f"All {total} operations completed successfully."
-                if len(errors) == 0
-                else f"Completed with {len(errors)} error(s)."
-            ),
-        }
+
+    return {
+        "success": len(errors) == 0,
+        "stopped_at_index": None,
+        "completed": results,
+        "errors": errors,
+        "remaining_operations": 0,
+        "total_operations": total,
+        "last_error": None,
+        "message": (
+            f"All {total} operations completed successfully."
+            if len(errors) == 0
+            else f"Completed with {len(errors)} error(s)."
+        ),
+    }
 
 
 # Tool definition

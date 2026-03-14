@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace MCP.Editor
@@ -9,10 +10,18 @@ namespace MCP.Editor
     /// Provides utilities for converting between Unity constants and their numeric values.
     /// Supports enum types, Unity built-in colors, and layer names.
     /// </summary>
+    [InitializeOnLoad]
     internal static class McpConstantConverter
     {
-        // Cache for resolved types to improve performance
+        // Cache for resolved types to improve performance.
+        // Cleared on assembly reload via [InitializeOnLoad] static constructor.
         private static readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+
+        static McpConstantConverter()
+        {
+            // Clear stale type references when assemblies are reloaded
+            _typeCache.Clear();
+        }
         
         /// <summary>
         /// Resolves a type by name, searching through all loaded assemblies.

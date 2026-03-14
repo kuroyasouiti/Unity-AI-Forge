@@ -42,6 +42,35 @@ class TestClassifyResult:
         text = '{"success": true, "errorCount": 0, "compilationErrors": []}'
         assert _classify_result(text) == "success"
 
+    def test_invalid_json_returns_none(self) -> None:
+        assert _classify_result("not json at all") is None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert _classify_result("") is None
+
+    def test_error_count_zero_with_success_true(self) -> None:
+        text = '{"success": true, "errorCount": 0, "message": "Done"}'
+        assert _classify_result(text) == "success"
+
+    def test_error_count_as_string_not_treated_as_warning(self) -> None:
+        """errorCount must be int to trigger warning — not a string."""
+        text = '{"success": true, "errorCount": "2"}'
+        assert _classify_result(text) == "success"
+
+    def test_was_compiling_true_returns_success(self) -> None:
+        text = '{"wasCompiling": true, "success": true, "errorCount": 0}'
+        assert _classify_result(text) == "success"
+
+    def test_no_relevant_fields_returns_none(self) -> None:
+        text = '{"someOther": "data"}'
+        assert _classify_result(text) is None
+
+    def test_nested_error_count_not_confused(self) -> None:
+        """errorCount inside a nested object should not trigger warning."""
+        text = '{"success": true, "compilation": {"errorCount": 5}}'
+        # Top-level errorCount is absent, so no warning
+        assert _classify_result(text) == "success"
+
 
 class TestNotifyToolResult:
     """Tests for notify_tool_result function."""

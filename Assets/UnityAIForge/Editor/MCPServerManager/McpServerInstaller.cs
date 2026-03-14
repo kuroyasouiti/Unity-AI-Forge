@@ -53,13 +53,14 @@ namespace MCP.Editor.ServerManager
         
         /// <summary>
         /// Python環境をセットアップ（uvを使用）
+        /// タイムアウト付き（デフォルト120秒）でエディタの長時間ブロックを防止。
         /// </summary>
-        public static void SetupPythonEnvironment(string installPath)
+        public static void SetupPythonEnvironment(string installPath, int timeoutMs = 120_000)
         {
             try
             {
                 Debug.Log("[McpServerInstaller] Setting up Python environment with uv...");
-                
+
                 // uvが利用可能かチェック
                 if (!IsUvAvailable())
                 {
@@ -68,7 +69,7 @@ namespace MCP.Editor.ServerManager
                     Debug.LogWarning("[McpServerInstaller] You can skip this step if you'll set up manually.");
                     return;
                 }
-                
+
                 // uv syncを実行
                 var process = new Process
                 {
@@ -83,20 +84,27 @@ namespace MCP.Editor.ServerManager
                         CreateNoWindow = true
                     }
                 };
-                
+
                 Debug.Log("[McpServerInstaller] Running 'uv sync'...");
                 process.Start();
-                
+
                 var output = process.StandardOutput.ReadToEnd();
                 var error = process.StandardError.ReadToEnd();
-                
-                process.WaitForExit();
-                
+
+                bool exited = process.WaitForExit(timeoutMs);
+                if (!exited)
+                {
+                    try { process.Kill(); } catch { /* best effort */ }
+                    throw new TimeoutException(
+                        $"UV sync timed out after {timeoutMs / 1000}s. " +
+                        "The process has been terminated. Try running 'uv sync' manually.");
+                }
+
                 if (!string.IsNullOrEmpty(output))
                 {
                     Debug.Log($"[McpServerInstaller] UV Output:\n{output}");
                 }
-                
+
                 if (process.ExitCode != 0)
                 {
                     Debug.LogError($"[McpServerInstaller] UV failed with exit code {process.ExitCode}");
@@ -106,7 +114,7 @@ namespace MCP.Editor.ServerManager
                     }
                     throw new Exception($"UV sync failed with exit code {process.ExitCode}");
                 }
-                
+
                 Debug.Log("[McpServerInstaller] Python environment setup completed successfully!");
             }
             catch (Exception ex)
@@ -114,6 +122,103 @@ namespace MCP.Editor.ServerManager
                 Debug.LogError($"[McpServerInstaller] Failed to setup Python environment: {ex.Message}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Python環境を非同期でセットアップ（エディタをブロックしない）。
+        /// 完了時にコールバックが呼ばれる（メインスレッドで実行）。
+        /// </summary>
+        public static void SetupPythonEnvironmentAsync(
+            string installPath,
+            Action<bool, string> onComplete = null,
+            int timeoutMs = 120_000)
+        {
+            Debug.Log("[McpServerInstaller] Setting up Python environment with uv (async)...");
+
+            if (!IsUvAvailable())
+            {
+                Debug.LogWarning("[McpServerInstaller] 'uv' is not available. Please install it first.");
+                onComplete?.Invoke(false, "'uv' is not available");
+                return;
+            }
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "uv",
+                    Arguments = "sync",
+                    WorkingDirectory = installPath,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                },
+                EnableRaisingEvents = true
+            };
+
+            var startTime = DateTime.UtcNow;
+
+            process.Exited += (sender, args) =>
+            {
+                var output = "";
+                var error = "";
+                try
+                {
+                    output = process.StandardOutput.ReadToEnd();
+                    error = process.StandardError.ReadToEnd();
+                }
+                catch { /* ignored - process may already be disposed */ }
+
+                var exitCode = -1;
+                try { exitCode = process.ExitCode; } catch { /* ignored */ }
+
+                // Schedule callback on Unity main thread
+                UnityEditor.EditorApplication.delayCall += () =>
+                {
+                    if (!string.IsNullOrEmpty(output))
+                        Debug.Log($"[McpServerInstaller] UV Output:\n{output}");
+
+                    if (exitCode != 0)
+                    {
+                        var msg = $"UV sync failed with exit code {exitCode}";
+                        Debug.LogError($"[McpServerInstaller] {msg}");
+                        if (!string.IsNullOrEmpty(error))
+                            Debug.LogError($"[McpServerInstaller] UV Error:\n{error}");
+                        onComplete?.Invoke(false, msg);
+                    }
+                    else
+                    {
+                        Debug.Log("[McpServerInstaller] Python environment setup completed successfully!");
+                        onComplete?.Invoke(true, null);
+                    }
+                };
+
+                try { process.Dispose(); } catch { /* ignored */ }
+            };
+
+            Debug.Log("[McpServerInstaller] Running 'uv sync' (async)...");
+            process.Start();
+
+            // Set up a timeout watchdog using EditorApplication.update
+            void TimeoutCheck()
+            {
+                if ((DateTime.UtcNow - startTime).TotalMilliseconds > timeoutMs)
+                {
+                    UnityEditor.EditorApplication.update -= TimeoutCheck;
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.Kill();
+                            Debug.LogError($"[McpServerInstaller] UV sync timed out after {timeoutMs / 1000}s");
+                            onComplete?.Invoke(false, "UV sync timed out");
+                        }
+                    }
+                    catch { /* process may have already exited */ }
+                }
+            }
+            UnityEditor.EditorApplication.update += TimeoutCheck;
         }
         
         /// <summary>

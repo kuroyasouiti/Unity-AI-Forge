@@ -239,9 +239,14 @@ def register_tools(server: Server) -> None:
                         try:
                             result_data = json.loads(first.text)
                             result_data["compilation"] = compilation_result
-                            first.text = as_pretty_json(result_data)
+                            merged_text = as_pretty_json(result_data)
                         except (json.JSONDecodeError, AttributeError):
-                            first.text += f"\n\nCompilation: {as_pretty_json(compilation_result)}"
+                            merged_text = (
+                                first.text
+                                + f"\n\nCompilation: {as_pretty_json(compilation_result)}"
+                            )
+                        # Create a new TextContent instead of mutating the existing one
+                        asset_result[0] = types.TextContent(type="text", text=merged_text)
 
                 except TimeoutError as exc:
                     logger.warning("Compilation wait timed out: %s", exc)

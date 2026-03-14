@@ -635,7 +635,35 @@ namespace MCP.Editor.Base
         #endregion
 
         #region Resource Resolution Helper Methods
-        
+
+        /// <summary>
+        /// Validates that a file/asset path is safe: no traversal (".."), must start with
+        /// "Assets/" or "Packages/", no invalid path characters.
+        /// Throws InvalidOperationException if the path is invalid.
+        /// Use this for all user-supplied file paths before performing I/O.
+        /// </summary>
+        protected static void EnsureSafeAssetPath(string path, string paramName = "path")
+        {
+            if (string.IsNullOrEmpty(path))
+                throw new InvalidOperationException($"'{paramName}' is required.");
+
+            if (path.Contains(".."))
+                throw new InvalidOperationException($"Path traversal ('..') is not allowed in '{paramName}': {path}");
+
+            if (!path.StartsWith("Assets/") && !path.StartsWith("Assets\\") &&
+                !path.StartsWith("Packages/") && !path.StartsWith("Packages\\"))
+                throw new InvalidOperationException(
+                    $"'{paramName}' must start with 'Assets/' or 'Packages/': {path}");
+
+            var invalidChars = System.IO.Path.GetInvalidPathChars();
+            foreach (var c in path)
+            {
+                if (Array.IndexOf(invalidChars, c) >= 0)
+                    throw new InvalidOperationException(
+                        $"'{paramName}' contains invalid character '{c}': {path}");
+            }
+        }
+
         /// <summary>
         /// GameObjectを階層パスから解決します。
         /// </summary>

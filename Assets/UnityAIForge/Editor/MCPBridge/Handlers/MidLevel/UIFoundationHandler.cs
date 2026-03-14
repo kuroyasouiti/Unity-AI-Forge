@@ -92,7 +92,10 @@ namespace MCP.Editor.Handlers
             Transform parentTransform = null;
             if (!string.IsNullOrEmpty(parentPath))
             {
-                parentTransform = ResolveGameObject(parentPath).transform;
+                var parentGo = ResolveGameObject(parentPath);
+                if (parentGo == null)
+                    throw new InvalidOperationException($"createCanvas: parent not found at '{parentPath}'");
+                parentTransform = parentGo.transform;
             }
 
             var canvasGo = new GameObject(name);
@@ -120,6 +123,8 @@ namespace MCP.Editor.Handlers
                     if (!string.IsNullOrEmpty(cameraPath))
                     {
                         var cameraGo = ResolveGameObject(cameraPath);
+                        if (cameraGo == null)
+                            throw new InvalidOperationException($"createCanvas: camera not found at '{cameraPath}'");
                         var cam = cameraGo.GetComponent<Camera>();
                         if (cam == null)
                             throw new InvalidOperationException($"GameObject at '{cameraPath}' does not have a Camera component.");
@@ -203,6 +208,8 @@ namespace MCP.Editor.Handlers
             }
 
             var parent = ResolveGameObject(parentPath);
+            if (parent == null)
+                throw new InvalidOperationException($"createPanel: parent not found at '{parentPath}'");
             var panelGo = new GameObject(name, typeof(RectTransform));
             Undo.RegisterCreatedObjectUndo(panelGo, "Create Panel");
             panelGo.transform.SetParent(parent.transform, false);
@@ -264,6 +271,8 @@ namespace MCP.Editor.Handlers
             }
 
             var parent = ResolveGameObject(parentPath);
+            if (parent == null)
+                throw new InvalidOperationException($"createButton: parent not found at '{parentPath}'");
             var buttonGo = new GameObject(name, typeof(RectTransform));
             Undo.RegisterCreatedObjectUndo(buttonGo, "Create Button");
             buttonGo.transform.SetParent(parent.transform, false);

@@ -20,6 +20,9 @@ namespace MCP.Editor.Base
         /// </summary>
         static CommandHandlerInitializer()
         {
+            // Clear type caches on assembly reload to avoid stale references
+            TypeResolver.ClearCache();
+
             // コンパイル完了後に初期化（delayCallはUnity再コンパイル時用）
             EditorApplication.delayCall += () =>
             {

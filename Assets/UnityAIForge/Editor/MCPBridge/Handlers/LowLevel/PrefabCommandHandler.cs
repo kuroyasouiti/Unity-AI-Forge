@@ -367,6 +367,7 @@ namespace MCP.Editor.Handlers
             var prefabPath = GetString(payload, "prefabPath");
             if (string.IsNullOrEmpty(prefabPath))
                 throw new InvalidOperationException("prefabPath is required for editAsset.");
+            EnsureSafeAssetPath(prefabPath, "prefabPath");
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null)
@@ -376,6 +377,10 @@ namespace MCP.Editor.Handlers
 
             // Use PrefabUtility.LoadPrefabContents / SaveAsPrefabAsset for direct editing
             var contentsRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+            if (contentsRoot == null)
+                throw new InvalidOperationException($"Failed to load prefab contents: {prefabPath}");
+
+            bool saveSucceeded = false;
             try
             {
                 // Set tag
@@ -448,7 +453,11 @@ namespace MCP.Editor.Handlers
                     }
                 }
 
-                PrefabUtility.SaveAsPrefabAsset(contentsRoot, prefabPath);
+                bool success;
+                PrefabUtility.SaveAsPrefabAsset(contentsRoot, prefabPath, out success);
+                saveSucceeded = success;
+                if (!success)
+                    throw new InvalidOperationException($"Failed to save prefab: {prefabPath}");
             }
             finally
             {

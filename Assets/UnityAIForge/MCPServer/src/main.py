@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import collections
 import contextlib
 import os
 import sys
+import time
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
@@ -33,6 +35,30 @@ from services.editor_log_watcher import editor_log_watcher
 from version import SERVER_NAME, SERVER_VERSION
 
 mcp_server = create_mcp_server()
+
+
+class _RateLimiter:
+    """Simple sliding-window rate limiter for HTTP endpoints."""
+
+    def __init__(self, max_requests: int = 60, window_seconds: float = 10.0) -> None:
+        self._max_requests = max_requests
+        self._window = window_seconds
+        self._timestamps: collections.deque[float] = collections.deque()
+
+    def is_allowed(self) -> bool:
+        now = time.monotonic()
+        cutoff = now - self._window
+        # Remove expired timestamps
+        while self._timestamps and self._timestamps[0] < cutoff:
+            self._timestamps.popleft()
+        if len(self._timestamps) >= self._max_requests:
+            return False
+        self._timestamps.append(now)
+        return True
+
+
+# Rate limiter for bridge command endpoint: 60 requests per 10 seconds
+_bridge_command_limiter = _RateLimiter(max_requests=60, window_seconds=10.0)
 
 
 def _create_init_options() -> Any:
@@ -90,6 +116,11 @@ async def bridge_status_endpoint(_: Request) -> JSONResponse:
 
 
 async def bridge_command_endpoint(request: Request) -> JSONResponse:
+    if not _bridge_command_limiter.is_allowed():
+        return JSONResponse(
+            {"error": "Rate limit exceeded. Try again shortly."}, status_code=429
+        )
+
     if not bridge_manager.is_connected():
         return JSONResponse({"error": "Unity bridge is not connected"}, status_code=503)
 

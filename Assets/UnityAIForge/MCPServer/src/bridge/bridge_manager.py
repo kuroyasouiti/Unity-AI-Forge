@@ -43,6 +43,7 @@ class CompilationWaiter:
     future: asyncio.Future[Any]
     timeout_handle: asyncio.TimerHandle
     timeout_seconds: int
+    created_at: float  # time.time() when waiter was created (absolute deadline anchor)
 
 
 class BridgeManager:
@@ -179,6 +180,7 @@ class BridgeManager:
             future=future,
             timeout_handle=timeout_handle,
             timeout_seconds=timeout_seconds,
+            created_at=time.time(),
         )
         self._compilation_waiters.append(waiter)
 
@@ -346,7 +348,12 @@ class BridgeManager:
         logger.info("Compilation started at timestamp %d", timestamp)
 
     def _handle_compilation_progress(self, message: dict[str, Any]) -> None:
-        """Handle compilation:progress message from Unity bridge."""
+        """Handle compilation:progress message from Unity bridge.
+
+        Extends waiter timeouts while compilation is actively progressing,
+        but enforces an absolute deadline of 2x the original timeout_seconds
+        to prevent infinite waits if progress messages keep arriving.
+        """
         elapsed = message.get("elapsedSeconds", 0)
         status = message.get("status", "compiling")
         logger.debug(
@@ -355,13 +362,28 @@ class BridgeManager:
             elapsed,
         )
 
-        # Reset timeout for all pending compilation waiters
-        # This prevents timeout while compilation is actively progressing
+        # Extend timeout for active compilation waiters, but cap at absolute deadline
         loop = asyncio.get_running_loop()
+        now = time.time()
         for waiter in self._compilation_waiters:
             if not waiter.future.done():
-                # Cancel old timeout and create a new one
+                # Absolute deadline: 2x the original timeout to allow extension
+                # but prevent infinite waits
+                absolute_deadline = waiter.created_at + waiter.timeout_seconds * 2
+                remaining = absolute_deadline - now
+                if remaining <= 0:
+                    # Already past absolute deadline — let existing timeout fire
+                    logger.warning(
+                        "Compilation waiter past absolute deadline (%.0fs elapsed), "
+                        "not extending timeout",
+                        now - waiter.created_at,
+                    )
+                    continue
+
+                # Cancel old timeout and set a new one capped at remaining time
                 waiter.timeout_handle.cancel()
+                # Use the lesser of original timeout and remaining absolute time
+                new_delay = min(waiter.timeout_seconds, remaining)
 
                 def make_timeout_callback(w: CompilationWaiter) -> Callable[[], None]:
                     def on_timeout() -> None:
@@ -369,19 +391,24 @@ class BridgeManager:
                             self._compilation_waiters[:] = [
                                 x for x in self._compilation_waiters if x.future is not w.future
                             ]
+                            total_elapsed = time.time() - w.created_at
                             w.future.set_exception(
                                 TimeoutError(
-                                    f"Compilation did not complete within {w.timeout_seconds} seconds."
+                                    f"Compilation did not complete within {total_elapsed:.0f}s "
+                                    f"(timeout={w.timeout_seconds}s, max={w.timeout_seconds * 2}s). "
+                                    f"Check Unity Editor console for compilation status."
                                 )
                             )
 
                     return on_timeout
 
                 waiter.timeout_handle = loop.call_later(
-                    waiter.timeout_seconds, make_timeout_callback(waiter)
+                    new_delay, make_timeout_callback(waiter)
                 )
                 logger.debug(
-                    "Reset compilation timeout for waiter (timeout=%ds)", waiter.timeout_seconds
+                    "Extended compilation timeout for waiter (delay=%.1fs, remaining_absolute=%.1fs)",
+                    new_delay,
+                    remaining,
                 )
 
     def _handle_compilation_complete(self, message: dict[str, Any]) -> None:
@@ -522,14 +549,21 @@ class BridgeManager:
             self._pending_commands.pop(command_id, None)
 
     async def _wait_for_reconnection(self, timeout: float) -> bool:
-        """Poll ``is_connected`` until the bridge reconnects or *timeout* elapses."""
+        """Poll ``is_connected`` until the bridge reconnects or *timeout* elapses.
+
+        Waits not only for the socket to be open but also for the ``hello``
+        handshake to complete (indicated by a non-None ``_session_id``).  This
+        prevents sending commands to a partially-connected bridge.
+        """
         interval = 0.5
         elapsed = 0.0
         while elapsed < timeout:
             await asyncio.sleep(interval)
             elapsed += interval
-            if self.is_connected():
-                logger.info("Bridge reconnected after %.1fs", elapsed)
+            if self.is_connected() and self._session_id is not None:
+                logger.info(
+                    "Bridge reconnected after %.1fs (session=%s)", elapsed, self._session_id
+                )
                 return True
             if self._is_compiling:
                 logger.info("Compilation detected during reconnect wait (%.1fs)", elapsed)

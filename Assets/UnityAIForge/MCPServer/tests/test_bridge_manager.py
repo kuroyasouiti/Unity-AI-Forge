@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -368,6 +369,7 @@ class TestBridgeManagerMessageHandling:
                 future=future,
                 timeout_handle=timeout_handle,
                 timeout_seconds=60,
+                created_at=time.time(),
             )
             manager._compilation_waiters.append(waiter)
 
@@ -403,6 +405,7 @@ class TestBridgeManagerMessageHandling:
                 future=future,
                 timeout_handle=timeout_handle,
                 timeout_seconds=60,
+                created_at=time.time(),
             )
             manager._compilation_waiters.append(waiter)
             manager._session_id = "old-session"

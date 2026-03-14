@@ -30,11 +30,14 @@ namespace MCP.Editor
 
         private sealed class Parser : IDisposable
         {
+            private const int MaxDepth = 128;
             private readonly StringReader _reader;
+            private int _depth;
 
             private Parser(string json)
             {
                 _reader = new StringReader(json);
+                _depth = 0;
             }
 
             public static object Parse(string json)
@@ -66,69 +69,89 @@ namespace MCP.Editor
 
             private Dictionary<string, object> ParseObject()
             {
+                if (++_depth > MaxDepth)
+                    throw new InvalidOperationException($"JSON nesting depth exceeds maximum of {MaxDepth}");
+
                 var table = new Dictionary<string, object>(StringComparer.Ordinal);
 
                 // ditch opening brace
                 _reader.Read();
 
-                while (true)
+                try
                 {
-                    var nextToken = NextToken;
-                    switch (nextToken)
+                    while (true)
                     {
-                        case Token.None:
-                            return null;
-                        case Token.Comma:
-                            continue;
-                        case Token.CurlyClose:
-                            return table;
-                        default:
+                        var nextToken = NextToken;
+                        switch (nextToken)
                         {
-                            var name = ParseString();
-                            if (name == null)
-                            {
+                            case Token.None:
                                 return null;
-                            }
-
-                            if (NextToken != Token.Colon)
+                            case Token.Comma:
+                                continue;
+                            case Token.CurlyClose:
+                                return table;
+                            default:
                             {
-                                return null;
-                            }
+                                var name = ParseString();
+                                if (name == null)
+                                {
+                                    return null;
+                                }
 
-                            // ditch the colon
-                            _reader.Read();
-                            table[name] = ParseValue();
-                            break;
+                                if (NextToken != Token.Colon)
+                                {
+                                    return null;
+                                }
+
+                                // ditch the colon
+                                _reader.Read();
+                                table[name] = ParseValue();
+                                break;
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    _depth--;
                 }
             }
 
             private List<object> ParseArray()
             {
+                if (++_depth > MaxDepth)
+                    throw new InvalidOperationException($"JSON nesting depth exceeds maximum of {MaxDepth}");
+
                 var array = new List<object>();
 
                 // ditch opening bracket
                 _reader.Read();
 
-                var parsing = true;
-                while (parsing)
+                try
                 {
-                    var nextToken = NextToken;
-
-                    switch (nextToken)
+                    var parsing = true;
+                    while (parsing)
                     {
-                        case Token.None:
-                            return null;
-                        case Token.Comma:
-                            continue;
-                        case Token.SquaredClose:
-                            parsing = false;
-                            break;
-                        default:
-                            array.Add(ParseValueByToken(nextToken));
-                            break;
+                        var nextToken = NextToken;
+
+                        switch (nextToken)
+                        {
+                            case Token.None:
+                                return null;
+                            case Token.Comma:
+                                continue;
+                            case Token.SquaredClose:
+                                parsing = false;
+                                break;
+                            default:
+                                array.Add(ParseValueByToken(nextToken));
+                                break;
+                        }
                     }
+                }
+                finally
+                {
+                    _depth--;
                 }
 
                 return array;

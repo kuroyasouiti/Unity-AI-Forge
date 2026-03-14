@@ -9,10 +9,11 @@ Other OS: uses terminal bell as fallback.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
-from typing import Literal
+from typing import Any, Literal
 
 _logger = logging.getLogger(__name__)
 
@@ -110,29 +111,37 @@ def _classify_result(result_text: str) -> SoundType | None:
 
     Returns None if no notification is warranted (e.g. no compilation detected).
     """
-    # Quick heuristic checks on the JSON text to avoid parsing overhead
-    has_errors = '"errorCount": 0' not in result_text and '"errorCount"' in result_text
-    has_compilation_errors = '"compilationErrors"' in result_text and '"compilationErrors": []' not in result_text
-    is_failure = '"success": false' in result_text.lower()
-    is_timed_out = '"timedOut": true' in result_text.lower()
-    no_compilation = '"message": "No compilation detected"' in result_text
-
-    if no_compilation:
+    try:
+        data: dict[str, Any] = json.loads(result_text)
+    except (json.JSONDecodeError, TypeError):
         return None
+
+    message = str(data.get("message", ""))
+    if message == "No compilation detected":
+        return None
+
+    # Check error conditions
+    is_failure = data.get("success") is False
+    is_timed_out = data.get("timedOut") is True
+    error_count = data.get("errorCount", 0)
+    compilation_errors = data.get("compilationErrors")
+    has_compilation_errors = (
+        isinstance(compilation_errors, list) and len(compilation_errors) > 0
+    )
 
     if is_failure or has_compilation_errors or is_timed_out:
         return "error"
-    if has_errors:
+    if isinstance(error_count, int) and error_count > 0:
         return "warning"
 
     # For compilation results, always notify on success
-    if '"compilationCompleted": true' in result_text.lower():
+    if data.get("compilationCompleted") is True:
         return "success"
-    if '"wasCompiling": true' in result_text.lower():
+    if data.get("wasCompiling") is True:
         return "success"
 
     # For non-compilation tools in "all" mode
-    if '"success": true' in result_text.lower():
+    if data.get("success") is True:
         return "success"
 
     return None

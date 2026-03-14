@@ -246,10 +246,19 @@ namespace MCP.Editor.Base
     
     /// <summary>
     /// Type専用のリソース解決実装。
+    /// Cache is cleared on assembly reload via ClearCache().
     /// </summary>
     public class TypeResolver : ITypeResolver
     {
         private static readonly Dictionary<string, Type> _typeCache = new Dictionary<string, Type>();
+
+        /// <summary>
+        /// Clears the type cache. Called on assembly reload to avoid stale references.
+        /// </summary>
+        internal static void ClearCache()
+        {
+            _typeCache.Clear();
+        }
         private static readonly string[] _commonNamespaces = new[]
         {
             "UnityEngine",

@@ -524,46 +524,51 @@ namespace MCP.Editor.Handlers
             var properties = new Dictionary<string, object>();
             var type = obj.GetType();
             
+            var skippedMembers = new List<string>();
+
             // Serialize public properties
             foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (!prop.CanRead)
                     continue;
-                
+
                 if (propertyFilter != null && !propertyFilter.Contains(prop.Name))
                     continue;
-                
+
                 try
                 {
                     var value = prop.GetValue(obj);
                     properties[prop.Name] = SerializePropertyValue(value);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip properties that throw on access
+                    skippedMembers.Add($"{prop.Name} ({ex.GetType().Name})");
                 }
             }
-            
+
             // Serialize public fields and private fields with [SerializeField] attribute
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(f => f.IsPublic || f.GetCustomAttribute<SerializeField>() != null);
-            
+
             foreach (var field in fields)
             {
                 if (propertyFilter != null && !propertyFilter.Contains(field.Name))
                     continue;
-                
+
                 try
                 {
                     var value = field.GetValue(obj);
                     properties[field.Name] = SerializePropertyValue(value);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip fields that throw on access
+                    skippedMembers.Add($"{field.Name} ({ex.GetType().Name})");
                 }
             }
-            
+
+            if (skippedMembers.Count > 0)
+                properties["_skippedMembers"] = skippedMembers;
+
             return properties;
         }
         

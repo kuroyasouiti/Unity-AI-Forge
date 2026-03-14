@@ -465,14 +465,20 @@ namespace MCP.Editor.Handlers
 
             var gameObjects = FindWithMatchMode(pattern, matchMode, useRegex, maxResults);
             var deleted = new List<string>();
-            
+
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
+
             foreach (var go in gameObjects)
             {
                 var path = BuildGameObjectPath(go);
                 Undo.DestroyObjectImmediate(go);
                 deleted.Add(path);
             }
-            
+
+            Undo.SetCurrentGroupName($"MCP: Delete {deleted.Count} GameObjects (pattern: {pattern})");
+            Undo.CollapseUndoOperations(undoGroup);
+
             return CreateSuccessResponse(
                 ("deleted", deleted),
                 ("count", deleted.Count),

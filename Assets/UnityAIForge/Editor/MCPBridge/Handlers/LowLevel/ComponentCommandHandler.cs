@@ -425,6 +425,9 @@ namespace MCP.Editor.Handlers
             int successCount = 0;
             int failureCount = 0;
 
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
+
             foreach (var go in gameObjects)
             {
                 try
@@ -466,6 +469,9 @@ namespace MCP.Editor.Handlers
                 }
             }
 
+            Undo.SetCurrentGroupName($"MCP: Remove all components (pattern: {pattern})");
+            Undo.CollapseUndoOperations(undoGroup);
+
             return CreateSuccessResponse(
                 ("results", results),
                 ("processed", gameObjects.Count),
@@ -484,6 +490,9 @@ namespace MCP.Editor.Handlers
             var results = new List<Dictionary<string, object>>();
             int successCount = 0;
             int failureCount = 0;
+
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
 
             foreach (var go in gameObjects)
             {
@@ -521,6 +530,9 @@ namespace MCP.Editor.Handlers
                     }
                 }
             }
+
+            Undo.SetCurrentGroupName($"MCP: Remove {type.Name} components (pattern: {pattern})");
+            Undo.CollapseUndoOperations(undoGroup);
 
             return CreateSuccessResponse(
                 ("results", results),
@@ -784,6 +796,8 @@ namespace MCP.Editor.Handlers
             var properties = new Dictionary<string, object>();
             var type = component.GetType();
 
+            var skippedMembers = new List<string>();
+
             // Serialize public properties
             foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
@@ -798,9 +812,9 @@ namespace MCP.Editor.Handlers
                     var value = prop.GetValue(component);
                     properties[prop.Name] = SerializeValue(value);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip properties that throw on access
+                    skippedMembers.Add($"{prop.Name} ({ex.GetType().Name})");
                 }
             }
 
@@ -818,11 +832,14 @@ namespace MCP.Editor.Handlers
                     var value = field.GetValue(component);
                     properties[field.Name] = SerializeValue(value);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Skip fields that throw on access
+                    skippedMembers.Add($"{field.Name} ({ex.GetType().Name})");
                 }
             }
+
+            if (skippedMembers.Count > 0)
+                properties["_skippedMembers"] = skippedMembers;
 
             return properties;
         }
@@ -969,82 +986,123 @@ namespace MCP.Editor.Handlers
                 sceneGroups[scenePath].Add(update);
             }
 
-            // Process each scene
-            foreach (var kvp in sceneGroups)
+            try
             {
-                var scenePath = kvp.Key;
-                var sceneUpdates = kvp.Value;
-
-                try
+                // Process each scene using Additive mode to avoid unloading the current scene
+                foreach (var kvp in sceneGroups)
                 {
-                    if (!System.IO.File.Exists(scenePath))
+                    var scenePath = kvp.Key;
+                    var sceneUpdates = kvp.Value;
+
+                    // Skip if updating the currently active scene (no need to load additively)
+                    bool isCurrentScene = scenePath == currentScenePath;
+
+                    UnityEngine.SceneManagement.Scene scene;
+                    if (isCurrentScene)
                     {
-                        errors.Add($"Scene not found: {scenePath}");
-                        continue;
+                        scene = currentScene;
                     }
-
-                    var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-
-                    foreach (var update in sceneUpdates)
+                    else
                     {
                         try
                         {
-                            var goPath = update.TryGetValue("gameObjectPath", out var gp) ? gp?.ToString() : null;
-                            var compType = update.TryGetValue("componentType", out var ct) ? ct?.ToString() : null;
-                            var propChanges = update.TryGetValue("propertyChanges", out var pc)
-                                ? pc as Dictionary<string, object> : null;
-
-                            if (string.IsNullOrEmpty(goPath) || string.IsNullOrEmpty(compType) || propChanges == null)
+                            if (!System.IO.File.Exists(scenePath))
                             {
-                                errors.Add($"[{scenePath}] Update requires gameObjectPath, componentType, and propertyChanges.");
+                                errors.Add($"Scene not found: {scenePath}");
                                 continue;
                             }
 
-                            var go = GameObject.Find(goPath);
-                            if (go == null)
-                            {
-                                errors.Add($"[{scenePath}] GameObject not found: {goPath}");
-                                continue;
-                            }
-
-                            var type = ResolveType(compType);
-                            var component = go.GetComponent(type);
-                            if (component == null)
-                            {
-                                errors.Add($"[{scenePath}] Component '{compType}' not found on '{goPath}'");
-                                continue;
-                            }
-
-                            Undo.RecordObject(component, $"CrossScene Update {compType}");
-                            var applyResult = _propertyApplier.ApplyProperties(component, propChanges);
-                            EditorUtility.SetDirty(component);
-
-                            results.Add(new Dictionary<string, object>
-                            {
-                                ["scenePath"] = scenePath,
-                                ["gameObjectPath"] = goPath,
-                                ["componentType"] = type.FullName,
-                                ["updated"] = applyResult.Updated
-                            });
+                            scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
                         }
                         catch (Exception ex)
                         {
-                            errors.Add($"[{scenePath}] {ex.Message}");
+                            errors.Add($"[{scenePath}] Failed to load scene: {ex.Message}");
+                            continue;
                         }
                     }
 
-                    // Save the modified scene
-                    EditorSceneManager.SaveScene(scene);
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"[{scenePath}] Failed to load scene: {ex.Message}");
+                    try
+                    {
+                        // Temporarily set as active scene so GameObject.Find works within it
+                        var previousActive = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                        UnityEngine.SceneManagement.SceneManager.SetActiveScene(scene);
+
+                        foreach (var update in sceneUpdates)
+                        {
+                            try
+                            {
+                                var goPath = update.TryGetValue("gameObjectPath", out var gp) ? gp?.ToString() : null;
+                                var compType = update.TryGetValue("componentType", out var ct) ? ct?.ToString() : null;
+                                var propChanges = update.TryGetValue("propertyChanges", out var pc)
+                                    ? pc as Dictionary<string, object> : null;
+
+                                if (string.IsNullOrEmpty(goPath) || string.IsNullOrEmpty(compType) || propChanges == null)
+                                {
+                                    errors.Add($"[{scenePath}] Update requires gameObjectPath, componentType, and propertyChanges.");
+                                    continue;
+                                }
+
+                                // Search within the target scene's root objects
+                                GameObject go = FindGameObjectInScene(scene, goPath);
+                                if (go == null)
+                                {
+                                    errors.Add($"[{scenePath}] GameObject not found: {goPath}");
+                                    continue;
+                                }
+
+                                var type = ResolveType(compType);
+                                var component = go.GetComponent(type);
+                                if (component == null)
+                                {
+                                    errors.Add($"[{scenePath}] Component '{compType}' not found on '{goPath}'");
+                                    continue;
+                                }
+
+                                Undo.RecordObject(component, $"CrossScene Update {compType}");
+                                var applyResult = _propertyApplier.ApplyProperties(component, propChanges);
+                                EditorUtility.SetDirty(component);
+
+                                results.Add(new Dictionary<string, object>
+                                {
+                                    ["scenePath"] = scenePath,
+                                    ["gameObjectPath"] = goPath,
+                                    ["componentType"] = type.FullName,
+                                    ["updated"] = applyResult.Updated
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                errors.Add($"[{scenePath}] {ex.Message}");
+                            }
+                        }
+
+                        // Restore previous active scene
+                        if (previousActive.IsValid())
+                            UnityEngine.SceneManagement.SceneManager.SetActiveScene(previousActive);
+
+                        // Save and close the additively loaded scene
+                        EditorSceneManager.SaveScene(scene);
+                    }
+                    finally
+                    {
+                        if (!isCurrentScene && scene.IsValid() && scene.isLoaded)
+                            EditorSceneManager.CloseScene(scene, true);
+                    }
                 }
             }
-
-            // Restore original scene
-            if (!string.IsNullOrEmpty(currentScenePath) && System.IO.File.Exists(currentScenePath))
-                EditorSceneManager.OpenScene(currentScenePath, OpenSceneMode.Single);
+            finally
+            {
+                // Guarantee the original scene is restored as active
+                if (!string.IsNullOrEmpty(currentScenePath))
+                {
+                    var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                    if (active.path != currentScenePath && System.IO.File.Exists(currentScenePath))
+                    {
+                        // Current scene was somehow unloaded — reload it
+                        EditorSceneManager.OpenScene(currentScenePath, OpenSceneMode.Single);
+                    }
+                }
+            }
 
             return CreateSuccessResponse(
                 ("updatedCount", results.Count),
@@ -1052,6 +1110,35 @@ namespace MCP.Editor.Handlers
                 ("results", results),
                 ("errors", errors)
             );
+        }
+
+        /// <summary>
+        /// Find a GameObject by path within a specific scene's hierarchy.
+        /// Unlike GameObject.Find(), this only searches within the given scene.
+        /// </summary>
+        private static GameObject FindGameObjectInScene(UnityEngine.SceneManagement.Scene scene, string path)
+        {
+            if (!scene.IsValid() || !scene.isLoaded) return null;
+
+            var rootObjects = scene.GetRootGameObjects();
+            // Split path to find root object first
+            var parts = path.Split('/');
+            var rootName = parts[0];
+
+            foreach (var root in rootObjects)
+            {
+                if (root.name != rootName) continue;
+
+                if (parts.Length == 1)
+                    return root;
+
+                // Navigate down the hierarchy for nested paths
+                var childPath = string.Join("/", parts, 1, parts.Length - 1);
+                var child = root.transform.Find(childPath);
+                return child != null ? child.gameObject : null;
+            }
+
+            return null;
         }
 
         #endregion
