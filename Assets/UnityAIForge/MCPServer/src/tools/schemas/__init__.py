@@ -30,6 +30,7 @@ from tools.schemas.graph import (
     scene_reference_graph_schema,
     scene_relationship_graph_schema,
     script_syntax_schema,
+    spatial_analysis_schema,
     validate_integrity_schema,
 )
 from tools.schemas.high_level_gamekit import (
@@ -129,7 +130,8 @@ __all__ = [
     # high_level_gamekit (GameKit UI + Data)
     "gamekit_ui_schema",
     "gamekit_data_schema",
-    # graph (Logic — integrity validation + dependency/reference analysis + type catalog)
+    # graph (Logic — integrity validation + dependency/reference analysis + type catalog + spatial analysis)
+    "spatial_analysis_schema",
     "validate_integrity_schema",
     "class_catalog_schema",
     "class_dependency_graph_schema",

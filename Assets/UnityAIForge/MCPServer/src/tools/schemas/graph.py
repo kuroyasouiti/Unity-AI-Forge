@@ -423,6 +423,107 @@ def script_syntax_schema() -> dict[str, Any]:
     )
 
 
+def spatial_analysis_schema() -> dict[str, Any]:
+    """Schema for the unity_spatial_analysis MCP tool."""
+    return schema_with_required(
+        {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["analyzeLayout", "inspectCell"],
+                    "description": (
+                        "Spatial analysis operation. "
+                        "'analyzeLayout': divide scene bounds into a 3×3×3 grid (rule of thirds), "
+                        "detect colliders/rigidbodies in each cell, return occupancy rates and bias analysis. "
+                        "'inspectCell': inspect a specific cell in the grid."
+                    ),
+                },
+                "detectionMode": {
+                    "type": "string",
+                    "enum": ["collider", "rigidbody"],
+                    "description": (
+                        "Detection mode (default: 'collider'). "
+                        "'collider': detect all GameObjects with Collider components (walls, floors, obstacles, etc.). "
+                        "'rigidbody': detect only GameObjects with Rigidbody (legacy mode)."
+                    ),
+                    "default": "collider",
+                },
+                "rootPath": {
+                    "type": "string",
+                    "description": (
+                        "Root GameObject path to limit search scope. "
+                        "If omitted, searches the entire active scene."
+                    ),
+                },
+                "targetTag": {
+                    "type": "string",
+                    "description": "Filter objects by tag (e.g., 'Enemy', 'Obstacle').",
+                },
+                "targetLayer": {
+                    "type": "string",
+                    "description": "Filter objects by layer name (e.g., 'Default', 'Interactable').",
+                },
+                "includeKinematic": {
+                    "type": "boolean",
+                    "description": "Include kinematic rigidbodies in rigidbody mode (default: true).",
+                    "default": True,
+                },
+                "include2D": {
+                    "type": "boolean",
+                    "description": "Include 2D colliders/rigidbodies (default: false).",
+                    "default": False,
+                },
+                "includeTriggers": {
+                    "type": "boolean",
+                    "description": "Include trigger colliders in collider mode (default: true).",
+                    "default": True,
+                },
+                "customMin": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": (
+                        "Custom bounds minimum point. "
+                        "If omitted, bounds are calculated automatically from detected objects."
+                    ),
+                },
+                "customMax": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number"},
+                        "y": {"type": "number"},
+                        "z": {"type": "number"},
+                    },
+                    "description": "Custom bounds maximum point. Must be provided together with customMin.",
+                },
+                "cellX": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "description": "Cell X index (0-2) for inspectCell. 0=left, 1=center, 2=right.",
+                },
+                "cellY": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "description": "Cell Y index (0-2) for inspectCell. 0=bottom, 1=middle, 2=top.",
+                },
+                "cellZ": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "description": "Cell Z index (0-2) for inspectCell. 0=front, 1=center, 2=back.",
+                },
+            },
+        },
+        ["operation"],
+    )
+
+
 def validate_integrity_schema() -> dict[str, Any]:
     """Schema for the unity_validate_integrity MCP tool."""
     return schema_with_required(

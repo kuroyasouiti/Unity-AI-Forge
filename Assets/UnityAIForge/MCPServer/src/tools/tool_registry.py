@@ -1,6 +1,6 @@
 """Single source of truth for MCP tool name to Unity bridge name mapping.
 
-All 42 MCP tools (except ``unity_batch_sequential_execute``, which is handled
+All 43 MCP tools (except ``unity_batch_sequential_execute``, which is handled
 separately) are listed here.  Both ``register_tools.py`` and
 ``batch_sequential.py`` import from this module so that name mappings are
 never duplicated.
@@ -55,6 +55,7 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_gamekit_ui": "gamekitUI",
     "unity_gamekit_data": "gamekitData",
     # ── High-Level – Logic ────────────────────────────────────
+    "unity_spatial_analysis": "spatialAnalysis",
     "unity_validate_integrity": "sceneIntegrity",
     "unity_class_dependency_graph": "classDependencyGraph",
     "unity_class_catalog": "classCatalog",

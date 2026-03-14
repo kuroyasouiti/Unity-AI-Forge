@@ -39,6 +39,7 @@ from tools.schemas import (
     scene_relationship_graph_schema,
     script_syntax_schema,
     scriptable_object_manage_schema,
+    spatial_analysis_schema,
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
@@ -95,6 +96,7 @@ ALL_SCHEMA_FUNCTIONS = [
     ("scene_reference_graph", scene_reference_graph_schema),
     ("scene_relationship_graph", scene_relationship_graph_schema),
     ("script_syntax", script_syntax_schema),
+    ("spatial_analysis", spatial_analysis_schema),
     ("validate_integrity", validate_integrity_schema),
 ]
 
@@ -168,8 +170,8 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 41, (
-            f"Expected 41 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 42, (
+            f"Expected 42 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )
 
 

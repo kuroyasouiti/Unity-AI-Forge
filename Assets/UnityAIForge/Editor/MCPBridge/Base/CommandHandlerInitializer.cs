@@ -206,7 +206,8 @@ namespace MCP.Editor.Base
             // GameKit Data (unified: pool + eventChannel + dataContainer + runtimeSet)
             if (!TryRegister("gamekitData", () => new Handlers.HighLevel.GameKitDataHandler())) failed++;
 
-            // Logic — 整合性検証・依存関係/参照解析・型カタログ
+            // Logic — 整合性検証・依存関係/参照解析・型カタログ・空間解析
+            if (!TryRegister("spatialAnalysis", () => new Handlers.HighLevel.SpatialAnalysisHandler())) failed++;
             if (!TryRegister("sceneIntegrity", () => new Handlers.HighLevel.SceneIntegrityHandler())) failed++;
             if (!TryRegister("classDependencyGraph", () => new Handlers.HighLevel.ClassDependencyGraphHandler())) failed++;
             if (!TryRegister("classCatalog", () => new Handlers.HighLevel.ClassCatalogHandler())) failed++;

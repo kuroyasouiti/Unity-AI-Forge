@@ -1,4 +1,4 @@
-"""Tool definitions for all 41 MCP tools (40 registry + 1 batch_sequential).
+"""Tool definitions for all 42 MCP tools (41 registry + 1 batch_sequential).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -41,6 +41,7 @@ from tools.schemas import (
     scene_relationship_graph_schema,
     script_syntax_schema,
     scriptable_object_manage_schema,
+    spatial_analysis_schema,
     sprite2d_bundle_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
@@ -56,7 +57,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 42 MCP tool definitions."""
+    """Return the list of all 43 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -698,5 +699,28 @@ def get_tool_definitions() -> list[types.Tool]:
                 "typeof, generic_argument, static_access, member_access"
             ),
             inputSchema=script_syntax_schema(),
+        ),
+        types.Tool(
+            name="unity_spatial_analysis",
+            description=(
+                "High-level GameKit Spatial Analysis: analyze 3D stage layout using the rule of thirds (3×3×3 grid).\n\n"
+                "Divides the scene bounding box into a 3×3×3 grid (27 cells) and detects Colliders (default) "
+                "or Rigidbodies in each cell to evaluate stage layout balance, density distribution, and spatial bias.\n\n"
+                "**Operations:**\n"
+                "- analyzeLayout: Divide scene bounds into 3×3×3 grid, detect physics objects in each cell, "
+                "return occupancy rates per cell and overall bias analysis (center of mass, symmetry, distribution pattern)\n"
+                "- inspectCell: Inspect a specific cell [x,y,z] in the grid with detailed object list\n\n"
+                "**Detection Modes:**\n"
+                "- collider (default): All GameObjects with Collider/Collider2D — walls, floors, obstacles, triggers\n"
+                "- rigidbody: Only GameObjects with Rigidbody/Rigidbody2D — dynamic/kinematic physics objects\n\n"
+                "**Bias Detection:**\n"
+                "- Normalized center of mass (mass-weighted if Rigidbody present, otherwise equal weight)\n"
+                "- Directional bias: horizontal (left/center/right), vertical (bottom/center/top), depth (front/center/back)\n"
+                "- Symmetry scores (0-1) for left-right, top-bottom, front-back axes\n"
+                "- Distribution classification: uniform, spread, sparse, clustered, concentrated, empty\n\n"
+                "**Filters:** detectionMode, targetTag, targetLayer, includeKinematic, include2D, includeTriggers\n"
+                "**Bounds:** Auto-calculated from collider bounds, or specify customMin/customMax"
+            ),
+            inputSchema=spatial_analysis_schema(),
         ),
     ]
