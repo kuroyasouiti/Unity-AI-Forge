@@ -1,6 +1,6 @@
 """Single source of truth for MCP tool name to Unity bridge name mapping.
 
-All 43 MCP tools (except ``unity_batch_sequential_execute``, which is handled
+All 41 MCP tools (except ``unity_batch_sequential_execute``, which is handled
 separately) are listed here.  Both ``register_tools.py`` and
 ``batch_sequential.py`` import from this module so that name mappings are
 never duplicated.
@@ -39,14 +39,13 @@ TOOL_NAME_TO_BRIDGE: dict[str, str] = {
     "unity_ui_convert": "uiConvert",
     # ── Mid-Level Visual ────────────────────────────────────
     "unity_sprite2d_bundle": "sprite2DBundle",
-    "unity_animation2d_bundle": "animation2DBundle",
+    "unity_animation_bundle": "animationBundle",
     # ── Dev-Cycle & Visual ───────────────────────────────────
     "unity_playmode_control": "playModeControl",
     "unity_console_log": "consoleLog",
     "unity_material_bundle": "materialBundle",
     "unity_light_bundle": "lightBundle",
     "unity_particle_bundle": "particleBundle",
-    "unity_animation3d_bundle": "animation3DBundle",
     "unity_event_wiring": "eventWiring",
     # ── Mid-Level Physics & NavMesh ────────────────────────
     "unity_physics_bundle": "physicsBundle",

@@ -4,10 +4,11 @@ This module organizes tool schemas into logical groups:
 - common: Shared type definitions (Vector3, Color, Bounds, etc.)
 - utility: Ping, compilation await, playmode, console log, event wiring
 - low_level: CRUD operations (Scene, GameObject, Component, Asset, etc.)
-- mid_level: Batch operations and presets (Transform, Physics, UI, etc.)
+- mid_level: Non-UI batch/preset tools (Transform, Camera, Input, Tilemap, Physics, NavMesh)
+- mid_level_ui: UI-focused tools (UI Foundation, UI State, UI Navigation, UITK, UI Convert, RectTransform)
 - visual: Sprite, animation, material, light, particle
-- high_level_gamekit: GameKit UI (Command/Binding/List/Slot/Selection) + Systems (Pool/Data)
-- graph: Integrity validation, class/scene dependency & reference analysis (Logic)
+- high_level_gamekit: GameKit UI (Command/Binding/List/Slot/Selection) + Data (Pool/EventChannel/DataContainer/RuntimeSet)
+- high_level_logic: Integrity validation, class/scene dependency & reference analysis, script syntax, spatial analysis
 """
 
 from tools.schemas.common import (
@@ -23,7 +24,11 @@ from tools.schemas.common import (
     vector2_schema,
     vector3_schema,
 )
-from tools.schemas.graph import (
+from tools.schemas.high_level_gamekit import (
+    gamekit_data_schema,
+    gamekit_ui_schema,
+)
+from tools.schemas.high_level_logic import (
     class_catalog_schema,
     class_dependency_graph_schema,
     scene_dependency_schema,
@@ -32,10 +37,6 @@ from tools.schemas.graph import (
     script_syntax_schema,
     spatial_analysis_schema,
     validate_integrity_schema,
-)
-from tools.schemas.high_level_gamekit import (
-    gamekit_data_schema,
-    gamekit_ui_schema,
 )
 from tools.schemas.low_level import (
     asset_manage_schema,
@@ -52,9 +53,11 @@ from tools.schemas.mid_level import (
     input_profile_schema,
     navmesh_bundle_schema,
     physics_bundle_schema,
-    rect_transform_batch_schema,
     tilemap_bundle_schema,
     transform_batch_schema,
+)
+from tools.schemas.mid_level_ui import (
+    rect_transform_batch_schema,
     ui_convert_schema,
     ui_foundation_schema,
     ui_navigation_schema,
@@ -70,8 +73,7 @@ from tools.schemas.utility import (
     playmode_control_schema,
 )
 from tools.schemas.visual import (
-    animation2d_bundle_schema,
-    animation3d_bundle_schema,
+    animation_bundle_schema,
     light_bundle_schema,
     material_bundle_schema,
     particle_bundle_schema,
@@ -108,29 +110,29 @@ __all__ = [
     "vector_sprite_convert_schema",
     # mid_level
     "transform_batch_schema",
-    "rect_transform_batch_schema",
     "camera_bundle_schema",
+    "input_profile_schema",
+    "tilemap_bundle_schema",
+    "physics_bundle_schema",
+    "navmesh_bundle_schema",
+    # mid_level_ui
+    "rect_transform_batch_schema",
     "ui_foundation_schema",
     "ui_state_schema",
     "ui_navigation_schema",
-    "input_profile_schema",
-    "tilemap_bundle_schema",
-    "ui_convert_schema",
     "uitk_document_schema",
     "uitk_asset_schema",
-    "physics_bundle_schema",
-    "navmesh_bundle_schema",
+    "ui_convert_schema",
     # visual
     "sprite2d_bundle_schema",
-    "animation2d_bundle_schema",
-    "animation3d_bundle_schema",
+    "animation_bundle_schema",
     "material_bundle_schema",
     "light_bundle_schema",
     "particle_bundle_schema",
     # high_level_gamekit (GameKit UI + Data)
     "gamekit_ui_schema",
     "gamekit_data_schema",
-    # graph (Logic — integrity validation + dependency/reference analysis + type catalog + spatial analysis)
+    # high_level_logic (Logic — integrity, dependency, reference, catalog, syntax, spatial)
     "spatial_analysis_schema",
     "validate_integrity_schema",
     "class_catalog_schema",

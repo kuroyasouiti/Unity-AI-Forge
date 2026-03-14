@@ -117,9 +117,7 @@ async def bridge_status_endpoint(_: Request) -> JSONResponse:
 
 async def bridge_command_endpoint(request: Request) -> JSONResponse:
     if not _bridge_command_limiter.is_allowed():
-        return JSONResponse(
-            {"error": "Rate limit exceeded. Try again shortly."}, status_code=429
-        )
+        return JSONResponse({"error": "Rate limit exceeded. Try again shortly."}, status_code=429)
 
     if not bridge_manager.is_connected():
         return JSONResponse({"error": "Unity bridge is not connected"}, status_code=503)

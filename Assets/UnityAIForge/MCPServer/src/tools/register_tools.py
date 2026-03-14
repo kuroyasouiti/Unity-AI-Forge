@@ -32,9 +32,7 @@ def _ensure_bridge_connected() -> None:
         )
 
 
-def _return_with_notification(
-    tool_name: str, content: list[types.Content]
-) -> list[types.Content]:
+def _return_with_notification(tool_name: str, content: list[types.Content]) -> list[types.Content]:
     """Return content to client and play a notification sound if configured."""
     if content and isinstance(content[0], types.TextContent):
         notify_tool_result(tool_name, content[0].text, env.notification_mode)

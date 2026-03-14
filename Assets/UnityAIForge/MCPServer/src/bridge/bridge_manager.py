@@ -402,9 +402,7 @@ class BridgeManager:
 
                     return on_timeout
 
-                waiter.timeout_handle = loop.call_later(
-                    new_delay, make_timeout_callback(waiter)
-                )
+                waiter.timeout_handle = loop.call_later(new_delay, make_timeout_callback(waiter))
                 logger.debug(
                     "Extended compilation timeout for waiter (delay=%.1fs, remaining_absolute=%.1fs)",
                     new_delay,

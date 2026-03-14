@@ -9,8 +9,7 @@ from __future__ import annotations
 import pytest
 
 from tools.schemas import (
-    animation2d_bundle_schema,
-    animation3d_bundle_schema,
+    animation_bundle_schema,
     asset_manage_schema,
     camera_bundle_schema,
     class_catalog_schema,
@@ -80,8 +79,7 @@ ALL_SCHEMA_FUNCTIONS = [
     ("uitk_asset", uitk_asset_schema),
     ("ui_convert", ui_convert_schema),
     ("sprite2d_bundle", sprite2d_bundle_schema),
-    ("animation2d_bundle", animation2d_bundle_schema),
-    ("animation3d_bundle", animation3d_bundle_schema),
+    ("animation_bundle", animation_bundle_schema),
     ("material_bundle", material_bundle_schema),
     ("light_bundle", light_bundle_schema),
     ("particle_bundle", particle_bundle_schema),
@@ -170,8 +168,8 @@ class TestSchemaCount:
     """Verify the total number of schema functions matches expectations."""
 
     def test_total_schema_functions(self) -> None:
-        assert len(ALL_SCHEMA_FUNCTIONS) == 42, (
-            f"Expected 42 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
+        assert len(ALL_SCHEMA_FUNCTIONS) == 41, (
+            f"Expected 41 schema functions but found {len(ALL_SCHEMA_FUNCTIONS)}"
         )
 
 

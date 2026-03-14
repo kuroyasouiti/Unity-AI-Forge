@@ -9,7 +9,7 @@ Animator Controller はキャラクターの動作状態（待機・移動・攻
 
 このガイドでは Unity 公式推奨のパターン（Hub-and-Spoke、Blend Tree、
 Critical Section、Layer 分離）を解説し、Unity-AI-Forge の
-`unity_animation2d_bundle` / `unity_animation3d_bundle`
+`unity_animation_bundle` / `unity_animation_bundle`
 を活用した効率的な構築ワークフローを提供します。
 
 ---
@@ -123,12 +123,12 @@ Assets/
 
 ```python
 # 2D の場合
-unity_animation2d_bundle(operation="createController",
+unity_animation_bundle(operation="createController",
     controllerName="PlayerAnimator",
     outputPath="Assets/Animations/Player")
 
 # 3D の場合
-unity_animation3d_bundle(operation="createController",
+unity_animation_bundle(operation="createController",
     controllerName="PlayerAnimator",
     outputPath="Assets/Animations/Player")
 ```
@@ -137,36 +137,36 @@ unity_animation3d_bundle(operation="createController",
 
 ```python
 # Hub State (Empty, デフォルトステート)
-unity_animation2d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     stateName="Hub", isDefault=True)
 
 # Idle (Hub から速度0で遷移)
-unity_animation2d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     stateName="Idle",
     clipPath="Assets/Animations/Player/Clips/Idle.anim")
 
 # Run
-unity_animation2d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     stateName="Run",
     clipPath="Assets/Animations/Player/Clips/Run.anim")
 
 # Jump
-unity_animation2d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     stateName="Jump",
     clipPath="Assets/Animations/Player/Clips/Jump.anim")
 
 # Attack
-unity_animation2d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     stateName="Attack",
     clipPath="Assets/Animations/Player/Clips/Attack_01.anim")
 
 # Hurt
-unity_animation2d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     stateName="Hurt",
     clipPath="Assets/Animations/Player/Clips/Hurt.anim")
@@ -176,21 +176,21 @@ unity_animation2d_bundle(operation="addState",
 
 ```python
 # パラメータ追加
-unity_animation2d_bundle(operation="addParameter",
+unity_animation_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     parameterName="Speed", parameterType="Float")
-unity_animation2d_bundle(operation="addParameter",
+unity_animation_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     parameterName="IsGrounded", parameterType="Bool")
-unity_animation2d_bundle(operation="addParameter",
+unity_animation_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     parameterName="Attack", parameterType="Trigger")
-unity_animation2d_bundle(operation="addParameter",
+unity_animation_bundle(operation="addParameter",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     parameterName="Hurt", parameterType="Trigger")
 
 # トランジション: Hub → Idle (Speed < 0.1 & IsGrounded)
-unity_animation2d_bundle(operation="addTransition",
+unity_animation_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     fromState="Hub", toState="Idle",
     conditions=[
@@ -199,7 +199,7 @@ unity_animation2d_bundle(operation="addTransition",
     ], hasExitTime=False)
 
 # Hub → Run (Speed >= 0.1 & IsGrounded)
-unity_animation2d_bundle(operation="addTransition",
+unity_animation_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     fromState="Hub", toState="Run",
     conditions=[
@@ -208,7 +208,7 @@ unity_animation2d_bundle(operation="addTransition",
     ], hasExitTime=False)
 
 # Hub → Jump (!IsGrounded)
-unity_animation2d_bundle(operation="addTransition",
+unity_animation_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     fromState="Hub", toState="Jump",
     conditions=[
@@ -216,20 +216,20 @@ unity_animation2d_bundle(operation="addTransition",
     ], hasExitTime=False)
 
 # Any State → Attack (Attack trigger)
-unity_animation2d_bundle(operation="addTransition",
+unity_animation_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     fromState="Any State", toState="Attack",
     conditions=[{"parameter": "Attack", "mode": "trigger"}],
     hasExitTime=False)
 
 # Attack → Hub (Exit Time で自動遷移)
-unity_animation2d_bundle(operation="addTransition",
+unity_animation_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     fromState="Attack", toState="Hub",
     hasExitTime=True, exitTime=0.9)
 
 # Idle/Run → Hub (常時 Hub 経由で遷移するため)
-unity_animation2d_bundle(operation="addTransition",
+unity_animation_bundle(operation="addTransition",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     fromState="Idle", toState="Hub",
     conditions=[
@@ -241,7 +241,7 @@ unity_animation2d_bundle(operation="addTransition",
 
 ```python
 # 3D キャラクターの移動 BlendTree
-unity_animation3d_bundle(operation="addBlendTree",
+unity_animation_bundle(operation="addBlendTree",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     blendTreeName="Locomotion",
     blendType="1D",
@@ -253,7 +253,7 @@ unity_animation3d_bundle(operation="addBlendTree",
     ])
 
 # 2D 方向 BlendTree（トップダウンゲーム用）
-unity_animation2d_bundle(operation="createBlendTree",
+unity_animation_bundle(operation="createBlendTree",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     blendTreeName="Movement",
     blendType="2D",
@@ -275,7 +275,7 @@ unity_animation2d_bundle(operation="createBlendTree",
 
 ```python
 # 上半身レイヤーの追加
-unity_animation3d_bundle(operation="addLayer",
+unity_animation_bundle(operation="addLayer",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     layerName="UpperBody",
     weight=1.0,
@@ -283,7 +283,7 @@ unity_animation3d_bundle(operation="addLayer",
     avatarMaskPath="Assets/Animations/Player/AvatarMasks/UpperBody.mask")
 
 # 上半身レイヤーに攻撃ステートを追加
-unity_animation3d_bundle(operation="addState",
+unity_animation_bundle(operation="addState",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     layerName="UpperBody",
     stateName="Attack",
@@ -342,7 +342,7 @@ Attack_02 → Hub       (ExitTime 1.0, no combo input)
 
 ```python
 # Damage レイヤー（通常 Weight=0、被弾時に一時的に 1.0）
-unity_animation3d_bundle(operation="addLayer",
+unity_animation_bundle(operation="addLayer",
     controllerPath="Assets/Animations/Player/PlayerAnimator.controller",
     layerName="Damage",
     weight=0.0,
@@ -386,8 +386,8 @@ unity_animation3d_bundle(operation="addLayer",
 
 | ツール名 | 用途 |
 |---|---|
-| `unity_animation2d_bundle` | 2D AnimatorController 作成・ステート/パラメータ/トランジション追加 |
-| `unity_animation3d_bundle` | 3D AnimatorController 作成・BlendTree・Layer・AvatarMask |
+| `unity_animation_bundle` | 2D AnimatorController 作成・ステート/パラメータ/トランジション追加 |
+| `unity_animation_bundle` | 3D AnimatorController 作成・BlendTree・Layer・AvatarMask |
 | `unity_component_crud` | Animator コンポーネントの追加・設定 |
 | `unity_asset_crud` | カスタム State Machine Behaviour スクリプト生成 |
 | `unity_compilation_await` | スクリプト生成後のコンパイル完了待ち |

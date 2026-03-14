@@ -125,9 +125,7 @@ def _classify_result(result_text: str) -> SoundType | None:
     is_timed_out = data.get("timedOut") is True
     error_count = data.get("errorCount", 0)
     compilation_errors = data.get("compilationErrors")
-    has_compilation_errors = (
-        isinstance(compilation_errors, list) and len(compilation_errors) > 0
-    )
+    has_compilation_errors = isinstance(compilation_errors, list) and len(compilation_errors) > 0
 
     if is_failure or has_compilation_errors or is_timed_out:
         return "error"

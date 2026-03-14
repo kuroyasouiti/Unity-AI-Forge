@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 41 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI (unified), and GameKit Data (unified). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
+Unity-AI-Forge is an AI-powered Unity development toolkit that integrates with the Model Context Protocol (MCP). It provides 40 tools for AI-driven game development, organized in 3 layers (Low/Mid/High-Level). High-Level includes Logic analysis tools, GameKit UI (unified), and GameKit Data (unified). GameKit uses code generation to produce standalone C# scripts from templates, so user projects have zero runtime dependency on Unity-AI-Forge.
 
 ## Requirements
 
@@ -108,8 +108,9 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 - `InputProfileHandler.cs` - New Input System setup with action maps
 - `TilemapBundleHandler.cs` - Tilemap creation and tile management
 - `Sprite2DBundleHandler.cs` - 2D sprite management and sprite sheet slicing
-- `Animation2DBundleHandler.cs` - 2D animation setup (Animator, AnimatorController, clips)
-- `Animation3DBundleHandler.cs` - 3D animation setup (BlendTree, AvatarMask)
+- `AnimationBundleHandler.cs` - Unified animation dispatcher (routes 2D clip ops to Animation2DBundleHandler, others to Animation3DBundleHandler)
+- `Animation2DBundleHandler.cs` - 2D animation sub-handler (Animator, AnimatorController, sprite clips)
+- `Animation3DBundleHandler.cs` - 3D animation sub-handler (BlendTree, AvatarMask, parameters)
 - `MaterialBundleHandler.cs` - Material creation and property management (Standard, URP, HDRP)
 - `LightBundleHandler.cs` - Light setup with presets (directional, point, spot, area)
 - `ParticleBundleHandler.cs` - Particle system creation and configuration
@@ -146,14 +147,14 @@ Located in `Assets/UnityAIForge/MCPServer/src/`:
 - `main.py` - Entry point, sys.path setup and server launch
 - `version.py` - Package version info
 - `logger.py` - Logging configuration
-- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 43 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
+- `tools/register_tools.py` - MCP tool registration and dispatch. Handles 4 special tools (ping, compilation_await, asset_crud, batch_sequential) and delegates remaining 41 tools via dict lookup from `TOOL_NAME_TO_BRIDGE`.
 - `tools/tool_registry.py` - Single source of truth for 41 MCP tool name → bridge name mappings. Used by both `register_tools.py` and `batch_sequential.py`. Also provides `resolve_tool_name()` for bidirectional name resolution.
-- `tools/tool_definitions.py` - All 42 `types.Tool` definitions with descriptions and schema references.
+- `tools/tool_definitions.py` - All 42 `types.Tool` definitions (41 registry + 1 batch_sequential) with descriptions and schema references.
 - `tools/batch_sequential.py` - Sequential command execution with resume capability
-- `tools/schemas/` - JSON Schema definitions split into 7 category files:
+- `tools/schemas/` - JSON Schema definitions split into 8 category files:
   - `common.py` - Shared type helpers (Vector3, Color, etc.)
-  - `utility.py`, `low_level.py`, `mid_level.py`, `visual.py`
-  - `high_level_gamekit.py`, `graph.py`
+  - `utility.py`, `low_level.py`, `mid_level.py`, `mid_level_ui.py`, `visual.py`
+  - `high_level_gamekit.py`, `high_level_logic.py`
 - `bridge/bridge_connector.py` - WebSocket connection to Unity Bridge
 - `bridge/bridge_manager.py` - Bridge lifecycle, heartbeat, and compilation await
 - `bridge/messages.py` - Bridge message serialization

@@ -24,18 +24,23 @@ namespace MCP.Editor.Handlers.HighLevel
             "typeCheck",
             "report",
             "checkPrefab",
-            "canvasGroupAudit",
             "referenceSemantics",
             "requiredFieldAudit",
-            "uiOverflowAudit",
-            "uiOverlapAudit",
             "nullAssetAudit",
-            "touchTargetAudit",
-            "eventSystemAudit",
-            "textOverflowAudit",
-            "styleConsistencyAudit",
+            "uiAudit",
             "inputSystemAudit",
             "scriptContentAudit"
+        };
+
+        private static readonly Dictionary<string, string> UIAuditChecks = new()
+        {
+            { "canvasGroup", "canvasGroup" },
+            { "overflow", "overflow" },
+            { "overlap", "overlap" },
+            { "touchTarget", "touchTarget" },
+            { "eventSystem", "eventSystem" },
+            { "textOverflow", "textOverflow" },
+            { "styleConsistency", "styleConsistency" },
         };
 
         public override string Category => "sceneIntegrity";
@@ -59,16 +64,10 @@ namespace MCP.Editor.Handlers.HighLevel
                 "typeCheck" => BuildResponse(operation, analyzer.FindTypeMismatches(rootPath)),
                 "report" => HandleReport(payload),
                 "checkPrefab" => HandleCheckPrefab(payload),
-                "canvasGroupAudit" => BuildResponse(operation, analyzer.FindCanvasGroupIssues(rootPath)),
                 "referenceSemantics" => BuildResponse(operation, analyzer.FindReferenceSemanticsIssues(rootPath)),
                 "requiredFieldAudit" => BuildResponse(operation, analyzer.FindRequiredFieldIssues(rootPath)),
-                "uiOverflowAudit" => BuildResponse(operation, analyzer.FindUIOverflowIssues(rootPath)),
-                "uiOverlapAudit" => BuildResponse(operation, analyzer.FindUIOverlapIssues(rootPath)),
                 "nullAssetAudit" => BuildResponse(operation, analyzer.FindNullAssetFieldIssues(GetString(payload, "searchPath"))),
-                "touchTargetAudit" => BuildResponse(operation, analyzer.FindTouchTargetIssues(rootPath)),
-                "eventSystemAudit" => BuildResponse(operation, analyzer.FindEventSystemIssues(rootPath)),
-                "textOverflowAudit" => BuildResponse(operation, analyzer.FindTextOverflowIssues(rootPath)),
-                "styleConsistencyAudit" => BuildResponse(operation, analyzer.FindStyleConsistencyIssues(rootPath)),
+                "uiAudit" => HandleUIAudit(payload, analyzer, rootPath),
                 "inputSystemAudit" => BuildResponse(operation, analyzer.FindInputSystemIssues(rootPath)),
                 "scriptContentAudit" => BuildResponse(operation, analyzer.FindScriptContentIssues(GetString(payload, "searchPath"))),
                 _ => throw new InvalidOperationException($"Unsupported scene integrity operation: {operation}"),
@@ -86,6 +85,57 @@ namespace MCP.Editor.Handlers.HighLevel
                 ["issues"] = issues.Select(i => i.ToDictionary()).ToList(),
                 ["issueCount"] = issues.Count,
                 ["isClean"] = issues.Count == 0
+            };
+        }
+
+        private object HandleUIAudit(Dictionary<string, object> payload,
+            SceneIntegrityAnalyzer analyzer, string rootPath)
+        {
+            var checksRaw = payload.ContainsKey("checks") ? payload["checks"] : null;
+            var checks = new List<string>();
+
+            if (checksRaw is IEnumerable<object> checksArray)
+            {
+                foreach (var c in checksArray)
+                    if (c is string s && UIAuditChecks.ContainsKey(s))
+                        checks.Add(s);
+            }
+
+            // Default: run all UI checks
+            if (checks.Count == 0)
+                checks = UIAuditChecks.Keys.ToList();
+
+            var allIssues = new List<SceneIntegrityAnalyzer.IntegrityIssue>();
+            var checkResults = new Dictionary<string, int>();
+
+            foreach (var check in checks)
+            {
+                var issues = check switch
+                {
+                    "canvasGroup" => analyzer.FindCanvasGroupIssues(rootPath),
+                    "overflow" => analyzer.FindUIOverflowIssues(rootPath),
+                    "overlap" => analyzer.FindUIOverlapIssues(rootPath),
+                    "touchTarget" => analyzer.FindTouchTargetIssues(rootPath),
+                    "eventSystem" => analyzer.FindEventSystemIssues(rootPath),
+                    "textOverflow" => analyzer.FindTextOverflowIssues(rootPath),
+                    "styleConsistency" => analyzer.FindStyleConsistencyIssues(rootPath),
+                    _ => new List<SceneIntegrityAnalyzer.IntegrityIssue>()
+                };
+
+                allIssues.AddRange(issues);
+                checkResults[check] = issues.Count;
+            }
+
+            return new Dictionary<string, object>
+            {
+                ["success"] = true,
+                ["category"] = "sceneIntegrity",
+                ["operation"] = "uiAudit",
+                ["checksRun"] = checks,
+                ["checkResults"] = checkResults,
+                ["issues"] = allIssues.Select(i => i.ToDictionary()).ToList(),
+                ["issueCount"] = allIssues.Count,
+                ["isClean"] = allIssues.Count == 0
             };
         }
 

@@ -155,7 +155,7 @@ unity_component_crud(operation='add', gameObjectPath='PartyGroup/Hero',
     componentType='SpriteRenderer')
 
 # アニメーション設定
-unity_animation2d_bundle(operation='setupAnimator',
+unity_animation_bundle(operation='setupAnimator',
     gameObjectPath='PartyGroup/Hero',
     controllerPath='Assets/Animations/Characters/HeroAnimator.controller')
 
@@ -348,7 +348,7 @@ unity_gamekit_data(dataType='dataContainer', operation='create', dataId='BattleS
 | コンポーネント | `unity_component_crud` | SpriteRenderer・コライダー追加 |
 | アセット | `unity_asset_crud` | カスタムスクリプト作成 |
 | プレハブ | `unity_prefab_crud` | キャラクター・敵プレハブ化 |
-| アニメーション | `unity_animation2d_bundle` | Animator・クリップ管理 |
+| アニメーション | `unity_animation_bundle` | Animator・クリップ管理 |
 | UI | `unity_gamekit_ui(widgetType='command')` | バトルコマンドパネル |
 | UI | `unity_gamekit_ui(widgetType='binding')` | HP・MP バー表示 |
 | UI | `unity_gamekit_ui(widgetType='list')` | バトルログ・スキルリスト |

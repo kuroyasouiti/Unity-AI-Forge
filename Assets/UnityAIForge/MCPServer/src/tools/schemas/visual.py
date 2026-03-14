@@ -1,6 +1,6 @@
 """Schema definitions for visual and presentation MCP tools.
 
-Includes: sprite2d, animation2d, material, light, particle, animation3d.
+Includes: sprite2d, animation_bundle (unified 2D+3D), material, light, particle.
 """
 
 from __future__ import annotations
@@ -112,8 +112,8 @@ def sprite2d_bundle_schema() -> dict[str, Any]:
     )
 
 
-def animation2d_bundle_schema() -> dict[str, Any]:
-    """Schema for the unity_animation2d_bundle MCP tool."""
+def animation_bundle_schema() -> dict[str, Any]:
+    """Schema for the unified unity_animation_bundle MCP tool (2D + 3D)."""
     return schema_with_required(
         {
             "type": "object",
@@ -121,17 +121,29 @@ def animation2d_bundle_schema() -> dict[str, Any]:
                 "operation": {
                     "type": "string",
                     "enum": [
+                        # shared
                         "setupAnimator",
                         "createController",
                         "addState",
                         "addTransition",
                         "addParameter",
-                        "inspectController",
+                        "inspect",
+                        "listParameters",
+                        "listStates",
+                        # 2D-specific (sprite clips)
                         "createClipFromSprites",
                         "updateClip",
                         "inspectClip",
+                        # 3D-specific (blend trees, avatar masks)
+                        "addBlendTree",
+                        "createAvatarMask",
                     ],
-                    "description": "Animation2D bundle operation.",
+                    "description": (
+                        "Animation operation. Shared: setupAnimator, createController, addState, "
+                        "addTransition, addParameter, inspect, listParameters, listStates. "
+                        "2D-only: createClipFromSprites, updateClip, inspectClip. "
+                        "3D-only: addBlendTree, createAvatarMask."
+                    ),
                 },
                 "gameObjectPath": {
                     "type": "string",
@@ -146,7 +158,9 @@ def animation2d_bundle_schema() -> dict[str, Any]:
                     "description": "AnimatorController asset path.",
                 },
                 "clipPath": {"type": "string", "description": "AnimationClip asset path."},
-                "applyRootMotion": {"type": "boolean", "description": "Enable root motion."},
+                "name": {"type": "string", "description": "Name for new controller/mask."},
+                "savePath": {"type": "string", "description": "Save path for asset."},
+                "applyRootMotion": {"type": "boolean", "description": "Apply root motion."},
                 "updateMode": {
                     "type": "string",
                     "enum": ["Normal", "AnimatePhysics", "UnscaledTime"],
@@ -157,23 +171,61 @@ def animation2d_bundle_schema() -> dict[str, Any]:
                     "enum": ["AlwaysAnimate", "CullCompletely", "CullUpdateTransforms"],
                     "description": "Animator culling mode.",
                 },
-                "speed": {"type": "number", "description": "Animator playback speed."},
+                "speed": {"type": "number", "description": "Animator/state playback speed."},
                 "parameters": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
                             "name": {"type": "string"},
-                            "type": {"type": "string", "enum": ["Bool", "Float", "Int", "Trigger"]},
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "Bool",
+                                    "Float",
+                                    "Int",
+                                    "Trigger",
+                                    "bool",
+                                    "float",
+                                    "int",
+                                    "trigger",
+                                ],
+                            },
+                            "defaultValue": {},
                         },
                     },
-                    "description": "Animator parameters to add.",
+                    "description": "Animator parameters to add (createController).",
+                },
+                "states": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "clip": {"type": "string"},
+                            "isDefault": {"type": "boolean"},
+                            "speed": {"type": "number"},
+                        },
+                    },
+                    "description": "Animation states (createController).",
+                },
+                "transitions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "from": {"type": "string"},
+                            "to": {"type": "string"},
+                            "hasExitTime": {"type": "boolean"},
+                            "exitTime": {"type": "number"},
+                            "duration": {"type": "number"},
+                            "conditions": {"type": "array"},
+                        },
+                    },
+                    "description": "State transitions (createController).",
                 },
                 "stateName": {"type": "string", "description": "Animation state name."},
-                "layerIndex": {
-                    "type": "integer",
-                    "description": "Animator layer index (default: 0).",
-                },
+                "layerIndex": {"type": "integer", "description": "Layer index (default: 0)."},
                 "isDefault": {"type": "boolean", "description": "Set as default state."},
                 "fromState": {
                     "type": "string",
@@ -182,18 +234,33 @@ def animation2d_bundle_schema() -> dict[str, Any]:
                 "toState": {"type": "string", "description": "Destination state for transition."},
                 "hasExitTime": {"type": "boolean", "description": "Transition has exit time."},
                 "exitTime": {"type": "number", "description": "Exit time (0-1)."},
-                "duration": {"type": "number", "description": "Transition duration in seconds."},
+                "duration": {"type": "number", "description": "Transition duration."},
                 "conditions": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
+                            "param": {"type": "string"},
                             "parameter": {"type": "string"},
                             "mode": {
                                 "type": "string",
-                                "enum": ["If", "IfNot", "Greater", "Less", "Equals", "NotEqual"],
+                                "enum": [
+                                    "If",
+                                    "IfNot",
+                                    "Greater",
+                                    "Less",
+                                    "Equals",
+                                    "NotEqual",
+                                    "if",
+                                    "ifnot",
+                                    "greater",
+                                    "less",
+                                    "equals",
+                                    "notequal",
+                                ],
                             },
                             "threshold": {"type": "number"},
+                            "value": {"type": "number"},
                         },
                     },
                     "description": "Transition conditions.",
@@ -201,19 +268,58 @@ def animation2d_bundle_schema() -> dict[str, Any]:
                 "parameterName": {"type": "string", "description": "Parameter name."},
                 "parameterType": {
                     "type": "string",
-                    "enum": ["Bool", "Float", "Int", "Trigger"],
+                    "enum": ["Bool", "Float", "Int", "Trigger", "bool", "float", "int", "trigger"],
                     "description": "Parameter type.",
                 },
+                "defaultValue": {"description": "Default parameter value."},
+                # 2D-specific
                 "spritePaths": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Sprite paths for animation clip creation.",
+                    "description": "Sprite paths for animation clip creation (2D).",
                 },
                 "frameRate": {
                     "type": "number",
                     "description": "Animation frame rate (default: 12).",
                 },
                 "loop": {"type": "boolean", "description": "Loop animation."},
+                # 3D-specific
+                "blendTreeName": {"type": "string", "description": "BlendTree name."},
+                "blendType": {
+                    "type": "string",
+                    "enum": [
+                        "Simple1D",
+                        "SimpleDirectional2D",
+                        "FreeformDirectional2D",
+                        "FreeformCartesian2D",
+                    ],
+                    "description": "BlendTree type.",
+                },
+                "blendParameter": {"type": "string", "description": "Blend parameter name."},
+                "blendParameterY": {"type": "string", "description": "Blend parameter Y (for 2D)."},
+                "motions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "clip": {"type": "string"},
+                            "threshold": {"type": "number"},
+                            "positionX": {"type": "number"},
+                            "positionY": {"type": "number"},
+                        },
+                    },
+                    "description": "BlendTree motions.",
+                },
+                "enabledParts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Enabled body parts for AvatarMask.",
+                },
+                "disabledParts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Disabled body parts for AvatarMask.",
+                },
             },
         },
         ["operation"],
@@ -482,166 +588,6 @@ def particle_bundle_schema() -> dict[str, Any]:
                 },
                 "shapeRadius": {"type": "number", "description": "Shape radius."},
                 "shapeAngle": {"type": "number", "description": "Shape angle (for Cone)."},
-            },
-        },
-        ["operation"],
-    )
-
-
-def animation3d_bundle_schema() -> dict[str, Any]:
-    """Schema for the unity_animation3d_bundle MCP tool."""
-    return schema_with_required(
-        {
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "setupAnimator",
-                        "createController",
-                        "addState",
-                        "addTransition",
-                        "setParameter",
-                        "addBlendTree",
-                        "createAvatarMask",
-                        "inspect",
-                        "listParameters",
-                        "listStates",
-                    ],
-                    "description": "Animation3D bundle operation.",
-                },
-                "gameObjectPath": {
-                    "type": "string",
-                    "description": "Target GameObject for setupAnimator.",
-                },
-                "controllerPath": {
-                    "type": "string",
-                    "description": "AnimatorController asset path.",
-                },
-                "name": {"type": "string", "description": "Name for new controller/mask."},
-                "savePath": {"type": "string", "description": "Save path for asset."},
-                "applyRootMotion": {"type": "boolean", "description": "Apply root motion."},
-                "updateMode": {
-                    "type": "string",
-                    "enum": ["Normal", "AnimatePhysics", "UnscaledTime"],
-                    "description": "Animator update mode.",
-                },
-                "cullingMode": {
-                    "type": "string",
-                    "enum": ["AlwaysAnimate", "CullCompletely", "CullUpdateTransforms"],
-                    "description": "Animator culling mode.",
-                },
-                "parameters": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "type": {"type": "string", "enum": ["float", "int", "bool", "trigger"]},
-                            "defaultValue": {},
-                        },
-                    },
-                    "description": "Animator parameters.",
-                },
-                "states": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "clip": {"type": "string"},
-                            "isDefault": {"type": "boolean"},
-                            "speed": {"type": "number"},
-                        },
-                    },
-                    "description": "Animation states.",
-                },
-                "transitions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "from": {"type": "string"},
-                            "to": {"type": "string"},
-                            "hasExitTime": {"type": "boolean"},
-                            "exitTime": {"type": "number"},
-                            "duration": {"type": "number"},
-                            "conditions": {"type": "array"},
-                        },
-                    },
-                    "description": "State transitions.",
-                },
-                "stateName": {"type": "string", "description": "State name."},
-                "clipPath": {"type": "string", "description": "Animation clip path."},
-                "layerIndex": {"type": "integer", "description": "Layer index (default: 0)."},
-                "isDefault": {"type": "boolean", "description": "Set as default state."},
-                "speed": {"type": "number", "description": "State playback speed."},
-                "fromState": {
-                    "type": "string",
-                    "description": "Source state for transition ('Any' for AnyState).",
-                },
-                "toState": {"type": "string", "description": "Destination state for transition."},
-                "hasExitTime": {"type": "boolean", "description": "Transition has exit time."},
-                "exitTime": {"type": "number", "description": "Exit time (0-1)."},
-                "duration": {"type": "number", "description": "Transition duration."},
-                "conditions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "param": {"type": "string"},
-                            "mode": {
-                                "type": "string",
-                                "enum": ["if", "ifnot", "greater", "less", "equals", "notequal"],
-                            },
-                            "value": {"type": "number"},
-                        },
-                    },
-                    "description": "Transition conditions.",
-                },
-                "parameterName": {"type": "string", "description": "Parameter name."},
-                "parameterType": {
-                    "type": "string",
-                    "enum": ["float", "int", "bool", "trigger"],
-                    "description": "Parameter type.",
-                },
-                "defaultValue": {"description": "Default parameter value."},
-                "blendTreeName": {"type": "string", "description": "BlendTree name."},
-                "blendType": {
-                    "type": "string",
-                    "enum": [
-                        "Simple1D",
-                        "SimpleDirectional2D",
-                        "FreeformDirectional2D",
-                        "FreeformCartesian2D",
-                    ],
-                    "description": "BlendTree type.",
-                },
-                "blendParameter": {"type": "string", "description": "Blend parameter name."},
-                "blendParameterY": {"type": "string", "description": "Blend parameter Y (for 2D)."},
-                "motions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "clip": {"type": "string"},
-                            "threshold": {"type": "number"},
-                            "positionX": {"type": "number"},
-                            "positionY": {"type": "number"},
-                        },
-                    },
-                    "description": "BlendTree motions.",
-                },
-                "enabledParts": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Enabled body parts for AvatarMask.",
-                },
-                "disabledParts": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Disabled body parts for AvatarMask.",
-                },
             },
         },
         ["operation"],

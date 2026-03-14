@@ -10,7 +10,7 @@ class TestGetToolDefinitions:
         from tools.tool_definitions import get_tool_definitions
 
         defs = get_tool_definitions()
-        assert len(defs) == 43
+        assert len(defs) == 42
 
     def test_all_names_are_unique(self) -> None:
         from tools.tool_definitions import get_tool_definitions

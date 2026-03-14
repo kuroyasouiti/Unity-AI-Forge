@@ -1,4 +1,9 @@
-"""Schema definitions for graph analysis MCP tools."""
+"""Schema definitions for High-Level Logic MCP tools.
+
+Includes: validate_integrity, class_catalog, class_dependency_graph,
+scene_reference_graph, scene_relationship_graph, scene_dependency,
+script_syntax, spatial_analysis.
+"""
 
 from __future__ import annotations
 
@@ -541,16 +546,10 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "typeCheck",
                         "report",
                         "checkPrefab",
-                        "canvasGroupAudit",
                         "referenceSemantics",
                         "requiredFieldAudit",
-                        "uiOverflowAudit",
-                        "uiOverlapAudit",
                         "nullAssetAudit",
-                        "touchTargetAudit",
-                        "eventSystemAudit",
-                        "textOverflowAudit",
-                        "styleConsistencyAudit",
+                        "uiAudit",
                         "inputSystemAudit",
                         "scriptContentAudit",
                     ],
@@ -564,19 +563,16 @@ def validate_integrity_schema() -> dict[str, Any]:
                         "'typeCheck': detect type mismatches in object reference fields. "
                         "'report': run integrity checks across multiple scenes (active/build/all). "
                         "'checkPrefab': validate a prefab asset for integrity issues. "
-                        "'requiredFieldAudit': detect null SerializedFields that are used in code without null guards. "
-                        "'uiOverflowAudit': detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow). "
-                        "'uiOverlapAudit': detect UI sibling overlap issues (same-position children without LayoutGroup, interactive element overlaps, raycast blocking). "
-                        "'nullAssetAudit': detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets. "
-                        "'touchTargetAudit': detect interactive UI elements (Button, Toggle, Slider) smaller than 44x44 minimum touch target size. "
-                        "'eventSystemAudit': detect scenes with Canvas/UIDocument but no EventSystem, or duplicate EventSystems. "
-                        "'textOverflowAudit': detect Text/TextMeshPro elements where content exceeds RectTransform bounds. "
-                        "'styleConsistencyAudit': detect cross-element design consistency issues — excessive button color variation, "
-                        "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
-                        "unnecessary raycast targets, and inconsistent anchor patterns among siblings. "
-                        "'inputSystemAudit': detect Input System consistency issues — PlayerInput notificationBehavior vs method signatures "
-                        "(SendMessages expects InputValue, InvokeCSharpEvents expects CallbackContext), action expectedControlType vs "
-                        "binding composite type (1DAxis vs 2DVector), and missing callback methods for input actions. "
+                        "'referenceSemantics': detect logical reference issues (inactive refs, self-refs). "
+                        "'requiredFieldAudit': detect null SerializedFields used in code without null guards. "
+                        "'nullAssetAudit': detect null asset references in ScriptableObject assets. "
+                        "'uiAudit': consolidated UI audit — runs selected checks via 'checks' parameter. "
+                        "Available checks: canvasGroup (alpha conflicts), overflow (layout overflow), "
+                        "overlap (sibling overlap), touchTarget (min 44x44 size), eventSystem (missing/duplicate), "
+                        "textOverflow (content exceeds bounds), styleConsistency (design consistency). "
+                        "If 'checks' is omitted, all 7 UI checks run. "
+                        "'inputSystemAudit': detect Input System consistency issues. "
+                        "'scriptContentAudit': scan C# scripts for legacy API and empty MonoBehaviours."
                     ),
                 },
                 "rootPath": {
@@ -606,8 +602,28 @@ def validate_integrity_schema() -> dict[str, Any]:
                 "searchPath": {
                     "type": "string",
                     "description": (
-                        "Folder path to limit search scope for nullAssetAudit "
+                        "Folder path to limit search scope for nullAssetAudit/scriptContentAudit "
                         "(e.g., 'Assets/Data'). If omitted, scans the entire 'Assets' folder."
+                    ),
+                },
+                "checks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "canvasGroup",
+                            "overflow",
+                            "overlap",
+                            "touchTarget",
+                            "eventSystem",
+                            "textOverflow",
+                            "styleConsistency",
+                        ],
+                    },
+                    "description": (
+                        "UI audit checks to run for uiAudit operation. "
+                        "If omitted, all 7 checks run. "
+                        "Example: ['overflow', 'overlap'] runs only those two."
                     ),
                 },
             },

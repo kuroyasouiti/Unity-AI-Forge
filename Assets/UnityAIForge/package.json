@@ -1,8 +1,8 @@
 {
   "name": "com.unityaiforge",
-  "version": "2.18.0",
+  "version": "2.19.0",
   "displayName": "Unity-AI-Forge",
-  "description": "AI-powered Unity development toolkit. MCP bridge with 41 tools in 3-layer architecture (High-Level: GameKit UI/Data + Logic 7 tools, Mid-Level: 18 batch/preset tools, Low-Level: 8 CRUD tools, Utility: 5 tools, Batch: 1 tool). Features code generation, Physics/NavMesh bundles, UI Toolkit support, and batch sequential execution for intelligent game creation through AI collaboration.",
+  "description": "AI-powered Unity development toolkit. MCP bridge with 40 tools in 3-layer architecture (High-Level: GameKit UI/Data + Logic 8 tools, Mid-Level: 17 batch/preset tools, Low-Level: 8 CRUD tools, Utility: 5 tools, Batch: 1 tool). Features code generation, Physics/NavMesh bundles, UI Toolkit support, and batch sequential execution for intelligent game creation through AI collaboration.",
   "unity": "2022.3",
   "keywords": [
     "mcp",

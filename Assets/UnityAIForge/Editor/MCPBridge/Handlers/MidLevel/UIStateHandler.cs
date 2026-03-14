@@ -26,7 +26,6 @@ namespace MCP.Editor.Handlers
             "loadState",
             "listStates",
             "createStateGroup",
-            "transitionTo",
             "getActiveState",
         };
 
@@ -46,7 +45,6 @@ namespace MCP.Editor.Handlers
                 "loadState" => LoadState(payload),
                 "listStates" => ListStates(payload),
                 "createStateGroup" => CreateStateGroup(payload),
-                "transitionTo" => TransitionTo(payload),
                 "getActiveState" => GetActiveState(payload),
                 _ => throw new InvalidOperationException($"Unsupported UI state operation: {operation}"),
             };
@@ -463,41 +461,6 @@ namespace MCP.Editor.Handlers
                 ["defaultState"] = defaultState,
                 ["states"] = stateNames
             };
-        }
-
-        #endregion
-
-        #region Transition To
-
-        private object TransitionTo(Dictionary<string, object> payload)
-        {
-            var stateName = GetString(payload, "stateName");
-            if (string.IsNullOrEmpty(stateName))
-            {
-                throw new InvalidOperationException("stateName is required for transitionTo operation.");
-            }
-
-            var rootPath = GetString(payload, "rootPath");
-            if (string.IsNullOrEmpty(rootPath))
-            {
-                throw new InvalidOperationException("rootPath is required for transitionTo operation.");
-            }
-
-            // For now, transition is just apply (no animation in Editor)
-            // In future, this could support tween/animation preview
-            var result = ApplyState(new Dictionary<string, object>
-            {
-                ["stateName"] = stateName,
-                ["rootPath"] = rootPath
-            });
-
-            if (result is Dictionary<string, object> resultDict)
-            {
-                resultDict["operation"] = "transitionTo";
-                resultDict["message"] = $"Transitioned to state '{stateName}'.";
-            }
-
-            return result;
         }
 
         #endregion

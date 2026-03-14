@@ -1,4 +1,4 @@
-"""Tool definitions for all 42 MCP tools (41 registry + 1 batch_sequential).
+"""Tool definitions for all 41 MCP tools (40 registry + 1 batch_sequential).
 
 Each entry is a ``types.Tool`` with name, description, and inputSchema.
 Schema functions are imported from ``tools.schemas`` and called to produce
@@ -11,8 +11,7 @@ import mcp.types as types
 
 from tools.batch_sequential import TOOL as batch_sequential_tool
 from tools.schemas import (
-    animation2d_bundle_schema,
-    animation3d_bundle_schema,
+    animation_bundle_schema,
     asset_manage_schema,
     camera_bundle_schema,
     class_catalog_schema,
@@ -57,7 +56,7 @@ from tools.schemas import (
 
 
 def get_tool_definitions() -> list[types.Tool]:
-    """Return the list of all 43 MCP tool definitions."""
+    """Return the list of all 42 MCP tool definitions."""
     return [
         # ── Utility ────────────────────────────────────────────────
         types.Tool(
@@ -145,7 +144,9 @@ def get_tool_definitions() -> list[types.Tool]:
             name="unity_gameobject_crud",
             description=(
                 "Full GameObject lifecycle management: create (with templates and auto-attach components), delete, move, rename, "
-                "duplicate, update (tag/layer/active/static), inspect, and batch operations (findMultiple/deleteMultiple/inspectMultiple).\n\n"
+                "duplicate, update (tag/layer/active/static), inspect, and batch operations (createMultiple/findMultiple/deleteMultiple/inspectMultiple).\n\n"
+                "**createMultiple**: Create multiple GameObjects in one call via 'items' array. Each item supports same params as create "
+                "(name, parentPath, template, tag, layer, components). Uses stopOnError (default: true).\n\n"
                 "**Batch matchMode**: 'exact' (name must equal pattern), 'contains' (default, name-contains), "
                 "'wildcard' (supports * and ?), 'regex' (full regex). Use 'exact' to avoid accidental matches "
                 "(e.g., matchMode='exact', pattern='Boss' won't match 'BossHPBar').\n\n"
@@ -179,10 +180,13 @@ def get_tool_definitions() -> list[types.Tool]:
             name="unity_asset_crud",
             description=(
                 "Comprehensive asset file management under Assets/ folder: create (any file type including C# scripts, JSON, text), "
+                "createMultiple (batch create — writes all files first, then single AssetDatabase.Refresh for optimal .cs compilation), "
                 "update (modify file contents), delete, rename, duplicate, inspect (view properties and content), "
                 "updateImporter (modify asset import settings), forceReimport (re-import assets created by external tools), "
                 "and batch operations (findMultiple/deleteMultiple/inspectMultiple with pattern matching). "
                 "Essential for managing scripts, textures, audio, data files, and all Unity assets.\n\n"
+                "**createMultiple**: Use 'items' array with {assetPath, content} objects. All files written to disk first, "
+                "then a single Refresh triggers one compilation cycle. Supports stopOnError (default: true).\n\n"
                 "**Note:** For .cs files, create/update/delete operations automatically wait for Unity compilation "
                 "to complete and return compilation results — no need to call compilation_await separately. "
                 "For .cs files, warns if legacy Input API (Input.GetAxis, etc.) is detected when the project uses the New Input System."
@@ -197,14 +201,17 @@ def get_tool_definitions() -> list[types.Tool]:
         types.Tool(
             name="unity_prefab_crud",
             description=(
-                "Complete prefab workflow management: create, update, inspect, instantiate, unpack, applyOverrides, revertOverrides, "
+                "Complete prefab workflow management: create, update, inspect, instantiate, instantiateMultiple, unpack, applyOverrides, revertOverrides, "
                 "editAsset (direct prefab editing without scene instantiation), editMultiple (batch edit multiple prefabs).\n\n"
+                "**instantiateMultiple**: Instantiate multiple prefabs in one call via 'items' array. Each item supports "
+                "prefabPath, parentPath, name, position, rotation. Uses stopOnError (default: true). "
+                "Ideal for level design: place 20 trees/enemies in one call instead of 20 separate calls.\n\n"
                 "**editAsset**: Edit a prefab asset directly — set tag, layer, add/update/remove components with property changes. "
                 "No need to instantiate→modify→apply→delete. Example: editAsset with tag='Enemy', layer='Enemy', "
                 "componentChanges=[{componentType:'Rigidbody2D', propertyChanges:{gravityScale:0}}].\n\n"
                 "**editMultiple**: Apply the same tag/layer/component changes to multiple prefabs at once. "
                 "Pass prefabPaths array + shared tag/layer/componentChanges.\n\n"
-                "Use 'create' to save GameObjects as prefabs, 'instantiate' to spawn instances, "
+                "Use 'create' to save GameObjects as prefabs, 'instantiate'/'instantiateMultiple' to spawn instances, "
                 "'applyOverrides' to update from modified instance, 'editAsset'/'editMultiple' for direct asset editing."
             ),
             inputSchema=prefab_manage_schema(),
@@ -275,7 +282,6 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- loadState: Load state definition without applying\n"
                 "- listStates: List all defined states for a root\n"
                 "- createStateGroup: Create a group of mutually exclusive states\n"
-                "- transitionTo: Transition to a state (alias for applyState)\n"
                 "- getActiveState: Get currently active state name\n\n"
                 "**Primary Use Case — Gameplay / Menu Switching:**\n"
                 "Define states like 'gameplay', 'paused', 'inventory', 'settings' etc., "
@@ -383,27 +389,27 @@ def get_tool_definitions() -> list[types.Tool]:
             inputSchema=sprite2d_bundle_schema(),
         ),
         types.Tool(
-            name="unity_animation2d_bundle",
-            description="Mid-level 2D animation setup: create Animator components, AnimatorControllers, states, transitions, and AnimationClips from sprite sequences. Operations: setupAnimator (Animator component), createController/addState/addTransition/addParameter/inspectController (AnimatorController), createClipFromSprites/updateClip/inspectClip (AnimationClip). For Animator component update/inspect, use component_crud directly.",
-            inputSchema=animation2d_bundle_schema(),
-        ),
-        types.Tool(
-            name="unity_animation3d_bundle",
+            name="unity_animation_bundle",
             description=(
-                "Create and configure 3D character animations.\n\n"
-                "**Operations:**\n"
+                "Unified animation setup for 2D and 3D.\n\n"
+                "**Shared Operations:**\n"
                 "- setupAnimator: Setup Animator component on GameObject\n"
                 "- createController: Create AnimatorController with parameters/states/transitions\n"
-                "- addState: Add animation state\n"
+                "- addState: Add animation state to controller\n"
                 "- addTransition: Add state transition with conditions\n"
-                "- setParameter: Add/update animator parameter\n"
-                "- addBlendTree: Create BlendTree for smooth animation blending\n"
-                "- createAvatarMask: Create AvatarMask for partial body animation\n"
+                "- addParameter: Add/update animator parameter (with optional defaultValue)\n"
                 "- inspect: Get controller structure\n"
                 "- listParameters: List all parameters\n"
-                "- listStates: List all states in layer"
+                "- listStates: List all states in layer\n\n"
+                "**2D-Only (sprite clips):**\n"
+                "- createClipFromSprites: Create AnimationClip from sprite sequence\n"
+                "- updateClip: Update clip properties (frameRate, loop)\n"
+                "- inspectClip: View clip details\n\n"
+                "**3D-Only (blend trees, avatar masks):**\n"
+                "- addBlendTree: Create BlendTree for smooth animation blending\n"
+                "- createAvatarMask: Create AvatarMask for partial body animation"
             ),
-            inputSchema=animation3d_bundle_schema(),
+            inputSchema=animation_bundle_schema(),
         ),
         types.Tool(
             name="unity_material_bundle",
@@ -562,25 +568,17 @@ def get_tool_definitions() -> list[types.Tool]:
                 "- brokenEvents: Detect UnityEvent listeners with null targets or missing methods\n"
                 "- brokenPrefabs: Detect prefab instances with missing or disconnected assets\n"
                 "- all: Run all checks and return categorized summary\n"
-                "- typeCheck: Detect type mismatches in object reference fields (field type vs actual object type)\n"
+                "- typeCheck: Detect type mismatches in object reference fields\n"
                 "- report: Run all integrity checks across multiple scenes (scope: active_scene/build_scenes/all_scenes)\n"
-                "- checkPrefab: Validate a prefab asset for missing scripts, null refs, and broken events\n"
-                "- canvasGroupAudit: Detect CanvasGroup alpha conflicts (parent alpha=0 blocks child) and mismatched references\n"
-                "- referenceSemantics: Detect logical reference issues (references to inactive objects, self-references)\n"
-                "- requiredFieldAudit: Detect null SerializedFields that are used in code without null guards\n"
-                "- uiOverflowAudit: Detect UI layout overflow (content exceeding parent bounds without ScrollRect, sizeDelta overflow)\n"
-                "- uiOverlapAudit: Detect UI sibling overlap (same-position without LayoutGroup, interactive overlap, raycast blocking)\n"
-                "- nullAssetAudit: Detect null asset references (Sprite, AudioClip, etc.) in ScriptableObject assets\n"
-                "- touchTargetAudit: Detect interactive UI elements (Button, Toggle, Slider) smaller than 44x44 minimum touch target size\n"
-                "- eventSystemAudit: Detect scenes with Canvas/UIDocument but no EventSystem, or duplicate EventSystems\n"
-                "- textOverflowAudit: Detect Text/TextMeshPro elements where content exceeds RectTransform bounds\n"
-                "- styleConsistencyAudit: Detect cross-element design consistency issues (button color variation, "
-                "font size scale violations, spacing inconsistency, no-op CanvasGroups, missing interaction feedback, "
-                "unnecessary raycast targets, inconsistent sibling anchor patterns)\n"
-                "- inputSystemAudit: Detect Input System consistency issues (PlayerInput notificationBehavior vs method signatures, "
-                "action expectedControlType vs binding composite type, missing callback methods)\n"
-                "- scriptContentAudit: Scan C# scripts for legacy Input API usage (when New Input System is installed), "
-                "obsolete Unity APIs, and empty MonoBehaviours. Use searchPath to limit scope.\n\n"
+                "- checkPrefab: Validate a prefab asset for integrity issues\n"
+                "- referenceSemantics: Detect logical reference issues (inactive refs, self-references)\n"
+                "- requiredFieldAudit: Detect null SerializedFields used in code without null guards\n"
+                "- nullAssetAudit: Detect null asset references in ScriptableObject assets\n"
+                "- uiAudit: Consolidated UI audit with 7 check types via 'checks' param "
+                "(canvasGroup, overflow, overlap, touchTarget, eventSystem, textOverflow, styleConsistency). "
+                "Omit 'checks' to run all. Returns per-check issue counts + merged issue list.\n"
+                "- inputSystemAudit: Detect Input System consistency issues\n"
+                "- scriptContentAudit: Scan C# scripts for legacy API and empty MonoBehaviours\n\n"
                 "**Use after:** Deleting GameObjects/Components, renaming objects, changing prefab references, "
                 "modifying UnityEvent connections, or changing ScriptableObject references.\n\n"
                 "Returns a flat issue list with type, severity (error/warning), gameObjectPath, message, and optional suggestion. "

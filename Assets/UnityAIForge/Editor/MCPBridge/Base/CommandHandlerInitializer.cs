@@ -161,7 +161,7 @@ namespace MCP.Editor.Base
             if (!TryRegister("inputProfile", () => new InputProfileHandler())) failed++;
             if (!TryRegister("tilemapBundle", () => new TilemapBundleHandler())) failed++;
             if (!TryRegister("sprite2DBundle", () => new Sprite2DBundleHandler())) failed++;
-            if (!TryRegister("animation2DBundle", () => new Animation2DBundleHandler())) failed++;
+            if (!TryRegister("animationBundle", () => new AnimationBundleHandler())) failed++;
 
             // UI Toolkit tools
             if (!TryRegister("uitkDocument", () => new UITKDocumentHandler())) failed++;
@@ -191,8 +191,7 @@ namespace MCP.Editor.Base
             if (!TryRegister("lightBundle", () => new LightBundleHandler())) failed++;
             if (!TryRegister("particleBundle", () => new ParticleBundleHandler())) failed++;
 
-            // アニメーション・イベント
-            if (!TryRegister("animation3DBundle", () => new Animation3DBundleHandler())) failed++;
+            // イベント
             if (!TryRegister("eventWiring", () => new EventWiringHandler())) failed++;
             return failed;
         }

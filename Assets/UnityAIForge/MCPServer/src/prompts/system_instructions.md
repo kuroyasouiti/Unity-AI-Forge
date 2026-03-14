@@ -1,6 +1,6 @@
 # Unity-AI-Forge MCP Server v{VERSION} - Quick Reference
 
-AI駆動型Unity開発ツールキット。41ツール、3層構造（Low/Mid/High-Level）。
+AI駆動型Unity開発ツールキット。40ツール、3層構造（Low/Mid/High-Level）。
 
 ## 🔴 Critical Rules
 
@@ -90,17 +90,17 @@ unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath=
 
 ---
 
-## 📋 ツール一覧 (41ツール)
+## 📋 ツール一覧 (40ツール)
 
 ### High-Level (9) - 解析・検証 + GameKit UI + Data
 
 | カテゴリ | ツール |
 |---------|-------|
-| **Logic (7)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph, unity_scene_dependency, unity_script_syntax |
+| **Logic (8)** 解析・検証 | unity_validate_integrity, unity_class_catalog, unity_class_dependency_graph, unity_scene_reference_graph, unity_scene_relationship_graph, unity_scene_dependency, unity_script_syntax, unity_spatial_analysis |
 | **GameKit UI (1)** UIシステム | unity_gamekit_ui (widgetType: command, binding, list, slot, selection) |
 | **GameKit Data (1)** データ・プール | unity_gamekit_data (dataType: pool, eventChannel, dataContainer, runtimeSet) |
 
-### Mid-Level (19) - バッチ操作・プリセット
+### Mid-Level (17) - バッチ操作・プリセット
 
 | カテゴリ | ツール |
 |---------|-------|
@@ -110,8 +110,9 @@ unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath=
 | UI (UGUI) | unity_ui_foundation, unity_ui_state, unity_ui_navigation, unity_ui_convert |
 | UI Toolkit | unity_uitk_document, unity_uitk_asset |
 | Input | unity_input_profile |
-| 2D | unity_tilemap_bundle, unity_sprite2d_bundle, unity_animation2d_bundle |
-| 3D/Visual | unity_material_bundle, unity_light_bundle, unity_particle_bundle, unity_animation3d_bundle |
+| 2D | unity_tilemap_bundle, unity_sprite2d_bundle |
+| Animation | unity_animation_bundle (2D+3D統合) |
+| Visual | unity_material_bundle, unity_light_bundle, unity_particle_bundle |
 
 ### Low-Level CRUD (8)
 
@@ -129,7 +130,7 @@ unity_ping, unity_compilation_await, unity_event_wiring, unity_playmode_control,
 |-------|---------|-----------|
 | **Plan** | 現状把握・影響調査（初回はプロジェクト状態チェックも実施） | `inspect`操作, `scene_reference_graph(findReferencesTo)`, `class_dependency_graph(analyzeClass)`, `class_catalog(listTypes)`, `scene_dependency(analyzeScene)`, `script_syntax(analyzeScript)`, `projectSettings_crud(read, player)` |
 | **Do** | 適切なレイヤーで実行 | GameKit, Batch, CRUD → `compilation_await(await)` |
-| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `validate_integrity(styleConsistencyAudit)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
+| **Check** | 整合性検証 | `validate_integrity(all)`, `validate_integrity(typeCheck)`, `validate_integrity(uiAudit)`, `console_log(diff)`, `console_log(filter)`, `scene_relationship_graph(analyzeAll)`, `scene_dependency(findUnusedAssets)`, `script_syntax(findUnusedCode)`, `playmode_control(captureState)` |
 | **Act** | 問題修正・動作確認 | `event_wiring(wire)`, `playmode_control(play/stop)` |
 
 ---
@@ -142,7 +143,8 @@ unity_validate_integrity(operation='all')                    # 全チェック
 unity_validate_integrity(operation='typeCheck')              # 型ミスマッチ検出
 unity_validate_integrity(operation='report', scope='build_scenes')  # 複数シーンレポート
 unity_validate_integrity(operation='checkPrefab', prefabPath='Assets/Prefabs/Player.prefab')  # Prefab検証
-unity_validate_integrity(operation='styleConsistencyAudit')  # UIデザイン一貫性（色・フォント・スペーシング）
+unity_validate_integrity(operation='uiAudit')                                # 全UIチェック（7種）
+unity_validate_integrity(operation='uiAudit', checks=['overflow', 'overlap']) # 特定UIチェックのみ
 
 # クラスカタログ（型の列挙・詳細）
 unity_class_catalog(operation='listTypes', typeKind='MonoBehaviour', searchPath='Assets/Scripts')
