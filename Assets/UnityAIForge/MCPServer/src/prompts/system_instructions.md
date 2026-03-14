@@ -385,6 +385,11 @@ unity_scene_crud(operation='load', scenePath='Assets/Scenes/Level1.unity')
 # GameObject（createでcomponents配列指定可）
 unity_gameobject_crud(operation='create', name='Player', parentPath='Characters',
     components=[{'type':'UnityEngine.Rigidbody2D','properties':{'gravityScale':0}}])
+# 一括作成（items配列）
+unity_gameobject_crud(operation='createMultiple', items=[
+    {'name':'Enemy_01', 'parentPath':'Enemies', 'tag':'Enemy'},
+    {'name':'Enemy_02', 'parentPath':'Enemies', 'tag':'Enemy'}
+])
 unity_gameobject_crud(operation='findMultiple', pattern='Enemy*', maxResults=100)
 # matchMode: exact|contains|wildcard|regex（デフォルト: contains）
 # exact を使うと 'Boss' が 'BossHPBar' にマッチしない
@@ -404,6 +409,11 @@ unity_component_crud(operation='crossSceneUpdate', updates=[
 
 # Asset
 unity_asset_crud(operation='create', assetPath='Assets/Scripts/Player.cs', content='...')
+# 一括作成（1回のRefreshで全ファイルをインポート。.csは1回のコンパイルで済む）
+unity_asset_crud(operation='createMultiple', items=[
+    {'assetPath':'Assets/Scripts/IWeapon.cs', 'content':'...'},
+    {'assetPath':'Assets/Scripts/Sword.cs', 'content':'...'}
+])
 unity_asset_crud(operation='updateImporter', assetPath='Assets/Textures/s.png', propertyChanges={'textureType':'Sprite'})
 unity_asset_crud(operation='forceReimport', assetPath='Assets/Scripts/Player.cs')  # 外部ツールで作成したファイルをUnityに認識させる
 
@@ -413,6 +423,11 @@ unity_scriptableObject_crud(operation='create', typeName='MyGame.Config', assetP
 # Prefab
 unity_prefab_crud(operation='create', gameObjectPath='Player', prefabPath='Assets/Prefabs/Player.prefab')
 unity_prefab_crud(operation='instantiate', prefabPath='Assets/Prefabs/Enemy.prefab', parentPath='Enemies', position={'x':0,'y':0,'z':5})
+# 一括インスタンス化（レベルデザインに最適）
+unity_prefab_crud(operation='instantiateMultiple', items=[
+    {'prefabPath':'Assets/Prefabs/Tree.prefab', 'position':{'x':5,'y':0,'z':3}},
+    {'prefabPath':'Assets/Prefabs/Tree.prefab', 'position':{'x':-2,'y':0,'z':8}}
+])
 # Prefab直接編集（instantiate不要）
 unity_prefab_crud(operation='editAsset', prefabPath='Assets/Prefabs/Enemy.prefab',
     tag='Enemy', layer='Enemy', componentChanges=[{'componentType':'CircleCollider2D','propertyChanges':{'isTrigger':True}}])

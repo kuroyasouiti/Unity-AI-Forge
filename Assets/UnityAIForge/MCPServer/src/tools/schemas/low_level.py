@@ -69,6 +69,7 @@ def game_object_manage_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": [
                         "create",
+                        "createMultiple",
                         "delete",
                         "move",
                         "rename",
@@ -156,6 +157,56 @@ def game_object_manage_schema() -> dict[str, Any]:
                         "required": ["type"],
                     },
                     "description": "Components to automatically attach when creating a GameObject. Each item specifies a component type and optional property values.",
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Name for the new GameObject.",
+                            },
+                            "parentPath": {
+                                "type": "string",
+                                "description": "Parent GameObject path.",
+                            },
+                            "template": {
+                                "type": "string",
+                                "description": "Primitive template (e.g., 'Cube', 'Sphere').",
+                            },
+                            "tag": {
+                                "type": "string",
+                                "description": "Tag to assign.",
+                            },
+                            "layer": {
+                                "oneOf": [{"type": "integer"}, {"type": "string"}],
+                                "description": "Layer by number or name.",
+                            },
+                            "components": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "type": {"type": "string"},
+                                        "properties": {
+                                            "type": "object",
+                                            "additionalProperties": True,
+                                        },
+                                    },
+                                    "required": ["type"],
+                                },
+                                "description": "Components to auto-attach.",
+                            },
+                        },
+                        "required": ["name"],
+                    },
+                    "description": "Array of GameObjects to create for createMultiple operation. "
+                    "Each item supports same parameters as single create (name, parentPath, template, tag, layer, components).",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "Stop batch operation on first error (default: true). Used by createMultiple.",
                 },
             },
         },
@@ -282,6 +333,7 @@ def asset_manage_schema() -> dict[str, Any]:
                     "type": "string",
                     "enum": [
                         "create",
+                        "createMultiple",
                         "update",
                         "updateImporter",
                         "delete",
@@ -297,6 +349,8 @@ def asset_manage_schema() -> dict[str, Any]:
                         "Asset operation to perform. "
                         "Note: For .cs files, create/update/delete operations automatically wait for "
                         "Unity compilation to complete — no need to call compilation_await separately. "
+                        "'createMultiple': create multiple assets in one call — writes all files first, "
+                        "then triggers a single AssetDatabase.Refresh() (optimal for batch .cs creation). "
                         "'forceReimport': re-import an asset with ForceUpdate to fix import state "
                         "(useful when files were created by external tools outside AssetDatabase)."
                     ),
@@ -337,6 +391,30 @@ def asset_manage_schema() -> dict[str, Any]:
                 "maxResults": {
                     "type": "integer",
                     "description": "Maximum results for batch operations (default: 1000).",
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "assetPath": {
+                                "type": "string",
+                                "description": "Asset file path (e.g., 'Assets/Scripts/Player.cs').",
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "File content.",
+                            },
+                        },
+                        "required": ["assetPath"],
+                    },
+                    "description": "Array of assets to create for createMultiple operation. "
+                    "All files are written first, then a single AssetDatabase.Refresh() is triggered "
+                    "(optimal for batch .cs creation — only 1 compilation cycle).",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "Stop batch operation on first error (default: true). Used by createMultiple.",
                 },
             },
         },
@@ -498,6 +576,7 @@ def prefab_manage_schema() -> dict[str, Any]:
                         "update",
                         "inspect",
                         "instantiate",
+                        "instantiateMultiple",
                         "unpack",
                         "applyOverrides",
                         "revertOverrides",
@@ -581,6 +660,51 @@ def prefab_manage_schema() -> dict[str, Any]:
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Array of prefab asset paths for editMultiple operation.",
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "prefabPath": {
+                                "type": "string",
+                                "description": "Asset path to prefab file.",
+                            },
+                            "parentPath": {
+                                "type": "string",
+                                "description": "Parent GameObject path for instantiation.",
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Override name for the instantiated GameObject.",
+                            },
+                            "position": {
+                                "type": "object",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                                "description": "World position.",
+                            },
+                            "rotation": {
+                                "type": "object",
+                                "properties": {
+                                    "x": {"type": "number"},
+                                    "y": {"type": "number"},
+                                    "z": {"type": "number"},
+                                },
+                                "description": "Euler rotation.",
+                            },
+                        },
+                        "required": ["prefabPath"],
+                    },
+                    "description": "Array of prefabs to instantiate for instantiateMultiple operation. "
+                    "Each item supports prefabPath, parentPath, name, position, rotation.",
+                },
+                "stopOnError": {
+                    "type": "boolean",
+                    "description": "Stop batch operation on first error (default: true). Used by instantiateMultiple.",
                 },
             },
         },

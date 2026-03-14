@@ -22,6 +22,7 @@ namespace MCP.Editor.Handlers
         public override IEnumerable<string> SupportedOperations => new[]
         {
             "create",
+            "createMultiple",
             "update",
             "updateImporter",
             "delete",
@@ -50,6 +51,7 @@ namespace MCP.Editor.Handlers
             return operation switch
             {
                 "create" => CreateAsset(payload),
+                "createMultiple" => CreateMultipleAssets(payload),
                 "update" => UpdateAsset(payload),
                 "updateImporter" => UpdateAssetImporter(payload),
                 "delete" => DeleteAsset(payload),
@@ -128,6 +130,118 @@ namespace MCP.Editor.Handlers
             return response;
         }
         
+        /// <summary>
+        /// Creates multiple assets in a single call.
+        /// Writes all files first, then calls AssetDatabase.Refresh() once (key optimization for .cs files).
+        /// </summary>
+        private object CreateMultipleAssets(Dictionary<string, object> payload)
+        {
+            var items = GetListFromPayload(payload, "items");
+            if (items == null || items.Count == 0)
+                throw new InvalidOperationException("items array is required for createMultiple.");
+
+            var stopOnError = GetBool(payload, "stopOnError", true);
+
+            var results = new List<Dictionary<string, object>>();
+            var writtenPaths = new List<string>();
+            int successCount = 0;
+            int errorCount = 0;
+
+            // Phase 1: Write all files to disk without triggering import
+            foreach (var itemObj in items)
+            {
+                if (itemObj is not Dictionary<string, object> item)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["error"] = "Invalid item format: expected object."
+                    });
+                    errorCount++;
+                    if (stopOnError) break;
+                    continue;
+                }
+
+                var assetPath = item.ContainsKey("assetPath") ? item["assetPath"]?.ToString() : null;
+                var content = item.ContainsKey("content") ? item["content"]?.ToString() : null;
+
+                try
+                {
+                    if (string.IsNullOrEmpty(assetPath))
+                        throw new InvalidOperationException("assetPath is required for each item.");
+
+                    if (!ValidateAssetPath(assetPath))
+                        throw new InvalidOperationException($"Invalid asset path: {assetPath}");
+
+                    if (File.Exists(assetPath))
+                        throw new InvalidOperationException($"Asset already exists: {assetPath}");
+
+                    // Ensure directory exists
+                    var directory = Path.GetDirectoryName(assetPath);
+                    if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        Directory.CreateDirectory(directory);
+
+                    // Write file without importing
+                    File.WriteAllText(assetPath, content ?? string.Empty);
+                    writtenPaths.Add(assetPath);
+
+                    var result = new Dictionary<string, object>
+                    {
+                        ["success"] = true,
+                        ["assetPath"] = assetPath
+                    };
+
+                    // Scan for legacy Input API in .cs files
+                    if (assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(content))
+                    {
+                        var warnings = ScanForLegacyInputAPI(content);
+                        if (warnings.Count > 0)
+                            result["warnings"] = warnings;
+                    }
+
+                    results.Add(result);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["assetPath"] = assetPath,
+                        ["error"] = ex.Message
+                    });
+                    errorCount++;
+                    if (stopOnError) break;
+                }
+            }
+
+            // Phase 2: Single AssetDatabase.Refresh() for all written files
+            if (writtenPaths.Count > 0)
+            {
+                AssetDatabase.Refresh();
+
+                // Verify and fill in GUIDs
+                for (int i = 0; i < results.Count; i++)
+                {
+                    var r = results[i];
+                    if (r.ContainsKey("success") && (bool)r["success"] && r.ContainsKey("assetPath"))
+                    {
+                        var path = r["assetPath"].ToString();
+                        var guid = AssetDatabase.AssetPathToGUID(path);
+                        if (!string.IsNullOrEmpty(guid))
+                            r["guid"] = guid;
+                    }
+                }
+            }
+
+            return CreateSuccessResponse(
+                ("results", results),
+                ("totalCount", items.Count),
+                ("successCount", successCount),
+                ("errorCount", errorCount)
+            );
+        }
+
         /// <summary>
         /// Updates an existing text asset.
         /// </summary>

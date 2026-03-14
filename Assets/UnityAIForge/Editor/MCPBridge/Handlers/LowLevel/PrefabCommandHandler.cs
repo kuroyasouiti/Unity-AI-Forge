@@ -25,6 +25,7 @@ namespace MCP.Editor.Handlers
             "update",
             "inspect",
             "instantiate",
+            "instantiateMultiple",
             "unpack",
             "applyOverrides",
             "revertOverrides",
@@ -57,6 +58,7 @@ namespace MCP.Editor.Handlers
                 "update" => UpdatePrefab(payload),
                 "inspect" => InspectPrefab(payload),
                 "instantiate" => InstantiatePrefab(payload),
+                "instantiateMultiple" => InstantiateMultiplePrefabs(payload),
                 "unpack" => UnpackPrefab(payload),
                 "applyOverrides" => ApplyPrefabOverrides(payload),
                 "revertOverrides" => RevertPrefabOverrides(payload),
@@ -254,6 +256,117 @@ namespace MCP.Editor.Handlers
             );
         }
         
+        /// <summary>
+        /// Instantiates multiple prefabs in a single call.
+        /// Each item can specify prefabPath, parentPath, position, rotation, and name.
+        /// </summary>
+        private object InstantiateMultiplePrefabs(Dictionary<string, object> payload)
+        {
+            var items = GetListFromPayload(payload, "items");
+            if (items == null || items.Count == 0)
+                throw new InvalidOperationException("items array is required for instantiateMultiple.");
+
+            var stopOnError = GetBool(payload, "stopOnError", true);
+
+            var results = new List<Dictionary<string, object>>();
+            int successCount = 0;
+            int errorCount = 0;
+
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
+
+            foreach (var itemObj in items)
+            {
+                if (itemObj is not Dictionary<string, object> item)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["error"] = "Invalid item format: expected object."
+                    });
+                    errorCount++;
+                    if (stopOnError) break;
+                    continue;
+                }
+
+                try
+                {
+                    var prefabPath = item.ContainsKey("prefabPath") ? item["prefabPath"]?.ToString() : null;
+                    var parentPath = item.ContainsKey("parentPath") ? item["parentPath"]?.ToString() : null;
+                    var instanceName = item.ContainsKey("name") ? item["name"]?.ToString() : null;
+
+                    if (string.IsNullOrEmpty(prefabPath))
+                        throw new InvalidOperationException("prefabPath is required for each item.");
+
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                    if (prefab == null)
+                        throw new InvalidOperationException($"Prefab not found: {prefabPath}");
+
+                    var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                    if (instance == null)
+                        throw new InvalidOperationException($"Failed to instantiate prefab: {prefabPath}");
+
+                    // Set parent
+                    if (!string.IsNullOrEmpty(parentPath))
+                    {
+                        var parent = ResolveGameObject(parentPath);
+                        instance.transform.SetParent(parent.transform, false);
+                    }
+
+                    // Set position
+                    if (item.ContainsKey("position"))
+                    {
+                        instance.transform.position = GetVector3FromDict(
+                            item["position"] as Dictionary<string, object>);
+                    }
+
+                    // Set rotation
+                    if (item.ContainsKey("rotation"))
+                    {
+                        instance.transform.eulerAngles = GetVector3FromDict(
+                            item["rotation"] as Dictionary<string, object>);
+                    }
+
+                    // Set name
+                    if (!string.IsNullOrEmpty(instanceName))
+                        instance.name = instanceName;
+
+                    Undo.RegisterCreatedObjectUndo(instance, $"Instantiate Prefab: {instance.name}");
+
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = true,
+                        ["prefabPath"] = prefabPath,
+                        ["instancePath"] = BuildGameObjectPath(instance),
+                        ["name"] = instance.name,
+                        ["instanceID"] = instance.GetInstanceID()
+                    });
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["prefabPath"] = item.ContainsKey("prefabPath") ? item["prefabPath"]?.ToString() : null,
+                        ["error"] = ex.Message
+                    });
+                    errorCount++;
+                    if (stopOnError) break;
+                }
+            }
+
+            Undo.SetCurrentGroupName($"MCP: Instantiate {successCount} Prefabs");
+            Undo.CollapseUndoOperations(undoGroup);
+
+            return CreateSuccessResponse(
+                ("results", results),
+                ("totalCount", items.Count),
+                ("successCount", successCount),
+                ("errorCount", errorCount)
+            );
+        }
+
         /// <summary>
         /// Unpacks a prefab instance.
         /// </summary>

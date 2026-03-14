@@ -37,6 +37,7 @@ namespace MCP.Editor.Handlers
         public override IEnumerable<string> SupportedOperations => new[]
         {
             "create",
+            "createMultiple",
             "delete",
             "move",
             "rename",
@@ -64,6 +65,7 @@ namespace MCP.Editor.Handlers
             return operation switch
             {
                 "create" => CreateGameObject(payload),
+                "createMultiple" => CreateMultipleGameObjects(payload),
                 "delete" => DeleteGameObject(payload),
                 "move" => MoveGameObject(payload),
                 "rename" => RenameGameObject(payload),
@@ -397,10 +399,75 @@ namespace MCP.Editor.Handlers
             return info;
         }
         
+        /// <summary>
+        /// Creates multiple GameObjects in a single call.
+        /// Accepts an items array, each with the same schema as single create.
+        /// </summary>
+        private object CreateMultipleGameObjects(Dictionary<string, object> payload)
+        {
+            var items = GetListFromPayload(payload, "items");
+            if (items == null || items.Count == 0)
+                throw new InvalidOperationException("items array is required for createMultiple.");
+
+            var stopOnError = GetBool(payload, "stopOnError", true);
+
+            var results = new List<Dictionary<string, object>>();
+            int successCount = 0;
+            int errorCount = 0;
+
+            Undo.IncrementCurrentGroup();
+            var undoGroup = Undo.GetCurrentGroup();
+
+            foreach (var itemObj in items)
+            {
+                if (itemObj is not Dictionary<string, object> item)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["error"] = "Invalid item format: expected object."
+                    });
+                    errorCount++;
+                    if (stopOnError) break;
+                    continue;
+                }
+
+                try
+                {
+                    // Delegate to single create with item as payload
+                    item["operation"] = "create";
+                    var result = CreateGameObject(item) as Dictionary<string, object>;
+                    results.Add(result ?? CreateSuccessResponse());
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new Dictionary<string, object>
+                    {
+                        ["success"] = false,
+                        ["name"] = item.ContainsKey("name") ? item["name"]?.ToString() : null,
+                        ["error"] = ex.Message
+                    });
+                    errorCount++;
+                    if (stopOnError) break;
+                }
+            }
+
+            Undo.SetCurrentGroupName($"MCP: Create {successCount} GameObjects");
+            Undo.CollapseUndoOperations(undoGroup);
+
+            return CreateSuccessResponse(
+                ("results", results),
+                ("totalCount", items.Count),
+                ("successCount", successCount),
+                ("errorCount", errorCount)
+            );
+        }
+
         #endregion
-        
+
         #region Batch Operations
-        
+
         /// <summary>
         /// Finds multiple GameObjects matching a pattern.
         /// </summary>

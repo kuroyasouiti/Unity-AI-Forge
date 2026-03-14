@@ -90,10 +90,10 @@ Located in `Assets/UnityAIForge/Editor/MCPBridge/Handlers/`, handlers are organi
 
 **LowLevel/** (7 handlers) - Basic Unity operations:
 - `SceneCommandHandler.cs` - Scene management (create/load/save/delete/inspect)
-- `GameObjectCommandHandler.cs` - GameObject lifecycle (create/delete/move/rename/duplicate/inspect/batch)
+- `GameObjectCommandHandler.cs` - GameObject lifecycle (create/createMultiple/delete/move/rename/duplicate/inspect/batch)
 - `ComponentCommandHandler.cs` - Component manipulation (add/remove/update/inspect/batch)
-- `AssetCommandHandler.cs` - Asset file management (create/update/delete/rename/inspect)
-- `PrefabCommandHandler.cs` - Prefab operations (create/instantiate/apply/revert/unpack)
+- `AssetCommandHandler.cs` - Asset file management (create/createMultiple/update/delete/rename/inspect)
+- `PrefabCommandHandler.cs` - Prefab operations (create/instantiate/instantiateMultiple/apply/revert/unpack)
 - `ScriptableObjectCommandHandler.cs` - ScriptableObject management
 - `VectorSpriteConvertHandler.cs` - Vector/primitive to sprite conversion
 
